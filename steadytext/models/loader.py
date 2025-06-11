@@ -1,17 +1,22 @@
+# AIDEV-NOTE: Thread-safe singleton model loader with caching and validation
+# Handles both generator and embedder models with proper cleanup
+
 from llama_cpp import Llama
 from pathlib import Path
 import threading
-from typing import Optional, Dict, Any
+from typing import Optional
 from ..utils import (
     logger,
     LLAMA_CPP_MAIN_PARAMS_DETERMINISTIC,
     LLAMA_CPP_EMBEDDING_PARAMS_DETERMINISTIC,
     EMBEDDING_DIMENSION,
-    DEFAULT_SEED,
-    set_deterministic_environment
+    set_deterministic_environment,
 )
 from .cache import get_generation_model_path, get_embedding_model_path
 
+
+# AIDEV-NOTE: Critical singleton pattern implementation for model caching
+# Thread-safe with proper resource management and dimension validation
 class _ModelInstanceCache:
     _instance = None
     _lock = threading.Lock()
@@ -33,6 +38,7 @@ class _ModelInstanceCache:
     def __init__(self):
         raise RuntimeError("Call __getInstance() instead")
 
+    # AIDEV-NOTE: Generator model loading with parameter configuration and error handling
     @classmethod
     def get_generator(cls, force_reload: bool = False) -> Optional[Llama]:
         inst = cls.__getInstance()
@@ -42,7 +48,11 @@ class _ModelInstanceCache:
                 logger.error("Generator model file not found by cache.")
                 return None
 
-            if inst._generator_model is None or inst._generator_path != model_path or force_reload:
+            if (
+                inst._generator_model is None
+                or inst._generator_path != model_path
+                or force_reload
+            ):
                 if inst._generator_model is not None:
                     del inst._generator_model
                     inst._generator_model = None
@@ -61,6 +71,7 @@ class _ModelInstanceCache:
                     inst._generator_path = None
             return inst._generator_model
 
+    # AIDEV-NOTE: Embedder model loading with dimension validation - critical for consistency
     @classmethod
     def get_embedder(cls, force_reload: bool = False) -> Optional[Llama]:
         inst = cls.__getInstance()
@@ -70,7 +81,11 @@ class _ModelInstanceCache:
                 logger.error("Embedder model file not found by cache.")
                 return None
 
-            if inst._embedder_model is None or inst._embedder_path != model_path or force_reload:
+            if (
+                inst._embedder_model is None
+                or inst._embedder_path != model_path
+                or force_reload
+            ):
                 if inst._embedder_model is not None:
                     del inst._embedder_model
                     inst._embedder_model = None
@@ -81,7 +96,11 @@ class _ModelInstanceCache:
 
                     inst._embedder_model = Llama(model_path=str(model_path), **params)
 
-                    model_n_embd = inst._embedder_model.n_embd() if hasattr(inst._embedder_model, 'n_embd') else 0
+                    model_n_embd = (
+                        inst._embedder_model.n_embd()
+                        if hasattr(inst._embedder_model, "n_embd")
+                        else 0
+                    )
                     if model_n_embd != EMBEDDING_DIMENSION:
                         logger.error(
                             f"Embedder model n_embd ({model_n_embd}) "
@@ -99,8 +118,10 @@ class _ModelInstanceCache:
                     inst._embedder_path = None
             return inst._embedder_model
 
+
 def get_generator_model_instance(force_reload: bool = False) -> Optional[Llama]:
     return _ModelInstanceCache.get_generator(force_reload)
+
 
 def get_embedding_model_instance(force_reload: bool = False) -> Optional[Llama]:
     return _ModelInstanceCache.get_embedder(force_reload)

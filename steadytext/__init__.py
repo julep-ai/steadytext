@@ -1,24 +1,67 @@
 """
 SteadyText: Deterministic text generation and embedding with zero configuration.
+
+AIDEV-NOTE: Fixed "Never Fails" principle - embed() now catches TypeErrors and returns zero vectors
 """
 
 # Version of the steadytext package - should match pyproject.toml
 __version__ = "0.1.0"
 
-# For the purpose of test_gen.py, keep this minimal.
-# The test_gen.py script imports directly from submodules like steadytext.models.loader
-# and steadytext.utils, so this __init__.py doesn't need to expose the full public API
-# if that's causing import issues in this specific script execution context.
+# Import core functions and classes for public API
+import numpy as np
+from typing import Optional
+from .core.generator import DeterministicGenerator
+from .core.embedder import create_embedding
+from .utils import (
+    logger,
+    DEFAULT_SEED,
+    GENERATION_MAX_NEW_TOKENS,
+    EMBEDDING_DIMENSION,
+    get_cache_dir,
+)
+from .models.loader import get_generator_model_instance, get_embedding_model_instance
 
-# If a full library build was intended, this would be populated with:
-# from .utils import logger, DEFAULT_SEED, ...
-# from .core.generator import generate_text as core_generate_text
-# from .core.embedder import create_embedding as core_create_embedding
-# etc. and __all__
+# Create a global generator instance for the public API
+_global_generator = DeterministicGenerator()
 
-# logger = None # Placeholder if other modules try `from .. import logger` via this.
-              # Ideally, direct submodule imports are used by internal components.
-              # The utils.logger should be used directly.
-# Removing the placeholder logger too, to keep it truly minimal for this test.
-# The test_gen.py script imports logger from steadytext.utils directly.
-# Stray EOL was here. Removed.
+def generate(prompt: str, seed: Optional[int] = None) -> str:
+    """Generate text deterministically from a prompt."""
+    return _global_generator.generate(prompt, seed=seed)
+
+def embed(text_input) -> np.ndarray:
+    """Create embeddings for text input."""
+    try:
+        return create_embedding(text_input)
+    except TypeError as e:
+        logger.error(f"Invalid input type for embedding: {e}")
+        return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
+
+def preload_models(verbose: bool = False):
+    """Preload models to ensure they're available for generation and embedding."""
+    if verbose:
+        logger.info("Preloading generator model...")
+    get_generator_model_instance()
+    
+    if verbose:
+        logger.info("Preloading embedding model...")
+    get_embedding_model_instance()
+    
+    if verbose:
+        logger.info("Model preloading completed.")
+
+def get_model_cache_dir() -> str:
+    """Get the model cache directory path as a string."""
+    return str(get_cache_dir())
+
+# Export public API
+__all__ = [
+    "generate",
+    "embed", 
+    "preload_models",
+    "get_model_cache_dir",
+    "DEFAULT_SEED",
+    "GENERATION_MAX_NEW_TOKENS", 
+    "EMBEDDING_DIMENSION",
+    "logger",
+    "__version__"
+]

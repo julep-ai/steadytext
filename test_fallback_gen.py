@@ -1,9 +1,10 @@
 import sys
 import os
-sys.path.insert(0, os.path.join(os.getcwd(), 'src'))
+
+sys.path.insert(0, os.getcwd())
 
 from steadytext.core.generator import _deterministic_fallback_generate
-from steadytext.utils import GENERATION_MAX_NEW_TOKENS # For length check
+from steadytext.utils import GENERATION_MAX_NEW_TOKENS  # For length check
 
 print("Testing fallback generator...")
 
@@ -25,10 +26,16 @@ assert output1 != output3, "Fallback for different prompts should be different"
 print("SUCCESS: Fallback for different prompts are different.")
 
 len_output1 = len(output1.split())
-assert (GENERATION_MAX_NEW_TOKENS - 10) <= len_output1 <= (GENERATION_MAX_NEW_TOKENS + 10),     f"Fallback word count ({len_output1}) not in range [{GENERATION_MAX_NEW_TOKENS-10}, {GENERATION_MAX_NEW_TOKENS+10}]"
+assert (
+    (GENERATION_MAX_NEW_TOKENS - 10) <= len_output1 <= (GENERATION_MAX_NEW_TOKENS + 10)
+), (
+    f"Fallback word count ({len_output1}) not in range [{GENERATION_MAX_NEW_TOKENS - 10}, {GENERATION_MAX_NEW_TOKENS + 10}]"
+)
 print(f"SUCCESS: Fallback word count ({len_output1}) is in the expected range.")
 
-assert output_empty == _deterministic_fallback_generate("   "), "Fallback for empty and whitespace-only should be identical due to placeholder hashing"
+assert output_empty == _deterministic_fallback_generate("   "), (
+    "Fallback for empty and whitespace-only should be identical due to placeholder hashing"
+)
 print("SUCCESS: Fallback for empty and whitespace-only prompt is identical.")
 
 print("Fallback generator test completed successfully.")

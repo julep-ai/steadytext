@@ -1,3 +1,8 @@
+# AIDEV-NOTE: Core text generation module with deterministic fallback mechanism
+# Implements both model-based generation and hash-based deterministic fallback
+# AIDEV-NOTE: Fixed fallback behavior - generator now calls _deterministic_fallback_generate() when model is None
+# AIDEV-NOTE: Added stop sequences integration - DEFAULT_STOP_SEQUENCES are now passed to model calls
+
 import hashlib
 from ..models.loader import get_generator_model_instance
 from ..utils import (
@@ -5,13 +10,16 @@ from ..utils import (
     LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC,
     GENERATION_MAX_NEW_TOKENS,
     DEFAULT_SEED,
-    set_deterministic_environment # Assuming this is in utils.py
+    DEFAULT_STOP_SEQUENCES,
+    set_deterministic_environment,  # Assuming this is in utils.py
 )
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 # Ensure environment is set for determinism when this module is loaded
 set_deterministic_environment(DEFAULT_SEED)
 
+
+# AIDEV-NOTE: Qwen chat template formatting - critical for proper model behavior
 def _apply_qwen_chat_template(prompt: str) -> str:
     system_prompt_content = "You are a helpful assistant."
     return (
@@ -20,30 +28,38 @@ def _apply_qwen_chat_template(prompt: str) -> str:
         f"<|im_start|>assistant\n"
     )
 
+
+# AIDEV-NOTE: Main generator class with model instance caching and error handling
 class DeterministicGenerator:
     def __init__(self):
         self.model = get_generator_model_instance()
         if self.model is None:
-            logger.error("DeterministicGenerator: Model instance is None after attempting to load.")
+            logger.error(
+                "DeterministicGenerator: Model instance is None after attempting to load."
+            )
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, seed: Optional[int] = None) -> str:
         if self.model is None:
-            logger.warning("DeterministicGenerator.generate: Model not loaded. Returning empty string from core generator.")
-            return ""
+            logger.warning(
+                "DeterministicGenerator.generate: Model not loaded. Using fallback generator."
+            )
+            return _deterministic_fallback_generate(prompt)
 
         if not prompt or not prompt.strip():
-            logger.warning("DeterministicGenerator.generate: Empty or whitespace-only prompt received. Returning empty string from core generator.")
+            logger.warning(
+                "DeterministicGenerator.generate: Empty or whitespace-only prompt received. Returning empty string from core generator."
+            )
             return ""
 
         formatted_prompt = _apply_qwen_chat_template(prompt)
 
         try:
             sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
+            sampling_params["stop"] = DEFAULT_STOP_SEQUENCES
+            if seed is not None:
+                sampling_params["seed"] = seed
 
-            output: Dict[str, Any] = self.model(
-                formatted_prompt,
-                **sampling_params
-            )
+            output: Dict[str, Any] = self.model(formatted_prompt, **sampling_params)
 
             generated_text = ""
             if output and "choices" in output and len(output["choices"]) > 0:
@@ -52,35 +68,110 @@ class DeterministicGenerator:
                     generated_text = choice["text"].strip()
 
             if not generated_text:
-                logger.warning(f"DeterministicGenerator.generate: Model returned empty or whitespace-only text for prompt: '{prompt[:50]}...'")
+                logger.warning(
+                    f"DeterministicGenerator.generate: Model returned empty or whitespace-only text for prompt: '{prompt[:50]}...'"
+                )
 
             return generated_text
 
         except Exception as e:
-            logger.error(f"DeterministicGenerator.generate: Error during text generation for prompt '{prompt[:50]}...': {e}", exc_info=True)
+            logger.error(
+                f"DeterministicGenerator.generate: Error during text generation for prompt '{prompt[:50]}...': {e}",
+                exc_info=True,
+            )
             return ""
 
+
+# AIDEV-NOTE: Complex hash-based fallback generation algorithm for deterministic output
+# when model is unavailable - uses multiple hash seeds for word selection
 def _deterministic_fallback_generate(prompt: str) -> str:
     if not prompt or not prompt.strip():
         prompt_for_hash = "empty_prompt_placeholder_for_hash"
-        logger.warning(f"Fallback generator: Empty prompt received, using placeholder for hash: '{prompt_for_hash}'")
+        logger.warning(
+            f"Fallback generator: Empty prompt received, using placeholder for hash: '{prompt_for_hash}'"
+        )
     else:
         prompt_for_hash = prompt
 
     words = [
-        "the", "quick", "brown", "fox", "jumps", "over", "lazy", "dog",
-        "and", "a", "in", "it", "is", "to", "that", "this", "was", "for",
-        "on", "at", "as", "by", "an", "be", "with", "if", "then", "else",
-        "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf",
-        "hotel", "india", "juliett", "kilo", "lima", "mike", "november",
-        "oscar", "papa", "quebec", "romeo", "sierra", "tango", "uniform",
-        "victor", "whiskey", "x-ray", "yankee", "zulu", "error", "fallback",
-        "deterministic", "output", "generated", "text", "response", "steady",
-        "system", "mode", "token", "sequence", "placeholder", "content", "reliable",
-        "consistent", "predictable", "algorithmic", "data", "model", "layer"
+        "the",
+        "quick",
+        "brown",
+        "fox",
+        "jumps",
+        "over",
+        "lazy",
+        "dog",
+        "and",
+        "a",
+        "in",
+        "it",
+        "is",
+        "to",
+        "that",
+        "this",
+        "was",
+        "for",
+        "on",
+        "at",
+        "as",
+        "by",
+        "an",
+        "be",
+        "with",
+        "if",
+        "then",
+        "else",
+        "alpha",
+        "bravo",
+        "charlie",
+        "delta",
+        "echo",
+        "foxtrot",
+        "golf",
+        "hotel",
+        "india",
+        "juliett",
+        "kilo",
+        "lima",
+        "mike",
+        "november",
+        "oscar",
+        "papa",
+        "quebec",
+        "romeo",
+        "sierra",
+        "tango",
+        "uniform",
+        "victor",
+        "whiskey",
+        "x-ray",
+        "yankee",
+        "zulu",
+        "error",
+        "fallback",
+        "deterministic",
+        "output",
+        "generated",
+        "text",
+        "response",
+        "steady",
+        "system",
+        "mode",
+        "token",
+        "sequence",
+        "placeholder",
+        "content",
+        "reliable",
+        "consistent",
+        "predictable",
+        "algorithmic",
+        "data",
+        "model",
+        "layer",
     ]
 
-    hasher = hashlib.sha256(prompt_for_hash.encode('utf-8'))
+    hasher = hashlib.sha256(prompt_for_hash.encode("utf-8"))
     hex_digest = hasher.hexdigest()
 
     seed1 = int(hex_digest[:8], 16)
