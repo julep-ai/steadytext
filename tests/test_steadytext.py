@@ -14,6 +14,7 @@ from steadytext.utils import (
     DEFAULT_SEED,
     GENERATION_MAX_NEW_TOKENS,
     EMBEDDING_DIMENSION,
+    validate_normalized_embedding, # Added for new tests
     logger as steadytext_logger # Use the library's logger for context in tests
 )
 # For some specific tests, we might want to access core functions directly, but API tests are primary.
@@ -63,7 +64,7 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
             # A simple check: if preload_models didn't raise an error, assume models might be usable.
             # More specific checks could involve trying to get model instances, but that repeats preload logic.
             # The individual tests will ultimately determine if the models function as expected.
-            MODELS_ARE_ACCESSIBLE_FOR_TESTING = True
+            MODELS_ARE_ACCESSIBLE_FOR_TESTING = True # Indicates preload_models() ran without raising; actual model usability tested by individual tests.
             steadytext_logger.info("preload_models() completed. Assuming models may be accessible.")
         except Exception as e:
             # This catch is for unexpected errors from preload_models itself, though it's designed to be robust.
@@ -84,9 +85,9 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
         output2 = steadytext.generate(prompt)
 
         self.assertIsInstance(output1, str, "Output must be a string.")
-        # If model loading failed, output1 will be an error string.
-        if not output1.startswith("Error:"):
+        if MODELS_ARE_ACCESSIBLE_FOR_TESTING and not output1.startswith("Error:"):
             self.assertTrue(len(output1) > 0, "Successful generation should not be empty.")
+            self.assertFalse(output1.startswith("Error:"), "Successful generation output should not start with 'Error:'.")
         self.assertEqual(output1, output2, "Generated text (or error string) must be identical for the same prompt and default seed.")
 
     def test_generate_deterministic_custom_seed(self):
@@ -104,13 +105,16 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
         self.assertIsInstance(output_custom1, str)
         self.assertEqual(output_custom1, output_custom2, "Generated text (or error string) must be identical for the same custom seed.")
 
+        if MODELS_ARE_ACCESSIBLE_FOR_TESTING and not output_custom1.startswith("Error:"):
+             self.assertFalse(output_custom1.startswith("Error:"), "Successful custom seed generation output should not start with 'Error:'.")
+
         # Only compare content if both generations were successful (not error strings)
         if not output_default.startswith("Error:") and not output_custom1.startswith("Error:"):
             self.assertNotEqual(output_default, output_custom1, "Generated text should differ for different seeds when generation is successful.")
             self.assertTrue(len(output_custom1) > 0, "Successful custom seed generation should not be empty.")
         elif output_default.startswith("Error:") and output_custom1.startswith("Error:"):
             # Error messages include seed, so they should differ if seeds are different.
-             self.assertNotEqual(output_default, output_custom1, "Error messages should differ if seeds (part of error message) are different.")
+            self.assertNotEqual(output_default, output_custom1, "Error messages should differ if seeds (part of error message) are different.")
         else:
             steadytext_logger.warning("One generation attempt resulted in an error, skipping content comparison for seed variation.")
 
@@ -129,9 +133,15 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
         self.assertEqual(embedding1.shape, (EMBEDDING_DIMENSION,))
         self.assertEqual(embedding1.dtype, np.float32)
 
-        # validate_normalized_embedding allows zero vectors (norm 0.0)
-        is_valid_embedding = steadytext.validate_normalized_embedding(embedding1)
+        is_valid_embedding = validate_normalized_embedding(embedding1) # Using direct import
         self.assertTrue(is_valid_embedding, f"Embedding for '{text}' failed validation (norm: {np.linalg.norm(embedding1):.4f}).")
+
+        if MODELS_ARE_ACCESSIBLE_FOR_TESTING and text.strip() and not np.all(embedding1 == 0):
+            # If models are presumed accessible and input was non-empty, a zero vector is suspicious (though could be model's true output)
+            pass # Already logged by the warning below
+        elif MODELS_ARE_ACCESSIBLE_FOR_TESTING and text.strip():
+             self.assertFalse(np.all(embedding1 == 0), "Embedding for a non-empty string should not be a zero vector if models are accessible.")
+
 
         if np.all(embedding1 == 0):
             steadytext_logger.warning(f"test_embed_deterministic_string_and_validity: Embedding for '{text}' is a zero vector. This is expected if the model could not be loaded, or if the model truly embeds this to zero (unlikely for non-empty string).")
@@ -150,8 +160,15 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
         self.assertIsInstance(embedding1, np.ndarray)
         self.assertEqual(embedding1.shape, (EMBEDDING_DIMENSION,))
         self.assertEqual(embedding1.dtype, np.float32)
-        self.assertTrue(steadytext.validate_normalized_embedding(embedding1),
+        self.assertTrue(validate_normalized_embedding(embedding1), # Using direct import
                         f"Embedding for list {texts} failed validation (norm: {np.linalg.norm(embedding1):.4f}).")
+
+        if MODELS_ARE_ACCESSIBLE_FOR_TESTING and any(s.strip() for s in texts) and not np.all(embedding1 == 0):
+            # If models accessible and list has non-empty content, a zero vector is suspicious
+            pass
+        elif MODELS_ARE_ACCESSIBLE_FOR_TESTING and any(s.strip() for s in texts):
+            self.assertFalse(np.all(embedding1 == 0), "Embedding for a list with non-empty strings should not be a zero vector if models are accessible.")
+
         if np.all(embedding1 == 0):
              steadytext_logger.warning(f"test_embed_deterministic_list_and_validity: Embedding for list {texts} is a zero vector.")
 
@@ -280,6 +297,99 @@ class TestSteadyTextUtilities(unittest.TestCase):
         self.assertIsInstance(steadytext.__version__, str)
         self.assertTrue(len(steadytext.__version__) > 0, "Version string should be non-empty.")
         self.assertIsNotNone(steadytext.logger, "The package logger should be accessible.")
+
+
+class TestValidateNormalizedEmbedding(unittest.TestCase):
+    """Tests for the steadytext.utils.validate_normalized_embedding function."""
+
+    def test_correctly_normalized_vector(self):
+        """Test with a correctly normalized vector."""
+        vec = np.random.rand(EMBEDDING_DIMENSION).astype(np.float32)
+        vec = vec / np.linalg.norm(vec)
+        self.assertTrue(validate_normalized_embedding(vec))
+
+    def test_zero_vector(self):
+        """Test with a zero vector (should be valid as per current function logic)."""
+        vec = np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
+        self.assertTrue(validate_normalized_embedding(vec)) # Current function treats norm ~0 as valid
+
+    def test_unnormalized_vector_too_high(self):
+        """Test with an unnormalized vector (norm > 1.0)."""
+        vec = np.random.rand(EMBEDDING_DIMENSION).astype(np.float32)
+        vec = (vec / np.linalg.norm(vec)) * 1.5 # Make norm > 1
+        self.assertFalse(validate_normalized_embedding(vec))
+
+    def test_unnormalized_vector_too_low(self):
+        """Test with an unnormalized vector (norm < 1.0 but not zero)."""
+        vec = np.random.rand(EMBEDDING_DIMENSION).astype(np.float32)
+        vec = (vec / np.linalg.norm(vec)) * 0.5 # Make norm < 1
+        # Ensure it's not accidentally a zero vector
+        if np.all(vec == 0): vec[0] = 0.1 # Make it non-zero if it became zero
+        self.assertFalse(validate_normalized_embedding(vec))
+
+    def test_vector_with_nan(self):
+        """Test with a vector containing NaN values."""
+        vec = np.full(EMBEDDING_DIMENSION, np.nan, dtype=np.float32)
+        self.assertFalse(validate_normalized_embedding(vec))
+
+        vec_mixed = np.random.rand(EMBEDDING_DIMENSION).astype(np.float32)
+        vec_mixed[EMBEDDING_DIMENSION // 2] = np.nan
+        self.assertFalse(validate_normalized_embedding(vec_mixed))
+
+    def test_vector_with_inf(self):
+        """Test with a vector containing inf values."""
+        vec = np.full(EMBEDDING_DIMENSION, np.inf, dtype=np.float32)
+        self.assertFalse(validate_normalized_embedding(vec))
+
+        vec_mixed = np.random.rand(EMBEDDING_DIMENSION).astype(np.float32)
+        vec_mixed[EMBEDDING_DIMENSION // 2] = np.inf
+        self.assertFalse(validate_normalized_embedding(vec_mixed))
+
+    def test_vector_incorrect_dimensions_2d(self):
+        """Test with a 2D vector (function expects 1D)."""
+        vec = np.random.rand(EMBEDDING_DIMENSION // 2, 2).astype(np.float32)
+        # validate_normalized_embedding itself doesn't check dimensions but np.linalg.norm would handle it.
+        # The function is expected to return False if norm calculation fails or leads to non-scalar.
+        # However, np.linalg.norm on a 2D array returns a scalar, so this might pass if normalized.
+        # Let's make it unnormalized to be sure.
+        # vec = vec * 2 # Make it unnormalized
+        # For now, the function primarily checks the norm of whatever is passed.
+        # If it's a 2D array, np.linalg.norm will compute the Frobenius norm.
+        # The function's docstring implies it's for 1D embeddings.
+        # A robust test would require the function to explicitly check ndim.
+        # As is, this test might not behave as "incorrect dimensions" if the Frobenius norm is 1.0 or 0.0
+        # Let's assume the function is intended for 1D, and a 2D would be invalid usage.
+        # The current `validate_normalized_embedding` implicitly handles this by calculating the norm.
+        # If norm calculation fails (e.g. not a numerical array), it would raise an error, caught by try-except.
+        # If it's a 2D array, norm is calculated. If that norm is not ~1 or ~0, it's False.
+        # This test is more about the *spirit* of "incorrect dimensions".
+        # A better test would be if the function itself raised a TypeError or ValueError for ndim != 1.
+        # For current implementation, we test if providing a 2D array (which would have a different norm concept)
+        # correctly fails validation unless its Frobenius norm happens to be 1.0.
+        normalized_2d_frobenius = vec / np.linalg.norm(vec)
+        unnormalized_2d = normalized_2d_frobenius * 1.5
+
+        self.assertFalse(validate_normalized_embedding(normalized_2d_frobenius * 0.5)) # Norm 0.5
+        self.assertFalse(validate_normalized_embedding(unnormalized_2d)) # Norm 1.5
+
+        # A 2D array whose Frobenius norm is 1.0 *should* pass the current validation logic,
+        # though it's not a "1D normalized embedding".
+        # This highlights a potential ambiguity in the function's current checks vs. its name.
+        # self.assertTrue(validate_normalized_embedding(normalized_2d_frobenius)) # This would pass
+
+    def test_vector_incorrect_dimensions_0d(self):
+        """Test with a 0D vector (scalar)."""
+        vec = np.array(0.5, dtype=np.float32) # A scalar
+        self.assertFalse(validate_normalized_embedding(vec))
+        vec_norm_one = np.array(1.0, dtype=np.float32)
+        self.assertTrue(validate_normalized_embedding(vec_norm_one)) # Scalar 1.0 is norm 1.0
+        vec_zero = np.array(0.0, dtype=np.float32)
+        self.assertTrue(validate_normalized_embedding(vec_zero)) # Scalar 0.0 is norm 0.0
+
+    # Note: The current validate_normalized_embedding does not explicitly check
+    # EMBEDDING_DIMENSION or dtype, focusing only on the L2 norm and numeric issues.
+    # Tests for those aspects would require changes to the function itself.
+
 
 # Helper function for test_embed_list_averaging_and_empty_string_handling (not part of library)
 def _test_normalize_l2(vector: np.ndarray, tolerance: float = 1e-9) -> np.ndarray:

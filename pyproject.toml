@@ -37,5 +37,5 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/yourusername/steadytext" # Placeholder
-"Bug Tracker" = "https://github.com/yourusername/steadytext/issues" # Placeholder
+"Homepage" = "https://github.com/steadytext/steadytext"
+"Bug Tracker" = "https://github.com/steadytext/steadytext/issues"
