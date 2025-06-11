@@ -31,9 +31,8 @@ dependencies = [
     "numpy>=1.21.0,<2.0.0",
     "huggingface-hub>=0.20.0",
     "requests",
-    "tqdm>=4.60.0"
-    # sentence-transformers is removed for now to avoid network/install issues
-    # "sentence-transformers>=2.2.0"
+    "tqdm>=4.60.0",
+    "sentence-transformers>=2.2.0"
 ]
 
 [project.urls]
