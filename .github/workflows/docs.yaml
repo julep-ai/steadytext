@@ -35,7 +35,7 @@ jobs:
             --output=README.rst
 
     - name: Build HTML docs
-      uses: ammaraskar/sphinx-action@master
+      uses: ammaraskar/sphinx-action@v0.4
       with:
         docs-folder: "docs/"
 
