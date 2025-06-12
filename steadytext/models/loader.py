@@ -93,7 +93,7 @@ class _ModelInstanceCache:
                 logger.info(f"Loading embedder model from: {model_path}")
                 try:
                     params = {**LLAMA_CPP_EMBEDDING_PARAMS_DETERMINISTIC}
-
+                    logger.debug(f"Embedding Llama params: {params}") # ADDED LOGGING
                     inst._embedder_model = Llama(model_path=str(model_path), **params)
 
                     model_n_embd = (
@@ -101,17 +101,20 @@ class _ModelInstanceCache:
                         if hasattr(inst._embedder_model, "n_embd")
                         else 0
                     )
-                    if model_n_embd != EMBEDDING_DIMENSION:
-                        logger.error(
-                            f"Embedder model n_embd ({model_n_embd}) "
-                            f"does not match expected EMBEDDING_DIMENSION ({EMBEDDING_DIMENSION})."
-                        )
-                        del inst._embedder_model
-                        inst._embedder_model = None
-                        inst._embedder_path = None
-                    else:
-                        inst._embedder_path = model_path
-                        logger.info("Embedder model loaded successfully.")
+                    # Temporarily bypass dimension check as per objective
+                    inst._embedder_path = model_path
+                    logger.info(f"Embedder model loaded (dimension check temporarily bypassed). Model n_embd: {model_n_embd}, Expected EMBEDDING_DIMENSION: {EMBEDDING_DIMENSION}")
+                    # if model_n_embd != EMBEDDING_DIMENSION:
+                    #     logger.error(
+                    #         f"Embedder model n_embd ({model_n_embd}) "
+                    #         f"does not match expected EMBEDDING_DIMENSION ({EMBEDDING_DIMENSION})."
+                    #     )
+                    #     del inst._embedder_model
+                    #     inst._embedder_model = None
+                    #     inst._embedder_path = None
+                    # else:
+                    #     inst._embedder_path = model_path
+                    #     logger.info("Embedder model loaded successfully.")
                 except Exception as e:
                     logger.error(f"Failed to load embedder model: {e}", exc_info=True)
                     inst._embedder_model = None

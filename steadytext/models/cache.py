@@ -6,7 +6,8 @@ from huggingface_hub import hf_hub_download
 from ..utils import (
     logger,
     get_cache_dir,
-    DEFAULT_MODEL_REPO,
+    DEFAULT_GENERATION_MODEL_REPO,
+    DEFAULT_EMBEDDING_MODEL_REPO,
     GENERATION_MODEL_FILENAME,
     EMBEDDING_MODEL_FILENAME,
 )
@@ -57,12 +58,12 @@ def _download_model_if_needed(
 def get_generation_model_path() -> Optional[Path]:
     cache = get_cache_dir()
     return _download_model_if_needed(
-        DEFAULT_MODEL_REPO, GENERATION_MODEL_FILENAME, cache
+        DEFAULT_GENERATION_MODEL_REPO, GENERATION_MODEL_FILENAME, cache
     )
 
 
 def get_embedding_model_path() -> Optional[Path]:
     cache = get_cache_dir()
     return _download_model_if_needed(
-        DEFAULT_MODEL_REPO, EMBEDDING_MODEL_FILENAME, cache
+        DEFAULT_EMBEDDING_MODEL_REPO, EMBEDDING_MODEL_FILENAME, cache
     )

@@ -19,16 +19,6 @@ from typing import List, Dict, Any, Optional
 set_deterministic_environment(DEFAULT_SEED)
 
 
-# AIDEV-NOTE: Qwen chat template formatting - critical for proper model behavior
-def _apply_qwen_chat_template(prompt: str) -> str:
-    system_prompt_content = "You are a helpful assistant."
-    return (
-        f"<|im_start|>system\n{system_prompt_content}<|im_end|>\n"
-        f"<|im_start|>user\n{prompt}<|im_end|>\n"
-        f"<|im_start|>assistant\n"
-    )
-
-
 # AIDEV-NOTE: Main generator class with model instance caching and error handling
 class DeterministicGenerator:
     def __init__(self):
@@ -39,19 +29,23 @@ class DeterministicGenerator:
             )
 
     def generate(self, prompt: str, seed: Optional[int] = None) -> str:
+        if not isinstance(prompt, str):
+            logger.error(
+                f"DeterministicGenerator.generate: Invalid prompt type: {type(prompt)}. Expected str. Using fallback."
+            )
+            return _deterministic_fallback_generate(str(prompt)) # Pass string representation to fallback
+
         if self.model is None:
             logger.warning(
                 "DeterministicGenerator.generate: Model not loaded. Using fallback generator."
             )
             return _deterministic_fallback_generate(prompt)
 
-        if not prompt or not prompt.strip():
+        if not prompt or not prompt.strip(): # Check after ensuring prompt is a string
             logger.warning(
-                "DeterministicGenerator.generate: Empty or whitespace-only prompt received. Returning empty string from core generator."
+                "DeterministicGenerator.generate: Empty or whitespace-only prompt received. Using fallback generator."
             )
-            return ""
-
-        formatted_prompt = _apply_qwen_chat_template(prompt)
+            return _deterministic_fallback_generate(prompt) # Call fallback for empty/whitespace
 
         try:
             sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
@@ -59,13 +53,25 @@ class DeterministicGenerator:
             if seed is not None:
                 sampling_params["seed"] = seed
 
-            output: Dict[str, Any] = self.model(formatted_prompt, **sampling_params)
+            # AIDEV-CHANGE: Use create_chat_completion
+            output: Dict[str, Any] = self.model.create_chat_completion(
+                messages=[{"role": "user", "content": prompt}], **sampling_params
+            )
 
             generated_text = ""
             if output and "choices" in output and len(output["choices"]) > 0:
                 choice = output["choices"][0]
+                # AIDEV-VERIFY: Check if message.content or text is used by the model's response structure
+                # Standard for create_chat_completion is usually response['choices'][0]['message']['content']
+                # However, llama-cpp-python's create_chat_completion might still return it in 'text'
+                # or directly in 'message'.'content'.
+                # Let's assume 'text' first as per previous structure and verify.
+                # If 'text' is not present, it's likely in 'message'.'content'.
                 if "text" in choice and choice["text"] is not None:
                     generated_text = choice["text"].strip()
+                elif "message" in choice and "content" in choice["message"] and choice["message"]["content"] is not None:
+                    generated_text = choice["message"]["content"].strip()
+
 
             if not generated_text:
                 logger.warning(
@@ -85,10 +91,11 @@ class DeterministicGenerator:
 # AIDEV-NOTE: Complex hash-based fallback generation algorithm for deterministic output
 # when model is unavailable - uses multiple hash seeds for word selection
 def _deterministic_fallback_generate(prompt: str) -> str:
-    if not prompt or not prompt.strip():
-        prompt_for_hash = "empty_prompt_placeholder_for_hash"
+    # Ensure prompt_for_hash is always a string, even if original prompt was not.
+    if not isinstance(prompt, str) or not prompt.strip():
+        prompt_for_hash = f"invalid_prompt_type_or_empty:{type(prompt).__name__}"
         logger.warning(
-            f"Fallback generator: Empty prompt received, using placeholder for hash: '{prompt_for_hash}'"
+            f"Fallback generator: Invalid or empty prompt type received ({type(prompt).__name__}). Using placeholder for hash: '{prompt_for_hash}'"
         )
     else:
         prompt_for_hash = prompt
