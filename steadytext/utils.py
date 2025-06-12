@@ -62,7 +62,7 @@ LLAMA_CPP_MAIN_PARAMS_DETERMINISTIC: Dict[str, Any] = {
 
 # --- Output Configuration (from previous full utils.py) ---
 GENERATION_MAX_NEW_TOKENS = 256
-EMBEDDING_DIMENSION = 256  # Forcing to 256 as per objective
+EMBEDDING_DIMENSION = 1024  # Setting to 1024 as per objective
 
 LLAMA_CPP_EMBEDDING_PARAMS_DETERMINISTIC: Dict[str, Any] = {
     **LLAMA_CPP_BASE_PARAMS,
@@ -70,7 +70,7 @@ LLAMA_CPP_EMBEDDING_PARAMS_DETERMINISTIC: Dict[str, Any] = {
     "logits_all": False,  # Not needed for embeddings
     # n_batch for embeddings can often be smaller if processing one by one
     "n_batch": 512,  # Default, can be tuned
-    "n_embd_trunc": EMBEDDING_DIMENSION, # This will now be 256
+    # "n_embd_trunc": EMBEDDING_DIMENSION, # Removed as per objective
 }
 
 # --- Sampling Parameters for Generation (from previous full utils.py) ---

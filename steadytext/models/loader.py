@@ -101,20 +101,19 @@ class _ModelInstanceCache:
                         if hasattr(inst._embedder_model, "n_embd")
                         else 0
                     )
-                    # Temporarily bypass dimension check as per objective
-                    inst._embedder_path = model_path
-                    logger.info(f"Embedder model loaded (dimension check temporarily bypassed). Model n_embd: {model_n_embd}, Expected EMBEDDING_DIMENSION: {EMBEDDING_DIMENSION}")
-                    # if model_n_embd != EMBEDDING_DIMENSION:
-                    #     logger.error(
-                    #         f"Embedder model n_embd ({model_n_embd}) "
-                    #         f"does not match expected EMBEDDING_DIMENSION ({EMBEDDING_DIMENSION})."
-                    #     )
-                    #     del inst._embedder_model
-                    #     inst._embedder_model = None
-                    #     inst._embedder_path = None
-                    # else:
-                    #     inst._embedder_path = model_path
-                    #     logger.info("Embedder model loaded successfully.")
+                    # Restoring original dimension check logic
+                    if model_n_embd != EMBEDDING_DIMENSION:
+                        logger.error(
+                            f"Embedder model n_embd ({model_n_embd}) "
+                            f"does not match expected EMBEDDING_DIMENSION ({EMBEDDING_DIMENSION})."
+                        )
+                        if inst._embedder_model is not None: # Safety check
+                             del inst._embedder_model
+                             inst._embedder_model = None
+                        inst._embedder_path = None # Also clear path
+                    else:
+                        inst._embedder_path = model_path
+                        logger.info("Embedder model loaded successfully.")
                 except Exception as e:
                     logger.error(f"Failed to load embedder model: {e}", exc_info=True)
                     inst._embedder_model = None
