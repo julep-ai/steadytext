@@ -1,5 +1,6 @@
-# AIDEV-NOTE: Core embedding module with L2 normalization and fallback to zero vectors
-# Handles both single strings and lists of strings with averaging
+# AIDEV-NOTE: Core embedding module with L2 normalization and fallback
+# to zero vectors. Handles both single strings and lists of strings
+# with averaging.
 
 import numpy as np
 from typing import (
@@ -37,7 +38,7 @@ def _normalize_l2(vector: np.ndarray, tolerance: float = 1e-9) -> np.ndarray:
 def create_embedding(
     text_input: Union[str, List[str]],
     # `seed` is not directly used by `llama_cpp.Llama.embed()`.
-    # Determinism comes from the model's seed and consistent input processing.
+    # Determinism is from model's seed & consistent input processing. # noqa E501
 ) -> np.ndarray:
     """
     Creates a fixed-dimension, L2-normalized embedding for the input text(s)
@@ -46,15 +47,16 @@ def create_embedding(
     Args:
         text_input (Union[str, List[str]]): The input text or a list of texts to embed.
             - If a single string, it's embedded directly.
-            - If a list of strings, embeddings for each non-empty string are computed
-              and then averaged to produce a single embedding vector.
-            - Empty strings, empty lists, or lists with only empty/whitespace strings
-              will result in a zero vector of EMBEDDING_DIMENSION.
+            - If a list of strings, embeddings for each non-empty string
+              are computed and then averaged to produce a single embedding vector.
+            - Empty strings, empty lists, or lists with only empty/whitespace
+              strings will result in a zero vector of EMBEDDING_DIMENSION.
 
     Returns:
-        numpy.ndarray: A 1D numpy array of shape (EMBEDDING_DIMENSION,) and dtype float32,
-                       representing the L2-normalized embedding.
-                       Returns a zero vector on errors or for invalid/empty inputs.
+        numpy.ndarray: A 1D numpy array of shape (EMBEDDING_DIMENSION,)
+                       and dtype float32, representing the L2-normalized
+                       embedding. Returns a zero vector on errors or
+                       for invalid/empty inputs.
 
     Raises:
         TypeError: If input is not a string or list of strings (intended to be caught
@@ -85,13 +87,16 @@ def create_embedding(
 
     if not texts_to_embed:
         logger.warning(
-            "Core.embedder: No valid non-empty text provided for embedding. Returning zero vector."
+            "Core.embedder: No valid non-empty text provided for embedding. "
+            "Returning zero vector."
         )
         return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
 
+    # AIDEV-NOTE: This is a key error handling point for model loading.
     try:
-        # get_embedding_model_instance handles loading, caching, and dimension validation.
-        # It will return None if model loading fails or dimension is incorrect.
+        # get_embedding_model_instance handles loading, caching, and
+        # dimension validation. It will return None if model loading fails
+        # or dimension is incorrect.
         model: Optional[Llama] = get_embedding_model_instance()
         if model is None:
             logger.error("Core.embedder: Could not load/get embedding model")
@@ -108,16 +113,15 @@ def create_embedding(
 
     try:
         all_sequence_level_embeddings: List[np.ndarray] = []
-        for (
-            text_item
-        ) in texts_to_embed:  # texts_to_embed is already a list of non-empty strings
+        for text_item in texts_to_embed:  # non-empty strings
             token_embeddings_output = model.embed(
                 text_item
-            )  # This might be List[List[float]] or List[float]
+            )  # Might be List[List[float]] or List[float]
 
             if not token_embeddings_output:
                 logger.warning(
-                    f"Core.embedder: model.embed() returned empty list for '{text_item[:50]}...'. Skipping."
+                    f"Core.embedder: model.embed() returned empty list for "
+                    f"'{text_item[:50]}...'. Skipping."
                 )
                 continue
 
@@ -129,12 +133,15 @@ def create_embedding(
             if token_embeddings_np.ndim == 2:  # Expected case: (n_tokens, n_embd)
                 if token_embeddings_np.shape[0] == 0:  # No tokens produced embeddings
                     logger.warning(
-                        f"Core.embedder: model.embed() for '{text_item[:50]}...' resulted in zero token embeddings. Skipping."
+                        f"Core.embedder: model.embed() for '{text_item[:50]}...' "
+                        f"resulted in zero token embeddings. Skipping."
                     )
                     continue
                 if token_embeddings_np.shape[1] != EMBEDDING_DIMENSION:
                     logger.warning(
-                        f"Core.embedder: Token embeddings for '{text_item[:50]}...' have unexpected dimension {token_embeddings_np.shape[1]} (expected {EMBEDDING_DIMENSION}). Skipping."
+                        f"Core.embedder: Token embeddings for '{text_item[:50]}...' "
+                        f"have unexpected dimension {token_embeddings_np.shape[1]} "
+                        f"(expected {EMBEDDING_DIMENSION}). Skipping."
                     )
                     continue
                 sequence_embedding_1d = np.mean(token_embeddings_np, axis=0)
@@ -143,13 +150,17 @@ def create_embedding(
             ):  # Case: model.embed() already returned a 1D sequence embedding
                 if token_embeddings_np.shape[0] != EMBEDDING_DIMENSION:
                     logger.warning(
-                        f"Core.embedder: 1D embedding for '{text_item[:50]}...' has unexpected dimension {token_embeddings_np.shape[0]} (expected {EMBEDDING_DIMENSION}). Skipping."
+                        f"Core.embedder: 1D embedding for '{text_item[:50]}...' "
+                        f"has unexpected dimension {token_embeddings_np.shape[0]} "
+                        f"(expected {EMBEDDING_DIMENSION}). Skipping."
                     )
                     continue
                 sequence_embedding_1d = token_embeddings_np
             else:
                 logger.warning(
-                    f"Core.embedder: model.embed() for '{text_item[:50]}...' returned array with unexpected ndim {token_embeddings_np.ndim}. Shape: {token_embeddings_np.shape}. Skipping."
+                    f"Core.embedder: model.embed() for '{text_item[:50]}...' "
+                    f"returned array with unexpected ndim {token_embeddings_np.ndim}. "
+                    f"Shape: {token_embeddings_np.shape}. Skipping."
                 )
                 continue
 
@@ -158,34 +169,42 @@ def create_embedding(
 
         if not all_sequence_level_embeddings:
             logger.error(
-                "Core.embedder: No valid sequence embeddings could be generated for any input text. Returning zero vector."
+                "Core.embedder: No valid sequence embeddings could be generated "
+                "for any input text. Returning zero vector."
             )
             return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
 
-        # Average if multiple valid sequence embeddings were generated (from a list input)
+        # Average if multiple valid sequence embeddings were generated (from a
+        # list input)
         if len(all_sequence_level_embeddings) == 1:
             final_raw_embedding = all_sequence_level_embeddings[0]
         else:
-            # Ensure all items in all_sequence_level_embeddings are 1D arrays of the same shape before stacking for mean
-            # This should be guaranteed by the appending logic if sequence_embedding_1d was correctly formed.
+            # Ensure all items are 1D arrays of the same shape before stacking.
+            # This should be guaranteed if sequence_embedding_1d was formed
+            # correctly.
             final_raw_embedding = np.mean(
                 np.stack(all_sequence_level_embeddings), axis=0
             ).astype(np.float32)
             logger.debug(
-                f"Core.embedder: Averaged {len(all_sequence_level_embeddings)} sequence embeddings."
+                f"Core.embedder: Averaged {len(all_sequence_level_embeddings)} "
+                f"sequence embeddings."
             )
 
-    except Exception as e:  # Catch other errors from Llama.embed() or numpy operations
+    except Exception as e:  # Catch Llama.embed() or numpy errors
         logger.error(
-            f"Core.embedder: Error during embedding generation or averaging: {type(e).__name__} - {e}",
+            f"Core.embedder: Error during embedding generation or averaging: "
+            f"{type(e).__name__} - {e}",
             exc_info=True,
         )
         return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
 
+    # AIDEV-NOTE: This is an important validation step for the final embedding shape.
     # Ensure correct output shape, even if something unexpected happened.
     if final_raw_embedding.shape != (EMBEDDING_DIMENSION,):
         logger.error(
-            f"Core.embedder: Generated embedding has incorrect shape: {final_raw_embedding.shape}. Expected: ({EMBEDDING_DIMENSION},). Returning zero vector."
+            f"Core.embedder: Generated embedding has incorrect shape: "
+            f"{final_raw_embedding.shape}. Expected: ({EMBEDDING_DIMENSION},). "
+            f"Returning zero vector."
         )
         return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
 
@@ -195,10 +214,13 @@ def create_embedding(
     # Final validation of the output vector (shape, dtype, norm)
     if not validate_normalized_embedding(normalized_embedding, dim=EMBEDDING_DIMENSION):
         logger.error(
-            "Core.embedder: Output embedding failed validation (shape, dtype, or norm). This should ideally not happen if logic is correct. Returning zero vector."
+            "Core.embedder: Output embedding failed validation (shape, dtype, "
+            "or norm). This should ideally not happen if logic is correct. "
+            "Returning zero vector."
         )
-        # If it's already a zero vector and fails validation, something is wrong with validate_normalized_embedding
-        # or constants. If non-zero and invalid, this ensures zero vector.
+        # If already zero and fails validation, something is wrong with
+        # validate_normalized_embedding or constants. If non-zero and
+        # invalid, this ensures zero vector.
         if np.any(normalized_embedding):  # Avoid re-creating if already zero
             return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
 
@@ -209,7 +231,8 @@ def create_embedding(
 if __name__ == "__main__":
     # Set logger to DEBUG for detailed output during this specific test run.
     logger.setLevel(logging.DEBUG)
-    # Assuming other loggers might exist from other modules if they were imported, set them too.
+    # Assuming other loggers might exist from other modules if they
+    # were imported, set them too.
     for log_name in [
         "steadytext.utils",
         "steadytext.models.cache",
@@ -217,20 +240,22 @@ if __name__ == "__main__":
     ]:
         logging.getLogger(log_name).setLevel(logging.DEBUG)
 
-    print("--- Running Core Embedder Direct Test (downloads models if not cached) ---")
+    print(
+        "--- Running Core Embedder Direct Test " "(downloads models if not cached) ---"
+    )
 
     test_cases = [
         ("A single test sentence.", "Single string"),
-        (["First sentence.", "Second sentence for averaging."], "List of strings"),
-        (["Sentence A.", "Sentence B.", "And sentence C, a third one."], "Longer list"),
         (
-            " ",
-            "Whitespace string",
-        ),  # Should become empty after strip, leading to zero vector
+            ["First sentence.", "Second sentence for averaging."],  # noqa E501
+            "List of strings",
+        ),
+        (["Sentence A.", "Sentence B.", "And sentence C, a third one."], "Longer list"),
+        (" ", "Whitespace string"),  # Should be zero vec
         [""],  # List containing one empty string
         ["   ", "\t"],  # List of whitespace strings
         [],  # Empty list
-        ["One valid sentence", "", "Another one", "  "],  # Mixed valid and empty
+        ["One valid sentence", "", "Another one", "  "],  # Mixed
     ]
 
     for i, (input_val, desc) in enumerate(test_cases):
@@ -239,11 +264,13 @@ if __name__ == "__main__":
         embedding_output = create_embedding(input_val)
         norm = np.linalg.norm(embedding_output)
         print(
-            f"  Output Embedding Shape: {embedding_output.shape}, Dtype: {embedding_output.dtype}, Norm: {norm:.4f}"
+            f"  Output Embedding Shape: {embedding_output.shape}, "
+            f"Dtype: {embedding_output.dtype}, Norm: {norm:.4f}"
         )
         is_valid = validate_normalized_embedding(embedding_output)
         print(
-            f"  Output Validated by steadytext.utils.validate_normalized_embedding: {is_valid}"
+            f"  Output Validated by "
+            f"steadytext.utils.validate_normalized_embedding: {is_valid}"
         )
         if np.all(embedding_output == 0):
             print(f"  Output is a zero vector (Norm: {norm:.4f})")
@@ -270,7 +297,7 @@ if __name__ == "__main__":
     if np.array_equal(emb1, emb2):
         print("SUCCESS: Embedding is deterministic for the same string input.")
     else:
-        print("FAILURE: Embedding is NOT deterministic for the same string input.")
+        print("FAILURE: Embedding is NOT deterministic " "for the same string input.")
         print(f"  Norm of diff: {np.linalg.norm(emb1 - emb2)}")
 
     logger.info("--- Core Embedder Direct Test Finished ---")

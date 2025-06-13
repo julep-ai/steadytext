@@ -1,3 +1,10 @@
+from steadytext.utils import (
+    DEFAULT_SEED,
+    EMBEDDING_DIMENSION,
+    validate_normalized_embedding,  # Added for new tests
+    logger as steadytext_logger,  # Use the library's logger for context in tests
+)
+import steadytext  # Main package import
 import unittest
 import numpy as np
 import os
@@ -6,35 +13,34 @@ import logging
 from pathlib import Path
 
 # Ensure the project root is in the Python path for testing
-# This allows 'import steadytext' to work when tests are run directly from the tests directory or project root.
+# This allows 'import steadytext' to work when tests are run directly
+# from the tests directory or project root.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import steadytext  # Main package import
-from steadytext.utils import (
-    DEFAULT_SEED,
-    EMBEDDING_DIMENSION,
-    validate_normalized_embedding,  # Added for new tests
-    logger as steadytext_logger,  # Use the library's logger for context in tests
-)
-# For some specific tests, we might want to access core functions directly, but API tests are primary.
-# from steadytext.core.embedder import _normalize_l2 # Example if needed for a specific test setup
+# For some specific tests, we might want to access core functions directly,
+# but API tests are primary.
+# from steadytext.core.embedder import _normalize_l2 # Example
 
 # --- Test Configuration ---
 # Allow tests requiring model downloads to be skipped via environment variable.
-# Useful for CI environments where models might not be available or downloads are too slow.
+# Useful for CI environments where models might not be available or downloads
+# are too slow.
 ALLOW_MODEL_DOWNLOADS = (
     os.environ.get("STEADYTEXT_ALLOW_MODEL_DOWNLOADS", "true").lower() == "true"
 )
 
 # Global flag to track if models were successfully loaded during test setup.
-# This provides context for interpreting test results, especially if model-dependent tests fail.
+# This provides context for interpreting test results, especially if
+# model-dependent tests fail.
 MODELS_ARE_ACCESSIBLE_FOR_TESTING = False  # Default to False
 
 # Configure logger level for tests.
-# Set to WARNING or ERROR to reduce noise from INFO/DEBUG logs during normal test runs.
-# Change to DEBUG if you need to diagnose issues within the library during a test.
+# Set to WARNING or ERROR to reduce noise from INFO/DEBUG logs during normal
+# test runs. Change to DEBUG if you need to diagnose issues within the
+# library during a test.
 steadytext_logger.setLevel(logging.WARNING)
-# If other loggers (e.g. from models.cache, models.loader) are used, configure them too if needed:
+# If other loggers (e.g. from models.cache, models.loader) are used,
+# configure them too if needed:
 logging.getLogger("steadytext.utils").setLevel(logging.WARNING)
 logging.getLogger("steadytext.models.cache").setLevel(logging.WARNING)
 logging.getLogger("steadytext.models.loader").setLevel(logging.WARNING)
@@ -44,12 +50,14 @@ logging.getLogger("steadytext.core.embedder").setLevel(logging.WARNING)
 
 @unittest.skipUnless(
     ALLOW_MODEL_DOWNLOADS,
-    "Skipping model-dependent tests (STEADYTEXT_ALLOW_MODEL_DOWNLOADS is not 'true')",
+    "Skipping model-dependent tests (STEADYTEXT_ALLOW_MODEL_DOWNLOADS "
+    "is not 'true')",
 )
 class TestSteadyTextAPIWithModels(unittest.TestCase):
     """
-    Tests for the SteadyText public API that require actual model loading and interaction.
-    These tests will attempt to download (if not cached) and use the configured GGUF models.
+    Tests for the SteadyText public API that require actual model loading and
+    interaction. These tests will attempt to download (if not cached) and
+    use the configured GGUF models.
     """
 
     @classmethod
@@ -67,15 +75,19 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
             # verbose=True helps in CI or when debugging model loading.
             steadytext.preload_models(verbose=True)
 
-            # A simple check: if preload_models didn't raise an error, assume models might be usable.
-            # More specific checks could involve trying to get model instances, but that repeats preload logic.
-            # The individual tests will ultimately determine if the models function as expected.
-            MODELS_ARE_ACCESSIBLE_FOR_TESTING = True  # Indicates preload_models() ran without raising; actual model usability tested by individual tests.
+            # A simple check: if preload_models didn't raise an error,
+            # assume models might be usable. More specific checks could involve
+            # trying to get model instances, but that repeats preload logic.
+            # The individual tests will ultimately determine if the models
+            # function as expected. Indicates preload_models() ran without
+            # raising; actual model usability tested by individual tests.
+            MODELS_ARE_ACCESSIBLE_FOR_TESTING = True
             steadytext_logger.info(
                 "preload_models() completed. Assuming models may be accessible."
             )
         except Exception as e:
-            # This catch is for unexpected errors from preload_models itself, though it's designed to be robust.
+            # This catch is for unexpected errors from preload_models itself,
+            # though it's designed to be robust.
             steadytext_logger.critical(
                 f"Critical error during preload_models in setUpClass: {e}",
                 exc_info=True,
@@ -84,14 +96,17 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
 
         if not MODELS_ARE_ACCESSIBLE_FOR_TESTING:
             steadytext_logger.warning(
-                "MODELS_ARE_ACCESSIBLE_FOR_TESTING is False after preload attempt. Model-dependent tests may not reflect full functionality and might be effectively testing error fallbacks."
+                "MODELS_ARE_ACCESSIBLE_FOR_TESTING is False after preload attempt. "
+                "Model-dependent tests may not reflect full functionality and "
+                "might be effectively testing error fallbacks."
             )
 
     def test_generate_deterministic_default_seed(self):
         """Test steadytext.generate() is deterministic with the default seed."""
         if not MODELS_ARE_ACCESSIBLE_FOR_TESTING:
             self.skipTest(
-                "Models deemed not accessible by setUpClass, skipping actual generation test."
+                "Models deemed not accessible by setUpClass, "
+                "skipping actual generation test."
             )
 
         prompt = "A standard test prompt for default seed generation."
@@ -110,14 +125,16 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
         self.assertEqual(
             output1,
             output2,
-            "Generated text (or error string) must be identical for the same prompt and default seed.",
+            "Generated text (or error string) must be identical "
+            "for the same prompt and default seed.",  # noqa E501
         )
 
     def test_generate_deterministic_custom_seed(self):
-        """Test steadytext.generate() is deterministic with a custom seed and output varies from default seed."""
+        """Test steadytext.generate() is deterministic with a custom seed and
+        output varies from default seed."""  # noqa E501
         if not MODELS_ARE_ACCESSIBLE_FOR_TESTING:
             self.skipTest(
-                "Models deemed not accessible, skipping custom seed generation test."
+                "Models deemed not accessible, " "skipping custom seed generation test."
             )
 
         prompt = "Another unique test prompt for custom seed evaluation."
@@ -149,7 +166,8 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
             self.assertNotEqual(
                 output_default,
                 output_custom1,
-                "Generated text should differ for different seeds when generation is successful.",
+                "Generated text should differ for different seeds "
+                "when generation is successful.",
             )
             self.assertTrue(
                 len(output_custom1) > 0,
@@ -162,15 +180,18 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
             self.assertNotEqual(
                 output_default,
                 output_custom1,
-                "Error messages should differ if seeds (part of error message) are different.",
+                "Error messages should differ if seeds "
+                "(part of error message) are different.",  # noqa E501
             )
         else:
             steadytext_logger.warning(
-                "One generation attempt resulted in an error, skipping content comparison for seed variation."
+                "One generation attempt resulted in an error, "
+                "skipping content comparison for seed variation."
             )
 
     def test_embed_deterministic_string_and_validity(self):
-        """Test steadytext.embed() is deterministic for string input and output is valid."""
+        """Test steadytext.embed() is deterministic for string input and
+        output is valid."""
         if not MODELS_ARE_ACCESSIBLE_FOR_TESTING:
             self.skipTest(
                 "Models deemed not accessible, skipping string embedding test."
@@ -201,21 +222,27 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
             and text.strip()
             and not np.all(embedding1 == 0)
         ):
-            # If models are presumed accessible and input was non-empty, a zero vector is suspicious (though could be model's true output)
+            # If models are presumed accessible and input was non-empty,
+            # a zero vector is suspicious (though could be model's true output)
             pass  # Already logged by the warning below
         elif MODELS_ARE_ACCESSIBLE_FOR_TESTING and text.strip():
             self.assertFalse(
                 np.all(embedding1 == 0),
-                "Embedding for a non-empty string should not be a zero vector if models are accessible.",
+                "Embedding for a non-empty string should not be a zero vector "
+                "if models are accessible.",
             )
 
         if np.all(embedding1 == 0):
             steadytext_logger.warning(
-                f"test_embed_deterministic_string_and_validity: Embedding for '{text}' is a zero vector. This is expected if the model could not be loaded, or if the model truly embeds this to zero (unlikely for non-empty string)."
+                f"test_embed_deterministic_string_and_validity: Embedding for "
+                f"'{text}' is a zero vector. This is expected if the model "  # noqa E501
+                f"could not be loaded, or if the model truly embeds this to "
+                f"zero (unlikely for non-empty string)."
             )
 
     def test_embed_deterministic_list_and_validity(self):
-        """Test steadytext.embed() is deterministic for list input and output is valid."""
+        """Test steadytext.embed() is deterministic for list input and
+        output is valid."""
         if not MODELS_ARE_ACCESSIBLE_FOR_TESTING:
             self.skipTest("Models deemed not accessible, skipping list embedding test.")
 
@@ -243,24 +270,29 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
             and any(s.strip() for s in texts)
             and not np.all(embedding1 == 0)
         ):
-            # If models accessible and list has non-empty content, a zero vector is suspicious
+            # If models accessible and list has non-empty content,
+            # a zero vector is suspicious
             pass
         elif MODELS_ARE_ACCESSIBLE_FOR_TESTING and any(s.strip() for s in texts):
             self.assertFalse(
                 np.all(embedding1 == 0),
-                "Embedding for a list with non-empty strings should not be a zero vector if models are accessible.",
+                "Embedding for a list with non-empty strings should not be "
+                "a zero vector if models are accessible.",  # noqa E501
             )
 
         if np.all(embedding1 == 0):
             steadytext_logger.warning(
-                f"test_embed_deterministic_list_and_validity: Embedding for list {texts} is a zero vector."
+                f"test_embed_deterministic_list_and_validity: Embedding for "
+                f"list {texts} is a zero vector."
             )
 
     def test_embed_list_averaging_and_empty_string_handling(self):
-        """Test list averaging and correct handling of empty/whitespace strings within lists for embed()."""
+        """Test list averaging and correct handling of empty/whitespace strings
+        within lists for embed()."""
         if not MODELS_ARE_ACCESSIBLE_FOR_TESTING:
             self.skipTest(
-                "Models deemed not accessible, skipping advanced list embedding test."
+                "Models deemed not accessible, "
+                "skipping advanced list embedding test."
             )
 
         text_a = "Unique sentence A for averaging test."
@@ -269,7 +301,8 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
         emb_a = steadytext.embed(text_a)
         emb_b = steadytext.embed(text_b)
 
-        # Skip further checks if individual embeddings are zero (e.g., model load failed)
+        # Skip further checks if individual embeddings are zero (e.g., model load
+        # failed)
         if np.all(emb_a == 0) or np.all(emb_b == 0):
             self.skipTest(
                 "Individual string embeddings are zero vectors; cannot meaningfully test averaging logic."
@@ -278,36 +311,41 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
         # Test 1: List with empty strings interspersed, should average non-empty ones
         emb_list_mixed = steadytext.embed([text_a, "", "   ", text_b, "\t", "  "])
 
-        # Test 1: List with empty strings interspersed should be equivalent to list without them.
+        # Test 1: List with empty strings interspersed should be equivalent
+        # to list without them.
         emb_list_direct = steadytext.embed([text_a, text_b])
         self.assertTrue(
             np.allclose(emb_list_mixed, emb_list_direct, atol=1e-6),
-            "Embedding of list [A, '', B, ''] should be equivalent to embedding of [A, B].",
+            "Embedding of list [A, '', B, ''] should be equivalent to "
+            "embedding of [A, B].",
         )
 
         # Test 2: List containing only one valid string and others empty/whitespace
         emb_list_single_valid = steadytext.embed(["", "  ", text_a, "\t", " "])
-        # This should be equal to emb_a, as averaging with zero vectors (conceptually, as they are ignored)
-        # and then re-normalizing should yield emb_a if it was already normalized.
+        # This should be equal to emb_a, as averaging with zero vectors
+        # (conceptually, as they are ignored) and then re-normalizing
+        # should yield emb_a if it was already normalized.
         self.assertTrue(
             np.allclose(emb_list_single_valid, emb_a, atol=1e-6),
-            "Embedding of list ['', A, ''] should be very close to embedding of A.",
+            "Embedding of list ['', A, ''] should be very close to " "embedding of A.",
         )
 
 
 class TestSteadyTextAPIErrorFallbacks(unittest.TestCase):
     """
-    Tests the "Never Fails" aspect of the SteadyText public API, ensuring graceful error handling
-    and deterministic fallback outputs (error strings for generate, zero vectors for embed).
-    These tests do NOT require successful model loading and should pass even if models are unavailable.
+    Tests the "Never Fails" aspect of the SteadyText public API, ensuring
+    graceful error handling and deterministic fallback outputs (error strings
+    for generate, zero vectors for embed). These tests do NOT require
+    successful model loading and should pass even if models are unavailable.
     """
 
     def test_generate_invalid_prompt_type_fallback(self):
-        """Test generate() with an invalid prompt type returns a deterministic error string."""
+        """Test generate() with an invalid prompt type returns a
+        deterministic error string."""
         prompt_int = 12345
         output = steadytext.generate(prompt_int)  # type: ignore
 
-        expected_fallback_for_int_prompt = "quebec by echo reliable was bravo system then november this lima it echo lima generated by system token delta data sierra at in on it else an else quick charlie with output whiskey else placeholder be if system oscar india tango oscar uniform content jumps at golf mike system delta fox foxtrot text dog the fox alpha algorithmic quebec algorithmic november romeo x-ray in fox in was quebec that data content hotel data india deterministic quick an quebec lazy placeholder at quick sequence oscar juliett x-ray deterministic with lazy text yankee token as and algorithmic zulu reliable deterministic consistent that else zulu token juliett india for it with dog token steady this in tango november charlie an placeholder by reliable with steady brown delta by system output a for foxtrot lazy zulu data an layer deterministic this for predictable this token it is steady lazy is india a dog in november be jumps delta system data yankee the papa uniform system in predictable a at to zulu mode dog and with charlie jumps reliable and steady bravo that on alpha tango victor november output reliable as steady foxtrot x-ray deterministic india deterministic an jumps then mode quick a content alpha output fox quick at juliett quebec then quebec deterministic foxtrot error as on system fox brown alpha dog error golf zulu layer jumps jumps mode india if a alpha response predictable else consistent response model papa yankee if lazy reliable predictable in that placeholder the model model a over a with text was for consistent romeo deterministic mode data quebec model quebec model token"
+        expected_fallback_for_int_prompt = "quebec by echo reliable was bravo system then november this lima it echo lima generated by system token delta data sierra at in on it else an else quick charlie with output whiskey else placeholder be if system oscar india tango oscar uniform content jumps at golf mike system delta fox foxtrot text dog the fox alpha algorithmic quebec algorithmic november romeo x-ray in fox in was quebec that data content hotel data india deterministic quick an quebec lazy placeholder at quick sequence oscar juliett x-ray deterministic with lazy text yankee token as and algorithmic zulu reliable deterministic consistent that else zulu token juliett india for it with dog token steady this in tango november charlie an placeholder by reliable with steady brown delta by system output a for foxtrot lazy zulu data an layer deterministic this for predictable this token it is steady lazy is india a dog in november be jumps delta system data yankee the papa uniform system in predictable a at to zulu mode dog and with charlie jumps reliable and steady bravo that on alpha tango victor november output reliable as steady foxtrot x-ray deterministic india deterministic an jumps then mode quick a content alpha output fox quick at juliett quebec then quebec deterministic foxtrot error as on system fox brown alpha dog error golf zulu layer jumps jumps mode india if a alpha response predictable else consistent response model papa yankee if lazy reliable predictable in that placeholder the model model a over a with text was for consistent romeo deterministic mode data quebec model quebec model token"  # noqa E501
         self.assertIsInstance(output, str)
         self.assertEqual(output, expected_fallback_for_int_prompt)
 
@@ -319,7 +357,8 @@ class TestSteadyTextAPIErrorFallbacks(unittest.TestCase):
             "Fallback output for same invalid input should be deterministic.",
         )
         # Fallback generator output does not currently include the seed in its hash computation directly,
-        # so changing the seed passed to steadytext.generate won't change the fallback output here.
+        # so changing the seed passed to steadytext.generate won't change the
+        # fallback output here.  # noqa E501
 
     def test_generate_empty_prompt_fallback(self):
         """Test generate() with an empty prompt; should not be 'Invalid prompt type' error."""
@@ -336,7 +375,8 @@ class TestSteadyTextAPIErrorFallbacks(unittest.TestCase):
             "Empty string is a valid type, should not be 'Invalid prompt type' error.",
         )
         # If models can't load, it will be an error like "Error: Text generation model unavailable..."
-        # If models load, it will be actual text. This test just ensures it's not an *invalid type* error.
+        # If models load, it will be actual text. This test just ensures it's not
+        # an *invalid type* error.
 
     def test_embed_empty_string_fallback(self):
         """Test embed() with an empty string returns a zero vector."""
@@ -347,11 +387,13 @@ class TestSteadyTextAPIErrorFallbacks(unittest.TestCase):
         )
 
     def test_embed_list_of_empty_strings_fallback(self):
-        """Test embed() with a list of only empty/whitespace strings returns a zero vector."""
+        """Test embed() with a list of only empty/whitespace strings
+        returns a zero vector."""
         embedding = steadytext.embed(["", "   ", "\t"])
         self.assertTrue(
             np.array_equal(embedding, np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)),
-            "Embedding of list of only empty/whitespace strings should be a zero vector.",
+            "Embedding of list of only empty/whitespace strings should be "
+            "a zero vector.",
         )
 
     def test_embed_empty_list_fallback(self):
@@ -363,7 +405,8 @@ class TestSteadyTextAPIErrorFallbacks(unittest.TestCase):
         )
 
     def test_embed_invalid_input_type_fallback(self):
-        """Test embed() with a completely invalid input type (e.g., int) returns a zero vector."""
+        """Test embed() with a completely invalid input type (e.g., int)
+        returns a zero vector."""
         embedding = steadytext.embed(12345)  # type: ignore
         self.assertTrue(
             np.array_equal(embedding, np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)),
@@ -371,7 +414,8 @@ class TestSteadyTextAPIErrorFallbacks(unittest.TestCase):
         )
 
     def test_embed_list_with_invalid_item_type_fallback(self):
-        """Test embed() with a list containing an invalid item type (e.g., int) returns a zero vector."""
+        """Test embed() with a list containing an invalid item type (e.g., int)
+        returns a zero vector."""
         embedding = steadytext.embed(["hello", 123, "world"])  # type: ignore
         self.assertTrue(
             np.array_equal(embedding, np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)),
@@ -385,71 +429,129 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
     def test_generator_fallback_produces_deterministic_output(self):
         """Test that generator fallback produces deterministic hash-based text."""
         from unittest.mock import patch
-        from steadytext.core.generator import DeterministicGenerator, _deterministic_fallback_generate
-        
+        from steadytext.core.generator import (
+            DeterministicGenerator,
+            _deterministic_fallback_generate,
+        )
+
         # Test the fallback function directly first
         prompt = "Test prompt for fallback generation"
         fallback1 = _deterministic_fallback_generate(prompt)
         fallback2 = _deterministic_fallback_generate(prompt)
-        
+
         self.assertIsInstance(fallback1, str)
         self.assertTrue(len(fallback1) > 0, "Fallback should generate non-empty text")
         self.assertEqual(fallback1, fallback2, "Fallback should be deterministic")
-        
+
         # Test different prompts produce different outputs
         different_prompt = "Different test prompt"
         fallback_different = _deterministic_fallback_generate(different_prompt)
-        self.assertNotEqual(fallback1, fallback_different, "Different prompts should produce different fallback text")
-        
+        self.assertNotEqual(
+            fallback1,
+            fallback_different,
+            "Different prompts should produce different fallback text",
+        )
+
         # Test that generator uses fallback when model is None
-        # Patch where get_generator_model_instance is looked up by DeterministicGenerator
-        with patch('steadytext.core.generator.get_generator_model_instance', return_value=None) as mock_get_none_model:
+        # Patch where get_generator_model_instance is looked up by
+        # DeterministicGenerator
+        with patch(
+            "steadytext.core.generator.get_generator_model_instance", return_value=None
+        ):
             generator = DeterministicGenerator()
-            self.assertIsNone(generator.model, "Patching failed: generator.model is not None in fallback test")
+            self.assertIsNone(
+                generator.model,
+                "Patching failed: generator.model is not None in fallback test",
+            )
             output = generator.generate(prompt)
-            # This expected text is likely still the model-generated one, will need to update after patch works.
-            expected_fallback_text = "generated consistent error text over to kilo with for data sequence output sequence foxtrot this it generated algorithmic fox to oscar an consistent if by quebec charlie if text as over foxtrot deterministic for sierra to layer if kilo brown this lima model response steady brown if zulu whiskey charlie november dog content was x-ray else to and with victor if is at algorithmic layer error error x-ray steady quebec alpha india it x-ray x-ray data generated mode delta bravo whiskey alpha to if with whiskey then and golf this sierra a foxtrot response was system romeo charlie sierra data text generated charlie else hotel by tango be uniform mode fox fox victor in response token algorithmic it consistent data quick it as x-ray algorithmic in be with and content for sierra that deterministic zulu delta error bravo mode is tango india for then to mike lazy consistent for fallback else hotel dog consistent over data layer dog romeo steady echo alpha foxtrot sequence placeholder text tango this x-ray response mike juliett charlie mike then brown data delta golf at else was the india deterministic kilo quick by placeholder consistent by papa x-ray hotel with if system lima sequence brown india it dog if india fallback if system november foxtrot token generated victor by this as was zulu data then content data victor delta x-ray error golf reliable on predictable be at jumps system deterministic deterministic text sierra on bravo text lazy yankee the romeo this victor content in brown november consistent deterministic text bravo over hotel hotel fox for hotel the over oscar quebec"
-            self.assertEqual(output, expected_fallback_text, "Generator should use fallback when model is None")
+            # This expected text is likely still the model-generated one,
+            # will need to update after patch works.
+            expected_fallback_text = "generated consistent error text over to kilo with for data sequence output sequence foxtrot this it generated algorithmic fox to oscar an consistent if by quebec charlie if text as over foxtrot deterministic for sierra to layer if kilo brown this lima model response steady brown if zulu whiskey charlie november dog content was x-ray else to and with victor if is at algorithmic layer error error x-ray steady quebec alpha india it x-ray x-ray data generated mode delta bravo whiskey alpha to if with whiskey then and golf this sierra a foxtrot response was system romeo charlie sierra data text generated charlie else hotel by tango be uniform mode fox fox victor in response token algorithmic it consistent data quick it as x-ray algorithmic in be with and content for sierra that deterministic zulu delta error bravo mode is tango india for then to mike lazy consistent for fallback else hotel dog consistent over data layer dog romeo steady echo alpha foxtrot sequence placeholder text tango this x-ray response mike juliett charlie mike then brown data delta golf at else was the india deterministic kilo quick by placeholder consistent by papa x-ray hotel with if system lima sequence brown india it dog if india fallback if system november foxtrot token generated victor by this as was zulu data then content data victor delta x-ray error golf reliable on predictable be at jumps system deterministic deterministic text sierra on bravo text lazy yankee the romeo this victor content in brown november consistent deterministic text bravo over hotel hotel fox for hotel the over oscar quebec"  # noqa E501
+            self.assertEqual(
+                output,
+                expected_fallback_text,
+                "Generator should use fallback when model is None",
+            )
 
     def test_embed_api_handles_type_errors_gracefully(self):
         """Test that embed() API catches TypeErrors and returns zero vector."""
         from unittest.mock import patch
-        from steadytext.core.embedder import create_embedding # This import is fine for context
-        
-        # Mock create_embedding where it's looked up by steadytext.embed (in __init__.py)
-        with patch('steadytext.create_embedding', side_effect=TypeError("Invalid input type")) as mock_create_embedding_in_init:
+
+        # This import is fine for context
+        from steadytext.core.embedder import create_embedding
+
+        # Mock create_embedding where it's looked up by steadytext.embed
+        # (in __init__.py)
+        with patch(
+            "steadytext.create_embedding", side_effect=TypeError("Invalid input type")
+        ) as mock_create_embedding_in_init:
             result = steadytext.embed("test")
             expected_zero = np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
-            mock_create_embedding_in_init.assert_called_once_with("test") # Verify the mock was called
-            self.assertTrue(np.array_equal(result, expected_zero), "Should return zero vector on TypeError")
+            mock_create_embedding_in_init.assert_called_once_with(
+                "test"
+            )  # Verify the mock was called
+            self.assertTrue(
+                np.array_equal(result, expected_zero),
+                "Should return zero vector on TypeError",
+            )
 
     def test_stop_sequences_integration(self):
         """Test that stop sequences are properly integrated into generation."""
         from steadytext.core.generator import DeterministicGenerator
         from steadytext.utils import DEFAULT_STOP_SEQUENCES
         from unittest.mock import Mock, patch
-        
+
         # Create a mock model that captures the parameters passed to it
         mock_model = Mock()
         # Configure the create_chat_completion attribute of the mock_model
-        mock_model.create_chat_completion.return_value = {"choices": [{"message": {"content": "Generated text"}}]}
-        
-        # Patch where get_generator_model_instance is looked up by DeterministicGenerator
-        with patch('steadytext.core.generator.get_generator_model_instance', return_value=mock_model) as mock_get_generator:
-            generator = DeterministicGenerator()
-            self.assertIs(generator.model, mock_model, "Patching failed: generator.model is not the mock_model in stop_sequences test")
+        mock_model.create_chat_completion.return_value = {
+            "choices": [{"message": {"content": "Generated text"}}]
+        }
 
-            test_prompt_for_stop_sequence = "This is a test prompt that should normally be completed by the model but will be stopped by <|im_end|>"
+        # Patch where get_generator_model_instance is looked up
+        # by DeterministicGenerator
+        with patch(
+            "steadytext.core.generator.get_generator_model_instance",
+            return_value=mock_model,
+        ):
+            generator = DeterministicGenerator()
+            self.assertIs(
+                generator.model,
+                mock_model,
+                "Patching failed: generator.model is not the "
+                "mock_model in stop_sequences test",
+            )
+
+            test_prompt_for_stop_sequence = (
+                "This is a test prompt that should "
+                "normally be completed by the model "
+                "but will be stopped by <|im_end|>"
+            )
             generator.generate(test_prompt_for_stop_sequence)
-            
+
             # Verify that create_chat_completion was called on the mock_model
             mock_model.create_chat_completion.assert_called_once()
             call_args, call_kwargs = mock_model.create_chat_completion.call_args
 
-            self.assertIn("messages", call_kwargs, "Messages parameter should be passed to create_chat_completion")
-            self.assertEqual(call_kwargs["messages"], [{"role": "user", "content": test_prompt_for_stop_sequence}])
-            self.assertIn("stop", call_kwargs, "Stop parameter should be passed to create_chat_completion")
-            self.assertEqual(call_kwargs["stop"], DEFAULT_STOP_SEQUENCES, "Stop sequences should match DEFAULT_STOP_SEQUENCES")
+            self.assertIn(
+                "messages",
+                call_kwargs,
+                "Messages parameter should be " "passed to create_chat_completion",
+            )
+            self.assertEqual(
+                call_kwargs["messages"],
+                [{"role": "user", "content": test_prompt_for_stop_sequence}],
+            )
+            self.assertIn(
+                "stop",
+                call_kwargs,
+                "Stop parameter should be " "passed to create_chat_completion",
+            )
+            self.assertEqual(
+                call_kwargs["stop"],
+                DEFAULT_STOP_SEQUENCES,
+                "Stop sequences should match DEFAULT_STOP_SEQUENCES",
+            )
 
 
 class TestSteadyTextUtilities(unittest.TestCase):
@@ -465,20 +567,25 @@ class TestSteadyTextUtilities(unittest.TestCase):
         )
 
     def test_preload_models_runs_without_raising_unexpected_errors(self):
-        """Test that preload_models() executes without throwing unexpected exceptions."""
+        """Test that preload_models() executes without throwing unexpected
+        exceptions."""
         try:
-            # verbose=False to keep test logs cleaner unless specifically debugging preload.
+            # verbose=False to keep test logs cleaner unless
+            # specifically debugging preload.
             steadytext.preload_models(verbose=False)
         except Exception as e:
-            # preload_models itself is designed to catch and log errors, not re-raise them.
+            # preload_models itself is designed to catch and log errors,
+            # not re-raise them.
             self.fail(
-                f"steadytext.preload_models() raised an unexpected exception: {type(e).__name__} - {e}"
+                f"steadytext.preload_models() raised an unexpected exception: "
+                f"{type(e).__name__} - {e}"
             )
 
     def test_constants_and_version_are_exposed(self):
-        """Test that key constants and __version__ are accessible from the package."""
+        """Test that key constants and __version__ are accessible from the
+        package."""
         self.assertEqual(steadytext.DEFAULT_SEED, 42)
-        self.assertEqual(steadytext.GENERATION_MAX_NEW_TOKENS, 256) # Updated to 256
+        self.assertEqual(steadytext.GENERATION_MAX_NEW_TOKENS, 256)  # Updated to 256
         self.assertEqual(steadytext.EMBEDDING_DIMENSION, 1024)
         self.assertIsInstance(steadytext.__version__, str)
         self.assertTrue(
@@ -541,23 +648,28 @@ class TestValidateNormalizedEmbedding(unittest.TestCase):
     def test_vector_incorrect_dimensions_2d(self):
         """Test with a 2D vector (function expects 1D)."""
         vec = np.random.rand(EMBEDDING_DIMENSION // 2, 2).astype(np.float32)
-        # validate_normalized_embedding itself doesn't check dimensions but np.linalg.norm would handle it.
-        # The function is expected to return False if norm calculation fails or leads to non-scalar.
-        # However, np.linalg.norm on a 2D array returns a scalar, so this might pass if normalized.
+        # validate_normalized_embedding itself doesn't check dimensions
+        # but np.linalg.norm would handle it. The function is expected
+        # to return False if norm calculation fails or leads to non-scalar.
+        # However, np.linalg.norm on a 2D array returns a scalar,
+        # so this might pass if normalized.
         # Let's make it unnormalized to be sure.
         # vec = vec * 2 # Make it unnormalized
         # For now, the function primarily checks the norm of whatever is passed.
         # If it's a 2D array, np.linalg.norm will compute the Frobenius norm.
         # The function's docstring implies it's for 1D embeddings.
         # A robust test would require the function to explicitly check ndim.
-        # As is, this test might not behave as "incorrect dimensions" if the Frobenius norm is 1.0 or 0.0
-        # Let's assume the function is intended for 1D, and a 2D would be invalid usage.
-        # The current `validate_normalized_embedding` implicitly handles this by calculating the norm.
-        # If norm calculation fails (e.g. not a numerical array), it would raise an error, caught by try-except.
-        # If it's a 2D array, norm is calculated. If that norm is not ~1 or ~0, it's False.
-        # This test is more about the *spirit* of "incorrect dimensions".
-        # A better test would be if the function itself raised a TypeError or ValueError for ndim != 1.
-        # For current implementation, we test if providing a 2D array (which would have a different norm concept)
+        # As is, this test might not behave as "incorrect dimensions" if the
+        # Frobenius norm is 1.0 or 0.0. Let's assume the function is
+        # intended for 1D, and a 2D would be invalid usage.
+        # The current `validate_normalized_embedding` implicitly handles this
+        # by calculating the norm. If norm calculation fails (e.g. not a
+        # numerical array), it would raise an error, caught by try-except.
+        # If it's a 2D array, norm is calculated. If that norm is not ~1 or ~0,
+        # it's False. This test is more about the *spirit* of "incorrect dimensions".
+        # A better test would be if the function itself raised a TypeError or
+        # ValueError for ndim != 1. For current implementation, we test if
+        # providing a 2D array (which would have a different norm concept)
         # correctly fails validation unless its Frobenius norm happens to be 1.0.
         normalized_2d_frobenius = vec / np.linalg.norm(vec)
         unnormalized_2d = normalized_2d_frobenius * 1.5
@@ -567,22 +679,27 @@ class TestValidateNormalizedEmbedding(unittest.TestCase):
         )  # Norm 0.5
         self.assertFalse(validate_normalized_embedding(unnormalized_2d))  # Norm 1.5
 
-        # A 2D array whose Frobenius norm is 1.0 *should* pass the current validation logic,
-        # though it's not a "1D normalized embedding".
-        # This highlights a potential ambiguity in the function's current checks vs. its name.
-        # self.assertTrue(validate_normalized_embedding(normalized_2d_frobenius)) # This would pass
+        # A 2D array whose Frobenius norm is 1.0 *should* pass the current
+        # validation logic, though it's not a "1D normalized embedding".
+        # This highlights a potential ambiguity in the function's current
+        # checks vs. its name.
+        # self.assertTrue(validate_normalized_embedding(normalized_2d_frobenius))
 
     def test_vector_incorrect_dimensions_0d(self):
         """Test with a 0D vector (scalar)."""
         vec = np.array(0.5, dtype=np.float32)  # A scalar
-        self.assertFalse(validate_normalized_embedding(vec), "Scalar 0.5 should fail shape check.")
+        self.assertFalse(
+            validate_normalized_embedding(vec), "Scalar 0.5 should fail shape check."
+        )
         vec_norm_one = np.array(1.0, dtype=np.float32)
-        self.assertFalse( # Changed to assertFalse
-            validate_normalized_embedding(vec_norm_one), "Scalar 1.0 should fail shape check."
+        self.assertFalse(  # Changed to assertFalse
+            validate_normalized_embedding(vec_norm_one),
+            "Scalar 1.0 should fail shape check.",
         )
         vec_zero = np.array(0.0, dtype=np.float32)
-        self.assertFalse( # Changed to assertFalse
-            validate_normalized_embedding(vec_zero), "Scalar 0.0 should fail shape check."
+        self.assertFalse(  # Changed to assertFalse
+            validate_normalized_embedding(vec_zero),
+            "Scalar 0.0 should fail shape check.",
         )
 
     # Note: The current validate_normalized_embedding does not explicitly check
@@ -590,7 +707,8 @@ class TestValidateNormalizedEmbedding(unittest.TestCase):
     # Tests for those aspects would require changes to the function itself.
 
 
-# Helper function for test_embed_list_averaging_and_empty_string_handling (not part of library)
+# Helper function for test_embed_list_averaging_and_empty_string_handling
+# (not part of library)
 def _test_normalize_l2(vector: np.ndarray, tolerance: float = 1e-9) -> np.ndarray:
     norm = np.linalg.norm(vector)
     if norm < tolerance:
@@ -601,13 +719,14 @@ def _test_normalize_l2(vector: np.ndarray, tolerance: float = 1e-9) -> np.ndarra
 if __name__ == "__main__":
     # To run tests directly from this file: `python -m steadytext.tests.test_steadytext`
     # To enable model downloads for local testing if skipped by default:
-    # `STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true python -m steadytext.tests.test_steadytext`
+    # `STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true python -m steadytext.tests.test_steadytext` # noqa E501
 
     print("--- Running SteadyText Test Suite ---")
     if not ALLOW_MODEL_DOWNLOADS:
         print(
-            "INFO: STEADYTEXT_ALLOW_MODEL_DOWNLOADS environment variable is not set to 'true'. "
-            "Model-dependent tests will be skipped. Set this variable to 'true' to run all tests."
+            "INFO: STEADYTEXT_ALLOW_MODEL_DOWNLOADS environment variable is not "
+            "set to 'true'. Model-dependent tests will be skipped. Set this "
+            "variable to 'true' to run all tests."
         )
     else:
         print(

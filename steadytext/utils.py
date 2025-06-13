@@ -6,8 +6,9 @@ import logging
 import platform  # For get_cache_dir
 from typing import Dict, Any, List  # For type hints
 
-# AIDEV-NOTE: Core utility functions for SteadyText - handles deterministic environment setup,
-# model configuration, and cross-platform cache directory management
+# AIDEV-NOTE: Core utility functions for SteadyText - handles deterministic
+# environment setup, model configuration, and cross-platform cache directory
+# management
 
 # --- Logger Setup ---
 logger = logging.getLogger("steadytext")
@@ -30,7 +31,8 @@ EMBEDDING_MODEL_FILENAME = "Qwen3-Embedding-0.6B-Q8_0.gguf"
 DEFAULT_SEED = 42
 
 
-# AIDEV-NOTE: Critical function for ensuring deterministic behavior across all operations
+# AIDEV-NOTE: Critical function for ensuring deterministic behavior
+# across all operations
 def set_deterministic_environment(seed: int = DEFAULT_SEED):
     """Sets various seeds for deterministic operations."""
     os.environ["PYTHONHASHSEED"] = str(seed)
@@ -140,8 +142,9 @@ def get_cache_dir() -> Path:
     return cache_dir
 
 
-# AIDEV-NOTE: Add validate_normalized_embedding function that's referenced in embedder.py
-def validate_normalized_embedding(
+# AIDEV-NOTE: Add validate_normalized_embedding function that's referenced
+# in embedder.py
+def validate_normalized_embedding(  # noqa E501
     embedding: np.ndarray, dim: int = EMBEDDING_DIMENSION, tolerance: float = 1e-5
 ) -> bool:
     """Validates that an embedding has correct shape, dtype, and is properly normalized."""
@@ -150,5 +153,5 @@ def validate_normalized_embedding(
     if embedding.dtype != np.float32:
         return False
     norm = np.linalg.norm(embedding)
-    # Allow zero vectors (norm=0) or properly normalized vectors (norm≈1)
-    return bool(norm < tolerance or abs(norm - 1.0) < tolerance)
+    # Allow zero vectors (norm=0) or properly normalized vectors (norm approx 1)
+    return bool(norm < tolerance or abs(norm - 1.0) < tolerance)  # noqa E501
