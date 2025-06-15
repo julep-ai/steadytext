@@ -73,20 +73,45 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
     def _get_connection(self) -> sqlite3.Connection:
         """Get thread-local database connection with proper configuration."""
         if not hasattr(self._local, 'connection') or self._local.connection is None:
-            conn = sqlite3.connect(
-                str(self.db_file),
-                timeout=5.0,  # 5 second timeout for concurrent access
-                check_same_thread=False
-            )
-            
-            # AIDEV-NOTE: Configure SQLite for optimal concurrent access
-            conn.execute("PRAGMA journal_mode=WAL")
-            conn.execute("PRAGMA synchronous=NORMAL")
-            conn.execute("PRAGMA busy_timeout=5000")  # 5 seconds
-            conn.execute("PRAGMA cache_size=10000")  # 10MB page cache
-            
-            self._local.connection = conn
-            
+            try:
+                conn = sqlite3.connect(
+                    str(self.db_file),
+                    timeout=5.0,  # 5 second timeout for concurrent access
+                    check_same_thread=False
+                )
+                
+                # AIDEV-NOTE: Configure SQLite for optimal concurrent access
+                conn.execute("PRAGMA journal_mode=WAL")
+                conn.execute("PRAGMA synchronous=NORMAL")
+                conn.execute("PRAGMA busy_timeout=5000")  # 5 seconds
+                conn.execute("PRAGMA cache_size=10000")  # 10MB page cache
+                
+                self._local.connection = conn
+                
+            except sqlite3.DatabaseError as e:
+                # AIDEV-NOTE: Handle corrupted database files
+                logger.warning(f"Database corruption detected: {e}")
+                if self.db_file.exists():
+                    # Move corrupted file out of the way
+                    backup_file = self.db_file.with_suffix(".corrupted")
+                    self.db_file.rename(backup_file)
+                    logger.info(f"Moved corrupted database to {backup_file}")
+                
+                # Create new connection with fresh database
+                conn = sqlite3.connect(
+                    str(self.db_file),
+                    timeout=5.0,
+                    check_same_thread=False
+                )
+                
+                # Configure new connection
+                conn.execute("PRAGMA journal_mode=WAL")
+                conn.execute("PRAGMA synchronous=NORMAL")
+                conn.execute("PRAGMA busy_timeout=5000")
+                conn.execute("PRAGMA cache_size=10000")
+                
+                self._local.connection = conn
+                
         return self._local.connection
     
     @contextmanager

@@ -5,7 +5,11 @@
 [![Python Versions](https://img.shields.io/pypi/pyversions/steadytext.svg)](https://pypi.org/project/steadytext/)
 [![License](https://img.shields.io/pypi/l/steadytext.svg)](https://github.com/yourusername/steadytext/blob/main/LICENSE) <!-- Placeholder for license badge -->
 
-SteadyText provides perfectly deterministic text generation and embedding outputs with absolutely zero configuration. Install the package, and it just works.
+**SteadyText is a deterministic AI text generation and embedding library that makes AI behave like a pure function: same input always produces the exact same output.**
+
+Unlike traditional AI models that produce different outputs each time, SteadyText guarantees reproducibility across runs, machines, and time. This makes it perfect for testing, development workflows, and any production use case where you need consistent, predictable AI assistance.
+
+Key insight: **Your AI assistant becomes a reliable tool rather than an unpredictable oracle.**
 
 ## 🚀 Quick Start
 
@@ -35,7 +39,7 @@ print(f"Norm: {np.linalg.norm(embedding):.4f}")  # ~1.0 (L2-normalized)
 
 ## ✨ Key Features
 
-- **🎯 Perfectly Deterministic**: Same input always produces the exact same output across runs and machines
+- **🎯 Perfectly Deterministic**: Same input always produces the exact same output across runs and machines - making AI as reliable as any other function in your codebase
 - **⚡ Zero Configuration**: Works immediately after `pip install steadytext`. No API keys, no model selection, no parameters to tune
 - **📦 Self-Contained Models**: Language models are automatically downloaded on first use (~1.9GB total)
 - **🛡️ Never Fails**: Designed to be extremely robust with deterministic fallbacks for any edge cases
@@ -65,6 +69,45 @@ Models are automatically downloaded on first use to your cache directory:
 Model sizes:
 - Generation model: ~1.3GB (openbmb.BitCPM4-1B.Q8_0.gguf)
 - Embedding model: ~610MB (Qwen3-Embedding-0.6B-Q8_0.gguf)
+
+## 🖥️ CLI Usage
+
+SteadyText includes a powerful command-line interface accessible via `steadytext` or the shorter `st` command:
+
+```bash
+# Generate text from a prompt
+st "write a hello world function in Python"
+
+# Read from stdin
+echo "explain quantum computing" | st
+
+# Stream output token by token
+st "write a story" --stream
+
+# Get JSON output with metadata
+st "code review checklist" --json
+
+# Generate with log probabilities
+st "machine learning concepts" --logprobs
+
+# Create embeddings
+st embed "hello world"
+
+# Different embedding output formats
+st embed "text to embed" --format numpy
+st embed "text to embed" --format hex
+
+# Pipe text for embedding
+echo "some text" | st embed
+
+# Cache management
+st cache --status
+st cache --clear
+
+# Model management
+st models --list
+st models --preload
+```
 
 ## 📖 API Reference
 
@@ -150,9 +193,19 @@ steadytext.GENERATION_MAX_NEW_TOKENS  # 512 - Max tokens for generation
 steadytext.EMBEDDING_DIMENSION  # 1024 - Embedding vector size
 ```
 
-## 🚀 Why Caching Matters
+## 🚀 Why SteadyText Matters
 
-SteadyText uses a SQLite-backed frecency cache that persists across runs. This means:
+**The Problem**: Traditional AI models are non-deterministic - asking the same question twice gives different answers. This makes them unsuitable for:
+- Automated testing (tests become flaky)
+- Build processes (outputs change between builds)
+- Documentation generation (inconsistent results)
+- Any workflow requiring reproducibility
+
+**The Solution**: SteadyText makes AI deterministic. Same prompt = same output. Always.
+
+### Why Caching Makes It Even Better
+
+SteadyText uses a SQLite-backed frecency cache that persists across runs:
 
 - **Instant Repeated Generations**: Once you generate text for a prompt, subsequent calls with the same prompt return instantly from cache
 - **Cross-Session Persistence**: Cache survives program restarts - build up a library of instant responses
@@ -172,42 +225,48 @@ export STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB=200.0
 
 ## 💡 CLI Tool Ideas
 
-Imagine a `steadytext` CLI that leverages the cache for instant, deterministic command assistance:
+The real power of SteadyText: **build your own deterministic AI command-line assistant** that gets faster with use:
 
 ```bash
 # Basic usage - same query always returns same command
-$ steadytext "find all .py files modified in last week"
+$ st "find all .py files modified in last week"
 find . -name "*.py" -mtime -7
 
 # Build your own deterministic command oracle
-alias howto='steadytext'
+alias howto='st'
 $ howto 'compress directory with progress bar'
 tar -cf - directory/ | pv | gzip > directory.tar.gz
 
 # Parameterizable shell functions
 gitdo() {
-    $(steadytext "git command to $*")
+    $(st "git command to $*")
 }
 $ gitdo 'undo last commit but keep changes'
 $ gitdo 'show commits by author in last month'
 
 # Stable explanations that build your knowledge base
-alias explain='steadytext explain'
+alias explain='st'
 $ explain 'what does chmod 755 mean'
 # Always get the SAME explanation - cached for instant access
 
 # Pipeline-friendly deterministic processing
-$ echo "error: ECONNREFUSED" | steadytext 'make user-friendly'
+$ echo "error: ECONNREFUSED" | st 'make user-friendly'
 Unable to connect to the server. Please check your connection.
 
 # Reproducible config generation
-$ steadytext 'nginx config for SPA on port 3000' > nginx.conf
+$ st 'nginx config for SPA on port 3000' > nginx.conf
 # Regenerating gives identical config - git-friendly!
 
 # Deterministic test data that's instant after first run
 for i in {1..1000}; do
-    steadytext "fake user data seed:$i" >> test-users.json
+    st "fake user data seed:$i" >> test-users.json
 done
+
+# Real examples that work now:
+$ st "Python function to calculate fibonacci"
+$ st "SQL query to find duplicate email addresses"
+$ st "bash one-liner to count lines in all .py files"
+$ echo "TypeError: unsupported operand type(s)" | st "explain this error"
 ```
 
 The killer feature: your AI assistant becomes predictable AND fast. No more:

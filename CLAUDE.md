@@ -69,6 +69,11 @@ python -m flake8 .
 # Install and run pre-commit hooks
 pre-commit install
 pre-commit run --all-files
+
+# Using poethepoet tasks (if available)
+poe lint
+poe format
+poe check
 ```
 
 ### Installation
@@ -78,6 +83,9 @@ python -m pip install -e .
 
 # Install with uv (if available)
 uv pip install -e .
+
+# Build package with uv
+uv build
 ```
 
 ## Architecture Overview
@@ -133,6 +141,28 @@ Two standalone test files (`test_gen.py`, `test_fallback_gen.py`) provide direct
 - `GENERATION_MAX_NEW_TOKENS = 512`: Fixed output length for text generation
 - `EMBEDDING_DIMENSION = 1024`: Fixed embedding dimensionality
 - Models are cached to `~/.cache/steadytext/models/` (Linux/Mac) or `%LOCALAPPDATA%\steadytext\steadytext\models\` (Windows)
+
+## CLI Architecture
+
+SteadyText includes a command-line interface built with Click:
+
+**Main CLI (`steadytext/cli/main.py`)**
+- Entry point for both `steadytext` and `st` commands
+- Supports stdin pipe input when no subcommand provided
+- Version flag support
+
+**Commands (`steadytext/cli/commands/`)**
+- `generate.py`: Text generation with streaming, JSON output, and logprobs support
+- `embed.py`: Embedding creation with multiple output formats (JSON, numpy, hex)
+- `cache.py`: Cache management and status commands
+- `models.py`: Model management (list, preload, etc.)
+
+**CLI Features:**
+- Deterministic outputs matching the Python API
+- Multiple output formats (raw text, JSON with metadata, structured data)
+- Streaming support for real-time text generation
+- Stdin/pipe support for unix-style command chaining
+- Log probability access for advanced use cases
 
 ## Cache Configuration
 
