@@ -149,3 +149,13 @@ SteadyText uses disk-backed frecency caches for both generation and embedding re
 Cache files are stored in:
 - `~/.cache/steadytext/caches/` (Linux/Mac)
 - `%LOCALAPPDATA%\steadytext\steadytext\caches\` (Windows)
+
+## Todos Directory
+
+The `todos/` directory contains task descriptions and implementation notes for features that are planned or in progress. These are typically detailed technical specifications or design documents that outline how specific features should be implemented.
+
+When working on features described in `todos/`:
+1. Read the relevant todo file thoroughly before implementation
+2. Follow the technical specifications and design decisions outlined
+3. Move or archive completed todo files once implemented
+4. Update todo files if implementation details change during development

@@ -41,6 +41,7 @@ print(f"Norm: {np.linalg.norm(embedding):.4f}")  # ~1.0 (L2-normalized)
 - **🛡️ Never Fails**: Designed to be extremely robust with deterministic fallbacks for any edge cases
 - **🔄 Streaming Support**: Generate text iteratively with `generate_iter()` for real-time output
 - **📊 Logprobs Access**: Optionally get log probabilities alongside generated text
+- **💾 Intelligent Caching**: SQLite-backed frecency cache makes repeated generations instant
 - **📏 Fixed Output Sizes**:
   - `generate()`: Always produces up to 512 tokens of text
   - `embed()`: Always returns a 1024-dimensional L2-normalized float32 numpy array
@@ -148,6 +149,73 @@ steadytext.DEFAULT_SEED  # 42 - Used internally for determinism
 steadytext.GENERATION_MAX_NEW_TOKENS  # 512 - Max tokens for generation
 steadytext.EMBEDDING_DIMENSION  # 1024 - Embedding vector size
 ```
+
+## 🚀 Why Caching Matters
+
+SteadyText uses a SQLite-backed frecency cache that persists across runs. This means:
+
+- **Instant Repeated Generations**: Once you generate text for a prompt, subsequent calls with the same prompt return instantly from cache
+- **Cross-Session Persistence**: Cache survives program restarts - build up a library of instant responses
+- **Smart Eviction**: Frecency (frequency + recency) algorithm keeps your most useful generations
+- **Production Ready**: Configurable size limits prevent unbounded growth
+
+Configure cache behavior with environment variables:
+```bash
+# Generation cache (default: 256 entries, 50MB)
+export STEADYTEXT_GENERATION_CACHE_CAPACITY=512
+export STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB=100.0
+
+# Embedding cache (default: 512 entries, 100MB)  
+export STEADYTEXT_EMBEDDING_CACHE_CAPACITY=1024
+export STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB=200.0
+```
+
+## 💡 CLI Tool Ideas
+
+Imagine a `steadytext` CLI that leverages the cache for instant, deterministic command assistance:
+
+```bash
+# Basic usage - same query always returns same command
+$ steadytext "find all .py files modified in last week"
+find . -name "*.py" -mtime -7
+
+# Build your own deterministic command oracle
+alias howto='steadytext'
+$ howto 'compress directory with progress bar'
+tar -cf - directory/ | pv | gzip > directory.tar.gz
+
+# Parameterizable shell functions
+gitdo() {
+    $(steadytext "git command to $*")
+}
+$ gitdo 'undo last commit but keep changes'
+$ gitdo 'show commits by author in last month'
+
+# Stable explanations that build your knowledge base
+alias explain='steadytext explain'
+$ explain 'what does chmod 755 mean'
+# Always get the SAME explanation - cached for instant access
+
+# Pipeline-friendly deterministic processing
+$ echo "error: ECONNREFUSED" | steadytext 'make user-friendly'
+Unable to connect to the server. Please check your connection.
+
+# Reproducible config generation
+$ steadytext 'nginx config for SPA on port 3000' > nginx.conf
+# Regenerating gives identical config - git-friendly!
+
+# Deterministic test data that's instant after first run
+for i in {1..1000}; do
+    steadytext "fake user data seed:$i" >> test-users.json
+done
+```
+
+The killer feature: your AI assistant becomes predictable AND fast. No more:
+- Getting different suggestions for the same question
+- Waiting for model inference on commands you've asked before  
+- Worrying about non-deterministic outputs in scripts
+
+Instead, you build a personal, deterministic command cache that gets faster with use!
 
 ## 🎨 Creative Examples & Use Cases
 

@@ -10,8 +10,13 @@ import threading
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
-from .frecency_cache import FrecencyCache
-from .utils import get_cache_dir, logger
+try:
+    from .frecency_cache import FrecencyCache
+    from .utils import get_cache_dir, logger
+except ImportError:
+    # For direct testing
+    from frecency_cache import FrecencyCache
+    from utils import get_cache_dir, logger
 
 
 class DiskBackedFrecencyCache(FrecencyCache):
@@ -148,10 +153,10 @@ class DiskBackedFrecencyCache(FrecencyCache):
     
     def set(self, key: Any, value: Any) -> None:
         """Set value in cache and persist to disk."""
+        # AIDEV-NOTE: Don't acquire lock here - parent's set() already handles locking
+        super().set(key, value)
+        # Save to disk after set
         with self._lock:
-            # Let parent handle the in-memory operations
-            super().set(key, value)
-            # Save to disk after set
             self._save_to_disk()
     
     def clear(self) -> None:

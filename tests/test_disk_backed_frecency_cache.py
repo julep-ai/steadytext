@@ -7,6 +7,11 @@ from pathlib import Path
 
 import pytest
 
+import sys
+import os
+# Disable model loading during cache tests
+os.environ["STEADYTEXT_SKIP_MODEL_LOAD"] = "1"
+
 from steadytext.disk_backed_frecency_cache import DiskBackedFrecencyCache
 
 
