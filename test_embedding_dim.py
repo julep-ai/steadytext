@@ -13,7 +13,7 @@ import os
 import pytest
 
 try:
-    import llama_cpp
+    import llama_cpp  # noqa: F401
 except ImportError:
     pytest.skip("llama_cpp not installed", allow_module_level=True)
 

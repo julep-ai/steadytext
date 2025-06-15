@@ -6,6 +6,7 @@ from steadytext.utils import (
 )
 import steadytext  # Main package import
 import unittest
+import pytest
 import numpy as np
 import os
 import sys
@@ -48,6 +49,8 @@ logging.getLogger("steadytext.core.generator").setLevel(logging.WARNING)
 logging.getLogger("steadytext.core.embedder").setLevel(logging.WARNING)
 
 
+@pytest.mark.slow
+@pytest.mark.model_required
 @unittest.skipUnless(
     ALLOW_MODEL_DOWNLOADS,
     "Skipping model-dependent tests (STEADYTEXT_ALLOW_MODEL_DOWNLOADS is not 'true')",
@@ -127,65 +130,6 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
             "for the same prompt and default seed.",  # noqa E501
         )
 
-    def test_generate_deterministic_custom_seed(self):
-        """Test steadytext.generate() is deterministic with a custom seed and
-        output varies from default seed."""  # noqa E501
-        if not MODELS_ARE_ACCESSIBLE_FOR_TESTING:
-            self.skipTest(
-                "Models deemed not accessible, skipping custom seed generation test."
-            )
-
-        prompt = "Another unique test prompt for custom seed evaluation."
-        custom_seed = DEFAULT_SEED + 42  # A seed different from default
-
-        output_default = steadytext.generate(prompt, seed=DEFAULT_SEED)
-        output_custom1 = steadytext.generate(prompt, seed=custom_seed)
-        output_custom2 = steadytext.generate(prompt, seed=custom_seed)
-
-        self.assertIsInstance(output_custom1, str)
-        self.assertEqual(
-            output_custom1,
-            output_custom2,
-            "Generated text (or error string) must be identical for the same custom seed.",
-        )
-
-        if MODELS_ARE_ACCESSIBLE_FOR_TESTING and not output_custom1.startswith(
-            "Error:"
-        ):
-            self.assertFalse(
-                output_custom1.startswith("Error:"),
-                "Successful custom seed generation output should not start with 'Error:'.",
-            )
-
-        # Only compare content if both generations were successful (not error strings)
-        if not output_default.startswith("Error:") and not output_custom1.startswith(
-            "Error:"
-        ):
-            self.assertNotEqual(
-                output_default,
-                output_custom1,
-                "Generated text should differ for different seeds "
-                "when generation is successful.",
-            )
-            self.assertTrue(
-                len(output_custom1) > 0,
-                "Successful custom seed generation should not be empty.",
-            )
-        elif output_default.startswith("Error:") and output_custom1.startswith(
-            "Error:"
-        ):
-            # Error messages include seed, so they should differ if seeds are different.
-            self.assertNotEqual(
-                output_default,
-                output_custom1,
-                "Error messages should differ if seeds "
-                "(part of error message) are different.",  # noqa E501
-            )
-        else:
-            steadytext_logger.warning(
-                "One generation attempt resulted in an error, "
-                "skipping content comparison for seed variation."
-            )
 
     def test_embed_deterministic_string_and_validity(self):
         """Test steadytext.embed() is deterministic for string input and
@@ -328,6 +272,7 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
         )
 
 
+@pytest.mark.fast
 class TestSteadyTextAPIErrorFallbacks(unittest.TestCase):
     """
     Tests the "Never Fails" aspect of the SteadyText public API, ensuring
@@ -341,14 +286,17 @@ class TestSteadyTextAPIErrorFallbacks(unittest.TestCase):
         deterministic error string."""
         prompt_int = 12345
         from steadytext.core.generator import _deterministic_fallback_generate
+
         output = steadytext.generate(prompt_int)  # type: ignore
 
-        expected_fallback_for_int_prompt = _deterministic_fallback_generate(str(prompt_int))  # noqa E501
+        expected_fallback_for_int_prompt = _deterministic_fallback_generate(
+            str(prompt_int)
+        )  # noqa E501
         self.assertIsInstance(output, str)
         self.assertEqual(output, expected_fallback_for_int_prompt)
 
         # Ensure it's deterministic - this part should still hold
-        output2 = steadytext.generate(prompt_int, seed=DEFAULT_SEED)  # type: ignore
+        output2 = steadytext.generate(prompt_int)  # type: ignore
         self.assertEqual(
             output,
             output2,
@@ -366,7 +314,7 @@ class TestSteadyTextAPIErrorFallbacks(unittest.TestCase):
         output = steadytext.generate("")
         self.assertIsInstance(output, str)
         self.assertTrue(
-            len(output) > 0, "Output for empty prompt should not itself be empty." 
+            len(output) > 0, "Output for empty prompt should not itself be empty."
         )
         self.assertFalse(
             output.startswith("Error: Invalid prompt type."),
@@ -428,6 +376,7 @@ class TestSteadyTextAPIErrorFallbacks(unittest.TestCase):
         )
 
 
+@pytest.mark.fast
 class TestSteadyTextFallbackBehavior(unittest.TestCase):
     """Tests to verify fallback behavior when models cannot be loaded."""
 
@@ -558,6 +507,7 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
             )
 
 
+@pytest.mark.fast
 class TestSteadyTextUtilities(unittest.TestCase):
     """Tests for utility functions and constants exposed by the package."""
 
@@ -600,6 +550,7 @@ class TestSteadyTextUtilities(unittest.TestCase):
         )
 
 
+@pytest.mark.fast
 class TestValidateNormalizedEmbedding(unittest.TestCase):
     """Tests for the steadytext.utils.validate_normalized_embedding function."""
 

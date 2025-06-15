@@ -51,6 +51,12 @@ python -m pytest test_fallback_gen.py
 
 # Allow model downloads in tests (models are downloaded on first use)
 STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true python -m pytest
+
+# Configure cache settings
+STEADYTEXT_GENERATION_CACHE_CAPACITY=512 python -m pytest
+STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB=100.0 python -m pytest
+STEADYTEXT_EMBEDDING_CACHE_CAPACITY=1024 python -m pytest
+STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB=200.0 python -m pytest
 ```
 
 All tests are designed to pass even if models cannot be downloaded. Model-dependent tests are automatically skipped unless `STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true` is set.
@@ -99,6 +105,7 @@ SteadyText provides deterministic text generation and embedding with zero config
 - Uses openbmb.BitCPM4-1B.Q8_0.gguf with deterministic sampling parameters
 - Fallback generates text using hash-based word selection when model unavailable
 - Always returns strings, never raises exceptions
+- Supports both batch generation (`generate()`) and streaming generation (`generate_iter()`)
 
 **Embeddings:**
 - Uses Qwen3-Embedding-0.6B-Q8_0.gguf configured for embeddings
@@ -126,3 +133,19 @@ Two standalone test files (`test_gen.py`, `test_fallback_gen.py`) provide direct
 - `GENERATION_MAX_NEW_TOKENS = 512`: Fixed output length for text generation
 - `EMBEDDING_DIMENSION = 1024`: Fixed embedding dimensionality
 - Models are cached to `~/.cache/steadytext/models/` (Linux/Mac) or `%LOCALAPPDATA%\steadytext\steadytext\models\` (Windows)
+
+## Cache Configuration
+
+SteadyText uses disk-backed frecency caches for both generation and embedding results. The caches can be configured via environment variables:
+
+**Generation Cache:**
+- `STEADYTEXT_GENERATION_CACHE_CAPACITY`: Maximum number of cache entries (default: 256)
+- `STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB`: Maximum cache file size in MB (default: 50.0)
+
+**Embedding Cache:**
+- `STEADYTEXT_EMBEDDING_CACHE_CAPACITY`: Maximum number of cache entries (default: 512)
+- `STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB`: Maximum cache file size in MB (default: 100.0)
+
+Cache files are stored in:
+- `~/.cache/steadytext/caches/` (Linux/Mac)
+- `%LOCALAPPDATA%\steadytext\steadytext\caches\` (Windows)

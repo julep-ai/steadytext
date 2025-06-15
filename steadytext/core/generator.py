@@ -4,11 +4,15 @@
 # _deterministic_fallback_generate() when model is None
 # AIDEV-NOTE: Added stop sequences integration - DEFAULT_STOP_SEQUENCES
 # are now passed to model calls
+# AIDEV-NOTE: Fixed determinism issue - now always uses DEFAULT_SEED when
+# no explicit seed is provided to ensure consistent outputs
+# AIDEV-NOTE: Added generate_iter() method for streaming token generation
+# with graceful fallback to word-by-word yielding when model unavailable
 
 import hashlib
-from typing import Any, Dict, List, Optional, Union, Tuple
+from typing import Any, Dict, List, Optional, Union, Tuple, Iterator
 
-from ..frecency_cache import FrecencyCache
+from ..disk_backed_frecency_cache import DiskBackedFrecencyCache
 from ..models.loader import get_generator_model_instance
 from ..utils import set_deterministic_environment  # Assuming this is in utils.py
 from ..utils import (
@@ -23,10 +27,18 @@ from ..utils import (
 set_deterministic_environment(DEFAULT_SEED)
 
 
-# AIDEV-NOTE: In-memory frecency cache for generated text results
-# AIDEV-NOTE: In-memory cache for successful generation outputs
+# AIDEV-NOTE: Disk-backed frecency cache for generated text results
+# AIDEV-NOTE: Persistent cache for successful generation outputs with configurable limits
 # AIDEV-QUESTION: Should fallback results be cached, or only model-generated ones?
-_generation_cache = FrecencyCache()
+# AIDEV-NOTE: Cache capacity and size can be configured via environment variables:
+# - STEADYTEXT_GENERATION_CACHE_CAPACITY (default: 256)
+# - STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB (default: 50.0)
+import os as _os
+_generation_cache = DiskBackedFrecencyCache(
+    capacity=int(_os.environ.get("STEADYTEXT_GENERATION_CACHE_CAPACITY", "256")),
+    cache_name="generation_cache",
+    max_size_mb=float(_os.environ.get("STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB", "50.0"))
+)
 
 
 # AIDEV-NOTE: Main generator class with model instance caching and error handling
@@ -39,7 +51,9 @@ class DeterministicGenerator:
 
     def _load_model(self, enable_logits: bool = False):
         """Load or reload the model with specific logits configuration."""
-        self.model = get_generator_model_instance(force_reload=True, enable_logits=enable_logits)
+        self.model = get_generator_model_instance(
+            force_reload=True, enable_logits=enable_logits
+        )
         self._logits_enabled = enable_logits
         if self.model is None:
             logger.error(
@@ -47,12 +61,12 @@ class DeterministicGenerator:
             )
 
     def generate(
-        self, prompt: str, seed: Optional[int] = None, return_logprobs: bool = False
+        self, prompt: str, return_logprobs: bool = False
     ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
         # Handle caching only for non-logprobs requests
         if not return_logprobs:
             prompt_str = prompt if isinstance(prompt, str) else str(prompt)
-            cache_key = (prompt_str, seed if seed is not None else DEFAULT_SEED)
+            cache_key = prompt_str
             cached = _generation_cache.get(cache_key)
             if cached is not None:
                 return cached
@@ -93,10 +107,16 @@ class DeterministicGenerator:
             return (fallback, None) if return_logprobs else fallback
 
         try:
+            # AIDEV-NOTE: Reset model cache before generation to ensure deterministic
+            # behavior across multiple calls with the same seed
+            if hasattr(self.model, 'reset'):
+                self.model.reset()
+            
             sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
             sampling_params["stop"] = DEFAULT_STOP_SEQUENCES
-            if seed is not None:
-                sampling_params["seed"] = seed
+            # Always use DEFAULT_SEED for determinism
+            sampling_params["seed"] = DEFAULT_SEED
+            
             if return_logprobs:
                 # Request logprobs for each generated token
                 sampling_params["logprobs"] = GENERATION_MAX_NEW_TOKENS
@@ -132,7 +152,7 @@ class DeterministicGenerator:
             # Only cache non-logprobs results
             if not return_logprobs:
                 prompt_str = prompt if isinstance(prompt, str) else str(prompt)
-                cache_key = (prompt_str, seed if seed is not None else DEFAULT_SEED)
+                cache_key = prompt_str
                 _generation_cache.set(cache_key, generated_text)
             
             return (generated_text, logprobs) if return_logprobs else generated_text
@@ -145,6 +165,83 @@ class DeterministicGenerator:
             )
             fallback_output = ""
             return (fallback_output, None) if return_logprobs else fallback_output
+
+    def generate_iter(
+        self, prompt: str
+    ) -> Iterator[str]:
+        """Generate text iteratively, yielding tokens as they are produced.
+        
+        AIDEV-NOTE: Streaming generation for real-time output. Falls back to
+        yielding words from deterministic fallback when model unavailable.
+        
+        AIDEV-TODO: Investigate potential hanging issues in pytest when multiple
+        generate_iter calls are made in the same session. Works fine in isolation
+        but may have state/threading issues in test environment.
+        """
+        if not isinstance(prompt, str):
+            logger.error(
+                f"DeterministicGenerator.generate_iter: Invalid prompt type: {type(prompt)}. Expected str. Using fallback."
+            )
+            # Yield words from fallback
+            fallback_text = _deterministic_fallback_generate(str(prompt))
+            for word in fallback_text.split():
+                yield word + " "
+            return
+
+        # AIDEV-NOTE: Check if model is loaded, fallback to word-by-word generation if not
+        if self.model is None:
+            logger.warning(
+                "DeterministicGenerator.generate_iter: Model not loaded. "
+                "Using fallback generator."
+            )
+            fallback_text = _deterministic_fallback_generate(prompt)
+            for word in fallback_text.split():
+                yield word + " "
+            return
+
+        if not prompt or not prompt.strip():
+            logger.warning(
+                "DeterministicGenerator.generate_iter: Empty or whitespace-only "
+                "prompt received. Using fallback generator."
+            )
+            fallback_text = _deterministic_fallback_generate(prompt)
+            for word in fallback_text.split():
+                yield word + " "
+            return
+
+        try:
+            # AIDEV-NOTE: Reset model cache before generation
+            if hasattr(self.model, 'reset'):
+                self.model.reset()
+            
+            sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
+            sampling_params["stop"] = DEFAULT_STOP_SEQUENCES
+            sampling_params["seed"] = DEFAULT_SEED
+            sampling_params["stream"] = True  # Enable streaming
+
+            # AIDEV-NOTE: Streaming API returns an iterator of partial outputs
+            stream = self.model.create_chat_completion(
+                messages=[{"role": "user", "content": prompt}], **sampling_params
+            )
+
+            for chunk in stream:
+                if chunk and "choices" in chunk and len(chunk["choices"]) > 0:
+                    choice = chunk["choices"][0]
+                    delta = choice.get("delta", {})
+                    
+                    # AIDEV-NOTE: Streaming responses use 'delta' for incremental content
+                    if "content" in delta and delta["content"]:
+                        yield delta["content"]
+                    elif "text" in choice and choice["text"]:
+                        yield choice["text"]
+
+        except Exception as e:
+            logger.error(
+                f"DeterministicGenerator.generate_iter: Error during streaming generation "
+                f"for prompt '{prompt[:50]}...': {e}",
+                exc_info=True,
+            )
+            # On error, don't yield anything further
 
 
 # AIDEV-NOTE: Complex hash-based fallback generation algorithm for
@@ -269,3 +366,14 @@ def _deterministic_fallback_generate(prompt: str) -> str:
         seed2 = (seed2 * 22695477 + current_seed + 1 + i) & 0xFFFFFFFF
 
     return " ".join(fallback_text_parts)
+
+
+def _deterministic_fallback_generate_iter(prompt: str) -> Iterator[str]:
+    """Iterative version of deterministic fallback that yields words one by one.
+    
+    AIDEV-NOTE: Used by generate_iter when model is unavailable. Yields the same
+    deterministic output as _deterministic_fallback_generate but word by word.
+    """
+    fallback_text = _deterministic_fallback_generate(prompt)
+    for word in fallback_text.split():
+        yield word + " "

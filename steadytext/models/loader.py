@@ -7,6 +7,7 @@ except ImportError as import_err:  # pragma: no cover - import failure path
     # AIDEV-NOTE: Allow tests to run without llama_cpp installed
     Llama = None  # type: ignore
     import logging
+
     logging.getLogger(__name__).error("llama_cpp not available: %s", import_err)
 from pathlib import Path
 import threading
@@ -47,7 +48,14 @@ class _ModelInstanceCache:
     # AIDEV-NOTE: Generator model loading with parameter configuration and
     # error handling
     @classmethod
-    def get_generator(cls, force_reload: bool = False, enable_logits: bool = False) -> Optional[Llama]:
+    def get_generator(
+        cls, force_reload: bool = False, enable_logits: bool = False
+    ) -> Optional[Llama]:
+        if Llama is None:
+            logger.error(
+                "llama_cpp.Llama not available; generator model cannot be loaded"
+            )
+            return None
         inst = cls.__getInstance()
         # AIDEV-NOTE: This lock is crucial for thread-safe access to the generator model.
         with inst._lock:
@@ -93,7 +101,9 @@ class _ModelInstanceCache:
     @classmethod
     def get_embedder(cls, force_reload: bool = False) -> Optional[Llama]:
         if Llama is None:
-            logger.error("llama_cpp.Llama not available; embedder model cannot be loaded")
+            logger.error(
+                "llama_cpp.Llama not available; embedder model cannot be loaded"
+            )
             return None
         inst = cls.__getInstance()
         # AIDEV-NOTE: This lock is crucial for thread-safe access to the embedder model.
@@ -145,7 +155,9 @@ class _ModelInstanceCache:
             return inst._embedder_model
 
 
-def get_generator_model_instance(force_reload: bool = False, enable_logits: bool = False) -> Optional[Llama]:
+def get_generator_model_instance(
+    force_reload: bool = False, enable_logits: bool = False
+) -> Optional[Llama]:
     return _ModelInstanceCache.get_generator(force_reload, enable_logits)
 
 

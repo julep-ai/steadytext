@@ -38,12 +38,15 @@ dependencies = [
 
 [tool.poe.tasks]
 test = "pytest"
+test-fast = "pytest -m 'not slow'"
+test-parallel = "pytest -n auto -m 'not slow'"
 test-cov = "pytest --cov=steadytext --cov-report=xml"
-test-models = "STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true pytest"
 lint = "ruff check --fix"
 format = "ruff format"
 check = "ty check"
 pre-commit = "pre-commit run --all-files"
+[tool.poe.tasks.test-models]
+shell = "STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true pytest"
 
 [dependency-groups]
 dev = [
@@ -51,6 +54,8 @@ dev = [
     "ty>=0.0.1a8",
     "pytest",
     "pytest-cov",
+    "pytest-xdist",
     "pre-commit",
     "poethepoet",
+    "ipython>=8.37.0",
 ]
