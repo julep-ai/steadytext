@@ -48,9 +48,6 @@ class _ModelInstanceCache:
     # error handling
     @classmethod
     def get_generator(cls, force_reload: bool = False, enable_logits: bool = False) -> Optional[Llama]:
-        if Llama is None:
-            logger.error("llama_cpp.Llama not available; generator model cannot be loaded")
-            return None
         inst = cls.__getInstance()
         # AIDEV-NOTE: This lock is crucial for thread-safe access to the generator model.
         with inst._lock:
@@ -59,29 +56,36 @@ class _ModelInstanceCache:
                 logger.error("Generator model file not found by cache.")
                 return None
 
-            if (
+            # Check if we need to reload due to logits configuration change
+            current_logits_enabled = getattr(inst, '_generator_logits_enabled', False)
+            needs_reload = (
                 inst._generator_model is None
                 or inst._generator_path != model_path
                 or force_reload
-            ):
+                or (enable_logits != current_logits_enabled)
+            )
+
+            if needs_reload:
                 if inst._generator_model is not None:
                     del inst._generator_model
                     inst._generator_model = None
 
-                logger.info(f"Loading generator model from: {model_path}")
+                logger.info(f"Loading generator model from: {model_path} (logits_all={enable_logits})")
                 try:
                     params = {**LLAMA_CPP_MAIN_PARAMS_DETERMINISTIC}
                     params["embedding"] = False
-                    # Only enable logits_all when logprobs are needed
-                    params["logits_all"] = enable_logits
+                    if enable_logits:
+                        params["logits_all"] = True
 
                     inst._generator_model = Llama(model_path=str(model_path), **params)
                     inst._generator_path = model_path
+                    inst._generator_logits_enabled = enable_logits
                     logger.info("Generator model loaded successfully.")
                 except Exception as e:
                     logger.error(f"Failed to load generator model: {e}", exc_info=True)
                     inst._generator_model = None
                     inst._generator_path = None
+                    inst._generator_logits_enabled = False
             return inst._generator_model
 
     # AIDEV-NOTE: Embedder model loading with dimension validation - critical
