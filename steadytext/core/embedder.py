@@ -240,9 +240,7 @@ if __name__ == "__main__":
     ]:
         logging.getLogger(log_name).setLevel(logging.DEBUG)
 
-    print(
-        "--- Running Core Embedder Direct Test " "(downloads models if not cached) ---"
-    )
+    print("--- Running Core Embedder Direct Test (downloads models if not cached) ---")
 
     test_cases = [
         ("A single test sentence.", "Single string"),
@@ -297,7 +295,7 @@ if __name__ == "__main__":
     if np.array_equal(emb1, emb2):
         print("SUCCESS: Embedding is deterministic for the same string input.")
     else:
-        print("FAILURE: Embedding is NOT deterministic " "for the same string input.")
+        print("FAILURE: Embedding is NOT deterministic for the same string input.")
         print(f"  Norm of diff: {np.linalg.norm(emb1 - emb2)}")
 
     logger.info("--- Core Embedder Direct Test Finished ---")
