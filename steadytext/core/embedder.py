@@ -10,7 +10,11 @@ from typing import (  # Added Any for Llama type hint if not directly imported
 )
 
 import numpy as np
-from llama_cpp import Llama  # type: ignore # Assuming Llama might not have type stubs
+try:
+    from llama_cpp import Llama  # type: ignore
+except ImportError as import_err:  # pragma: no cover - allow missing llama_cpp
+    Llama = None  # type: ignore
+    logging.getLogger(__name__).error("llama_cpp not available: %s", import_err)
 
 from ..frecency_cache import FrecencyCache
 from ..models.loader import (  # Use the embedding-specific model loader
