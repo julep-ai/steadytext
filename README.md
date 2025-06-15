@@ -41,7 +41,7 @@ pip install steadytext
 ```
 
 Models will be downloaded automatically to your local cache directory (e.g., `~/.cache/steadytext/models`) the first time you call `generate()` or `embed()`. This is a one-time download.
-The generation model is ~287MB (Qwen1.5-0.5B-Chat Q4_K_M GGUF).
-The embedding model is ~550MB (Qwen1.5-0.5B-Chat Q8_0 GGUF).
+The generation model is ~1.3GB (openbmb.BitCPM4-1B.Q8_0.gguf).
+The embedding model is ~610MB (Qwen3-Embedding-0.6B-Q8_0.gguf).
 
 *(Further sections like 'How It Works', 'API Reference', 'Contributing', 'License' would be added here)*
