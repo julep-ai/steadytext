@@ -15,7 +15,7 @@ from ..utils import (
     DEFAULT_STOP_SEQUENCES,
     set_deterministic_environment,  # Assuming this is in utils.py
 )
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union, Tuple
 
 # Ensure environment is set for determinism when this module is loaded
 set_deterministic_environment(DEFAULT_SEED)
@@ -24,7 +24,15 @@ set_deterministic_environment(DEFAULT_SEED)
 # AIDEV-NOTE: Main generator class with model instance caching and error handling
 class DeterministicGenerator:
     def __init__(self):
-        self.model = get_generator_model_instance()
+        self.model = None
+        self._logits_enabled = False
+        # Load model without logits_all initially
+        self._load_model(enable_logits=False)
+
+    def _load_model(self, enable_logits: bool = False):
+        """Load or reload the model with specific logits configuration."""
+        self.model = get_generator_model_instance(force_reload=True, enable_logits=enable_logits)
+        self._logits_enabled = enable_logits
         if self.model is None:
             logger.error(
                 "DeterministicGenerator: Model instance is None after attempting to load."
@@ -32,7 +40,7 @@ class DeterministicGenerator:
 
     def generate(
         self, prompt: str, seed: Optional[int] = None, return_logprobs: bool = False
-    ) -> Any:
+    ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
         if not isinstance(prompt, str):
             logger.error(
                 f"DeterministicGenerator.generate: Invalid prompt type: "
@@ -42,6 +50,15 @@ class DeterministicGenerator:
             fallback = _deterministic_fallback_generate(str(prompt))
             return (fallback, None) if return_logprobs else fallback
 
+        # Reload model if logprobs requested but not enabled
+        if return_logprobs and not self._logits_enabled:
+            logger.info("Reloading model with logits support for logprobs generation.")
+            self._load_model(enable_logits=True)
+        elif not return_logprobs and self._logits_enabled:
+            # Optionally reload without logits to save memory/performance
+            # For now, we'll keep the model loaded with logits if already enabled
+            pass
+        
         # AIDEV-NOTE: This is where the fallback to _deterministic_fallback_generate occurs if the model isn't loaded.
         if self.model is None:
             logger.warning(

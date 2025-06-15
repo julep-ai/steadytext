@@ -11,7 +11,7 @@ from typing import (
 import logging
 try:
     from llama_cpp import Llama  # type: ignore
-except Exception as import_err:  # pragma: no cover - allow missing llama_cpp
+except ImportError as import_err:  # pragma: no cover - allow missing llama_cpp
     Llama = None  # type: ignore
     logging.getLogger(__name__).error("llama_cpp not available: %s", import_err)
 

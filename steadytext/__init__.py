@@ -9,7 +9,7 @@ __version__ = "0.1.0"
 
 # Import core functions and classes for public API
 import numpy as np
-from typing import Optional, Any
+from typing import Optional, Any, Union, Tuple, Dict
 from .core.generator import DeterministicGenerator
 from .core.embedder import create_embedding
 from .utils import (
@@ -27,7 +27,7 @@ _global_generator = DeterministicGenerator()
 
 def generate(
     prompt: str, seed: Optional[int] = None, return_logprobs: bool = False
-) -> Any:
+) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
     """Generate text deterministically from a prompt.
 
     If ``return_logprobs`` is True, a tuple ``(text, logprobs)`` is returned.

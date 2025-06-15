@@ -3,7 +3,7 @@
 
 try:
     from llama_cpp import Llama
-except Exception as import_err:  # pragma: no cover - import failure path
+except ImportError as import_err:  # pragma: no cover - import failure path
     # AIDEV-NOTE: Allow tests to run without llama_cpp installed
     Llama = None  # type: ignore
     import logging
@@ -47,7 +47,7 @@ class _ModelInstanceCache:
     # AIDEV-NOTE: Generator model loading with parameter configuration and
     # error handling
     @classmethod
-    def get_generator(cls, force_reload: bool = False) -> Optional[Llama]:
+    def get_generator(cls, force_reload: bool = False, enable_logits: bool = False) -> Optional[Llama]:
         if Llama is None:
             logger.error("llama_cpp.Llama not available; generator model cannot be loaded")
             return None
@@ -72,6 +72,8 @@ class _ModelInstanceCache:
                 try:
                     params = {**LLAMA_CPP_MAIN_PARAMS_DETERMINISTIC}
                     params["embedding"] = False
+                    # Only enable logits_all when logprobs are needed
+                    params["logits_all"] = enable_logits
 
                     inst._generator_model = Llama(model_path=str(model_path), **params)
                     inst._generator_path = model_path
@@ -139,8 +141,8 @@ class _ModelInstanceCache:
             return inst._embedder_model
 
 
-def get_generator_model_instance(force_reload: bool = False) -> Optional[Llama]:
-    return _ModelInstanceCache.get_generator(force_reload)
+def get_generator_model_instance(force_reload: bool = False, enable_logits: bool = False) -> Optional[Llama]:
+    return _ModelInstanceCache.get_generator(force_reload, enable_logits)
 
 
 def get_embedding_model_instance(force_reload: bool = False) -> Optional[Llama]:

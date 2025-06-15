@@ -60,7 +60,7 @@ LLAMA_CPP_MAIN_PARAMS_DETERMINISTIC: Dict[str, Any] = {
     **LLAMA_CPP_BASE_PARAMS,
     # Parameters for generation
     # explicit 'embedding': False will be set in loader for gen model
-    "logits_all": True,  # Enable logprobs support for generation
+    # logits_all will be set dynamically based on whether logprobs are needed
 }
 
 # --- Output Configuration (from previous full utils.py) ---

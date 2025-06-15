@@ -9,7 +9,7 @@ import pytest
 
 try:
     import llama_cpp
-except Exception:
+except ImportError:
     pytest.skip("llama_cpp not installed", allow_module_level=True)
 
 sys.path.insert(0, os.getcwd())
