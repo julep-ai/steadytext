@@ -5,6 +5,12 @@ from steadytext.utils import (
 from steadytext.models.loader import get_generator_model_instance
 import sys
 import os
+import pytest
+
+try:
+    import llama_cpp
+except ImportError:
+    pytest.skip("llama_cpp not installed", allow_module_level=True)
 
 sys.path.insert(0, os.getcwd())
 
