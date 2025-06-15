@@ -5,11 +5,9 @@
 [![Python Versions](https://img.shields.io/pypi/pyversions/steadytext.svg)](https://pypi.org/project/steadytext/)
 [![License](https://img.shields.io/pypi/l/steadytext.svg)](https://github.com/yourusername/steadytext/blob/main/LICENSE) <!-- Placeholder for license badge -->
 
-**SteadyText is a deterministic AI text generation and embedding library that makes AI behave like a pure function: same input always produces the exact same output.**
+SteadyText provides deterministic text generation and embeddings. Same input, same output. Every time.
 
-Unlike traditional AI models that produce different outputs each time, SteadyText guarantees reproducibility across runs, machines, and time. This makes it perfect for testing, development workflows, and any production use case where you need consistent, predictable AI assistance.
-
-Key insight: **Your AI assistant becomes a reliable tool rather than an unpredictable oracle.**
+No more flaky tests or unpredictable AI. Perfect for testing, CLI tools, and anywhere you need reproducible results.
 
 ## 🚀 Quick Start
 
@@ -17,38 +15,29 @@ Key insight: **Your AI assistant becomes a reliable tool rather than an unpredic
 import steadytext
 import numpy as np
 
-# Generate text - always returns the same string for the same input
+# Text generation
 text = steadytext.generate("Once upon a time")
-print(text[:100])  # First 100 characters
+print(text[:100])
 
-# Generate text with logprobs
+# With logprobs
 text, logprobs = steadytext.generate("Explain quantum computing", return_logprobs=True)
-print(f"Generated: {text[:50]}...")
-print(f"Logprobs available: {logprobs is not None}")
 
-# Stream text generation word by word
+# Streaming
 for token in steadytext.generate_iter("The future of AI"):
     print(token, end="", flush=True)
-print()
 
-# Generate embeddings - always returns the same vector for the same input
-embedding = steadytext.embed("Hello world")
-print(f"Shape: {embedding.shape}")  # (1024,)
-print(f"Norm: {np.linalg.norm(embedding):.4f}")  # ~1.0 (L2-normalized)
+# Embeddings
+embedding = steadytext.embed("Hello world")  # 1024-dim vector
 ```
 
-## ✨ Key Features
+## Features
 
-- **🎯 Perfectly Deterministic**: Same input always produces the exact same output across runs and machines - making AI as reliable as any other function in your codebase
-- **⚡ Zero Configuration**: Works immediately after `pip install steadytext`. No API keys, no model selection, no parameters to tune
-- **📦 Self-Contained Models**: Language models are automatically downloaded on first use (~1.9GB total)
-- **🛡️ Never Fails**: Designed to be extremely robust with deterministic fallbacks for any edge cases
-- **🔄 Streaming Support**: Generate text iteratively with `generate_iter()` for real-time output
-- **📊 Logprobs Access**: Optionally get log probabilities alongside generated text
-- **💾 Intelligent Caching**: SQLite-backed frecency cache makes repeated generations instant
-- **📏 Fixed Output Sizes**:
-  - `generate()`: Always produces up to 512 tokens of text
-  - `embed()`: Always returns a 1024-dimensional L2-normalized float32 numpy array
+- **Deterministic**: Same input → same output, always
+- **Zero config**: Just `pip install steadytext` and go
+- **Fast**: Frecency cache makes repeated queries instant
+- **Reliable**: Fallback mechanisms ensure it never crashes
+- **Self-contained**: Models download automatically (~1.9GB total)
+- **Fixed outputs**: 512 tokens for text, 1024-dim vectors for embeddings
 
 ## 📦 Installation
 
@@ -72,40 +61,13 @@ Model sizes:
 
 ## 🖥️ CLI Usage
 
-SteadyText includes a powerful command-line interface accessible via `steadytext` or the shorter `st` command:
+Available via `steadytext` or `st`:
 
 ```bash
-# Generate text from a prompt
 st "write a hello world function in Python"
-
-# Read from stdin
-echo "explain quantum computing" | st
-
-# Stream output token by token
 st "write a story" --stream
-
-# Get JSON output with metadata
-st "code review checklist" --json
-
-# Generate with log probabilities
-st "machine learning concepts" --logprobs
-
-# Create embeddings
 st embed "hello world"
-
-# Different embedding output formats
-st embed "text to embed" --format numpy
-st embed "text to embed" --format hex
-
-# Pipe text for embedding
-echo "some text" | st embed
-
-# Cache management
 st cache --status
-st cache --clear
-
-# Model management
-st models --list
 st models --preload
 ```
 
@@ -118,7 +80,6 @@ st models --preload
 Generate deterministic text from a prompt.
 
 ```python
-# Basic usage
 text = steadytext.generate("Write a haiku about Python")
 
 # With log probabilities
@@ -168,11 +129,8 @@ vecs = steadytext.embed(["Hello", "world"])
 Preload models before first use.
 
 ```python
-# Silent preload
-steadytext.preload_models()
-
-# Verbose preload
-steadytext.preload_models(verbose=True)
+steadytext.preload_models()  # Silent
+steadytext.preload_models(verbose=True)  # With progress
 ```
 
 #### `get_model_cache_dir() -> str`
@@ -187,30 +145,20 @@ print(f"Models are stored in: {cache_dir}")
 ### Constants
 
 ```python
-# Available constants
-steadytext.DEFAULT_SEED  # 42 - Used internally for determinism
-steadytext.GENERATION_MAX_NEW_TOKENS  # 512 - Max tokens for generation
-steadytext.EMBEDDING_DIMENSION  # 1024 - Embedding vector size
+steadytext.DEFAULT_SEED  # 42
+steadytext.GENERATION_MAX_NEW_TOKENS  # 512
+steadytext.EMBEDDING_DIMENSION  # 1024
 ```
 
-## 🚀 Why SteadyText Matters
+## Why Use SteadyText?
 
-**The Problem**: Traditional AI models are non-deterministic - asking the same question twice gives different answers. This makes them unsuitable for:
-- Automated testing (tests become flaky)
-- Build processes (outputs change between builds)
-- Documentation generation (inconsistent results)
-- Any workflow requiring reproducibility
+Regular AI models give different outputs each time. This breaks:
+- Tests (flaky assertions)
+- Build processes (inconsistent outputs)
+- Documentation (changes every run)
+- Any reproducible workflow
 
-**The Solution**: SteadyText makes AI deterministic. Same prompt = same output. Always.
-
-### Why Caching Makes It Even Better
-
-SteadyText uses a SQLite-backed frecency cache that persists across runs:
-
-- **Instant Repeated Generations**: Once you generate text for a prompt, subsequent calls with the same prompt return instantly from cache
-- **Cross-Session Persistence**: Cache survives program restarts - build up a library of instant responses
-- **Smart Eviction**: Frecency (frequency + recency) algorithm keeps your most useful generations
-- **Production Ready**: Configurable size limits prevent unbounded growth
+SteadyText fixes this. Plus, with built-in caching, repeated queries are instant.
 
 Configure cache behavior with environment variables:
 ```bash
@@ -223,193 +171,123 @@ export STEADYTEXT_EMBEDDING_CACHE_CAPACITY=1024
 export STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB=200.0
 ```
 
-## 💡 CLI Tool Ideas
-
-The real power of SteadyText: **build your own deterministic AI command-line assistant** that gets faster with use:
+## CLI Examples
 
 ```bash
 # Basic usage - same query always returns same command
 $ st "find all .py files modified in last week"
 find . -name "*.py" -mtime -7
 
-# Build your own deterministic command oracle
+# Command helper
 alias howto='st'
 $ howto 'compress directory with progress bar'
 tar -cf - directory/ | pv | gzip > directory.tar.gz
 
-# Parameterizable shell functions
+# Git automation
 gitdo() {
     $(st "git command to $*")
 }
 $ gitdo 'undo last commit but keep changes'
-$ gitdo 'show commits by author in last month'
 
-# Stable explanations that build your knowledge base
-alias explain='st'
-$ explain 'what does chmod 755 mean'
-# Always get the SAME explanation - cached for instant access
-
-# Pipeline-friendly deterministic processing
+# Error explanations
 $ echo "error: ECONNREFUSED" | st 'make user-friendly'
 Unable to connect to the server. Please check your connection.
 
-# Reproducible config generation
+# Config generation  
 $ st 'nginx config for SPA on port 3000' > nginx.conf
-# Regenerating gives identical config - git-friendly!
 
-# Deterministic test data that's instant after first run
-for i in {1..1000}; do
+# Test data
+for i in {1..100}; do
     st "fake user data seed:$i" >> test-users.json
 done
-
-# Real examples that work now:
-$ st "Python function to calculate fibonacci"
-$ st "SQL query to find duplicate email addresses"
-$ st "bash one-liner to count lines in all .py files"
-$ echo "TypeError: unsupported operand type(s)" | st "explain this error"
 ```
 
-The killer feature: your AI assistant becomes predictable AND fast. No more:
-- Getting different suggestions for the same question
-- Waiting for model inference on commands you've asked before  
-- Worrying about non-deterministic outputs in scripts
 
-Instead, you build a personal, deterministic command cache that gets faster with use!
+## More Examples
 
-## 🎨 Creative Examples & Use Cases
-
-### Fun & Silly Examples
-
-#### Deterministic ASCII Art Generator
+### ASCII Art
 ```python
 import steadytext
 
-# Always generates the same ASCII art for the same input
 cowsay = lambda what: steadytext.generate(f"Draw ASCII art of a cow saying: {what}")
-fortune_cookie = lambda: steadytext.generate("Write a fortune cookie message")
-ascii_banner = lambda text: steadytext.generate(f"Create ASCII art banner for: {text}")
-
-# Your cowsay will always produce the same cow!
-print(cowsay("Hello World"))
+print(cowsay("Hello World"))  # Same cow every time
 ```
 
-#### CLI Tool Generators
+### Quick CLI Tools
 ```python
 #!/usr/bin/env python3
 import sys
 import steadytext
 
-# Deterministic CLI tools
 def motivate():
     return steadytext.generate("Motivational quote")
 
 def excuse():
     return steadytext.generate("Creative excuse for being late")
 
-def technobabble():
-    return steadytext.generate("Technical-sounding nonsense")
-
 if __name__ == "__main__":
     print(locals()[sys.argv[1]]())
 ```
 
-#### Stable Game Content
+### Game Content
 ```python
-# Procedural but predictable game content
 def generate_npc_dialogue(npc_name, player_level):
-    prompt = f"NPC {npc_name} greets level {player_level} player"
-    return steadytext.generate(prompt)
-
-def generate_quest_description(seed):
-    return steadytext.generate(f"Epic quest number {seed}")
-
-# Same NPC always says the same thing to same-level players!
+    return steadytext.generate(f"NPC {npc_name} greets level {player_level} player")
+    
+# Same NPC always says the same thing
 ```
 
-### Practical Testing Examples
+### Testing
 
-#### Stable Mock Data Generator
+### Mock Data
 ```python
-# Perfect for tests that need realistic but consistent data
 def generate_user_profile(user_id):
     return {
         "bio": steadytext.generate(f"Write bio for user {user_id}"),
-        "interests": steadytext.generate(f"List hobbies for user {user_id}"),
-        "motto": steadytext.generate(f"Life motto for user {user_id}")
+        "interests": steadytext.generate(f"List hobbies for user {user_id}")
     }
 
-# User 123 will ALWAYS have the same profile
-assert generate_user_profile(123) == generate_user_profile(123)
+assert generate_user_profile(123) == generate_user_profile(123)  # Always passes
 ```
 
-#### Test Fixture Generator
+### Test Fixtures
 ```python
 import json
 
 def generate_test_json(schema_name):
-    prompt = f"Generate valid JSON for {schema_name} schema"
-    # Always generates the same test data!
-    return steadytext.generate(prompt)
-
+    return steadytext.generate(f"Generate valid JSON for {schema_name} schema")
+    
 def generate_sql_fixture(table_name):
     return steadytext.generate(f"SQL INSERT for {table_name} test data")
-
-# Same schema = same fixture
-assert generate_test_json("user") == generate_test_json("user")
 ```
 
-#### Deterministic Mocking
+### AI Mocking
 ```python
 class MockAI:
     def complete(self, prompt):
-        # Same prompt always returns same response
         return steadytext.generate(prompt)
     
     def embed(self, text):
         return steadytext.embed(text)
-
-# Use in tests - completely deterministic!
-def test_ai_pipeline():
-    ai = MockAI()
-    result = my_ai_function(ai)
-    assert result == "expected"  # Always passes
 ```
 
-### Production Use Cases
-
-#### Stable Error Messages
+### Error Messages
 ```python
 def get_user_friendly_error(error_code):
-    return steadytext.generate(
-        f"Explain error {error_code} in simple terms"
-    )
-
-# Error explanations are consistent across deployments
-error_msg = get_user_friendly_error("E404")
+    return steadytext.generate(f"Explain error {error_code} in simple terms")
 ```
 
-#### Semantic Caching with Stable Embeddings
+### Semantic Cache Keys
 ```python
 import hashlib
 
 def semantic_cache_key(query):
-    # Deterministic embedding as cache key
     embedding = steadytext.embed(query)
     return hashlib.sha256(embedding.tobytes()).hexdigest()
-
-# Similar queries map to same cache entry
-cache = {}
-key = semantic_cache_key("What's the weather?")
-if key not in cache:
-    cache[key] = expensive_api_call()
 ```
 
-#### Reproducible Content Generation
+### Content Generation
 ```python
-# For mockups and prototypes
-def lorem_ipsum_2024(paragraphs=3):
-    return steadytext.generate(f"Modern lorem ipsum {paragraphs} paragraphs")
-
 def fake_review(product_id, stars):
     return steadytext.generate(f"Review for product {product_id} with {stars} stars")
 
@@ -417,89 +295,60 @@ def fake_bio(profession):
     return steadytext.generate(f"Professional bio for {profession}")
 ```
 
-### Development & Debugging
-
-#### Deterministic Code Comments
+### Auto Documentation
 ```python
 def auto_document_function(func_name, params):
-    prompt = f"Write docstring for {func_name}({params})"
-    return steadytext.generate(prompt)
-
-# Same function signature = same documentation
-docstring = auto_document_function("calculate_tax", "income, rate")
+    return steadytext.generate(f"Write docstring for {func_name}({params})")
 ```
 
-#### Reproducible Fuzzing
+### Fuzz Testing
 ```python
 def generate_fuzz_input(test_name, iteration):
-    return steadytext.generate(
-        f"Fuzz input for {test_name} iteration {iteration}"
-    )
+    return steadytext.generate(f"Fuzz input for {test_name} iteration {iteration}")
 
-# Fuzz testing with reproducible inputs
 for i in range(100):
     input_data = generate_fuzz_input("parser_test", i)
-    # Same iteration always gets same fuzz input
     test_parser(input_data)
 ```
 
-#### Stable Placeholder Content
+### Mock API Responses
 ```python
-# Generate consistent placeholder data for development
 def generate_fake_api_response(endpoint):
     return steadytext.generate(f"Mock response for {endpoint}")
-
-# Always get the same mock response
-mock_users = generate_fake_api_response("/api/users")
-mock_posts = generate_fake_api_response("/api/posts")
 ```
 
-### Creative Applications
-
-#### Deterministic "Translation"
+### Pseudo Translation
 ```python
-# Poor man's translation with consistent results
 def pseudo_translate(text, language):
     return steadytext.generate(f'Translate "{text}" to {language}')
-
-# Always get the same "translation"
-spanish = pseudo_translate("Hello", "Spanish")
-assert spanish == pseudo_translate("Hello", "Spanish")
 ```
 
-#### Procedural Story Generation
+### Story Generation
 ```python
 def generate_story_chapter(book_id, chapter_num):
-    prompt = f"Chapter {chapter_num} of book {book_id}"
-    return steadytext.generate(prompt)
-
-# Same book + chapter = same content
-chapter = generate_story_chapter("mystery_101", 5)
+    return steadytext.generate(f"Chapter {chapter_num} of book {book_id}")
 ```
 
-#### Test Oracle Generation
+### Test Oracles
 ```python
 def generate_expected_output(input_data):
-    """Generate consistent expected outputs for tests"""
     return steadytext.generate(f"Expected output for: {input_data}")
 
 def test_my_function():
-    input_val = "test123"
-    expected = generate_expected_output(input_val)
-    actual = my_function(input_val)
-    # Expected is always the same for this input
+    expected = generate_expected_output("test123")
+    actual = my_function("test123")
     assert actual == expected
 ```
 
-## 🔧 How It Works
+## How It Works
 
-SteadyText achieves perfect determinism through:
+1. Fixed seed (42)
+2. Temperature=0, top_k=1
+3. Model state reset between calls
+4. Hash-based fallbacks if models fail
+5. L2-normalized embeddings
 
-1. **Fixed Random Seeds**: All operations use a constant seed (42)
-2. **Deterministic Sampling**: Temperature=0, top_k=1 for generation
-3. **Model State Reset**: Model cache is cleared between generations
-4. **Fallback Mechanisms**: Hash-based text generation when models fail
-5. **Normalized Outputs**: Embeddings are always L2-normalized
+Result: AI that behaves like a hash function.
 
 ## 🤝 Contributing
 
