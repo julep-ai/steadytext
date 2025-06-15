@@ -2,19 +2,25 @@
 # to zero vectors. Handles both single strings and lists of strings
 # with averaging.
 
-import numpy as np
-from typing import (
-    List,
-    Union,
-    Optional,
-)  # Added Any for Llama type hint if not directly imported
 import logging
+from typing import (  # Added Any for Llama type hint if not directly imported
+    List,
+    Optional,
+    Union,
+)
+
+import numpy as np
 from llama_cpp import Llama  # type: ignore # Assuming Llama might not have type stubs
 
-from ..models.loader import (
+from ..frecency_cache import FrecencyCache
+from ..models.loader import (  # Use the embedding-specific model loader
     get_embedding_model_instance,
-)  # Use the embedding-specific model loader
-from ..utils import logger, EMBEDDING_DIMENSION, validate_normalized_embedding
+)
+from ..utils import EMBEDDING_DIMENSION, logger, validate_normalized_embedding
+
+# AIDEV-NOTE: In-memory frecency cache for embeddings
+# AIDEV-QUESTION: Should zero-vector fallbacks be cached?
+_embedding_cache = FrecencyCache()
 
 
 # AIDEV-NOTE: L2 normalization with zero-vector handling for embedding consistency
@@ -85,12 +91,18 @@ def create_embedding(
             if item.strip():  # Not empty or just whitespace
                 texts_to_embed.append(item)
 
+    cache_key = tuple(texts_to_embed)
+
     if not texts_to_embed:
         logger.warning(
             "Core.embedder: No valid non-empty text provided for embedding. "
             "Returning zero vector."
         )
         return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
+
+    cached = _embedding_cache.get(cache_key)
+    if cached is not None:
+        return cached
 
     # AIDEV-NOTE: This is a key error handling point for model loading.
     try:
@@ -100,12 +112,12 @@ def create_embedding(
         model: Optional[Llama] = get_embedding_model_instance()
         if model is None:
             logger.error("Core.embedder: Could not load/get embedding model")
-            return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)  # Fallback
+            return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
     except Exception as e:
         logger.error(
             f"Core.embedder: Could not load/get embedding model: {e}", exc_info=True
         )
-        return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)  # Fallback
+        return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
 
     logger.debug(
         f"Core.embedder: Creating embedding for {len(texts_to_embed)} text(s)."
@@ -197,7 +209,6 @@ def create_embedding(
             exc_info=True,
         )
         return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
-
     # AIDEV-NOTE: This is an important validation step for the final embedding shape.
     # Ensure correct output shape, even if something unexpected happened.
     if final_raw_embedding.shape != (EMBEDDING_DIMENSION,):
@@ -210,6 +221,7 @@ def create_embedding(
 
     # Normalize the final embedding (L2 norm)
     normalized_embedding = _normalize_l2(final_raw_embedding)
+    _embedding_cache.set(cache_key, normalized_embedding)
 
     # Final validation of the output vector (shape, dtype, norm)
     if not validate_normalized_embedding(normalized_embedding, dim=EMBEDDING_DIMENSION):
@@ -218,9 +230,6 @@ def create_embedding(
             "or norm). This should ideally not happen if logic is correct. "
             "Returning zero vector."
         )
-        # If already zero and fails validation, something is wrong with
-        # validate_normalized_embedding or constants. If non-zero and
-        # invalid, this ensures zero vector.
         if np.any(normalized_embedding):  # Avoid re-creating if already zero
             return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
 
