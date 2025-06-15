@@ -29,12 +29,17 @@ dependencies = [
     "numpy>=1.21.0,<2.0.0",
     "huggingface-hub>=0.32.0",
     "requests",
-    "tqdm>=4"
+    "tqdm>=4",
+    "click>=8.0.0"
 ]
 
 [project.urls]
 "Homepage" = "https://github.com/steadytext/steadytext"
 "Bug Tracker" = "https://github.com/steadytext/steadytext/issues"
+
+[project.scripts]
+steadytext = "steadytext.cli:main"
+st = "steadytext.cli:main"
 
 [tool.poe.tasks]
 test = "pytest"
@@ -58,4 +63,5 @@ dev = [
     "pre-commit",
     "poethepoet",
     "ipython>=8.37.0",
+    "pip>=25.1.1",
 ]

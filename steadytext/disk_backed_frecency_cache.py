@@ -1,21 +1,21 @@
 # AIDEV-NOTE: Disk-backed frecency cache implementation with configurable size limits
-# Extends the in-memory FrecencyCache with persistent storage and automatic eviction
-# AIDEV-NOTE: Uses pickle for serialization to handle arbitrary Python objects
-# AIDEV-TODO: Consider adding compression support for large cache files
+# Now uses SQLite backend for concurrent access safety while maintaining API compatibility
+# AIDEV-NOTE: Automatically migrates from legacy pickle format to SQLite
+# AIDEV-NOTE: Falls back to pickle implementation if SQLite fails
 from __future__ import annotations
 
 import os
-import pickle
-import threading
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 try:
     from .frecency_cache import FrecencyCache
+    from .sqlite_cache_backend import SQLiteDiskBackedFrecencyCache
     from .utils import get_cache_dir, logger
 except ImportError:
     # For direct testing
     from frecency_cache import FrecencyCache
+    from sqlite_cache_backend import SQLiteDiskBackedFrecencyCache
     from utils import get_cache_dir, logger
 
 
