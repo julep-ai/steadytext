@@ -15,7 +15,7 @@ from ..utils import (
     DEFAULT_STOP_SEQUENCES,
     set_deterministic_environment,  # Assuming this is in utils.py
 )
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union, Tuple
 
 # Ensure environment is set for determinism when this module is loaded
 set_deterministic_environment(DEFAULT_SEED)
@@ -24,28 +24,49 @@ set_deterministic_environment(DEFAULT_SEED)
 # AIDEV-NOTE: Main generator class with model instance caching and error handling
 class DeterministicGenerator:
     def __init__(self):
-        self.model = get_generator_model_instance()
+        self.model = None
+        self._logits_enabled = False
+        # Load model without logits_all initially
+        self._load_model(enable_logits=False)
+
+    def _load_model(self, enable_logits: bool = False):
+        """Load or reload the model with specific logits configuration."""
+        self.model = get_generator_model_instance(force_reload=True, enable_logits=enable_logits)
+        self._logits_enabled = enable_logits
         if self.model is None:
             logger.error(
                 "DeterministicGenerator: Model instance is None after attempting to load."
             )
 
-    def generate(self, prompt: str, seed: Optional[int] = None) -> str:
+    def generate(
+        self, prompt: str, seed: Optional[int] = None, return_logprobs: bool = False
+    ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
         if not isinstance(prompt, str):
             logger.error(
                 f"DeterministicGenerator.generate: Invalid prompt type: "
                 f"{type(prompt)}. Expected str. Using fallback."
             )
             # Pass string representation to fallback
-            return _deterministic_fallback_generate(str(prompt))
+            fallback = _deterministic_fallback_generate(str(prompt))
+            return (fallback, None) if return_logprobs else fallback
 
+        # Reload model if logprobs requested but not enabled
+        if return_logprobs and not self._logits_enabled:
+            logger.info("Reloading model with logits support for logprobs generation.")
+            self._load_model(enable_logits=True)
+        elif not return_logprobs and self._logits_enabled:
+            # Optionally reload without logits to save memory/performance
+            # For now, we'll keep the model loaded with logits if already enabled
+            pass
+        
         # AIDEV-NOTE: This is where the fallback to _deterministic_fallback_generate occurs if the model isn't loaded.
         if self.model is None:
             logger.warning(
                 "DeterministicGenerator.generate: Model not loaded. "
                 "Using fallback generator."
             )
-            return _deterministic_fallback_generate(prompt)
+            fallback = _deterministic_fallback_generate(prompt)
+            return (fallback, None) if return_logprobs else fallback
 
         if not prompt or not prompt.strip():  # Check after ensuring prompt is a string
             logger.warning(
@@ -53,13 +74,17 @@ class DeterministicGenerator:
                 "prompt received. Using fallback generator."
             )
             # Call fallback for empty/whitespace
-            return _deterministic_fallback_generate(prompt)
+            fallback = _deterministic_fallback_generate(prompt)
+            return (fallback, None) if return_logprobs else fallback
 
         try:
             sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
             sampling_params["stop"] = DEFAULT_STOP_SEQUENCES
             if seed is not None:
                 sampling_params["seed"] = seed
+            if return_logprobs:
+                # Request logprobs for each generated token
+                sampling_params["logprobs"] = GENERATION_MAX_NEW_TOKENS
 
             # AIDEV-NOTE: Use create_chat_completion for model interaction.
             output: Dict[str, Any] = self.model.create_chat_completion(
@@ -67,6 +92,7 @@ class DeterministicGenerator:
             )
 
             generated_text = ""
+            logprobs = None
             if output and "choices" in output and len(output["choices"]) > 0:
                 choice = output["choices"][0]
                 # AIDEV-NOTE: Model response structure for chat completion may vary.
@@ -79,6 +105,8 @@ class DeterministicGenerator:
                     and choice["message"]["content"] is not None
                 ):
                     generated_text = choice["message"]["content"].strip()
+                if return_logprobs:
+                    logprobs = choice.get("logprobs")
 
             if not generated_text:
                 logger.warning(
@@ -86,7 +114,7 @@ class DeterministicGenerator:
                     f"whitespace-only text for prompt: '{prompt[:50]}...'"
                 )
 
-            return generated_text
+            return (generated_text, logprobs) if return_logprobs else generated_text
 
         except Exception as e:
             logger.error(
@@ -94,7 +122,8 @@ class DeterministicGenerator:
                 f"for prompt '{prompt[:50]}...': {e}",
                 exc_info=True,
             )
-            return ""
+            fallback_output = ""
+            return (fallback_output, None) if return_logprobs else fallback_output
 
 
 # AIDEV-NOTE: Complex hash-based fallback generation algorithm for
