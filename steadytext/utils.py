@@ -6,8 +6,9 @@ import logging
 import platform  # For get_cache_dir
 from typing import Dict, Any, List  # For type hints
 
-# AIDEV-NOTE: Core utility functions for SteadyText - handles deterministic environment setup,
-# model configuration, and cross-platform cache directory management
+# AIDEV-NOTE: Core utility functions for SteadyText - handles deterministic
+# environment setup, model configuration, and cross-platform cache directory
+# management
 
 # --- Logger Setup ---
 logger = logging.getLogger("steadytext")
@@ -21,17 +22,17 @@ if not logger.handlers:
 logger.setLevel(logging.INFO)
 
 # --- Model Configuration ---
-DEFAULT_MODEL_REPO = "Qwen/Qwen1.5-0.5B-Chat-GGUF"
-GENERATION_MODEL_FILENAME = "qwen1_5-0_5b-chat-q4_k_m.gguf"
-EMBEDDING_MODEL_FILENAME = (
-    "qwen1_5-0_5b-chat-q8_0.gguf"  # Kept from previous logic, Q8 for embeddings
-)
+DEFAULT_GENERATION_MODEL_REPO = "Qwen/Qwen3-0.6B-GGUF"
+DEFAULT_EMBEDDING_MODEL_REPO = "Qwen/Qwen3-Embedding-0.6B-GGUF"
+GENERATION_MODEL_FILENAME = "Qwen3-0.6B-Q8_0.gguf"
+EMBEDDING_MODEL_FILENAME = "Qwen3-Embedding-0.6B-Q8_0.gguf"
 
 # --- Determinism & Seeds ---
 DEFAULT_SEED = 42
 
 
-# AIDEV-NOTE: Critical function for ensuring deterministic behavior across all operations
+# AIDEV-NOTE: Critical function for ensuring deterministic behavior
+# across all operations
 def set_deterministic_environment(seed: int = DEFAULT_SEED):
     """Sets various seeds for deterministic operations."""
     os.environ["PYTHONHASHSEED"] = str(seed)
@@ -61,17 +62,18 @@ LLAMA_CPP_MAIN_PARAMS_DETERMINISTIC: Dict[str, Any] = {
     # explicit 'embedding': False will be set in loader for gen model
 }
 
+# --- Output Configuration (from previous full utils.py) ---
+GENERATION_MAX_NEW_TOKENS = 256
+EMBEDDING_DIMENSION = 1024  # Setting to 1024 as per objective
+
 LLAMA_CPP_EMBEDDING_PARAMS_DETERMINISTIC: Dict[str, Any] = {
     **LLAMA_CPP_BASE_PARAMS,
     "embedding": True,
     "logits_all": False,  # Not needed for embeddings
     # n_batch for embeddings can often be smaller if processing one by one
     "n_batch": 512,  # Default, can be tuned
+    # "n_embd_trunc": EMBEDDING_DIMENSION, # Removed as per objective
 }
-
-# --- Output Configuration (from previous full utils.py) ---
-GENERATION_MAX_NEW_TOKENS = 100
-EMBEDDING_DIMENSION = 1024  # Qwen1.5-0.5B has hidden_size/embedding_dim of 1024
 
 # --- Sampling Parameters for Generation (from previous full utils.py) ---
 # These are passed to model() or create_completion() not Llama constructor usually
@@ -140,8 +142,9 @@ def get_cache_dir() -> Path:
     return cache_dir
 
 
-# AIDEV-NOTE: Add validate_normalized_embedding function that's referenced in embedder.py
-def validate_normalized_embedding(
+# AIDEV-NOTE: Add validate_normalized_embedding function that's referenced
+# in embedder.py
+def validate_normalized_embedding(  # noqa E501
     embedding: np.ndarray, dim: int = EMBEDDING_DIMENSION, tolerance: float = 1e-5
 ) -> bool:
     """Validates that an embedding has correct shape, dtype, and is properly normalized."""
@@ -150,5 +153,5 @@ def validate_normalized_embedding(
     if embedding.dtype != np.float32:
         return False
     norm = np.linalg.norm(embedding)
-    # Allow zero vectors (norm=0) or properly normalized vectors (norm≈1)
-    return bool(norm < tolerance or abs(norm - 1.0) < tolerance)
+    # Allow zero vectors (norm=0) or properly normalized vectors (norm approx 1)
+    return bool(norm < tolerance or abs(norm - 1.0) < tolerance)  # noqa E501

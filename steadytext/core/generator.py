@@ -1,7 +1,9 @@
 # AIDEV-NOTE: Core text generation module with deterministic fallback mechanism
 # Implements both model-based generation and hash-based deterministic fallback
-# AIDEV-NOTE: Fixed fallback behavior - generator now calls _deterministic_fallback_generate() when model is None
-# AIDEV-NOTE: Added stop sequences integration - DEFAULT_STOP_SEQUENCES are now passed to model calls
+# AIDEV-NOTE: Fixed fallback behavior - generator now calls
+# _deterministic_fallback_generate() when model is None
+# AIDEV-NOTE: Added stop sequences integration - DEFAULT_STOP_SEQUENCES
+# are now passed to model calls
 
 import hashlib
 from ..models.loader import get_generator_model_instance
@@ -19,16 +21,6 @@ from typing import List, Dict, Any, Optional
 set_deterministic_environment(DEFAULT_SEED)
 
 
-# AIDEV-NOTE: Qwen chat template formatting - critical for proper model behavior
-def _apply_qwen_chat_template(prompt: str) -> str:
-    system_prompt_content = "You are a helpful assistant."
-    return (
-        f"<|im_start|>system\n{system_prompt_content}<|im_end|>\n"
-        f"<|im_start|>user\n{prompt}<|im_end|>\n"
-        f"<|im_start|>assistant\n"
-    )
-
-
 # AIDEV-NOTE: Main generator class with model instance caching and error handling
 class DeterministicGenerator:
     def __init__(self):
@@ -39,19 +31,29 @@ class DeterministicGenerator:
             )
 
     def generate(self, prompt: str, seed: Optional[int] = None) -> str:
+        if not isinstance(prompt, str):
+            logger.error(
+                f"DeterministicGenerator.generate: Invalid prompt type: "
+                f"{type(prompt)}. Expected str. Using fallback."
+            )
+            # Pass string representation to fallback
+            return _deterministic_fallback_generate(str(prompt))
+
+        # AIDEV-NOTE: This is where the fallback to _deterministic_fallback_generate occurs if the model isn't loaded.
         if self.model is None:
             logger.warning(
-                "DeterministicGenerator.generate: Model not loaded. Using fallback generator."
+                "DeterministicGenerator.generate: Model not loaded. "
+                "Using fallback generator."
             )
             return _deterministic_fallback_generate(prompt)
 
-        if not prompt or not prompt.strip():
+        if not prompt or not prompt.strip():  # Check after ensuring prompt is a string
             logger.warning(
-                "DeterministicGenerator.generate: Empty or whitespace-only prompt received. Returning empty string from core generator."
+                "DeterministicGenerator.generate: Empty or whitespace-only "
+                "prompt received. Using fallback generator."
             )
-            return ""
-
-        formatted_prompt = _apply_qwen_chat_template(prompt)
+            # Call fallback for empty/whitespace
+            return _deterministic_fallback_generate(prompt)
 
         try:
             sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
@@ -59,36 +61,54 @@ class DeterministicGenerator:
             if seed is not None:
                 sampling_params["seed"] = seed
 
-            output: Dict[str, Any] = self.model(formatted_prompt, **sampling_params)
+            # AIDEV-NOTE: Use create_chat_completion for model interaction.
+            output: Dict[str, Any] = self.model.create_chat_completion(
+                messages=[{"role": "user", "content": prompt}], **sampling_params
+            )
 
             generated_text = ""
             if output and "choices" in output and len(output["choices"]) > 0:
                 choice = output["choices"][0]
-                if "text" in choice and choice["text"] is not None:
-                    generated_text = choice["text"].strip()
+                # AIDEV-NOTE: Model response structure for chat completion may vary.
+                # Check for 'text' or 'message.content'.
+                if "text" in choice and choice["text"] is not None:  # noqa E501
+                    generated_text = choice["text"].strip()  # noqa E501
+                elif (
+                    "message" in choice
+                    and "content" in choice["message"]
+                    and choice["message"]["content"] is not None
+                ):
+                    generated_text = choice["message"]["content"].strip()
 
             if not generated_text:
                 logger.warning(
-                    f"DeterministicGenerator.generate: Model returned empty or whitespace-only text for prompt: '{prompt[:50]}...'"
+                    f"DeterministicGenerator.generate: Model returned empty or "
+                    f"whitespace-only text for prompt: '{prompt[:50]}...'"
                 )
 
             return generated_text
 
         except Exception as e:
             logger.error(
-                f"DeterministicGenerator.generate: Error during text generation for prompt '{prompt[:50]}...': {e}",
+                f"DeterministicGenerator.generate: Error during text generation "
+                f"for prompt '{prompt[:50]}...': {e}",
                 exc_info=True,
             )
             return ""
 
 
-# AIDEV-NOTE: Complex hash-based fallback generation algorithm for deterministic output
-# when model is unavailable - uses multiple hash seeds for word selection
+# AIDEV-NOTE: Complex hash-based fallback generation algorithm for
+# deterministic output when model is unavailable - uses multiple hash seeds
+# for word selection
+# AIDEV-NOTE: This is the hash-based fallback mechanism.
 def _deterministic_fallback_generate(prompt: str) -> str:
-    if not prompt or not prompt.strip():
-        prompt_for_hash = "empty_prompt_placeholder_for_hash"
+    # Ensure prompt_for_hash is always a string, even if original prompt was not.
+    if not isinstance(prompt, str) or not prompt.strip():
+        prompt_for_hash = f"invalid_prompt_type_or_empty:{type(prompt).__name__}"
         logger.warning(
-            f"Fallback generator: Empty prompt received, using placeholder for hash: '{prompt_for_hash}'"
+            f"Fallback generator: Invalid or empty prompt type received "
+            f"({type(prompt).__name__}). Using placeholder for hash: "
+            f"'{prompt_for_hash}'"
         )
     else:
         prompt_for_hash = prompt
@@ -172,7 +192,7 @@ def _deterministic_fallback_generate(prompt: str) -> str:
     ]
 
     hasher = hashlib.sha256(prompt_for_hash.encode("utf-8"))
-    hex_digest = hasher.hexdigest()
+    hex_digest = hasher.hexdigest()  # Example: '50d858e0985ecc7f60418aaf0cc5ab58...'
 
     seed1 = int(hex_digest[:8], 16)
     seed2 = int(hex_digest[8:16], 16)

@@ -38,10 +38,12 @@ class _ModelInstanceCache:
     def __init__(self):
         raise RuntimeError("Call __getInstance() instead")
 
-    # AIDEV-NOTE: Generator model loading with parameter configuration and error handling
+    # AIDEV-NOTE: Generator model loading with parameter configuration and
+    # error handling
     @classmethod
     def get_generator(cls, force_reload: bool = False) -> Optional[Llama]:
         inst = cls.__getInstance()
+        # AIDEV-NOTE: This lock is crucial for thread-safe access to the generator model.
         with inst._lock:
             model_path = get_generation_model_path()
             if model_path is None:
@@ -71,10 +73,12 @@ class _ModelInstanceCache:
                     inst._generator_path = None
             return inst._generator_model
 
-    # AIDEV-NOTE: Embedder model loading with dimension validation - critical for consistency
+    # AIDEV-NOTE: Embedder model loading with dimension validation - critical
+    # for consistency
     @classmethod
     def get_embedder(cls, force_reload: bool = False) -> Optional[Llama]:
         inst = cls.__getInstance()
+        # AIDEV-NOTE: This lock is crucial for thread-safe access to the embedder model.
         with inst._lock:
             model_path = get_embedding_model_path()
             if model_path is None:
@@ -93,7 +97,7 @@ class _ModelInstanceCache:
                 logger.info(f"Loading embedder model from: {model_path}")
                 try:
                     params = {**LLAMA_CPP_EMBEDDING_PARAMS_DETERMINISTIC}
-
+                    logger.debug(f"Embedding Llama params: {params}")  # ADDED LOGGING
                     inst._embedder_model = Llama(model_path=str(model_path), **params)
 
                     model_n_embd = (
@@ -101,14 +105,18 @@ class _ModelInstanceCache:
                         if hasattr(inst._embedder_model, "n_embd")
                         else 0
                     )
+                    # Restoring original dimension check logic
+                    # AIDEV-NOTE: This is an important validation step for the embedding model's dimensions.
                     if model_n_embd != EMBEDDING_DIMENSION:
                         logger.error(
-                            f"Embedder model n_embd ({model_n_embd}) "
-                            f"does not match expected EMBEDDING_DIMENSION ({EMBEDDING_DIMENSION})."
+                            f"Embedder model n_embd ({model_n_embd}) does not "
+                            f"match expected EMBEDDING_DIMENSION "
+                            f"({EMBEDDING_DIMENSION})."
                         )
-                        del inst._embedder_model
-                        inst._embedder_model = None
-                        inst._embedder_path = None
+                        if inst._embedder_model is not None:  # Safety check
+                            del inst._embedder_model
+                            inst._embedder_model = None
+                        inst._embedder_path = None  # Also clear path
                     else:
                         inst._embedder_path = model_path
                         logger.info("Embedder model loaded successfully.")

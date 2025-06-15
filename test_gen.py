@@ -1,13 +1,13 @@
+from steadytext.utils import (
+    LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC,
+    logger,
+)
+from steadytext.models.loader import get_generator_model_instance
 import sys
 import os
 
 sys.path.insert(0, os.getcwd())
 
-from steadytext.models.loader import get_generator_model_instance
-from steadytext.utils import (
-    LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC,
-    logger,
-)
 # set_deterministic_environment is called when utils is imported.
 
 logger.setLevel("INFO")
@@ -19,16 +19,12 @@ if model:
     print("Generator model loaded. Attempting to generate text...")
     prompt = "Once upon a time"
 
-    formatted_prompt = (
-        f"<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n"
-        f"<|im_start|>user\n{prompt}<|im_end|>\n"
-        f"<|im_start|>assistant\n"
-    )
-
     sampling_params = LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC.copy()
 
     try:
-        output_dict = model(formatted_prompt, **sampling_params)
+        output_dict = model.create_chat_completion(
+            messages=[{"role": "user", "content": prompt}], **sampling_params
+        )
         print(f"Raw output dictionary: {output_dict}")
 
         generated_text = ""
@@ -37,9 +33,10 @@ if model:
             and "choices" in output_dict
             and isinstance(output_dict["choices"], list)
             and len(output_dict["choices"]) > 0
-            and "text" in output_dict["choices"][0]
+            and "message" in output_dict["choices"][0]
+            and "content" in output_dict["choices"][0]["message"]
         ):
-            generated_text = output_dict["choices"][0]["text"].strip()
+            generated_text = output_dict["choices"][0]["message"]["content"].strip()
             print(f"Generated text: '{generated_text}'")
             if generated_text:
                 print("Text generation successful and output is not empty.")

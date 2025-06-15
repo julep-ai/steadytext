@@ -6,7 +6,8 @@ from huggingface_hub import hf_hub_download
 from ..utils import (
     logger,
     get_cache_dir,
-    DEFAULT_MODEL_REPO,
+    DEFAULT_GENERATION_MODEL_REPO,
+    DEFAULT_EMBEDDING_MODEL_REPO,
     GENERATION_MODEL_FILENAME,
     EMBEDDING_MODEL_FILENAME,
 )
@@ -33,13 +34,15 @@ def _download_model_if_needed(
             )
             if Path(actual_downloaded_path) != model_path:
                 logger.warning(
-                    f"Model {filename} was downloaded to {actual_downloaded_path}, not directly to {model_path}. Using actual path."
+                    f"Model {filename} downloaded to {actual_downloaded_path}, "
+                    f"not {model_path}. Using actual path."
                 )
                 model_path = Path(actual_downloaded_path)
 
             if not model_path.exists():
                 logger.error(
-                    f"Model {filename} downloaded but not found at expected path {model_path}."
+                    f"Model {filename} downloaded but not found at expected "
+                    f"path {model_path}."
                 )
                 return None
             logger.info(f"Model {filename} downloaded successfully to {model_path}.")
@@ -57,12 +60,12 @@ def _download_model_if_needed(
 def get_generation_model_path() -> Optional[Path]:
     cache = get_cache_dir()
     return _download_model_if_needed(
-        DEFAULT_MODEL_REPO, GENERATION_MODEL_FILENAME, cache
+        DEFAULT_GENERATION_MODEL_REPO, GENERATION_MODEL_FILENAME, cache
     )
 
 
 def get_embedding_model_path() -> Optional[Path]:
     cache = get_cache_dir()
     return _download_model_if_needed(
-        DEFAULT_MODEL_REPO, EMBEDDING_MODEL_FILENAME, cache
+        DEFAULT_EMBEDDING_MODEL_REPO, EMBEDDING_MODEL_FILENAME, cache
     )
