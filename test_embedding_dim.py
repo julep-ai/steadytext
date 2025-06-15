@@ -8,7 +8,6 @@ from steadytext.utils import (
 from steadytext.core.embedder import create_embedding
 from steadytext.models.loader import get_embedding_model_instance, _ModelInstanceCache
 import logging
-import numpy as np
 import sys
 import os
 import pytest

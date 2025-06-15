@@ -50,8 +50,7 @@ logging.getLogger("steadytext.core.embedder").setLevel(logging.WARNING)
 
 @unittest.skipUnless(
     ALLOW_MODEL_DOWNLOADS,
-    "Skipping model-dependent tests (STEADYTEXT_ALLOW_MODEL_DOWNLOADS "
-    "is not 'true')",
+    "Skipping model-dependent tests (STEADYTEXT_ALLOW_MODEL_DOWNLOADS is not 'true')",
 )
 class TestSteadyTextAPIWithModels(unittest.TestCase):
     """
@@ -133,7 +132,7 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
         output varies from default seed."""  # noqa E501
         if not MODELS_ARE_ACCESSIBLE_FOR_TESTING:
             self.skipTest(
-                "Models deemed not accessible, " "skipping custom seed generation test."
+                "Models deemed not accessible, skipping custom seed generation test."
             )
 
         prompt = "Another unique test prompt for custom seed evaluation."
@@ -290,8 +289,7 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
         within lists for embed()."""
         if not MODELS_ARE_ACCESSIBLE_FOR_TESTING:
             self.skipTest(
-                "Models deemed not accessible, "
-                "skipping advanced list embedding test."
+                "Models deemed not accessible, skipping advanced list embedding test."
             )
 
         text_a = "Unique sentence A for averaging test."
@@ -326,7 +324,7 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
         # should yield emb_a if it was already normalized.
         self.assertTrue(
             np.allclose(emb_list_single_valid, emb_a, atol=1e-6),
-            "Embedding of list ['', A, ''] should be very close to " "embedding of A.",
+            "Embedding of list ['', A, ''] should be very close to embedding of A.",
         )
 
 
@@ -485,7 +483,6 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
         from unittest.mock import patch
 
         # This import is fine for context
-        from steadytext.core.embedder import create_embedding
 
         # Mock create_embedding where it's looked up by steadytext.embed
         # (in __init__.py)
@@ -543,7 +540,7 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
             self.assertIn(
                 "messages",
                 call_kwargs,
-                "Messages parameter should be " "passed to create_chat_completion",
+                "Messages parameter should be passed to create_chat_completion",
             )
             self.assertEqual(
                 call_kwargs["messages"],
@@ -552,7 +549,7 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
             self.assertIn(
                 "stop",
                 call_kwargs,
-                "Stop parameter should be " "passed to create_chat_completion",
+                "Stop parameter should be passed to create_chat_completion",
             )
             self.assertEqual(
                 call_kwargs["stop"],
