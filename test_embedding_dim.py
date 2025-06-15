@@ -10,6 +10,12 @@ from steadytext.models.loader import get_embedding_model_instance, _ModelInstanc
 import logging
 import sys
 import os
+import pytest
+
+try:
+    import llama_cpp
+except ImportError:
+    pytest.skip("llama_cpp not installed", allow_module_level=True)
 
 # Ensure steadytext is importable from the local project
 sys.path.insert(0, os.getcwd())
