@@ -6,19 +6,27 @@
 # are now passed to model calls
 
 import hashlib
+from typing import Any, Dict, List, Optional
+
+from ..frecency_cache import FrecencyCache
 from ..models.loader import get_generator_model_instance
+from ..utils import set_deterministic_environment  # Assuming this is in utils.py
 from ..utils import (
-    logger,
-    LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC,
-    GENERATION_MAX_NEW_TOKENS,
     DEFAULT_SEED,
     DEFAULT_STOP_SEQUENCES,
-    set_deterministic_environment,  # Assuming this is in utils.py
+    GENERATION_MAX_NEW_TOKENS,
+    LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC,
+    logger,
 )
-from typing import List, Dict, Any, Optional
 
 # Ensure environment is set for determinism when this module is loaded
 set_deterministic_environment(DEFAULT_SEED)
+
+
+# AIDEV-NOTE: In-memory frecency cache for generated text results
+# AIDEV-NOTE: In-memory cache for successful generation outputs
+# AIDEV-QUESTION: Should fallback results be cached, or only model-generated ones?
+_generation_cache = FrecencyCache()
 
 
 # AIDEV-NOTE: Main generator class with model instance caching and error handling
@@ -31,13 +39,18 @@ class DeterministicGenerator:
             )
 
     def generate(self, prompt: str, seed: Optional[int] = None) -> str:
+        prompt_str = prompt if isinstance(prompt, str) else str(prompt)
+        cache_key = (prompt_str, seed if seed is not None else DEFAULT_SEED)
+        cached = _generation_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         if not isinstance(prompt, str):
             logger.error(
-                f"DeterministicGenerator.generate: Invalid prompt type: "
-                f"{type(prompt)}. Expected str. Using fallback."
+                f"DeterministicGenerator.generate: Invalid prompt type: {type(prompt)}. Expected str. Using fallback."
             )
-            # Pass string representation to fallback
-            return _deterministic_fallback_generate(str(prompt))
+            result = _deterministic_fallback_generate(prompt_str)
+            return result
 
         # AIDEV-NOTE: This is where the fallback to _deterministic_fallback_generate occurs if the model isn't loaded.
         if self.model is None:
@@ -45,7 +58,8 @@ class DeterministicGenerator:
                 "DeterministicGenerator.generate: Model not loaded. "
                 "Using fallback generator."
             )
-            return _deterministic_fallback_generate(prompt)
+            result = _deterministic_fallback_generate(prompt_str)
+            return result
 
         if not prompt or not prompt.strip():  # Check after ensuring prompt is a string
             logger.warning(
@@ -53,7 +67,8 @@ class DeterministicGenerator:
                 "prompt received. Using fallback generator."
             )
             # Call fallback for empty/whitespace
-            return _deterministic_fallback_generate(prompt)
+            result = _deterministic_fallback_generate(prompt_str)
+            return result
 
         try:
             sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
@@ -86,6 +101,7 @@ class DeterministicGenerator:
                     f"whitespace-only text for prompt: '{prompt[:50]}...'"
                 )
 
+            _generation_cache.set(cache_key, generated_text)
             return generated_text
 
         except Exception as e:

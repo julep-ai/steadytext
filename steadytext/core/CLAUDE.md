@@ -35,3 +35,4 @@ Add `AIDEV-TODO:` for:
 Add `AIDEV-QUESTION:` for:
 - Unclear model behavior or edge cases
 - Potential issues with determinism
+- Simple frecency cache only caching successful outputs
