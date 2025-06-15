@@ -96,12 +96,12 @@ SteadyText provides deterministic text generation and embedding with zero config
 ### Deterministic Design
 
 **Text Generation:**
-- Uses Qwen1.5-0.5B-Chat (Q4_K_M GGUF) with deterministic sampling parameters
+- Uses openbmb.BitCPM4-1B.Q8_0.gguf with deterministic sampling parameters
 - Fallback generates text using hash-based word selection when model unavailable
 - Always returns strings, never raises exceptions
 
 **Embeddings:**
-- Uses Qwen1.5-0.5B-Chat (Q8_0 GGUF) configured for embeddings
+- Uses Qwen3-Embedding-0.6B-Q8_0.gguf configured for embeddings
 - Always returns 1024-dimensional L2-normalized float32 numpy arrays
 - Fallback returns zero vectors when model unavailable
 

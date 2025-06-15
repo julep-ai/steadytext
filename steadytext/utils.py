@@ -22,9 +22,9 @@ if not logger.handlers:
 logger.setLevel(logging.INFO)
 
 # --- Model Configuration ---
-DEFAULT_GENERATION_MODEL_REPO = "Qwen/Qwen3-0.6B-GGUF"
+DEFAULT_GENERATION_MODEL_REPO = "DevQuasar/openbmb.BitCPM4-1B-GGUF"
 DEFAULT_EMBEDDING_MODEL_REPO = "Qwen/Qwen3-Embedding-0.6B-GGUF"
-GENERATION_MODEL_FILENAME = "Qwen3-0.6B-Q8_0.gguf"
+GENERATION_MODEL_FILENAME = "openbmb.BitCPM4-1B.Q8_0.gguf"
 EMBEDDING_MODEL_FILENAME = "Qwen3-Embedding-0.6B-Q8_0.gguf"
 
 # --- Determinism & Seeds ---
