@@ -40,6 +40,13 @@ if embedding_vector.any(): # Avoid norm of zero vector
 pip install steadytext
 ```
 
+If you want to test the latest development version before it is released on
+PyPI, install directly from the GitHub repository:
+
+```bash
+pip install git+https://github.com/steadytext/steadytext.git
+```
+
 Models will be downloaded automatically to your local cache directory (e.g., `~/.cache/steadytext/models`) the first time you call `generate()` or `embed()`. This is a one-time download.
 The generation model is ~1.3GB (openbmb.BitCPM4-1B.Q8_0.gguf).
 The embedding model is ~610MB (Qwen3-Embedding-0.6B-Q8_0.gguf).
