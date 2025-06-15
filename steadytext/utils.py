@@ -60,10 +60,12 @@ LLAMA_CPP_MAIN_PARAMS_DETERMINISTIC: Dict[str, Any] = {
     **LLAMA_CPP_BASE_PARAMS,
     # Parameters for generation
     # explicit 'embedding': False will be set in loader for gen model
+    "logits_all": True,  # Enable logprobs support for generation
 }
 
 # --- Output Configuration (from previous full utils.py) ---
-GENERATION_MAX_NEW_TOKENS = 256
+# AIDEV-NOTE: Increased default max tokens for generation from 256 to 512
+GENERATION_MAX_NEW_TOKENS = 512
 EMBEDDING_DIMENSION = 1024  # Setting to 1024 as per objective
 
 LLAMA_CPP_EMBEDDING_PARAMS_DETERMINISTIC: Dict[str, Any] = {

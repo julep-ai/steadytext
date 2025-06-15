@@ -9,7 +9,7 @@ __version__ = "0.1.0"
 
 # Import core functions and classes for public API
 import numpy as np
-from typing import Optional
+from typing import Optional, Any
 from .core.generator import DeterministicGenerator
 from .core.embedder import create_embedding
 from .utils import (
@@ -25,9 +25,14 @@ from .models.loader import get_generator_model_instance, get_embedding_model_ins
 _global_generator = DeterministicGenerator()
 
 
-def generate(prompt: str, seed: Optional[int] = None) -> str:
-    """Generate text deterministically from a prompt."""
-    return _global_generator.generate(prompt, seed=seed)
+def generate(
+    prompt: str, seed: Optional[int] = None, return_logprobs: bool = False
+) -> Any:
+    """Generate text deterministically from a prompt.
+
+    If ``return_logprobs`` is True, a tuple ``(text, logprobs)`` is returned.
+    """
+    return _global_generator.generate(prompt, seed=seed, return_logprobs=return_logprobs)
 
 
 def embed(text_input) -> np.ndarray:

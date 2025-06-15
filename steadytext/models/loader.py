@@ -1,7 +1,13 @@
 # AIDEV-NOTE: Thread-safe singleton model loader with caching and validation
 # Handles both generator and embedder models with proper cleanup
 
-from llama_cpp import Llama
+try:
+    from llama_cpp import Llama
+except Exception as import_err:  # pragma: no cover - import failure path
+    # AIDEV-NOTE: Allow tests to run without llama_cpp installed
+    Llama = None  # type: ignore
+    import logging
+    logging.getLogger(__name__).error("llama_cpp not available: %s", import_err)
 from pathlib import Path
 import threading
 from typing import Optional
@@ -42,6 +48,9 @@ class _ModelInstanceCache:
     # error handling
     @classmethod
     def get_generator(cls, force_reload: bool = False) -> Optional[Llama]:
+        if Llama is None:
+            logger.error("llama_cpp.Llama not available; generator model cannot be loaded")
+            return None
         inst = cls.__getInstance()
         # AIDEV-NOTE: This lock is crucial for thread-safe access to the generator model.
         with inst._lock:
@@ -77,6 +86,9 @@ class _ModelInstanceCache:
     # for consistency
     @classmethod
     def get_embedder(cls, force_reload: bool = False) -> Optional[Llama]:
+        if Llama is None:
+            logger.error("llama_cpp.Llama not available; embedder model cannot be loaded")
+            return None
         inst = cls.__getInstance()
         # AIDEV-NOTE: This lock is crucial for thread-safe access to the embedder model.
         with inst._lock:

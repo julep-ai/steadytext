@@ -123,6 +123,6 @@ Two standalone test files (`test_gen.py`, `test_fallback_gen.py`) provide direct
 ## Important Constants
 
 - `DEFAULT_SEED = 42`: Used throughout for deterministic behavior
-- `GENERATION_MAX_NEW_TOKENS = 100`: Fixed output length for text generation
+- `GENERATION_MAX_NEW_TOKENS = 512`: Fixed output length for text generation
 - `EMBEDDING_DIMENSION = 1024`: Fixed embedding dimensionality
 - Models are cached to `~/.cache/steadytext/models/` (Linux/Mac) or `%LOCALAPPDATA%\steadytext\steadytext\models\` (Windows)
