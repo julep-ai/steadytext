@@ -34,8 +34,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/steadytext/steadytext"
-"Bug Tracker" = "https://github.com/steadytext/steadytext/issues"
+"Homepage" = "https://github.com/julep-ai/steadytext"
+"Bug Tracker" = "https://github.com/julep-ai/steadytext/issues"
 
 [project.optional-dependencies]
 test = [
