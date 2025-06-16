@@ -34,9 +34,9 @@ jobs:
           uv sync --dev
           export PATH="$(pwd)/.venv/bin:$PATH"
       - name: Format code
-        run: poe format
+        run: uv run poe format
       - name: Lint code
-        run: poe lint
+        run: uv run poe lint
       - name: Commit formatting fixes
         run: |
           if [ -n "$(git status --porcelain)" ]; then
