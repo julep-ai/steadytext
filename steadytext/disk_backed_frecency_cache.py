@@ -10,11 +10,9 @@ from typing import Any, Dict, Optional, Tuple
 
 try:
     from .sqlite_cache_backend import SQLiteDiskBackedFrecencyCache
-    from .utils import get_cache_dir, logger
 except ImportError:
     # For direct testing
     from sqlite_cache_backend import SQLiteDiskBackedFrecencyCache
-    from utils import get_cache_dir, logger
 
 
 class DiskBackedFrecencyCache:

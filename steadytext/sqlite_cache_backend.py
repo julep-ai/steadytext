@@ -258,8 +258,6 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
     def get(self, key: Any) -> Any | None:
         """Get value from cache, updating frecency metadata."""
         try:
-            conn = self._get_connection()
-            
             # AIDEV-NOTE: Get current entry and update frecency in single transaction
             with self._transaction() as conn:
                 result = conn.execute(
@@ -382,5 +380,5 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
         try:
             if hasattr(self._local, 'connection') and self._local.connection:
                 self._local.connection.close()
-        except:
+        except Exception:
             pass

@@ -10,6 +10,7 @@
 # with graceful fallback to word-by-word yielding when model unavailable
 
 import hashlib
+import os as _os
 from typing import Any, Dict, List, Optional, Union, Tuple, Iterator
 
 from ..disk_backed_frecency_cache import DiskBackedFrecencyCache
@@ -33,7 +34,6 @@ set_deterministic_environment(DEFAULT_SEED)
 # AIDEV-NOTE: Cache capacity and size can be configured via environment variables:
 # - STEADYTEXT_GENERATION_CACHE_CAPACITY (default: 256)
 # - STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB (default: 50.0)
-import os as _os
 _generation_cache = DiskBackedFrecencyCache(
     capacity=int(_os.environ.get("STEADYTEXT_GENERATION_CACHE_CAPACITY", "256")),
     cache_name="generation_cache",
