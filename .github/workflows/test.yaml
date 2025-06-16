@@ -13,9 +13,6 @@ name: tests
 on:
   push:
   pull_request:
-  schedule:
-    - cron:  "0 0 * * 1"
-      branches: [ $default-branch ]
 
 jobs:
   test:
@@ -23,56 +20,22 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.10", "3.11", "3.12"]
-        include:
-          - os: windows-latest
-            python-version: "3.12"
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
 
     steps:
     - uses: actions/checkout@v4
-
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
       with:
-        python-version: ${{ matrix.python-version }}
-        cache: pip
+        enable-cache: true
+        cache-dependency-glob: uv.lock
 
-    - name: System information
-      run: python .github/workflows/system_info.py
+    - name: Set up Python
+      run: uv python install ${{ matrix.python-version }}
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip wheel
-        python -m pip install flake8
-        python -m pip install --editable .[test]
-
-    - name: Sanity check with flake8
-      run: |
-        # stop the build if there are Python syntax errors or undefined names
-        python -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings
-        python -m flake8 . --count --exit-zero --statistics
-
-    - name: Debug environment
-      run: python -m pip freeze
-
-    - name: Test with pytest
-      run: |
-        python -m pytest --cov=steadytext --cov-report term --cov-report xml --cov-config .coveragerc --junitxml=testresults.xml
-
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      with:
-        flags: unittests
-        env_vars: OS,PYTHON
-        name: Python ${{ matrix.python-version }} on ${{ runner.os }}
-
-    - name: Build HTML docs
-      run: |
-        python -m pip install --editable .[docs]
-        cd docs
-        make html
-        cd ..
+    - name: Format code
+      run: uv run poe test
