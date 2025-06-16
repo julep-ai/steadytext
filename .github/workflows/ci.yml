@@ -13,9 +13,6 @@ permissions:
 jobs:
   format-lint:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.10', '3.11', '3.12']
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,7 +20,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: 3.12
       - name: Install the latest version of uv
         uses: astral-sh/setup-uv@v6
         with:
