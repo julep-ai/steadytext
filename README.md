@@ -9,6 +9,8 @@
 **Same input → same output. Every time.**
 No more flaky tests, unpredictable CLI tools, or inconsistent docs. SteadyText makes AI outputs as reliable as hash functions.
 
+Ever had an AI test fail randomly? Or a CLI tool give different answers each run? SteadyText makes AI outputs reproducible - perfect for testing, tooling, and anywhere you need consistent results.
+
 > [!TIP]
 > ✨ _Powered by open-source AI workflows from [**Julep**](https://julep.ai)._ ✨
 
