@@ -8,6 +8,11 @@ on:
     
   workflow_dispatch:
 
+  push:
+    paths:
+      - pyproject.toml
+
+
 jobs:
   publish:
     name: "Build and publish release"
