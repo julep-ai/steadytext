@@ -163,6 +163,9 @@ class TestConcurrentCache:
                 value = cache.get(key)
                 results.append(("get", key, value))
             
+            # Ensure all writes are persisted to disk before process exits
+            cache.sync()
+            
             return process_id, results, None
             
         except Exception as e:
