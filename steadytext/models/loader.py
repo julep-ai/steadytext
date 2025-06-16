@@ -65,7 +65,7 @@ class _ModelInstanceCache:
                 return None
 
             # Check if we need to reload due to logits configuration change
-            current_logits_enabled = getattr(inst, '_generator_logits_enabled', False)
+            current_logits_enabled = getattr(inst, "_generator_logits_enabled", False)
             needs_reload = (
                 inst._generator_model is None
                 or inst._generator_path != model_path
@@ -78,7 +78,9 @@ class _ModelInstanceCache:
                     del inst._generator_model
                     inst._generator_model = None
 
-                logger.info(f"Loading generator model from: {model_path} (logits_all={enable_logits})")
+                logger.info(
+                    f"Loading generator model from: {model_path} (logits_all={enable_logits})"
+                )
                 try:
                     params = {**LLAMA_CPP_MAIN_PARAMS_DETERMINISTIC}
                     params["embedding"] = False

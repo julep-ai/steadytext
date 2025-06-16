@@ -810,7 +810,7 @@ wheels = [
 
 [[package]]
 name = "steadytext"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -819,6 +819,13 @@ dependencies = [
     { name = "numpy" },
     { name = "requests" },
     { name = "tqdm" },
+]
+
+[package.optional-dependencies]
+test = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
 ]
 
 [package.dev-dependencies]
@@ -841,9 +848,13 @@ requires-dist = [
     { name = "huggingface-hub", specifier = ">=0.32.0" },
     { name = "llama-cpp-python", specifier = ">=0.3.9" },
     { name = "numpy", specifier = ">=1.21.0,<2.0.0" },
+    { name = "pytest", marker = "extra == 'test'" },
+    { name = "pytest-cov", marker = "extra == 'test'" },
+    { name = "pytest-xdist", marker = "extra == 'test'" },
     { name = "requests" },
     { name = "tqdm", specifier = ">=4" },
 ]
+provides-extras = ["test"]
 
 [package.metadata.requires-dev]
 dev = [

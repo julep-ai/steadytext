@@ -1,7 +1,6 @@
 # AIDEV-NOTE: Entry point for python -m steadytext
 # Currently only supports the download subcommand
 
-import sys
 from .download import main
 
 if __name__ == "__main__":
