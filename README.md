@@ -37,6 +37,12 @@ for token in steadytext.generate_iter("explain quantum computing"):
 vec = steadytext.embed("Hello world")  # 1024-dim numpy array
 ```
 
+_Or,_
+
+```bash
+uvx steadytext generate 'hello'
+```
+
 ---
 
 ## 🔧 How It Works
@@ -98,10 +104,10 @@ def ai_tool(prompt):
 
 ```bash
 # Generate text
-st "write a hello world function"
+st generate "write a hello world function"
 
 # Stream output
-st "explain recursion" --stream
+st generate "explain recursion" --stream
 
 # Get embeddings
 st embed "machine learning"
