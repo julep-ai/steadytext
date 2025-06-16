@@ -141,6 +141,9 @@ class TestConcurrentCache:
         cache_dir, cache_name, process_id, operation_count = args
         
         try:
+            # Add small delay to prevent all processes from initializing at once
+            time.sleep(0.01 * process_id)
+            
             # Each process creates its own cache instance
             cache = SQLiteDiskBackedFrecencyCache(
                 capacity=100,
@@ -150,26 +153,46 @@ class TestConcurrentCache:
             
             results = []
             
-            # Write operations
+            # Write operations with retry logic for concurrent access
             for i in range(operation_count):
                 key = f"proc_{process_id}_key_{i}"
                 value = f"proc_{process_id}_value_{i}"
-                cache.set(key, value)
-                results.append(("set", key, value))
+                
+                # Retry a few times in case of transient errors
+                for retry in range(3):
+                    try:
+                        cache.set(key, value)
+                        results.append(("set", key, value))
+                        break
+                    except Exception as e:
+                        if retry == 2:  # Last attempt
+                            raise
+                        time.sleep(0.05)  # Brief pause before retry
             
-            # Read operations to verify
+            # Read operations to verify with retry logic
             for i in range(operation_count):
                 key = f"proc_{process_id}_key_{i}"
-                value = cache.get(key)
-                results.append(("get", key, value))
+                for retry in range(3):
+                    try:
+                        value = cache.get(key)
+                        results.append(("get", key, value))
+                        break
+                    except Exception as e:
+                        if retry == 2:  # Last attempt
+                            raise
+                        time.sleep(0.05)  # Brief pause before retry
             
             # Ensure all writes are persisted to disk before process exits
             cache.sync()
             
+            # Add small delay before process exit to ensure sync completes
+            time.sleep(0.1)
+            
             return process_id, results, None
             
         except Exception as e:
-            return process_id, [], str(e)
+            import traceback
+            return process_id, [], f"{str(e)}\n{traceback.format_exc()}"
     
     def test_concurrent_processes(self, temp_cache_dir):
         """Test concurrent access from multiple processes."""

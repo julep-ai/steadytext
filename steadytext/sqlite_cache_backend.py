@@ -73,44 +73,69 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
     def _get_connection(self) -> sqlite3.Connection:
         """Get thread-local database connection with proper configuration."""
         if not hasattr(self._local, 'connection') or self._local.connection is None:
-            try:
-                conn = sqlite3.connect(
-                    str(self.db_file),
-                    timeout=5.0,  # 5 second timeout for concurrent access
-                    check_same_thread=False
-                )
-                
-                # AIDEV-NOTE: Configure SQLite for optimal concurrent access
-                conn.execute("PRAGMA journal_mode=WAL")
-                conn.execute("PRAGMA synchronous=NORMAL")
-                conn.execute("PRAGMA busy_timeout=5000")  # 5 seconds
-                conn.execute("PRAGMA cache_size=10000")  # 10MB page cache
-                
-                self._local.connection = conn
-                
-            except sqlite3.DatabaseError as e:
-                # AIDEV-NOTE: Handle corrupted database files
-                logger.warning(f"Database corruption detected: {e}")
-                if self.db_file.exists():
-                    # Move corrupted file out of the way
-                    backup_file = self.db_file.with_suffix(".corrupted")
-                    self.db_file.rename(backup_file)
-                    logger.info(f"Moved corrupted database to {backup_file}")
-                
-                # Create new connection with fresh database
-                conn = sqlite3.connect(
-                    str(self.db_file),
-                    timeout=5.0,
-                    check_same_thread=False
-                )
-                
-                # Configure new connection
-                conn.execute("PRAGMA journal_mode=WAL")
-                conn.execute("PRAGMA synchronous=NORMAL")
-                conn.execute("PRAGMA busy_timeout=5000")
-                conn.execute("PRAGMA cache_size=10000")
-                
-                self._local.connection = conn
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    conn = sqlite3.connect(
+                        str(self.db_file),
+                        timeout=10.0,  # Increased timeout for concurrent access
+                        check_same_thread=False,
+                        isolation_level=None  # Autocommit mode for better concurrency
+                    )
+                    
+                    # AIDEV-NOTE: Configure SQLite for robust concurrent multi-process access
+                    conn.execute("PRAGMA journal_mode=WAL")
+                    # Use FULL synchronous mode for better durability in multi-process scenarios
+                    conn.execute("PRAGMA synchronous=FULL")
+                    conn.execute("PRAGMA busy_timeout=10000")  # 10 seconds
+                    conn.execute("PRAGMA cache_size=10000")  # 10MB page cache
+                    # Ensure WAL autocheckpoint is enabled for better multi-process coordination
+                    conn.execute("PRAGMA wal_autocheckpoint=1000")  # Checkpoint every 1000 pages
+                    
+                    # Test the connection
+                    conn.execute("SELECT 1")
+                    
+                    self._local.connection = conn
+                    break
+                    
+                except (sqlite3.DatabaseError, sqlite3.OperationalError) as e:
+                    if "database disk image is malformed" in str(e) or "database is locked" in str(e):
+                        if attempt < max_retries - 1:
+                            # Wait before retry
+                            time.sleep(0.1 * (attempt + 1))
+                            continue
+                            
+                    # AIDEV-NOTE: Handle corrupted database files
+                    logger.warning(f"Database error on attempt {attempt + 1}: {e}")
+                    if self.db_file.exists() and "malformed" in str(e):
+                        # Move corrupted file out of the way
+                        backup_file = self.db_file.with_suffix(f".corrupted.{int(time.time())}")
+                        try:
+                            self.db_file.rename(backup_file)
+                            logger.info(f"Moved corrupted database to {backup_file}")
+                        except Exception:
+                            # Another process might have already moved it
+                            pass
+                    
+                    if attempt == max_retries - 1:
+                        # Final attempt: create new connection with fresh database
+                        conn = sqlite3.connect(
+                            str(self.db_file),
+                            timeout=10.0,
+                            check_same_thread=False,
+                            isolation_level=None
+                        )
+                        
+                        # Configure new connection
+                        conn.execute("PRAGMA journal_mode=WAL")
+                        conn.execute("PRAGMA synchronous=FULL")
+                        conn.execute("PRAGMA busy_timeout=10000")
+                        conn.execute("PRAGMA cache_size=10000")
+                        conn.execute("PRAGMA wal_autocheckpoint=1000")
+                        
+                        self._local.connection = conn
+                        # Reinitialize database schema
+                        self._init_database()
                 
         return self._local.connection
     
@@ -119,11 +144,30 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
         """Context manager for database transactions with proper error handling."""
         conn = self._get_connection()
         try:
+            # AIDEV-NOTE: Use IMMEDIATE transaction for better multi-process coordination
+            # This acquires a write lock immediately, preventing conflicts
             conn.execute("BEGIN IMMEDIATE")
             yield conn
-            conn.commit()
+            conn.execute("COMMIT")
+        except (sqlite3.DatabaseError, sqlite3.OperationalError) as e:
+            try:
+                conn.execute("ROLLBACK")
+            except Exception:
+                # Rollback might fail if connection is broken
+                pass
+            
+            # Check if it's a transient error that should be retried
+            if "database is locked" in str(e) or "database disk image is malformed" in str(e):
+                # Force reconnection on next access
+                self._local.connection = None
+                
+            logger.error(f"Database transaction failed: {e}")
+            raise
         except Exception as e:
-            conn.rollback()
+            try:
+                conn.execute("ROLLBACK")
+            except Exception:
+                pass
             logger.error(f"Database transaction failed: {e}")
             raise
     
@@ -335,15 +379,37 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
             logger.error(f"Failed to clear cache: {e}")
     
     def sync(self) -> None:
-        """Explicitly sync cache to disk (SQLite handles this automatically)."""
-        try:
-            conn = self._get_connection()
-            # AIDEV-NOTE: Force WAL checkpoint to sync to main database file
-            conn.execute("PRAGMA wal_checkpoint(FULL)")
-            logger.debug("Synchronized cache to disk")
-            
-        except Exception as e:
-            logger.error(f"Failed to sync cache: {e}")
+        """Explicitly sync cache to disk with full WAL checkpoint for multi-process safety."""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                conn = self._get_connection()
+                # AIDEV-NOTE: Force FULL WAL checkpoint to ensure all writes are in main database
+                # This is critical for multi-process scenarios to avoid corruption
+                result = conn.execute("PRAGMA wal_checkpoint(FULL)").fetchone()
+                if result:
+                    logger.debug(f"WAL checkpoint completed: {result}")
+                
+                # Also ensure the connection is fully synced
+                conn.execute("PRAGMA synchronous=FULL")
+                
+                logger.debug("Synchronized cache to disk")
+                return
+                
+            except (sqlite3.DatabaseError, sqlite3.OperationalError) as e:
+                if "database is locked" in str(e) and attempt < max_retries - 1:
+                    # Database is busy, wait and retry
+                    logger.warning(f"Database locked during sync, retrying... (attempt {attempt + 1})")
+                    time.sleep(0.1 * (attempt + 1))
+                    continue
+                    
+                logger.error(f"Failed to sync cache on attempt {attempt + 1}: {e}")
+                if attempt == max_retries - 1:
+                    # Force reconnection on persistent errors
+                    self._local.connection = None
+                    
+            except Exception as e:
+                logger.error(f"Failed to sync cache: {e}")
     
     def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics for monitoring and debugging."""
@@ -376,9 +442,18 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
             return {}
     
     def __del__(self):
-        """Clean up database connections."""
+        """Clean up database connections with proper shutdown sequence."""
         try:
-            if hasattr(self._local, 'connection') and self._local.connection:
-                self._local.connection.close()
+            if hasattr(self, '_local') and hasattr(self._local, 'connection') and self._local.connection:
+                try:
+                    # Ensure any pending writes are checkpointed
+                    self._local.connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                except Exception:
+                    pass
+                    
+                try:
+                    self._local.connection.close()
+                except Exception:
+                    pass
         except Exception:
             pass
