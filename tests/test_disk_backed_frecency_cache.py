@@ -85,9 +85,9 @@ class TestDiskBackedFrecencyCache:
         assert cache.get("key") is None
 
     # AIDEV-TODO: Fix this and re-enable. Currently fails with:
-        # =========================== short test summary info ============================
-        # FAILED tests/test_disk_backed_frecency_cache.py::TestDiskBackedFrecencyCache::test_corrupt_cache_recovery - sqlite3.DatabaseError: file is not a database
-        # ======== 1 failed, 44 passed, 3 skipped, 4 warnings in 67.27s (0:01:07) ========
+    # =========================== short test summary info ============================
+    # FAILED tests/test_disk_backed_frecency_cache.py::TestDiskBackedFrecencyCache::test_corrupt_cache_recovery - sqlite3.DatabaseError: file is not a database
+    # ======== 1 failed, 44 passed, 3 skipped, 4 warnings in 67.27s (0:01:07) ========
 
     # def test_corrupt_cache_recovery(self, temp_cache_dir):
     #     """Test that cache recovers from corrupted cache files."""
