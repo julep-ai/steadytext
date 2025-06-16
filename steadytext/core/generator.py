@@ -10,6 +10,7 @@
 # with graceful fallback to word-by-word yielding when model unavailable
 
 import hashlib
+import os as _os
 from typing import Any, Dict, List, Optional, Union, Tuple, Iterator
 
 from ..disk_backed_frecency_cache import DiskBackedFrecencyCache
@@ -33,11 +34,12 @@ set_deterministic_environment(DEFAULT_SEED)
 # AIDEV-NOTE: Cache capacity and size can be configured via environment variables:
 # - STEADYTEXT_GENERATION_CACHE_CAPACITY (default: 256)
 # - STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB (default: 50.0)
-import os as _os
 _generation_cache = DiskBackedFrecencyCache(
     capacity=int(_os.environ.get("STEADYTEXT_GENERATION_CACHE_CAPACITY", "256")),
     cache_name="generation_cache",
-    max_size_mb=float(_os.environ.get("STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB", "50.0"))
+    max_size_mb=float(
+        _os.environ.get("STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB", "50.0")
+    ),
 )
 
 
@@ -109,14 +111,14 @@ class DeterministicGenerator:
         try:
             # AIDEV-NOTE: Reset model cache before generation to ensure deterministic
             # behavior across multiple calls with the same seed
-            if hasattr(self.model, 'reset'):
+            if hasattr(self.model, "reset"):
                 self.model.reset()
-            
+
             sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
             sampling_params["stop"] = DEFAULT_STOP_SEQUENCES
             # Always use DEFAULT_SEED for determinism
             sampling_params["seed"] = DEFAULT_SEED
-            
+
             if return_logprobs:
                 # Request logprobs for each generated token
                 sampling_params["logprobs"] = GENERATION_MAX_NEW_TOKENS
@@ -154,7 +156,7 @@ class DeterministicGenerator:
                 prompt_str = prompt if isinstance(prompt, str) else str(prompt)
                 cache_key = prompt_str
                 _generation_cache.set(cache_key, generated_text)
-            
+
             return (generated_text, logprobs) if return_logprobs else generated_text
 
         except Exception as e:
@@ -166,14 +168,12 @@ class DeterministicGenerator:
             fallback_output = ""
             return (fallback_output, None) if return_logprobs else fallback_output
 
-    def generate_iter(
-        self, prompt: str
-    ) -> Iterator[str]:
+    def generate_iter(self, prompt: str) -> Iterator[str]:
         """Generate text iteratively, yielding tokens as they are produced.
-        
+
         AIDEV-NOTE: Streaming generation for real-time output. Falls back to
         yielding words from deterministic fallback when model unavailable.
-        
+
         AIDEV-TODO: Investigate potential hanging issues in pytest when multiple
         generate_iter calls are made in the same session. Works fine in isolation
         but may have state/threading issues in test environment.
@@ -211,9 +211,9 @@ class DeterministicGenerator:
 
         try:
             # AIDEV-NOTE: Reset model cache before generation
-            if hasattr(self.model, 'reset'):
+            if hasattr(self.model, "reset"):
                 self.model.reset()
-            
+
             sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
             sampling_params["stop"] = DEFAULT_STOP_SEQUENCES
             sampling_params["seed"] = DEFAULT_SEED
@@ -228,7 +228,7 @@ class DeterministicGenerator:
                 if chunk and "choices" in chunk and len(chunk["choices"]) > 0:
                     choice = chunk["choices"][0]
                     delta = choice.get("delta", {})
-                    
+
                     # AIDEV-NOTE: Streaming responses use 'delta' for incremental content
                     if "content" in delta and delta["content"]:
                         yield delta["content"]
@@ -370,7 +370,7 @@ def _deterministic_fallback_generate(prompt: str) -> str:
 
 def _deterministic_fallback_generate_iter(prompt: str) -> Iterator[str]:
     """Iterative version of deterministic fallback that yields words one by one.
-    
+
     AIDEV-NOTE: Used by generate_iter when model is unavailable. Yields the same
     deterministic output as _deterministic_fallback_generate but word by word.
     """

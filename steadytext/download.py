@@ -3,7 +3,6 @@
 
 import argparse
 import sys
-from pathlib import Path
 from .models.cache import get_generation_model_path, get_embedding_model_path
 from .utils import (
     logger,
@@ -19,9 +18,9 @@ def download_models(generation=True, embedding=True):
     """Download specified models."""
     cache_dir = get_cache_dir()
     logger.info(f"Using cache directory: {cache_dir}")
-    
+
     success = True
-    
+
     if generation:
         logger.info("Downloading generation model...")
         logger.info(f"  Repository: {DEFAULT_GENERATION_MODEL_REPO}")
@@ -32,7 +31,7 @@ def download_models(generation=True, embedding=True):
         else:
             logger.error("✗ Failed to download generation model")
             success = False
-    
+
     if embedding:
         logger.info("Downloading embedding model...")
         logger.info(f"  Repository: {DEFAULT_EMBEDDING_MODEL_REPO}")
@@ -43,7 +42,7 @@ def download_models(generation=True, embedding=True):
         else:
             logger.error("✗ Failed to download embedding model")
             success = False
-    
+
     return success
 
 
@@ -58,7 +57,7 @@ Examples:
   python -m steadytext.download --embedding  # Download only embedding model
         """,
     )
-    
+
     parser.add_argument(
         "--generation",
         action="store_true",
@@ -69,9 +68,9 @@ Examples:
         action="store_true",
         help="Download only the embedding model",
     )
-    
+
     args = parser.parse_args()
-    
+
     # If no specific model requested, download both
     if not args.generation and not args.embedding:
         generation = True
@@ -79,12 +78,12 @@ Examples:
     else:
         generation = args.generation
         embedding = args.embedding
-    
+
     logger.info("SteadyText Model Downloader")
     logger.info("==========================")
-    
+
     success = download_models(generation=generation, embedding=embedding)
-    
+
     if success:
         logger.info("\nAll requested models downloaded successfully!")
         sys.exit(0)

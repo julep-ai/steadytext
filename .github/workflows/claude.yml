@@ -40,7 +40,7 @@ jobs:
           # Optional: Customize the trigger phrase (default: @claude)
           # trigger_phrase: "/claude"
           
-          assignee_trigger: "claude-bot"
+          assignee_trigger: "creatorrr"
           
           allowed_tools: "Bash(*)"
           

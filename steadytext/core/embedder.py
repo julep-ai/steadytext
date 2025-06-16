@@ -29,10 +29,13 @@ from ..utils import EMBEDDING_DIMENSION, logger, validate_normalized_embedding
 # - STEADYTEXT_EMBEDDING_CACHE_CAPACITY (default: 512)
 # - STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB (default: 100.0)
 import os as _os
+
 _embedding_cache = DiskBackedFrecencyCache(
     capacity=int(_os.environ.get("STEADYTEXT_EMBEDDING_CACHE_CAPACITY", "512")),
     cache_name="embedding_cache",
-    max_size_mb=float(_os.environ.get("STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB", "100.0"))
+    max_size_mb=float(
+        _os.environ.get("STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB", "100.0")
+    ),
 )
 
 

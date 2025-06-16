@@ -1,5 +1,4 @@
 from steadytext.utils import (
-    DEFAULT_SEED,
     EMBEDDING_DIMENSION,
     validate_normalized_embedding,  # Added for new tests
     logger as steadytext_logger,  # Use the library's logger for context in tests
@@ -129,7 +128,6 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
             "Generated text (or error string) must be identical "
             "for the same prompt and default seed.",  # noqa E501
         )
-
 
     def test_embed_deterministic_string_and_validity(self):
         """Test steadytext.embed() is deterministic for string input and

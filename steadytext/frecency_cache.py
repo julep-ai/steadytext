@@ -48,4 +48,3 @@ class FrecencyCache:
             self._data.clear()
             self._meta.clear()
             self._counter = 0
-

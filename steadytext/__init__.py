@@ -32,23 +32,19 @@ def generate(
 
     If ``return_logprobs`` is True, a tuple ``(text, logprobs)`` is returned.
     """
-    return _global_generator.generate(
-        prompt, return_logprobs=return_logprobs
-    )
+    return _global_generator.generate(prompt, return_logprobs=return_logprobs)
 
 
-def generate_iter(
-    prompt: str
-) -> Iterator[str]:
+def generate_iter(prompt: str) -> Iterator[str]:
     """Generate text iteratively, yielding tokens as they are produced.
-    
+
     This function streams tokens as they are generated, useful for real-time
     output or when you want to process tokens as they arrive. Falls back to
     yielding words from deterministic output when model is unavailable.
-    
+
     Args:
         prompt: The input prompt to generate from
-        
+
     Yields:
         str: Generated tokens/words as they are produced
     """

@@ -37,6 +37,13 @@ dependencies = [
 "Homepage" = "https://github.com/julep-ai/steadytext"
 "Bug Tracker" = "https://github.com/julep-ai/steadytext/issues"
 
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-cov",
+    "pytest-xdist",
+]
+
 [project.scripts]
 steadytext = "steadytext.cli:main"
 st = "steadytext.cli:main"
