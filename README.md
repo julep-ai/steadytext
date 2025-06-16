@@ -156,11 +156,11 @@ Control caching behavior via environment variables:
 ```bash
 # Generation cache (default: 256 entries, 50MB)
 export STEADYTEXT_GENERATION_CACHE_CAPACITY=256
-export STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB=50.0
+export STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB=50
 
 # Embedding cache (default: 512 entries, 100MB)
 export STEADYTEXT_EMBEDDING_CACHE_CAPACITY=512
-export STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB=100.0
+export STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB=100
 ```
 
 ---
