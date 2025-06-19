@@ -165,3 +165,32 @@ def get_generator_model_instance(
 
 def get_embedding_model_instance(force_reload: bool = False) -> Optional[Llama]:
     return _ModelInstanceCache.get_embedder(force_reload)
+
+
+# AIDEV-NOTE: Cache clearing utility for testing - ensures clean state for mock patching
+def clear_model_cache():
+    """Clear all cached model instances and paths.
+    
+    This function is primarily intended for testing to ensure clean state
+    when using mock models. It clears both generator and embedder caches.
+    
+    AIDEV-NOTE: This is essential for proper mock testing because the singleton
+    pattern caches real model instances across test runs. Without clearing,
+    patches may not take effect when cached models exist.
+    """
+    inst = _ModelInstanceCache._ModelInstanceCache__getInstance()
+    with inst._lock:
+        # Clear generator model and state
+        if inst._generator_model is not None:
+            del inst._generator_model
+            inst._generator_model = None
+        inst._generator_path = None
+        inst._generator_logits_enabled = False
+        
+        # Clear embedder model and state  
+        if inst._embedder_model is not None:
+            del inst._embedder_model
+            inst._embedder_model = None
+        inst._embedder_path = None
+        
+        logger.debug("Model cache cleared for testing")

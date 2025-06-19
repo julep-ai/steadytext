@@ -142,6 +142,7 @@ class TestDiskBackedFrecencyCache:
         stats = cache.get_stats()
         assert stats["entry_count"] < 13  # Should have evicted some entries
 
+    @pytest.mark.concurrent
     def test_thread_safety(self, temp_cache_dir):
         """Test thread-safe operations."""
         import threading

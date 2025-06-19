@@ -20,7 +20,15 @@ from ...core.generator import DeterministicGenerator
 )
 @click.option("--stream", is_flag=True, help="Stream tokens as they generate")
 @click.option("--logprobs", is_flag=True, help="Include log probabilities in output")
-def generate(prompt: str, output_format: str, stream: bool, logprobs: bool):
+@click.option(
+    "--eos-string",
+    default="[EOS]",
+    help="Custom end-of-sequence string (default: [EOS] for model's default)",
+)
+@click.pass_context
+def generate(
+    ctx, prompt: str, output_format: str, stream: bool, logprobs: bool, eos_string: str
+):
     """Generate text from a prompt.
 
     Examples:
@@ -47,7 +55,9 @@ def generate(prompt: str, output_format: str, stream: bool, logprobs: bool):
     if stream:
         # Streaming mode
         generated_text = ""
-        for token in generator.generate_iter(prompt, include_logprobs=logprobs):
+        for token in generator.generate_iter(
+            prompt, eos_string=eos_string, include_logprobs=logprobs
+        ):
             if logprobs and isinstance(token, dict):
                 click.echo(json.dumps(token), nl=True)
             else:
@@ -67,21 +77,27 @@ def generate(prompt: str, output_format: str, stream: bool, logprobs: bool):
     else:
         # Non-streaming mode
         if logprobs:
-            result = generator.generate(prompt, include_logprobs=True)
+            text, logprobs_data = generator.generate(
+                prompt, return_logprobs=True, eos_string=eos_string
+            )
             if output_format == "json":
                 metadata = {
                     "prompt": prompt,
-                    "generated": result["text"],
-                    "logprobs": result.get("logprobs", []),
+                    "generated": text,
+                    "logprobs": logprobs_data if logprobs_data is not None else [],
                     "time_taken": time.time() - start_time,
                     "stream": False,
                 }
                 click.echo(json.dumps(metadata, indent=2))
             else:
-                # Raw format with logprobs - just output the result dict
-                click.echo(json.dumps(result, indent=2))
+                # Raw format with logprobs - output as dict
+                result_dict = {
+                    "text": text,
+                    "logprobs": logprobs_data if logprobs_data is not None else [],
+                }
+                click.echo(json.dumps(result_dict, indent=2))
         else:
-            generated = generator.generate(prompt)
+            generated = generator.generate(prompt, eos_string=eos_string)
 
             if output_format == "json":
                 metadata = {

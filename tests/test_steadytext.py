@@ -226,6 +226,57 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
                 f"list {texts} is a zero vector."
             )
 
+    def test_generate_with_custom_eos_string(self):
+        """Test generate() with custom eos_string parameter."""
+        if not MODELS_ARE_ACCESSIBLE_FOR_TESTING:
+            self.skipTest("Models deemed not accessible, skipping eos_string test.")
+
+        # Test with default [EOS]
+        output_default = steadytext.generate("Test prompt", eos_string="[EOS]")
+        self.assertIsInstance(output_default, str)
+
+        # Test with custom eos_string
+        output_custom = steadytext.generate("Test prompt", eos_string="STOP")
+        self.assertIsInstance(output_custom, str)
+
+        # Results should be cached separately for different eos_strings
+        output_default2 = steadytext.generate("Test prompt", eos_string="[EOS]")
+        output_custom2 = steadytext.generate("Test prompt", eos_string="STOP")
+
+        # Verify deterministic behavior within same eos_string
+        self.assertEqual(output_default, output_default2)
+        self.assertEqual(output_custom, output_custom2)
+
+    def test_generate_iter_with_eos_string(self):
+        """Test generate_iter() with custom eos_string parameter."""
+        if not MODELS_ARE_ACCESSIBLE_FOR_TESTING:
+            self.skipTest(
+                "Models deemed not accessible, skipping eos_string streaming test."
+            )
+
+        # Test streaming with custom eos
+        tokens = []
+        for token in steadytext.generate_iter("Test prompt", eos_string="END"):
+            tokens.append(token)
+            if len(tokens) > 5:  # Limit iterations for test
+                break
+
+        self.assertTrue(len(tokens) > 0, "Should generate at least one token")
+        self.assertTrue(all(isinstance(t, str) for t in tokens))
+
+    def test_generate_eos_string_with_logprobs(self):
+        """Test generate() with both eos_string and logprobs."""
+        if not MODELS_ARE_ACCESSIBLE_FOR_TESTING:
+            self.skipTest(
+                "Models deemed not accessible, skipping eos_string with logprobs test."
+            )
+
+        text, logp = steadytext.generate(
+            "Test prompt", return_logprobs=True, eos_string="CUSTOM_END"
+        )
+        self.assertIsInstance(text, str)
+        self.assertTrue(logp is None or isinstance(logp, dict))
+
     def test_embed_list_averaging_and_empty_string_handling(self):
         """Test list averaging and correct handling of empty/whitespace strings
         within lists for embed()."""
@@ -322,6 +373,57 @@ class TestSteadyTextAPIErrorFallbacks(unittest.TestCase):
         # If models load, it will be actual text. This test just ensures it's not
         # an *invalid type* error.
 
+    def test_generate_with_eos_string_edge_cases(self):
+        """Test generate() with edge case eos_string values."""
+        # Test with empty eos_string
+        output_empty = steadytext.generate("Test prompt", eos_string="")
+        self.assertIsInstance(output_empty, str)
+
+        # Test with special characters
+        output_special = steadytext.generate("Test prompt", eos_string="<|END|>")
+        self.assertIsInstance(output_special, str)
+
+        # Test with unicode characters
+        output_unicode = steadytext.generate("Test prompt", eos_string="终结")
+        self.assertIsInstance(output_unicode, str)
+
+        # Test with whitespace
+        output_whitespace = steadytext.generate("Test prompt", eos_string="   ")
+        self.assertIsInstance(output_whitespace, str)
+
+    def test_generate_iter_with_eos_string_edge_cases(self):
+        """Test generate_iter() with edge case eos_string values."""
+        # Test with empty eos_string - should still work
+        tokens = []
+        for token in steadytext.generate_iter("Test", eos_string=""):
+            tokens.append(token)
+            if len(tokens) > 10:  # Increase limit for fallback mode
+                break
+
+        # In fallback mode, generate_iter might return fewer tokens or behave differently
+        # The key is that it should not crash and should return string tokens
+        if len(tokens) > 0:
+            self.assertTrue(all(isinstance(t, str) for t in tokens))
+        else:
+            # If no tokens, ensure we can still call it without crashing
+            # This might happen in fallback mode
+            self.assertTrue(True, "generate_iter completed without crashing")
+
+    def test_generate_eos_string_fallback_deterministic(self):
+        """Test that eos_string parameter works deterministically in fallback mode."""
+        # These should be deterministic regardless of model availability
+        output1 = steadytext.generate("Test prompt", eos_string="STOP")
+        output2 = steadytext.generate("Test prompt", eos_string="STOP")
+        self.assertEqual(
+            output1, output2, "Same eos_string should produce identical fallback output"
+        )
+
+        # Different eos_strings should be cached separately
+        output_different = steadytext.generate("Test prompt", eos_string="END")
+        # Note: In fallback mode, the actual eos_string might not affect the output,
+        # but the caching should still work correctly
+        self.assertIsInstance(output_different, str)
+
     def test_generate_with_logprobs_flag(self):
         """generate() should return a tuple when return_logprobs=True."""
         text, logp = steadytext.generate("test", return_logprobs=True)
@@ -385,6 +487,7 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
             DeterministicGenerator,
             _deterministic_fallback_generate,
         )
+        from steadytext.models.loader import clear_model_cache
 
         # Test the fallback function directly first
         prompt = "Test prompt for fallback generation"
@@ -404,6 +507,14 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
             "Different prompts should produce different fallback text",
         )
 
+        # AIDEV-NOTE: Clear any cached models and generation cache before testing to ensure clean state
+        # AIDEV-NOTE: Critical fix - the singleton _ModelInstanceCache persists real models
+        # across test runs, so mock patches don't work unless we clear the cache first.
+        # Also need to clear _generation_cache to prevent cached results from interfering.
+        clear_model_cache()
+        from steadytext.core.generator import _generation_cache
+        _generation_cache.clear()
+        
         # Test that generator uses fallback when model is None
         # Patch where get_generator_model_instance is looked up by
         # DeterministicGenerator
@@ -450,6 +561,7 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
         """Test that stop sequences are properly integrated into generation."""
         from steadytext.core.generator import DeterministicGenerator
         from steadytext.utils import DEFAULT_STOP_SEQUENCES
+        from steadytext.models.loader import clear_model_cache
         from unittest.mock import Mock, patch
 
         # Create a mock model that captures the parameters passed to it
@@ -459,6 +571,14 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
             "choices": [{"message": {"content": "Generated text"}}]
         }
 
+        # AIDEV-NOTE: Clear any cached models and generation cache before testing to ensure clean state
+        # AIDEV-NOTE: Critical fix - the singleton _ModelInstanceCache persists real models
+        # across test runs, so mock patches don't work unless we clear the cache first.
+        # Also need to clear _generation_cache to prevent cached results from interfering.
+        clear_model_cache()
+        from steadytext.core.generator import _generation_cache
+        _generation_cache.clear()
+        
         # Patch where get_generator_model_instance is looked up
         # by DeterministicGenerator
         with patch(

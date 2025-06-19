@@ -15,6 +15,7 @@ os.environ["STEADYTEXT_SKIP_MODEL_LOAD"] = "1"
 from steadytext.sqlite_cache_backend import SQLiteDiskBackedFrecencyCache
 
 
+@pytest.mark.concurrent
 class TestConcurrentCache:
     """Test concurrent access to SQLite-based frecency cache."""
 

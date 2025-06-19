@@ -26,16 +26,23 @@ _global_generator = DeterministicGenerator()
 
 
 def generate(
-    prompt: str, return_logprobs: bool = False
+    prompt: str, return_logprobs: bool = False, eos_string: str = "[EOS]"
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
     """Generate text deterministically from a prompt.
 
-    If ``return_logprobs`` is True, a tuple ``(text, logprobs)`` is returned.
+    Args:
+        prompt: The input prompt to generate from
+        return_logprobs: If True, a tuple (text, logprobs) is returned
+        eos_string: Custom end-of-sequence string. "[EOS]" means use model's default.
+                   Otherwise, generation stops when this string is encountered.
+
+    Returns:
+        Generated text string, or tuple (text, logprobs) if return_logprobs=True
     """
-    return _global_generator.generate(prompt, return_logprobs=return_logprobs)
+    return _global_generator.generate(prompt, return_logprobs=return_logprobs, eos_string=eos_string)
 
 
-def generate_iter(prompt: str) -> Iterator[str]:
+def generate_iter(prompt: str, eos_string: str = "[EOS]", include_logprobs: bool = False) -> Iterator[Union[str, Dict[str, Any]]]:
     """Generate text iteratively, yielding tokens as they are produced.
 
     This function streams tokens as they are generated, useful for real-time
@@ -44,11 +51,15 @@ def generate_iter(prompt: str) -> Iterator[str]:
 
     Args:
         prompt: The input prompt to generate from
+        eos_string: Custom end-of-sequence string. "[EOS]" means use model's default.
+                   Otherwise, generation stops when this string is encountered.
+        include_logprobs: If True, yield dicts with token and logprob info
 
     Yields:
-        str: Generated tokens/words as they are produced
+        str: Generated tokens/words as they are produced (if include_logprobs=False)
+        dict: Token info with 'token' and 'logprobs' keys (if include_logprobs=True)
     """
-    return _global_generator.generate_iter(prompt)
+    return _global_generator.generate_iter(prompt, eos_string=eos_string, include_logprobs=include_logprobs)
 
 
 def embed(text_input) -> np.ndarray:

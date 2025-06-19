@@ -10,6 +10,7 @@ import pytest
 import steadytext
 
 
+@pytest.mark.concurrent
 class TestGenerateIter:
     """Test cases for generate_iter function."""
 
@@ -128,6 +129,9 @@ class TestGenerateIter:
             # This tests that we're actually streaming
             if len(tokens) > 1:
                 assert len(token) < 100  # Individual tokens should be small
+            # Safety limit to prevent infinite loops
+            if len(tokens) > 100:
+                break
 
         # Should have generated multiple tokens
         assert len(tokens) > 5

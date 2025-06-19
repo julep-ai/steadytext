@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "steadytext"
-version = "0.2.2"
+version = "0.2.3"
 description = "Deterministic text generation and embedding with zero configuration"
 readme = "README.md"
 authors = [
@@ -50,16 +50,14 @@ st = "steadytext.cli:main"
 
 [tool.poe.tasks]
 test = "pytest"
-test-fast = "pytest -m 'not slow'"
-test-parallel = "pytest -n auto"
-test-cov = "pytest --cov=steadytext --cov-report=xml"
+test-parallel = "pytest -p no:xdist"
 lint = "ruff check --fix --unsafe-fixes"
 format = "ruff format"
 check = "ty check"
 pre-commit = "pre-commit run --all-files"
-
-[tool.poe.tasks.test-models]
-shell = "STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true pytest"
+docs-build = "mkdocs build"
+docs-serve = "mkdocs serve"
+docs-deploy = "mkdocs gh-deploy"
 
 [dependency-groups]
 dev = [
@@ -72,4 +70,6 @@ dev = [
     "poethepoet",
     "ipython>=8.37.0",
     "pip>=25.1.1",
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.5.0",
 ]

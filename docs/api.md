@@ -11,7 +11,8 @@ This document provides detailed API documentation for SteadyText.
 ```python
 def generate(
     prompt: str,
-    return_logprobs: bool = False
+    return_logprobs: bool = False,
+    eos_string: str = "[EOS]"
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]
 ```
 
@@ -20,6 +21,7 @@ Generate deterministic text from a prompt.
 **Parameters:**
 - `prompt` (str): The input text to generate from
 - `return_logprobs` (bool): If True, returns log probabilities along with the text
+- `eos_string` (str): Custom end-of-sequence string to stop generation. Use "[EOS]" for model's default stop tokens
 
 **Returns:**
 - If `return_logprobs=False`: A string containing the generated text
@@ -32,25 +34,44 @@ text = steadytext.generate("Write a Python function")
 
 # With log probabilities
 text, logprobs = steadytext.generate("Explain AI", return_logprobs=True)
+
+# With custom stop string
+text = steadytext.generate("List items until END", eos_string="END")
 ```
 
 #### `steadytext.generate_iter()`
 
 ```python
-def generate_iter(prompt: str) -> Iterator[str]
+def generate_iter(
+    prompt: str,
+    eos_string: str = "[EOS]",
+    include_logprobs: bool = False
+) -> Iterator[Union[str, Tuple[str, Optional[Dict[str, Any]]]]]
 ```
 
 Generate text iteratively, yielding tokens as they are produced.
 
 **Parameters:**
 - `prompt` (str): The input text to generate from
+- `eos_string` (str): Custom end-of-sequence string to stop generation. Use "[EOS]" for model's default stop tokens
+- `include_logprobs` (bool): If True, yields tuples of (token, logprobs) instead of just tokens
 
 **Yields:**
-- str: Text tokens/words as they are generated
+- str: Text tokens/words as they are generated (if `include_logprobs=False`)
+- Tuple[str, Optional[Dict[str, Any]]]: (token, logprobs) tuples (if `include_logprobs=True`)
 
 **Example:**
 ```python
+# Simple streaming
 for token in steadytext.generate_iter("Tell me a story"):
+    print(token, end="", flush=True)
+
+# With custom stop string
+for token in steadytext.generate_iter("Generate until STOP", eos_string="STOP"):
+    print(token, end="", flush=True)
+
+# With log probabilities
+for token, logprobs in steadytext.generate_iter("Explain AI", include_logprobs=True):
     print(token, end="", flush=True)
 ```
 

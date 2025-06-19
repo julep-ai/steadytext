@@ -1,5 +1,6 @@
 import click
 import sys
+import logging
 
 from .commands.generate import generate
 from .commands.embed import embed
@@ -10,13 +11,24 @@ from .commands.models import models
 @click.group(invoke_without_command=True)
 @click.pass_context
 @click.option("--version", is_flag=True, help="Show version")
-def cli(ctx, version):
+@click.option("--quiet", "-q", is_flag=True, help="Silence log output")
+def cli(ctx, version, quiet):
     """SteadyText: Deterministic text generation and embedding CLI."""
+    if quiet:
+        # Set all steadytext loggers to ERROR level to silence INFO/WARNING logs
+        logging.getLogger("steadytext").setLevel(logging.ERROR)
+        # Also set llama_cpp logger to ERROR if it exists
+        logging.getLogger("llama_cpp").setLevel(logging.ERROR)
+    
     if version:
         from .. import __version__
 
         click.echo(f"steadytext {__version__}")
         ctx.exit(0)
+    
+    # Store quiet flag in context for subcommands
+    ctx.ensure_object(dict)
+    ctx.obj["quiet"] = quiet
 
     if ctx.invoked_subcommand is None and not sys.stdin.isatty():
         # If no subcommand and input is from pipe, assume generate

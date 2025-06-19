@@ -63,12 +63,13 @@ class DeterministicGenerator:
             )
 
     def generate(
-        self, prompt: str, return_logprobs: bool = False
+        self, prompt: str, return_logprobs: bool = False, eos_string: str = "[EOS]"
     ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
         # Handle caching only for non-logprobs requests
         if not return_logprobs:
             prompt_str = prompt if isinstance(prompt, str) else str(prompt)
-            cache_key = prompt_str
+            # Include eos_string in cache key if it's not the default
+            cache_key = prompt_str if eos_string == "[EOS]" else f"{prompt_str}::EOS::{eos_string}"
             cached = _generation_cache.get(cache_key)
             if cached is not None:
                 return cached
@@ -115,7 +116,13 @@ class DeterministicGenerator:
                 self.model.reset()
 
             sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
-            sampling_params["stop"] = DEFAULT_STOP_SEQUENCES
+            # AIDEV-NOTE: Handle custom eos_string - if it's "[EOS]", use default stop sequences
+            # Otherwise, add the custom eos_string to stop sequences
+            if eos_string == "[EOS]":
+                sampling_params["stop"] = DEFAULT_STOP_SEQUENCES
+            else:
+                # Combine default stop sequences with custom eos_string
+                sampling_params["stop"] = DEFAULT_STOP_SEQUENCES + [eos_string]
             # Always use DEFAULT_SEED for determinism
             sampling_params["seed"] = DEFAULT_SEED
 
@@ -154,7 +161,8 @@ class DeterministicGenerator:
             # Only cache non-logprobs results
             if not return_logprobs:
                 prompt_str = prompt if isinstance(prompt, str) else str(prompt)
-                cache_key = prompt_str
+                # Include eos_string in cache key if it's not the default
+                cache_key = prompt_str if eos_string == "[EOS]" else f"{prompt_str}::EOS::{eos_string}"
                 _generation_cache.set(cache_key, generated_text)
 
             return (generated_text, logprobs) if return_logprobs else generated_text
@@ -168,11 +176,16 @@ class DeterministicGenerator:
             fallback_output = ""
             return (fallback_output, None) if return_logprobs else fallback_output
 
-    def generate_iter(self, prompt: str) -> Iterator[str]:
+    def generate_iter(self, prompt: str, eos_string: str = "[EOS]", include_logprobs: bool = False) -> Iterator[Union[str, Dict[str, Any]]]:
         """Generate text iteratively, yielding tokens as they are produced.
 
         AIDEV-NOTE: Streaming generation for real-time output. Falls back to
         yielding words from deterministic fallback when model unavailable.
+        
+        Args:
+            prompt: The input prompt to generate from
+            eos_string: Custom end-of-sequence string. "[EOS]" means use model's default.
+            include_logprobs: If True, yield dicts with token and logprob info
 
         AIDEV-TODO: Investigate potential hanging issues in pytest when multiple
         generate_iter calls are made in the same session. Works fine in isolation
@@ -188,6 +201,11 @@ class DeterministicGenerator:
                 yield word + " "
             return
 
+        # Reload model if logprobs requested but not enabled
+        if include_logprobs and not self._logits_enabled:
+            logger.info("Reloading model with logits support for logprobs generation.")
+            self._load_model(enable_logits=True)
+        
         # AIDEV-NOTE: Check if model is loaded, fallback to word-by-word generation if not
         if self.model is None:
             logger.warning(
@@ -215,9 +233,17 @@ class DeterministicGenerator:
                 self.model.reset()
 
             sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
-            sampling_params["stop"] = DEFAULT_STOP_SEQUENCES
+            # AIDEV-NOTE: Handle custom eos_string for streaming generation
+            if eos_string == "[EOS]":
+                sampling_params["stop"] = DEFAULT_STOP_SEQUENCES
+            else:
+                sampling_params["stop"] = DEFAULT_STOP_SEQUENCES + [eos_string]
             sampling_params["seed"] = DEFAULT_SEED
             sampling_params["stream"] = True  # Enable streaming
+            
+            if include_logprobs:
+                # Request logprobs for streaming
+                sampling_params["logprobs"] = GENERATION_MAX_NEW_TOKENS
 
             # AIDEV-NOTE: Streaming API returns an iterator of partial outputs
             stream = self.model.create_chat_completion(
@@ -230,10 +256,25 @@ class DeterministicGenerator:
                     delta = choice.get("delta", {})
 
                     # AIDEV-NOTE: Streaming responses use 'delta' for incremental content
-                    if "content" in delta and delta["content"]:
-                        yield delta["content"]
-                    elif "text" in choice and choice["text"]:
-                        yield choice["text"]
+                    if include_logprobs:
+                        # Yield dict with token and logprob info when requested
+                        token_info = {}
+                        if "content" in delta and delta["content"]:
+                            token_info["token"] = delta["content"]
+                        elif "text" in choice and choice["text"]:
+                            token_info["token"] = choice["text"]
+                        
+                        if "logprobs" in choice:
+                            token_info["logprobs"] = choice["logprobs"]
+                        
+                        if "token" in token_info:
+                            yield token_info
+                    else:
+                        # Normal string yielding
+                        if "content" in delta and delta["content"]:
+                            yield delta["content"]
+                        elif "text" in choice and choice["text"]:
+                            yield choice["text"]
 
         except Exception as e:
             logger.error(

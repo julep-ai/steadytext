@@ -1,0 +1,87 @@
+site_name: SteadyText Documentation
+site_description: Deterministic text generation and embeddings with zero configuration
+site_url: https://steadytext.dev
+repo_url: https://github.com/julep-ai/steadytext
+repo_name: julep-ai/steadytext
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.tracking
+    - search.highlight
+    - search.share
+    - toc.follow
+    - toc.integrate
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - Quick Start: quick-start.md
+  - API Reference:
+    - Overview: api/index.md
+    - Text Generation: api/generation.md
+    - Embeddings: api/embedding.md
+    - CLI Reference: api/cli.md
+  - Examples:
+    - Overview: examples/index.md
+    - Testing with AI: examples/testing.md
+    - CLI Tools: examples/tooling.md
+  - Contributing: contributing.md
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - pymdownx.mark
+  - pymdownx.caret
+  - pymdownx.keys
+  - pymdownx.tilde
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/julep-ai/steadytext
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/steadytext/
+
+copyright: Copyright &copy; 2024 SteadyText Community
