@@ -28,12 +28,23 @@ from .index import search_index_for_context, get_default_index_path
     help="Custom end-of-sequence string (default: [EOS] for model's default)",
 )
 @click.option("--no-index", is_flag=True, help="Disable automatic index search")
-@click.option("--index-file", type=click.Path(exists=True), help="Use specific index file")
-@click.option("--top-k", default=3, help="Number of context chunks to retrieve from index")
+@click.option(
+    "--index-file", type=click.Path(exists=True), help="Use specific index file"
+)
+@click.option(
+    "--top-k", default=3, help="Number of context chunks to retrieve from index"
+)
 @click.pass_context
 def generate(
-    ctx, prompt: str, output_format: str, stream: bool, logprobs: bool, eos_string: str,
-    no_index: bool, index_file: str, top_k: int
+    ctx,
+    prompt: str,
+    output_format: str,
+    stream: bool,
+    logprobs: bool,
+    eos_string: str,
+    no_index: bool,
+    index_file: str,
+    top_k: int,
 ):
     """Generate text from a prompt.
 
@@ -59,12 +70,14 @@ def generate(
         index_path = Path(index_file) if index_file else get_default_index_path()
         if index_path:
             context_chunks = search_index_for_context(prompt, index_path, top_k)
-    
+
     # AIDEV-NOTE: Prepare prompt with context if available
     final_prompt = prompt
     if context_chunks:
         # Build context-enhanced prompt
-        context_text = "\n\n".join([f"Context {i+1}:\n{chunk}" for i, chunk in enumerate(context_chunks)])
+        context_text = "\n\n".join(
+            [f"Context {i + 1}:\n{chunk}" for i, chunk in enumerate(context_chunks)]
+        )
         final_prompt = f"Based on the following context, answer the question.\n\n{context_text}\n\nQuestion: {prompt}\n\nAnswer:"
 
     # AIDEV-NOTE: Initialize generator once for better performance
