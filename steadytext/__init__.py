@@ -5,12 +5,12 @@ AIDEV-NOTE: Fixed "Never Fails" - embed() now catches TypeErrors & returns zero 
 """
 
 # Version of the steadytext package - should match pyproject.toml
-__version__ = "0.2.0"
+__version__ = "1.1.0"
 
 # Import core functions and classes for public API
 import numpy as np
 from typing import Optional, Any, Union, Tuple, Dict, Iterator
-from .core.generator import DeterministicGenerator
+from .core.generator import generate as _generate, generate_iter as _generate_iter
 from .core.embedder import create_embedding
 from .utils import (
     logger,
@@ -21,12 +21,15 @@ from .utils import (
 )
 from .models.loader import get_generator_model_instance, get_embedding_model_instance
 
-# Create a global generator instance for the public API
-_global_generator = DeterministicGenerator()
-
 
 def generate(
-    prompt: str, return_logprobs: bool = False, eos_string: str = "[EOS]"
+    prompt: str,
+    return_logprobs: bool = False,
+    eos_string: str = "[EOS]",
+    model: Optional[str] = None,
+    model_repo: Optional[str] = None,
+    model_filename: Optional[str] = None,
+    size: Optional[str] = None,
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
     """Generate text deterministically from a prompt.
 
@@ -35,17 +38,50 @@ def generate(
         return_logprobs: If True, a tuple (text, logprobs) is returned
         eos_string: Custom end-of-sequence string. "[EOS]" means use model's default.
                    Otherwise, generation stops when this string is encountered.
+        model: Model name from registry (e.g., "qwen2.5-3b", "qwen3-8b")
+        model_repo: Custom Hugging Face repository ID
+        model_filename: Custom model filename
+        size: Size identifier ("small", "medium", "large") - maps to Qwen3 0.6B/1.7B/4B models
 
     Returns:
         Generated text string, or tuple (text, logprobs) if return_logprobs=True
+        
+    Examples:
+        # Use default model
+        text = generate("Hello, world!")
+        
+        # Use size parameter
+        text = generate("Quick response", size="small")
+        
+        # Use a model from the registry
+        text = generate("Explain quantum computing", model="qwen2.5-3b")
+        
+        # Use a custom model
+        text = generate(
+            "Write a poem",
+            model_repo="Qwen/Qwen2.5-7B-Instruct-GGUF",
+            model_filename="qwen2.5-7b-instruct-q8_0.gguf"
+        )
     """
-    return _global_generator.generate(
-        prompt, return_logprobs=return_logprobs, eos_string=eos_string
+    return _generate(
+        prompt,
+        return_logprobs=return_logprobs,
+        eos_string=eos_string,
+        model=model,
+        model_repo=model_repo,
+        model_filename=model_filename,
+        size=size,
     )
 
 
 def generate_iter(
-    prompt: str, eos_string: str = "[EOS]", include_logprobs: bool = False
+    prompt: str,
+    eos_string: str = "[EOS]",
+    include_logprobs: bool = False,
+    model: Optional[str] = None,
+    model_repo: Optional[str] = None,
+    model_filename: Optional[str] = None,
+    size: Optional[str] = None,
 ) -> Iterator[Union[str, Dict[str, Any]]]:
     """Generate text iteratively, yielding tokens as they are produced.
 
@@ -58,13 +94,23 @@ def generate_iter(
         eos_string: Custom end-of-sequence string. "[EOS]" means use model's default.
                    Otherwise, generation stops when this string is encountered.
         include_logprobs: If True, yield dicts with token and logprob info
+        model: Model name from registry (e.g., "qwen2.5-3b")
+        model_repo: Custom Hugging Face repository ID
+        model_filename: Custom model filename
+        size: Size identifier ("small", "medium", "large") - maps to Qwen3 0.6B/1.7B/4B models
 
     Yields:
         str: Generated tokens/words as they are produced (if include_logprobs=False)
         dict: Token info with 'token' and 'logprobs' keys (if include_logprobs=True)
     """
-    return _global_generator.generate_iter(
-        prompt, eos_string=eos_string, include_logprobs=include_logprobs
+    return _generate_iter(
+        prompt,
+        eos_string=eos_string,
+        include_logprobs=include_logprobs,
+        model=model,
+        model_repo=model_repo,
+        model_filename=model_filename,
+        size=size,
     )
 
 

@@ -11,10 +11,9 @@ This module provides utilities to measure:
 import time
 import gc
 import statistics
-from typing import List, Dict, Any, Callable, Optional, Tuple
+from typing import List, Dict, Callable, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-import numpy as np
 import psutil
 import os
 
@@ -117,7 +116,7 @@ class SpeedBenchmark:
             start_time = time.perf_counter()
             
             try:
-                output = steadytext.generate(prompt)
+                steadytext.generate(prompt)
                 elapsed = time.perf_counter() - start_time
                 result.times.append(elapsed)
                 
@@ -129,7 +128,7 @@ class SpeedBenchmark:
                     result.cache_misses += 1
                     initial_size = cache_size_after
                 
-            except Exception as e:
+            except Exception:
                 result.errors += 1
                 continue
             
@@ -170,7 +169,7 @@ class SpeedBenchmark:
                 elapsed = time.perf_counter() - start_time
                 result.times.append(elapsed)
                 
-            except Exception as e:
+            except Exception:
                 result.errors += 1
                 continue
             
@@ -214,14 +213,14 @@ class SpeedBenchmark:
                 
                 try:
                     if batch_size == 1:
-                        embedding = steadytext.embed(batch[0])
+                        steadytext.embed(batch[0])
                     else:
-                        embedding = steadytext.embed(batch)
+                        steadytext.embed(batch)
                     
                     elapsed = time.perf_counter() - start_time
                     result.times.append(elapsed)
                     
-                except Exception as e:
+                except Exception:
                     result.errors += 1
                     continue
                 
@@ -261,7 +260,7 @@ class SpeedBenchmark:
                 for future in as_completed(futures):
                     try:
                         _ = future.result()
-                    except Exception as e:
+                    except Exception:
                         result.errors += 1
             
             total_time = time.perf_counter() - start_time
@@ -296,7 +295,7 @@ class SpeedBenchmark:
                 elapsed = time.perf_counter() - start_time
                 result.times.append(elapsed)
                 
-            except Exception as e:
+            except Exception:
                 result.errors += 1
                 continue
             
@@ -353,21 +352,21 @@ def format_result(result: BenchmarkResult) -> str:
         f"Operation: {result.operation}",
         f"Iterations: {result.iterations}",
         f"{'='*60}",
-        f"Timing Statistics:",
+        "Timing Statistics:",
         f"  Mean:   {result.mean_time*1000:.2f} ms",
         f"  Median: {result.median_time*1000:.2f} ms",
         f"  P95:    {result.p95_time*1000:.2f} ms",
         f"  P99:    {result.p99_time*1000:.2f} ms",
         f"  Throughput: {result.throughput:.2f} ops/sec",
-        f"",
-        f"Memory Usage:",
+        "",
+        "Memory Usage:",
         f"  Peak: {result.memory_peak_mb:.2f} MB",
-        f"",
-        f"Cache Performance:",
+        "",
+        "Cache Performance:",
         f"  Hits:   {result.cache_hits}",
         f"  Misses: {result.cache_misses}",
         f"  Hit Rate: {result.cache_hit_rate*100:.1f}%",
-        f"",
+        "",
         f"Errors: {result.errors}",
         f"{'='*60}"
     ]

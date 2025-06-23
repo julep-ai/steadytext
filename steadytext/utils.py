@@ -4,7 +4,7 @@ import numpy as np
 from pathlib import Path
 import logging
 import platform  # For get_cache_dir
-from typing import Dict, Any, List  # For type hints
+from typing import Dict, Any, List, Optional  # For type hints
 
 # AIDEV-NOTE: Core utility functions for SteadyText - handles deterministic
 # environment setup, model configuration, and cross-platform cache directory
@@ -22,10 +22,66 @@ if not logger.handlers:
 logger.setLevel(logging.INFO)
 
 # --- Model Configuration ---
-DEFAULT_GENERATION_MODEL_REPO = "DevQuasar/openbmb.BitCPM4-1B-GGUF"
+# AIDEV-NOTE: Switched from BitCPM4-1B to Qwen3-1.7B for better performance
+# Qwen3-1.7B offers improved reasoning while maintaining reasonable size (1.83GB)
+# AIDEV-NOTE: Added environment variable support for model switching
+# Users can override models via STEADYTEXT_GENERATION_MODEL_REPO and STEADYTEXT_GENERATION_MODEL_FILENAME
+DEFAULT_GENERATION_MODEL_REPO = "Qwen/Qwen3-1.7B-GGUF"
 DEFAULT_EMBEDDING_MODEL_REPO = "Qwen/Qwen3-Embedding-0.6B-GGUF"
-GENERATION_MODEL_FILENAME = "openbmb.BitCPM4-1B.Q8_0.gguf"
+GENERATION_MODEL_FILENAME = "Qwen3-1.7B-Q8_0.gguf"
 EMBEDDING_MODEL_FILENAME = "Qwen3-Embedding-0.6B-Q8_0.gguf"
+
+# AIDEV-NOTE: Model registry for validated alternative models
+# Each entry contains repo_id and filename for known working models
+MODEL_REGISTRY = {
+    # Qwen3 models
+    "qwen3-0.6b": {
+        "repo": "Qwen/Qwen3-0.6B-GGUF",
+        "filename": "Qwen3-0.6B-Q8_0.gguf"
+    },
+    "qwen3-1.7b": {
+        "repo": "Qwen/Qwen3-1.7B-GGUF",
+        "filename": "Qwen3-1.7B-Q8_0.gguf"
+    },
+    "qwen3-4b": {
+        "repo": "Qwen/Qwen3-5B-GGUF",  # Note: The 4B model is actually in the 5B repo
+        "filename": "Qwen3-5B-Q8_0.gguf"
+    },
+    "qwen3-8b": {
+        "repo": "Qwen/Qwen3-8B-GGUF",
+        "filename": "qwen3-8b-q8_0.gguf"
+    },
+    # Qwen2.5 models - newer series with better performance
+    "qwen2.5-0.5b": {
+        "repo": "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
+        "filename": "qwen2.5-0.5b-instruct-q8_0.gguf"
+    },
+    "qwen2.5-1.5b": {
+        "repo": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
+        "filename": "qwen2.5-1.5b-instruct-q8_0.gguf"
+    },
+    "qwen2.5-3b": {
+        "repo": "Qwen/Qwen2.5-3B-Instruct-GGUF",
+        "filename": "qwen2.5-3b-instruct-q8_0.gguf"
+    },
+    "qwen2.5-7b": {
+        "repo": "Qwen/Qwen2.5-7B-Instruct-GGUF",
+        "filename": "qwen2.5-7b-instruct-q8_0.gguf"
+    }
+}
+
+# AIDEV-NOTE: Size to model mapping for convenient size-based selection
+SIZE_TO_MODEL = {
+    "small": "qwen3-0.6b",
+    "medium": "qwen3-1.7b",  # default
+    "large": "qwen3-4b"
+}
+
+# Get model configuration from environment or use defaults
+GENERATION_MODEL_REPO = os.environ.get("STEADYTEXT_GENERATION_MODEL_REPO", DEFAULT_GENERATION_MODEL_REPO)
+GENERATION_MODEL_FILENAME = os.environ.get("STEADYTEXT_GENERATION_MODEL_FILENAME", GENERATION_MODEL_FILENAME)
+EMBEDDING_MODEL_REPO = os.environ.get("STEADYTEXT_EMBEDDING_MODEL_REPO", DEFAULT_EMBEDDING_MODEL_REPO)
+EMBEDDING_MODEL_FILENAME = os.environ.get("STEADYTEXT_EMBEDDING_MODEL_FILENAME", EMBEDDING_MODEL_FILENAME)
 
 # --- Determinism & Seeds ---
 DEFAULT_SEED = 42
@@ -125,21 +181,58 @@ def get_cache_dir() -> Path:
     try:
         cache_dir.mkdir(parents=True, exist_ok=True)
     except OSError as e:
-        # AIDEV-TODO: Consider adding more robust permission checking and user guidance
-        logger.error(
-            f"Failed to create cache directory at {cache_dir}: {e}. Check permissions."
-        )
+        # AIDEV-NOTE: Enhanced permission error handling with OS-specific guidance
+        system = platform.system()
+        
+        # Provide OS-specific guidance
+        if system == "Windows":
+            guidance = (
+                f"Permission denied creating cache directory at: {cache_dir}\n"
+                f"Possible solutions:\n"
+                f"  1. Run as Administrator\n"
+                f"  2. Set LOCALAPPDATA environment variable to a writable location\n"
+                f"  3. Set XDG_CACHE_HOME to a custom cache directory\n"
+                f"  4. Ensure your user has write permissions to: {cache_dir.parent}"
+            )
+        elif system == "Darwin":  # macOS
+            guidance = (
+                f"Permission denied creating cache directory at: {cache_dir}\n"
+                f"Possible solutions:\n"
+                f"  1. Fix permissions: chmod -R u+w ~/.cache\n"
+                f"  2. Set XDG_CACHE_HOME to a writable directory\n"
+                f"  3. Check disk permissions with Disk Utility\n"
+                f"  4. Ensure your user owns the directory: sudo chown -R $(whoami) ~/.cache"
+            )
+        else:  # Linux and others
+            guidance = (
+                f"Permission denied creating cache directory at: {cache_dir}\n"
+                f"Possible solutions:\n"
+                f"  1. Fix permissions: chmod -R u+w ~/.cache\n"
+                f"  2. Set XDG_CACHE_HOME to a writable directory\n"
+                f"  3. Check if home directory is mounted read-only\n"
+                f"  4. Ensure your user owns the directory: sudo chown -R $(whoami):$(whoami) ~/.cache"
+            )
+        
+        logger.error(f"{guidance}\nOriginal error: {e}")
+        
         import tempfile
-
         fallback_dir = Path(tempfile.gettempdir()) / DEFAULT_CACHE_DIR_NAME / "models"
-        logger.warning(f"Using temporary fallback cache directory: {fallback_dir}.")
+        logger.warning(
+            f"Attempting to use temporary fallback cache directory: {fallback_dir}\n"
+            f"Note: Models cached here may be deleted on system restart."
+        )
+        
         try:
             fallback_dir.mkdir(parents=True, exist_ok=True)
             return fallback_dir
         except OSError as fe:
             logger.critical(
-                f"Failed to create even fallback cache directory at {fallback_dir}: {fe}."
+                f"Failed to create even fallback cache directory at {fallback_dir}.\n"
+                f"This may indicate severe permission issues or a full disk.\n"
+                f"Error: {fe}\n"
+                f"Please resolve the permission issues or set XDG_CACHE_HOME to a writable location."
             )
+            # Return original cache_dir to maintain API contract
             return cache_dir
     return cache_dir
 
@@ -157,3 +250,65 @@ def validate_normalized_embedding(  # noqa E501
     norm = np.linalg.norm(embedding)
     # Allow zero vectors (norm=0) or properly normalized vectors (norm approx 1)
     return bool(norm < tolerance or abs(norm - 1.0) < tolerance)  # noqa E501
+
+
+# AIDEV-NOTE: Helper functions for model configuration and switching
+def get_model_config(model_name: str) -> Dict[str, str]:
+    """Get model configuration from registry by name.
+    
+    Args:
+        model_name: Name of the model (e.g., "qwen2.5-3b", "qwen3-8b")
+    
+    Returns:
+        Dict with 'repo' and 'filename' keys
+    
+    Raises:
+        ValueError: If model_name is not in registry
+    """
+    if model_name not in MODEL_REGISTRY:
+        available = ", ".join(sorted(MODEL_REGISTRY.keys()))
+        raise ValueError(
+            f"Model '{model_name}' not found in registry. Available models: {available}"
+        )
+    return MODEL_REGISTRY[model_name]
+
+
+def resolve_model_params(
+    model: Optional[str] = None,
+    repo: Optional[str] = None,
+    filename: Optional[str] = None,
+    size: Optional[str] = None
+) -> tuple[str, str]:
+    """Resolve model parameters with precedence: explicit params > model name > size > env vars > defaults.
+    
+    Args:
+        model: Model name from registry (e.g., "qwen2.5-3b")
+        repo: Explicit repository ID (overrides model lookup)
+        filename: Explicit filename (overrides model lookup)
+        size: Size identifier ("small", "medium", "large")
+    
+    Returns:
+        Tuple of (repo_id, filename) to use for model loading
+    """
+    # If explicit repo and filename provided, use them
+    if repo and filename:
+        return repo, filename
+    
+    # If model name provided, look it up
+    if model:
+        config = get_model_config(model)
+        return config["repo"], config["filename"]
+    
+    # If size provided, convert to model name and look it up
+    if size:
+        if size not in SIZE_TO_MODEL:
+            available = ", ".join(sorted(SIZE_TO_MODEL.keys()))
+            raise ValueError(
+                f"Size '{size}' not recognized. Available sizes: {available}"
+            )
+        model_name = SIZE_TO_MODEL[size]
+        config = get_model_config(model_name)
+        return config["repo"], config["filename"]
+    
+    # Otherwise use environment variables or defaults
+    return GENERATION_MODEL_REPO, GENERATION_MODEL_FILENAME

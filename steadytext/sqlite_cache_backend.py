@@ -66,8 +66,26 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
         self._db_lock = threading.Lock()
 
         # Initialize database and migrate if needed
-        self._init_database()
-        self._migrate_from_pickle()
+        try:
+            self._init_database()
+            self._migrate_from_pickle()
+        except sqlite3.DatabaseError as e:
+            if "file is not a database" in str(e) and self.db_file.exists():
+                # Handle corrupted database on initialization
+                backup_file = self.db_file.with_suffix(f".corrupted.{int(time.time())}")
+                try:
+                    self.db_file.rename(backup_file)
+                    logger.info(f"Moved corrupted database to {backup_file}")
+                    # Force reconnection
+                    self._local.connection = None
+                    # Try again with fresh database
+                    self._init_database()
+                    self._migrate_from_pickle()
+                except Exception as rename_error:
+                    logger.error(f"Failed to handle corrupted database: {rename_error}")
+                    raise
+            else:
+                raise
 
     def _get_connection(self) -> sqlite3.Connection:
         """Get thread-local database connection with proper configuration."""

@@ -83,7 +83,7 @@ pip install steadytext
 
 **Corresponding to pypi versions `0.x.y`**:
 
-* Generation: `BitCPM4-1B-Q8_0` (1.3GB)
+* Generation: `Qwen3-1.7B-Q8_0` (1.83GB)
 * Embeddings: `Qwen3-0.6B-Q8_0` (610MB)
 
 !!! note "Version Stability"
@@ -176,7 +176,7 @@ Contributions are welcome! See [Contributing Guide](contributing.md) for guideli
 ## 📄 License
 
 * **Code**: MIT
-* **Models**: MIT (BitCPM4, Qwen3)
+* **Models**: MIT (Qwen3)
 
 ---
 

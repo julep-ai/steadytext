@@ -42,7 +42,6 @@ def test_benchmark_framework():
     
     try:
         # Test plotting utilities
-        from benchmarks.utils.plotting import create_comparison_plot
         print("\n✓ Plotting utilities imported successfully")
         
     except Exception as e:
@@ -60,7 +59,7 @@ def test_benchmark_framework():
             "cache_miss": {"times": [0.001, 0.002]},
         }
         
-        findings = format_speed_key_findings(mock_results)
+        format_speed_key_findings(mock_results)
         print("\n✓ Reporting utilities working")
         
     except Exception as e:
@@ -150,7 +149,7 @@ def test_with_mock():
     print("\n\nTesting benchmarks with mock SteadyText...")
     
     # Setup mocks
-    mock_st = mock_steadytext_functions()
+    mock_steadytext_functions()
     
     try:
         from benchmarks.speed.benchmark_speed import SpeedBenchmark
@@ -164,7 +163,7 @@ def test_with_mock():
             warmup=False
         )
         
-        print(f"\nGeneration benchmark:")
+        print("\nGeneration benchmark:")
         print(f"  Mean time: {result.mean_time*1000:.2f} ms")
         print(f"  Throughput: {result.throughput:.2f} ops/sec")
         
@@ -176,7 +175,7 @@ def test_with_mock():
             warmup=False
         )
         
-        print(f"\nEmbedding benchmarks:")
+        print("\nEmbedding benchmarks:")
         for batch_size, result in embedding_results.items():
             print(f"  Batch {batch_size}: {result.mean_time*1000:.2f} ms")
         

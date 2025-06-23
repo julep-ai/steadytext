@@ -11,7 +11,7 @@ except ImportError as import_err:  # pragma: no cover - import failure path
     logging.getLogger(__name__).error("llama_cpp not available: %s", import_err)
 from pathlib import Path
 import threading
-from typing import Optional
+from typing import Optional, Dict
 from ..utils import (
     logger,
     LLAMA_CPP_MAIN_PARAMS_DETERMINISTIC,
@@ -24,6 +24,7 @@ from .cache import get_generation_model_path, get_embedding_model_path
 
 # AIDEV-NOTE: Critical singleton pattern implementation for model caching
 # Thread-safe with proper resource management and dimension validation
+# AIDEV-NOTE: Extended to support multiple model instances for dynamic switching
 class _ModelInstanceCache:
     _instance = None
     _lock = threading.Lock()
@@ -32,6 +33,10 @@ class _ModelInstanceCache:
     _embedder_model: Optional[Llama] = None
     _generator_path: Optional[Path] = None
     _embedder_path: Optional[Path] = None
+    
+    # AIDEV-NOTE: Cache for multiple generator models to support switching
+    _generator_models_cache: Dict[str, Optional[Llama]] = {}
+    _generator_paths_cache: Dict[str, Optional[Path]] = {}
 
     @classmethod
     def __getInstance(cls):
@@ -47,9 +52,14 @@ class _ModelInstanceCache:
 
     # AIDEV-NOTE: Generator model loading with parameter configuration and
     # error handling
+    # AIDEV-NOTE: Extended to support loading different models via repo/filename params
     @classmethod
     def get_generator(
-        cls, force_reload: bool = False, enable_logits: bool = False
+        cls,
+        force_reload: bool = False,
+        enable_logits: bool = False,
+        repo_id: Optional[str] = None,
+        filename: Optional[str] = None,
     ) -> Optional[Llama]:
         if Llama is None:
             logger.error(
@@ -59,24 +69,38 @@ class _ModelInstanceCache:
         inst = cls.__getInstance()
         # AIDEV-NOTE: This lock is crucial for thread-safe access to the generator model.
         with inst._lock:
-            model_path = get_generation_model_path()
+            # Create cache key for this specific model
+            cache_key = f"{repo_id or 'default'}::{filename or 'default'}"
+            
+            # Use default model if no custom params and it's already loaded
+            if repo_id is None and filename is None and inst._generator_model is not None:
+                if not force_reload and enable_logits == getattr(inst, "_generator_logits_enabled", False):
+                    return inst._generator_model
+            
+            # Check if this model is already cached
+            if cache_key in inst._generator_models_cache and not force_reload:
+                cached_model = inst._generator_models_cache[cache_key]
+                if cached_model is not None:
+                    # Check if logits configuration matches
+                    cached_logits = getattr(cached_model, "_logits_enabled", False)
+                    if cached_logits == enable_logits:
+                        return cached_model
+            
+            model_path = get_generation_model_path(repo_id, filename)
             if model_path is None:
-                logger.error("Generator model file not found by cache.")
+                logger.error(f"Generator model file not found by cache for {cache_key}.")
                 return None
 
-            # Check if we need to reload due to logits configuration change
-            current_logits_enabled = getattr(inst, "_generator_logits_enabled", False)
-            needs_reload = (
-                inst._generator_model is None
-                or inst._generator_path != model_path
-                or force_reload
-                or (enable_logits != current_logits_enabled)
-            )
+            # For custom models, always load fresh (or use cache)
+            needs_reload = True
 
             if needs_reload:
-                if inst._generator_model is not None:
-                    del inst._generator_model
-                    inst._generator_model = None
+                # Clean up existing model in cache if reloading
+                if cache_key in inst._generator_models_cache:
+                    old_model = inst._generator_models_cache[cache_key]
+                    if old_model is not None:
+                        del old_model
+                    inst._generator_models_cache[cache_key] = None
 
                 logger.info(
                     f"Loading generator model from: {model_path} (logits_all={enable_logits})"
@@ -87,16 +111,29 @@ class _ModelInstanceCache:
                     if enable_logits:
                         params["logits_all"] = True
 
-                    inst._generator_model = Llama(model_path=str(model_path), **params)
-                    inst._generator_path = model_path
-                    inst._generator_logits_enabled = enable_logits
-                    logger.info("Generator model loaded successfully.")
+                    new_model = Llama(model_path=str(model_path), **params)
+                    new_model._logits_enabled = enable_logits  # Store logits config
+                    
+                    # Store in cache
+                    inst._generator_models_cache[cache_key] = new_model
+                    inst._generator_paths_cache[cache_key] = model_path
+                    
+                    # Update default model reference if this is the default
+                    if repo_id is None and filename is None:
+                        inst._generator_model = new_model
+                        inst._generator_path = model_path
+                        inst._generator_logits_enabled = enable_logits
+                    
+                    logger.info(f"Generator model loaded successfully for {cache_key}.")
+                    return new_model
                 except Exception as e:
-                    logger.error(f"Failed to load generator model: {e}", exc_info=True)
-                    inst._generator_model = None
-                    inst._generator_path = None
-                    inst._generator_logits_enabled = False
-            return inst._generator_model
+                    logger.error(f"Failed to load generator model {cache_key}: {e}", exc_info=True)
+                    inst._generator_models_cache[cache_key] = None
+                    inst._generator_paths_cache[cache_key] = None
+                    return None
+            
+            # Return cached model
+            return inst._generator_models_cache.get(cache_key)
 
     # AIDEV-NOTE: Embedder model loading with dimension validation - critical
     # for consistency
@@ -158,9 +195,17 @@ class _ModelInstanceCache:
 
 
 def get_generator_model_instance(
-    force_reload: bool = False, enable_logits: bool = False
+    force_reload: bool = False,
+    enable_logits: bool = False,
+    repo_id: Optional[str] = None,
+    filename: Optional[str] = None,
 ) -> Optional[Llama]:
-    return _ModelInstanceCache.get_generator(force_reload, enable_logits)
+    """Get a generator model instance with optional custom model specification.
+    
+    AIDEV-NOTE: Extended to support dynamic model loading. Maintains backward
+    compatibility when repo_id and filename are not specified.
+    """
+    return _ModelInstanceCache.get_generator(force_reload, enable_logits, repo_id, filename)
 
 
 def get_embedding_model_instance(force_reload: bool = False) -> Optional[Llama]:
@@ -186,6 +231,13 @@ def clear_model_cache():
             inst._generator_model = None
         inst._generator_path = None
         inst._generator_logits_enabled = False
+        
+        # Clear all cached generator models
+        for key, model in inst._generator_models_cache.items():
+            if model is not None:
+                del model
+        inst._generator_models_cache.clear()
+        inst._generator_paths_cache.clear()
 
         # Clear embedder model and state
         if inst._embedder_model is not None:

@@ -96,7 +96,7 @@ def test_accuracy_benchmark():
                 print("\n  LightEval is available")
             else:
                 print("\n  LightEval not available (install with: pip install lighteval)")
-        except:
+        except Exception:
             print("\n  Could not check LightEval availability")
         
         print("\n✓ Accuracy benchmarks working correctly")

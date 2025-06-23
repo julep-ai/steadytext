@@ -4,7 +4,7 @@ import json
 import time
 from pathlib import Path
 
-from ...core.generator import DeterministicGenerator
+from ...core.generator import generate as core_generate, generate_iter as core_generate_iter
 from .index import search_index_for_context, get_default_index_path
 
 
@@ -34,6 +34,10 @@ from .index import search_index_for_context, get_default_index_path
 @click.option(
     "--top-k", default=3, help="Number of context chunks to retrieve from index"
 )
+@click.option("--model", default=None, help="Model name from registry (e.g., 'qwen2.5-3b')")
+@click.option("--model-repo", default=None, help="Custom model repository (e.g., 'Qwen/Qwen2.5-3B-Instruct-GGUF')")
+@click.option("--model-filename", default=None, help="Custom model filename (e.g., 'qwen2.5-3b-instruct-q8_0.gguf')")
+@click.option("--size", type=click.Choice(["small", "medium", "large"]), default=None, help="Model size (small=0.6B, medium=1.7B, large=4B)")
 @click.pass_context
 def generate(
     ctx,
@@ -45,13 +49,21 @@ def generate(
     no_index: bool,
     index_file: str,
     top_k: int,
+    model: str,
+    model_repo: str,
+    model_filename: str,
+    size: str,
 ):
     """Generate text from a prompt.
 
     Examples:
         st "write a hello world function"
+        st "quick task" --size small    # Uses Qwen3-0.6B
+        st "complex task" --size large   # Uses Qwen3-4B
+        st "explain quantum computing" --model qwen2.5-3b
         st -  # Read from stdin
         echo "explain this" | st
+        st "complex task" --model-repo Qwen/Qwen2.5-7B-Instruct-GGUF --model-filename qwen2.5-7b-instruct-q8_0.gguf
     """
     # Handle stdin input
     if prompt == "-":
@@ -80,16 +92,16 @@ def generate(
         )
         final_prompt = f"Based on the following context, answer the question.\n\n{context_text}\n\nQuestion: {prompt}\n\nAnswer:"
 
-    # AIDEV-NOTE: Initialize generator once for better performance
-    generator = DeterministicGenerator()
+    # AIDEV-NOTE: Model switching support - pass model parameters to core functions
 
     start_time = time.time()
 
     if stream:
         # Streaming mode
         generated_text = ""
-        for token in generator.generate_iter(
-            final_prompt, eos_string=eos_string, include_logprobs=logprobs
+        for token in core_generate_iter(
+            final_prompt, eos_string=eos_string, include_logprobs=logprobs,
+            model=model, model_repo=model_repo, model_filename=model_filename, size=size
         ):
             if logprobs and isinstance(token, dict):
                 click.echo(json.dumps(token), nl=True)
@@ -112,8 +124,9 @@ def generate(
     else:
         # Non-streaming mode
         if logprobs:
-            text, logprobs_data = generator.generate(
-                final_prompt, return_logprobs=True, eos_string=eos_string
+            text, logprobs_data = core_generate(
+                final_prompt, return_logprobs=True, eos_string=eos_string,
+                model=model, model_repo=model_repo, model_filename=model_filename, size=size
             )
             if output_format == "json":
                 metadata = {
@@ -134,7 +147,10 @@ def generate(
                 }
                 click.echo(json.dumps(result_dict, indent=2))
         else:
-            generated = generator.generate(final_prompt, eos_string=eos_string)
+            generated = core_generate(
+                final_prompt, eos_string=eos_string,
+                model=model, model_repo=model_repo, model_filename=model_filename, size=size
+            )
 
             if output_format == "json":
                 metadata = {

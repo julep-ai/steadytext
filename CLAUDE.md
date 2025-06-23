@@ -133,7 +133,7 @@ SteadyText provides deterministic text generation and embedding with zero config
 ### Deterministic Design
 
 **Text Generation:**
-- Uses openbmb.BitCPM4-1B.Q8_0.gguf with deterministic sampling parameters
+- Uses Qwen3-1.7B-Q8_0.gguf with deterministic sampling parameters
 - Fallback generates text using hash-based word selection when model unavailable
 - Always returns strings, never raises exceptions
 - Supports both batch generation (`generate()`) and streaming generation (`generate_iter()`)

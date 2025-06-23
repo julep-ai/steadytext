@@ -3,18 +3,17 @@
 These tasks test determinism, consistency, and other unique aspects of SteadyText.
 """
 
-from typing import Dict, List, Any, Tuple
-import hashlib
+from typing import Dict, List, Any, Optional
 import json
 
 try:
     from lighteval.tasks.task import LightevalTask
     from lighteval.tasks.requests import GreedyUntilRequest
-    from lighteval.metrics import Metrics
     LIGHTEVAL_AVAILABLE = True
 except ImportError:
     LIGHTEVAL_AVAILABLE = False
     LightevalTask = object
+    GreedyUntilRequest = object
 
 import steadytext
 
@@ -268,7 +267,7 @@ class FallbackBehaviorTask(LightevalTask):
                         gen_output = steadytext.generate(prompt)
                         emb_output = steadytext.embed(prompt)
                         fallback_scores["invalid_type_handling_works"] = 1.0
-                    except:
+                    except Exception:
                         # If it raises an exception, that's actually not following "never fails"
                         fallback_scores["invalid_type_handling_works"] = 0.0
                         
@@ -322,7 +321,7 @@ class PerformanceRegressionTask(LightevalTask):
         try:
             with open(self.baseline_file, 'r') as f:
                 return json.load(f)
-        except:
+        except Exception:
             return None
     
     def create_performance_prompt(self, sample: Dict[str, Any]) -> GreedyUntilRequest:

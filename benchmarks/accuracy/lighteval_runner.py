@@ -5,7 +5,7 @@ SteadyText's performance on standard NLP benchmarks.
 """
 
 import time
-from typing import Dict, List, Any, Optional, Union, Tuple
+from typing import Dict, List, Any, Optional, Union
 from dataclasses import dataclass
 import numpy as np
 
@@ -21,7 +21,14 @@ try:
     LIGHTEVAL_AVAILABLE = True
 except ImportError:
     LIGHTEVAL_AVAILABLE = False
-    LightevalModel = object  # Fallback for type hints
+    # Fallback for type hints
+    LightevalModel = object
+    GreedyUntilRequest = object
+    LoglikelihoodRequest = object
+    LoglikelihoodRollingRequest = object
+    LoglikelihoodSingleTokenRequest = object
+    GenerateReturn = object
+    LoglikelihoodReturn = object
 
 import steadytext
 
@@ -137,7 +144,7 @@ class SteadyTextLightEvalModel(LightevalModel):
                 # For regular requests, concatenate context and continuation
                 context = request.context
                 continuation = request.continuation
-                full_text = context + continuation
+                context + continuation
             
             # Generate with logprobs to get likelihood information
             generated_text, logprobs_dict = steadytext.generate(
@@ -248,7 +255,7 @@ class SteadyTextEvaluator:
         from lighteval.tasks.registry import Registry
         
         # Initialize task registry
-        registry = Registry()
+        Registry()
         
         # Configure evaluation
         eval_config = {
