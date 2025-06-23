@@ -1,0 +1,275 @@
+"""
+ZeroMQ server implementation for SteadyText daemon.
+
+AIDEV-NOTE: This server keeps models loaded in memory and serves generation/embedding
+requests via ZeroMQ REP socket. Implements graceful shutdown and error handling.
+"""
+
+import sys
+import signal
+from typing import Dict, Any, Iterator
+
+try:
+    import zmq
+except ImportError:
+    # Only exit when running as main module, not during imports
+    if __name__ == "__main__":
+        print(
+            "Error: pyzmq is required for daemon mode. Install with: pip install pyzmq",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    else:
+        zmq = None
+
+from ..core.generator import DeterministicGenerator
+from ..core.embedder import create_embedding
+from ..utils import logger, set_deterministic_environment, DEFAULT_SEED
+from .protocol import (
+    Request,
+    Response,
+    ErrorResponse,
+    DEFAULT_DAEMON_PORT,
+    STREAM_END_MARKER,
+)
+
+
+# AIDEV-NOTE: Server maintains singleton instances of generator and embedder
+# to avoid repeated model loading overhead
+class DaemonServer:
+    def __init__(
+        self,
+        host: str = "localhost",
+        port: int = DEFAULT_DAEMON_PORT,
+        preload_models: bool = True,
+    ):
+        self.host = host
+        self.port = port
+        self.running = False
+        self.context = None
+        self.socket = None
+
+        # AIDEV-NOTE: Model instances are created once and reused for all requests
+        self.generator = None
+
+        # Set deterministic environment
+        set_deterministic_environment(DEFAULT_SEED)
+
+        if preload_models:
+            self._preload_models()
+
+    def _preload_models(self):
+        """Preload models to ensure they're ready for requests."""
+        logger.info("Preloading models...")
+        try:
+            self.generator = DeterministicGenerator()
+            logger.info("Generator model loaded")
+        except Exception as e:
+            logger.error(f"Failed to load generator model: {e}")
+            self.generator = None
+
+        # Embedder is loaded on-demand by create_embedding
+
+    def _handle_generate(self, params: Dict[str, Any]) -> Any:
+        """Handle text generation request."""
+        if self.generator is None:
+            self.generator = DeterministicGenerator()
+
+        prompt = params.get("prompt", "")
+        return_logprobs = params.get("return_logprobs", False)
+        eos_string = params.get("eos_string", "[EOS]")
+        model = params.get("model")
+        model_repo = params.get("model_repo")
+        model_filename = params.get("model_filename")
+        size = params.get("size")
+
+        result = self.generator.generate(
+            prompt=prompt,
+            return_logprobs=return_logprobs,
+            eos_string=eos_string,
+            model=model,
+            model_repo=model_repo,
+            model_filename=model_filename,
+            size=size,
+        )
+
+        # AIDEV-NOTE: Handle tuple return for logprobs
+        if return_logprobs and isinstance(result, tuple):
+            return {"text": result[0], "logprobs": result[1]}
+        return result
+
+    def _handle_generate_iter(self, params: Dict[str, Any]) -> Iterator[Dict[str, Any]]:
+        """Handle streaming text generation request.
+
+        AIDEV-NOTE: Streaming is handled by yielding multiple responses with the same ID.
+        The client will accumulate these until it receives STREAM_END_MARKER.
+        """
+        if self.generator is None:
+            self.generator = DeterministicGenerator()
+
+        prompt = params.get("prompt", "")
+        eos_string = params.get("eos_string", "[EOS]")
+        include_logprobs = params.get("include_logprobs", False)
+        model = params.get("model")
+        model_repo = params.get("model_repo")
+        model_filename = params.get("model_filename")
+        size = params.get("size")
+
+        for token in self.generator.generate_iter(
+            prompt=prompt,
+            eos_string=eos_string,
+            include_logprobs=include_logprobs,
+            model=model,
+            model_repo=model_repo,
+            model_filename=model_filename,
+            size=size,
+        ):
+            yield token
+
+    def _handle_embed(self, params: Dict[str, Any]) -> Any:
+        """Handle embedding generation request."""
+        text_input = params.get("text_input", "")
+        embedding = create_embedding(text_input)
+
+        # AIDEV-NOTE: Convert numpy array to list for JSON serialization
+        return embedding.tolist()
+
+    def _handle_request(self, request: Request) -> Response:
+        """Process a single request and return response."""
+        try:
+            if request.method == "ping":
+                return Response(id=request.id, result="pong")
+            elif request.method == "shutdown":
+                self.running = False
+                return Response(id=request.id, result="shutdown initiated")
+            elif request.method == "generate":
+                result = self._handle_generate(request.params)
+                return Response(id=request.id, result=result)
+            elif request.method == "generate_iter":
+                # AIDEV-NOTE: For streaming, we'll send multiple responses
+                # This is handled differently in the main loop
+                return None  # Signal to handle streaming
+            elif request.method == "embed":
+                result = self._handle_embed(request.params)
+                return Response(id=request.id, result=result)
+            else:
+                return ErrorResponse(
+                    id=request.id, error=f"Unknown method: {request.method}"
+                )
+        except Exception as e:
+            logger.error(f"Error handling request {request.id}: {e}", exc_info=True)
+            return ErrorResponse(id=request.id, error=str(e))
+
+    def run(self):
+        """Run the daemon server."""
+        self.context = zmq.Context()
+        self.socket = self.context.socket(zmq.REP)
+
+        bind_address = f"tcp://{self.host}:{self.port}"
+        try:
+            self.socket.bind(bind_address)
+            logger.info(f"SteadyText daemon listening on {bind_address}")
+        except zmq.error.ZMQError as e:
+            logger.error(f"Failed to bind to {bind_address}: {e}")
+            return
+
+        self.running = True
+
+        # AIDEV-NOTE: Set up signal handlers for graceful shutdown
+        signal.signal(signal.SIGINT, self._signal_handler)
+        signal.signal(signal.SIGTERM, self._signal_handler)
+
+        while self.running:
+            try:
+                # Wait for request with timeout to allow checking self.running
+                if self.socket.poll(1000):  # 1 second timeout
+                    message = self.socket.recv()
+                    request = Request.from_json(message)
+
+                    logger.debug(
+                        f"Received request: {request.method} (id: {request.id})"
+                    )
+
+                    # AIDEV-NOTE: Special handling for streaming generation
+                    if request.method == "generate_iter":
+                        try:
+                            for token in self._handle_generate_iter(request.params):
+                                # Send each token as a separate response
+                                response = Response(
+                                    id=request.id, result={"token": token}
+                                )
+                                self.socket.send(response.to_json().encode())
+
+                                # Wait for client acknowledgment before sending next token
+                                ack = self.socket.recv()
+                                if ack != b"ACK":
+                                    logger.warning(f"Unexpected acknowledgment: {ack}")
+                                    break
+
+                            # Send end-of-stream marker
+                            response = Response(
+                                id=request.id, result={"token": STREAM_END_MARKER}
+                            )
+                            self.socket.send(response.to_json().encode())
+                        except Exception as e:
+                            error_response = ErrorResponse(id=request.id, error=str(e))
+                            self.socket.send(error_response.to_json().encode())
+                    else:
+                        # Normal request-response handling
+                        response = self._handle_request(request)
+                        if response:
+                            self.socket.send(response.to_json().encode())
+
+            except zmq.error.Again:
+                # Timeout, continue to check self.running
+                continue
+            except Exception as e:
+                logger.error(f"Server error: {e}", exc_info=True)
+                # Try to send error response if possible
+                try:
+                    if "request" in locals():
+                        error_response = ErrorResponse(id=request.id, error=str(e))
+                        self.socket.send(error_response.to_json().encode())
+                except Exception:
+                    pass
+
+        logger.info("Daemon server shutting down...")
+        self.cleanup()
+
+    def _signal_handler(self, signum, frame):
+        """Handle shutdown signals."""
+        logger.info(f"Received signal {signum}, shutting down...")
+        self.running = False
+
+    def cleanup(self):
+        """Clean up resources."""
+        if self.socket:
+            self.socket.close()
+        if self.context:
+            self.context.term()
+        logger.info("Daemon server stopped")
+
+
+def main():
+    """Entry point for running the daemon server directly."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="SteadyText daemon server")
+    parser.add_argument("--host", default="localhost", help="Host to bind to")
+    parser.add_argument(
+        "--port", type=int, default=DEFAULT_DAEMON_PORT, help="Port to bind to"
+    )
+    parser.add_argument(
+        "--no-preload", action="store_true", help="Don't preload models on startup"
+    )
+
+    args = parser.parse_args()
+
+    server = DaemonServer(
+        host=args.host, port=args.port, preload_models=not args.no_preload
+    )
+    server.run()
+
+
+if __name__ == "__main__":
+    main()

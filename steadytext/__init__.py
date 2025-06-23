@@ -5,9 +5,10 @@ AIDEV-NOTE: Fixed "Never Fails" - embed() now catches TypeErrors & returns zero 
 """
 
 # Version of the steadytext package - should match pyproject.toml
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 # Import core functions and classes for public API
+import os
 import numpy as np
 from typing import Optional, Any, Union, Tuple, Dict, Iterator
 from .core.generator import generate as _generate, generate_iter as _generate_iter
@@ -20,6 +21,7 @@ from .utils import (
     get_cache_dir,
 )
 from .models.loader import get_generator_model_instance, get_embedding_model_instance
+from .daemon.client import DaemonClient, use_daemon, get_daemon_client
 
 
 def generate(
@@ -63,6 +65,23 @@ def generate(
             model_filename="qwen2.5-7b-instruct-q8_0.gguf"
         )
     """
+    # AIDEV-NOTE: Check if daemon usage is enabled via environment variable
+    if os.environ.get("STEADYTEXT_USE_DAEMON") == "1":
+        client = get_daemon_client()
+        try:
+            return client.generate(
+                prompt=prompt,
+                return_logprobs=return_logprobs,
+                eos_string=eos_string,
+                model=model,
+                model_repo=model_repo,
+                model_filename=model_filename,
+                size=size,
+            )
+        except ConnectionError:
+            # Fall back to direct generation
+            logger.debug("Daemon not available, falling back to direct generation")
+
     return _generate(
         prompt,
         return_logprobs=return_logprobs,
@@ -103,7 +122,27 @@ def generate_iter(
         str: Generated tokens/words as they are produced (if include_logprobs=False)
         dict: Token info with 'token' and 'logprobs' keys (if include_logprobs=True)
     """
-    return _generate_iter(
+    # AIDEV-NOTE: Check if daemon usage is enabled for streaming
+    if os.environ.get("STEADYTEXT_USE_DAEMON") == "1":
+        client = get_daemon_client()
+        try:
+            yield from client.generate_iter(
+                prompt=prompt,
+                eos_string=eos_string,
+                include_logprobs=include_logprobs,
+                model=model,
+                model_repo=model_repo,
+                model_filename=model_filename,
+                size=size,
+            )
+            return
+        except ConnectionError:
+            # Fall back to direct generation
+            logger.debug(
+                "Daemon not available, falling back to direct streaming generation"
+            )
+
+    yield from _generate_iter(
         prompt,
         eos_string=eos_string,
         include_logprobs=include_logprobs,
@@ -116,6 +155,15 @@ def generate_iter(
 
 def embed(text_input) -> np.ndarray:
     """Create embeddings for text input."""
+    # AIDEV-NOTE: Check if daemon usage is enabled for embeddings
+    if os.environ.get("STEADYTEXT_USE_DAEMON") == "1":
+        client = get_daemon_client()
+        try:
+            return client.embed(text_input)
+        except ConnectionError:
+            # Fall back to direct embedding
+            logger.debug("Daemon not available, falling back to direct embedding")
+
     try:
         return create_embedding(text_input)
     except TypeError as e:
@@ -149,6 +197,8 @@ __all__ = [
     "embed",
     "preload_models",
     "get_model_cache_dir",
+    "use_daemon",
+    "DaemonClient",
     "DEFAULT_SEED",
     "GENERATION_MAX_NEW_TOKENS",
     "EMBEDDING_DIMENSION",

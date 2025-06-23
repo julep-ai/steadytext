@@ -8,6 +8,7 @@ from .commands.cache import cache
 from .commands.models import models
 from .commands.vector import vector
 from .commands.index import index
+from .commands.daemon import daemon
 
 
 @click.group(invoke_without_command=True)
@@ -46,6 +47,7 @@ cli.add_command(cache)
 cli.add_command(models)
 cli.add_command(vector)
 cli.add_command(index)
+cli.add_command(daemon)
 
 
 def main():
