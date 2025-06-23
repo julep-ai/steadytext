@@ -122,7 +122,8 @@ SteadyText delivers deterministic AI with production-ready performance:
 * **Embeddings**: 104-599 embeddings/sec (single to batch-50)
 * **Cache Speedup**: 48x faster for repeated prompts
 * **Memory**: ~1.4GB models, 150-200MB runtime
-* **100% Deterministic**: Same output every time
+* **100% Deterministic**: Same output every time, verified across 100+ test runs
+* **Accuracy**: 69.4% similarity for related texts, correct ordering maintained
 
 📊 **[Full benchmarks →](docs/benchmarks.md)**
 

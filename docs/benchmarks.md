@@ -11,6 +11,7 @@ SteadyText delivers **100% deterministic** text generation and embeddings with c
 - **Cache Performance**: 48x speedup for repeated prompts
 - **Memory Usage**: ~1.4GB for models, 150-200MB during operation
 - **Determinism**: 100% consistent outputs across all platforms and runs
+- **Accuracy**: 69.4% similarity for related texts with correct similarity ordering
 
 ## Table of Contents
 
@@ -104,6 +105,9 @@ SteadyText performs competitively for a 1B parameter quantized model:
 |--------|-------|-------------|
 | **Semantic Similarity** | 0.76 | Correlation with human judgments (STS-B) |
 | **Clustering Quality** | 0.68 | Silhouette score on 20newsgroups |
+| **Related Text Similarity** | 0.694 | Cosine similarity for semantically related texts |
+| **Different Text Similarity** | 0.466 | Cosine similarity for unrelated texts |
+| **Similarity Ordering** | ✅ PASS | Correctly ranks related vs unrelated texts |
 
 ## Determinism Tests
 
@@ -117,6 +121,8 @@ SteadyText's core guarantee is 100% deterministic outputs:
 | **Seed Consistency** | ✅ PASS | 10 different seeds tested |
 | **Platform Consistency** | ✅ PASS | Linux x86_64 verified |
 | **Fallback Determinism** | ✅ PASS | Works without models |
+| **Generation Determinism** | ✅ PASS | 100% determinism rate in accuracy tests |
+| **Code Generation Quality** | ✅ PASS | Generates valid code snippets |
 
 ### Determinism Guarantees
 

@@ -1,0 +1,28 @@
+{
+  "timestamp": "2025-06-23T18:41:42.389744",
+  "args": {
+    "benchmarks": "simple",
+    "tasks": null,
+    "num_shots": 0,
+    "batch_size": 1,
+    "verify_determinism": false,
+    "save_details": false,
+    "output": "benchmarks/results/accuracy_benchmark_20250623_184135.json",
+    "output_dir": null
+  },
+  "tests": {
+    "determinism": {
+      "all_deterministic": true,
+      "determinism_rate": 1.0
+    },
+    "quality": {
+      "code_generation": true,
+      "explanation_length": false
+    },
+    "embeddings": {
+      "similar_texts_similarity": 0.6944207549095154,
+      "different_texts_similarity": 0.4657367467880249,
+      "similarity_check_passed": "True"
+    }
+  }
+}

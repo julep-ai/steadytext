@@ -1,0 +1,8 @@
+timestamp,benchmark_type,operation,value
+2025-06-23T18:41:42.389744,accuracy,determinism_all_deterministic,True
+2025-06-23T18:41:42.389744,accuracy,determinism_determinism_rate,1.0
+2025-06-23T18:41:42.389744,accuracy,quality_code_generation,True
+2025-06-23T18:41:42.389744,accuracy,quality_explanation_length,False
+2025-06-23T18:41:42.389744,accuracy,embeddings_similar_texts_similarity,0.6944207549095154
+2025-06-23T18:41:42.389744,accuracy,embeddings_different_texts_similarity,0.4657367467880249
+2025-06-23T18:41:42.389744,accuracy,embeddings_similarity_check_passed,True
