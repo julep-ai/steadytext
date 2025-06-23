@@ -43,6 +43,13 @@ test = [
     "pytest-cov",
     "pytest-xdist",
 ]
+benchmark = [
+    "psutil",
+    "tabulate",
+    "matplotlib",
+    "pandas",
+    "lighteval",
+]
 
 [project.scripts]
 steadytext = "steadytext.cli:main"

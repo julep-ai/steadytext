@@ -189,3 +189,25 @@ When working on features described in `todos/`:
 2. Follow the technical specifications and design decisions outlined
 3. Move or archive completed todo files once implemented
 4. Update todo files if implementation details change during development
+
+## Benchmarking
+
+The `benchmarks/` directory contains comprehensive speed and accuracy benchmarks:
+
+### Running Benchmarks
+```bash
+# Run all benchmarks
+python benchmarks/run_all_benchmarks.py
+
+# Quick benchmarks for CI
+python benchmarks/run_all_benchmarks.py --quick
+
+# Test benchmarks are working
+python benchmarks/test_benchmarks.py
+```
+
+### Key Metrics
+- **Speed**: Generation/embedding throughput, latency percentiles, memory usage
+- **Accuracy**: Determinism verification, quality checks, LightEval standard benchmarks
+
+AIDEV-NOTE: When modifying core generation/embedding code, always run benchmarks to check for performance regressions
