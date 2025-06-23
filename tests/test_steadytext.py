@@ -513,8 +513,9 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
         # Also need to clear _generation_cache to prevent cached results from interfering.
         clear_model_cache()
         from steadytext.core.generator import _generation_cache
+
         _generation_cache.clear()
-        
+
         # Test that generator uses fallback when model is None
         # Patch where get_generator_model_instance is looked up by
         # DeterministicGenerator
@@ -577,8 +578,9 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
         # Also need to clear _generation_cache to prevent cached results from interfering.
         clear_model_cache()
         from steadytext.core.generator import _generation_cache
+
         _generation_cache.clear()
-        
+
         # Patch where get_generator_model_instance is looked up
         # by DeterministicGenerator
         with patch(

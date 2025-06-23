@@ -21,13 +21,13 @@ def cli(ctx, version, quiet):
         logging.getLogger("steadytext").setLevel(logging.ERROR)
         # Also set llama_cpp logger to ERROR if it exists
         logging.getLogger("llama_cpp").setLevel(logging.ERROR)
-    
+
     if version:
         from .. import __version__
 
         click.echo(f"steadytext {__version__}")
         ctx.exit(0)
-    
+
     # Store quiet flag in context for subcommands
     ctx.ensure_object(dict)
     ctx.obj["quiet"] = quiet
