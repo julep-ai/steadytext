@@ -38,6 +38,7 @@ cache_dir = steadytext.get_model_cache_dir()
 - **[Text Generation](generation.md)** - `generate()` and `generate_iter()`
 - **[Embeddings](embedding.md)** - `embed()` function  
 - **[CLI Reference](cli.md)** - Command-line interface
+- **[Vector Operations](vector.md)** - CLI vector operations on embeddings
 
 ## Constants
 

@@ -6,6 +6,8 @@ from .commands.generate import generate
 from .commands.embed import embed
 from .commands.cache import cache
 from .commands.models import models
+from .commands.vector import vector
+from .commands.index import index
 
 
 @click.group(invoke_without_command=True)
@@ -19,13 +21,13 @@ def cli(ctx, version, quiet):
         logging.getLogger("steadytext").setLevel(logging.ERROR)
         # Also set llama_cpp logger to ERROR if it exists
         logging.getLogger("llama_cpp").setLevel(logging.ERROR)
-    
+
     if version:
         from .. import __version__
 
         click.echo(f"steadytext {__version__}")
         ctx.exit(0)
-    
+
     # Store quiet flag in context for subcommands
     ctx.ensure_object(dict)
     ctx.obj["quiet"] = quiet
@@ -42,6 +44,8 @@ cli.add_command(generate)
 cli.add_command(embed)
 cli.add_command(cache)
 cli.add_command(models)
+cli.add_command(vector)
+cli.add_command(index)
 
 
 def main():

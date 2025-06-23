@@ -29,7 +29,9 @@ print()
 
 # Test 4: With logprobs
 print("Test 4: With logprobs and custom eos_string")
-text, logprobs = steadytext.generate("Hello world", return_logprobs=True, eos_string="[EOS]")
+text, logprobs = steadytext.generate(
+    "Hello world", return_logprobs=True, eos_string="[EOS]"
+)
 print(f"Text length: {len(text)}")
 print(f"Has logprobs: {logprobs is not None}")
 print()

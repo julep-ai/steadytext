@@ -69,7 +69,11 @@ class DeterministicGenerator:
         if not return_logprobs:
             prompt_str = prompt if isinstance(prompt, str) else str(prompt)
             # Include eos_string in cache key if it's not the default
-            cache_key = prompt_str if eos_string == "[EOS]" else f"{prompt_str}::EOS::{eos_string}"
+            cache_key = (
+                prompt_str
+                if eos_string == "[EOS]"
+                else f"{prompt_str}::EOS::{eos_string}"
+            )
             cached = _generation_cache.get(cache_key)
             if cached is not None:
                 return cached
@@ -162,7 +166,11 @@ class DeterministicGenerator:
             if not return_logprobs:
                 prompt_str = prompt if isinstance(prompt, str) else str(prompt)
                 # Include eos_string in cache key if it's not the default
-                cache_key = prompt_str if eos_string == "[EOS]" else f"{prompt_str}::EOS::{eos_string}"
+                cache_key = (
+                    prompt_str
+                    if eos_string == "[EOS]"
+                    else f"{prompt_str}::EOS::{eos_string}"
+                )
                 _generation_cache.set(cache_key, generated_text)
 
             return (generated_text, logprobs) if return_logprobs else generated_text
@@ -176,12 +184,14 @@ class DeterministicGenerator:
             fallback_output = ""
             return (fallback_output, None) if return_logprobs else fallback_output
 
-    def generate_iter(self, prompt: str, eos_string: str = "[EOS]", include_logprobs: bool = False) -> Iterator[Union[str, Dict[str, Any]]]:
+    def generate_iter(
+        self, prompt: str, eos_string: str = "[EOS]", include_logprobs: bool = False
+    ) -> Iterator[Union[str, Dict[str, Any]]]:
         """Generate text iteratively, yielding tokens as they are produced.
 
         AIDEV-NOTE: Streaming generation for real-time output. Falls back to
         yielding words from deterministic fallback when model unavailable.
-        
+
         Args:
             prompt: The input prompt to generate from
             eos_string: Custom end-of-sequence string. "[EOS]" means use model's default.
@@ -205,7 +215,7 @@ class DeterministicGenerator:
         if include_logprobs and not self._logits_enabled:
             logger.info("Reloading model with logits support for logprobs generation.")
             self._load_model(enable_logits=True)
-        
+
         # AIDEV-NOTE: Check if model is loaded, fallback to word-by-word generation if not
         if self.model is None:
             logger.warning(
@@ -240,7 +250,7 @@ class DeterministicGenerator:
                 sampling_params["stop"] = DEFAULT_STOP_SEQUENCES + [eos_string]
             sampling_params["seed"] = DEFAULT_SEED
             sampling_params["stream"] = True  # Enable streaming
-            
+
             if include_logprobs:
                 # Request logprobs for streaming
                 sampling_params["logprobs"] = GENERATION_MAX_NEW_TOKENS
@@ -263,10 +273,10 @@ class DeterministicGenerator:
                             token_info["token"] = delta["content"]
                         elif "text" in choice and choice["text"]:
                             token_info["token"] = choice["text"]
-                        
+
                         if "logprobs" in choice:
                             token_info["logprobs"] = choice["logprobs"]
-                        
+
                         if "token" in token_info:
                             yield token_info
                     else:

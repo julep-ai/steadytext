@@ -250,3 +250,19 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+##---------------------------------------------------
+# Mojo and MAX specific .gitignore
+##---------------------------------------------------
+
+# Mojo cache directories
+__mojocache__/
+*.mojo.cache
+*.🔥.cache
+
+# MAX/Modular specific
+.modular/
+modular_cache/
+
+# MCP configuration (local only)
+.mcp.json

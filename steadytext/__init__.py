@@ -39,10 +39,14 @@ def generate(
     Returns:
         Generated text string, or tuple (text, logprobs) if return_logprobs=True
     """
-    return _global_generator.generate(prompt, return_logprobs=return_logprobs, eos_string=eos_string)
+    return _global_generator.generate(
+        prompt, return_logprobs=return_logprobs, eos_string=eos_string
+    )
 
 
-def generate_iter(prompt: str, eos_string: str = "[EOS]", include_logprobs: bool = False) -> Iterator[Union[str, Dict[str, Any]]]:
+def generate_iter(
+    prompt: str, eos_string: str = "[EOS]", include_logprobs: bool = False
+) -> Iterator[Union[str, Dict[str, Any]]]:
     """Generate text iteratively, yielding tokens as they are produced.
 
     This function streams tokens as they are generated, useful for real-time
@@ -59,7 +63,9 @@ def generate_iter(prompt: str, eos_string: str = "[EOS]", include_logprobs: bool
         str: Generated tokens/words as they are produced (if include_logprobs=False)
         dict: Token info with 'token' and 'logprobs' keys (if include_logprobs=True)
     """
-    return _global_generator.generate_iter(prompt, eos_string=eos_string, include_logprobs=include_logprobs)
+    return _global_generator.generate_iter(
+        prompt, eos_string=eos_string, include_logprobs=include_logprobs
+    )
 
 
 def embed(text_input) -> np.ndarray:

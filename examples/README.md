@@ -33,6 +33,24 @@ Content and data generation:
 - Story generation
 - Semantic cache keys
 
+### vector_operations.py
+Vector operations on embeddings:
+- Cosine similarity between texts
+- Distance calculations (euclidean, manhattan, cosine)
+- Similarity search across multiple files
+- Embedding averaging
+- Vector arithmetic (king - man + woman)
+- Stdin input support
+
+### index_management.py
+FAISS index creation and search:
+- Creating indices from text documents
+- Searching for similar chunks
+- Context-enhanced generation (RAG)
+- Index information and statistics
+- Default index usage
+- Deterministic document retrieval
+
 ## Running the Examples
 
 Each example can be run directly:
@@ -42,6 +60,8 @@ python examples/basic_usage.py
 python examples/testing_with_ai.py
 python examples/cli_tools.py
 python examples/content_generation.py
+python examples/vector_operations.py
+python examples/index_management.py
 ```
 
 The CLI tools example also supports command-line arguments:

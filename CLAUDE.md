@@ -76,6 +76,29 @@ poe format
 poe check
 ```
 
+### Index Management
+```bash
+# Create FAISS index from text files
+st index create document1.txt document2.txt --output my_index.faiss
+st index create *.txt --output project.faiss --chunk-size 256
+
+# View index information
+st index info my_index.faiss
+
+# Search index
+st index search my_index.faiss "query text" --top-k 5
+
+# Use index with generation (automatic with default.faiss)
+st "What is Python?" --index-file my_index.faiss
+st "explain this error" --no-index  # Disable index search
+```
+
+AIDEV-NOTE: The index functionality uses:
+- chonkie for deterministic text chunking (512 token default)
+- faiss-cpu for vector storage (IndexFlatL2 for exact search)
+- Automatic context retrieval when default.faiss exists
+- Aggressive caching of search results for determinism
+
 ### Installation
 ```bash
 # Install in development mode
