@@ -118,7 +118,7 @@ def export(output_file: str):
 
     # Export generation cache
     try:
-        gen_cache = DiskBackedFrecencyCache(
+        DiskBackedFrecencyCache(
             capacity=int(
                 os.environ.get("STEADYTEXT_GENERATION_CACHE_CAPACITY", "256")
             ),
@@ -139,7 +139,7 @@ def export(output_file: str):
 
     # Export embedding cache
     try:
-        embed_cache = DiskBackedFrecencyCache(
+        DiskBackedFrecencyCache(
             capacity=int(
                 os.environ.get("STEADYTEXT_EMBEDDING_CACHE_CAPACITY", "512")
             ),
