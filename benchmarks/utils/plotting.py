@@ -359,9 +359,11 @@ def create_comparison_plot(results_files: List[str], output_file: str):
         for i, run in enumerate(df["run"].unique()):
             run_data = df[df["run"] == run]
             means = [
-                run_data[run_data["operation"] == op]["mean_time_ms"].values[0]
-                if len(run_data[run_data["operation"] == op]) > 0
-                else 0
+                (
+                    run_data[run_data["operation"] == op]["mean_time_ms"].values[0]
+                    if len(run_data[run_data["operation"] == op]) > 0
+                    else 0
+                )
                 for op in operations
             ]
 

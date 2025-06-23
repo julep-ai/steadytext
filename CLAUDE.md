@@ -38,7 +38,7 @@ SteadyText includes a daemon mode for persistent model serving via ZeroMQ. This 
 **daemon/client.py**
 - Client wrapper with automatic fallback to direct model loading
 - `use_daemon()` context manager for scoped daemon usage
-- Environment variable support (STEADYTEXT_USE_DAEMON)
+- Environment variable support (STEADYTEXT_DISABLE_DAEMON to opt-out)
 
 ### Usage Patterns
 
@@ -59,23 +59,72 @@ st daemon restart
 
 **SDK Usage:**
 ```python
-# Use daemon for all operations in a scope
+# Daemon is used by default - no setup needed
+text = generate("Hello world")  # Uses daemon automatically
+embedding = embed("Some text")   # Uses daemon automatically
+
+# Use daemon for all operations in a scope (ensures connection)
 with use_daemon():
     text = generate("Hello world")
     embedding = embed("Some text")
 
-# Or enable globally via environment
-os.environ["STEADYTEXT_USE_DAEMON"] = "1"
+# Disable daemon globally via environment
+os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 ```
 
 ### AIDEV Considerations
 
 - AIDEV-NOTE: The daemon maintains singleton model instances to avoid memory duplication
-- AIDEV-NOTE: Streaming uses a special acknowledgment protocol for flow control
+- AIDEV-NOTE: Streaming uses a special acknowledgment protocol for flow control  
 - AIDEV-NOTE: All operations gracefully fall back to direct model loading on connection failure
+- AIDEV-NOTE: Centralized cache system ensures consistent caching between daemon and direct access
+- AIDEV-NOTE: Cache is shared via SQLite backend for thread/process safety
 - AIDEV-TODO: Consider adding connection pooling for high-concurrency scenarios
 - AIDEV-TODO: Add metrics/monitoring endpoints for production deployments
 - AIDEV-QUESTION: Should we support multiple daemon instances for load balancing?
+
+## Cache Management
+
+SteadyText v1.3+ uses a centralized cache management system to ensure consistent behavior between daemon and direct access modes.
+
+### Key Components
+
+**cache_manager.py**
+- Centralized cache management with singleton pattern
+- Shared SQLite-backed caches for generation and embedding results
+- Thread-safe and process-safe access across all components
+
+**Centralized Architecture:**
+- Generation cache: Shared between daemon and direct generation calls
+- Embedding cache: Shared between daemon and direct embedding calls
+- Cache files stored in consistent locations across all access modes
+- Automatic cache directory creation and management
+
+### Cache Configuration
+
+Same environment variables as before, but now affect both daemon and direct access:
+
+**Generation Cache:**
+- `STEADYTEXT_GENERATION_CACHE_CAPACITY` (default: 256)
+- `STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB` (default: 50.0)
+
+**Embedding Cache:**
+- `STEADYTEXT_EMBEDDING_CACHE_CAPACITY` (default: 512)
+- `STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB` (default: 100.0)
+
+### Cache Usage
+
+```python
+from steadytext import get_cache_manager
+
+# Get cache statistics
+cache_manager = get_cache_manager()
+stats = cache_manager.get_cache_stats()
+print(f"Generation cache size: {stats['generation']['size']}")
+
+# Clear all caches (for testing)
+cache_manager.clear_all_caches()
+```
 
 ## AI Assistant Workflow: Step-by-Step Methodology
 
@@ -271,9 +320,10 @@ SteadyText includes a command-line interface built with Click:
 - Entry point for both `steadytext` and `st` commands
 - Supports stdin pipe input when no subcommand provided
 - Version flag support
+- Quiet by default with `--verbose` option for informational output
 
 **Commands (`steadytext/cli/commands/`)**
-- `generate.py`: Text generation with streaming, JSON output, and logprobs support
+- `generate.py`: Text generation with streaming by default, JSON output, and logprobs support
 - `embed.py`: Embedding creation with multiple output formats (JSON, numpy, hex)
 - `cache.py`: Cache management and status commands
 - `models.py`: Model management (list, preload, etc.)
@@ -281,7 +331,8 @@ SteadyText includes a command-line interface built with Click:
 **CLI Features:**
 - Deterministic outputs matching the Python API
 - Multiple output formats (raw text, JSON with metadata, structured data)
-- Streaming support for real-time text generation
+- Streaming by default for real-time text generation (use `--wait` to disable)
+- Quiet by default (use `--verbose` to enable informational output)
 - Stdin/pipe support for unix-style command chaining
 - Log probability access for advanced use cases
 

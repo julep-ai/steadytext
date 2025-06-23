@@ -291,18 +291,21 @@ def use_daemon(host: str = None, port: int = None, required: bool = False):
     if required and not connected:
         raise RuntimeError("Daemon connection required but not available")
 
-    # AIDEV-NOTE: Set environment variable to signal daemon usage
-    old_val = os.environ.get("STEADYTEXT_USE_DAEMON")
+    # AIDEV-NOTE: Force daemon usage within this context (disable fallback)
+    old_disable_val = os.environ.get("STEADYTEXT_DISABLE_DAEMON")
     if connected:
-        os.environ["STEADYTEXT_USE_DAEMON"] = "1"
+        # Ensure daemon is enabled within this context
+        if "STEADYTEXT_DISABLE_DAEMON" in os.environ:
+            del os.environ["STEADYTEXT_DISABLE_DAEMON"]
         os.environ["STEADYTEXT_DAEMON_HOST"] = client.host
         os.environ["STEADYTEXT_DAEMON_PORT"] = str(client.port)
 
     try:
         yield client if connected else None
     finally:
-        if old_val is None and "STEADYTEXT_USE_DAEMON" in os.environ:
-            del os.environ["STEADYTEXT_USE_DAEMON"]
-        elif old_val is not None:
-            os.environ["STEADYTEXT_USE_DAEMON"] = old_val
+        # Restore original disable state
+        if old_disable_val is not None:
+            os.environ["STEADYTEXT_DISABLE_DAEMON"] = old_disable_val
+        elif "STEADYTEXT_DISABLE_DAEMON" in os.environ:
+            del os.environ["STEADYTEXT_DISABLE_DAEMON"]
         client.disconnect()

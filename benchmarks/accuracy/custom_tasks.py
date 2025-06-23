@@ -79,12 +79,14 @@ class DeterminismTask(LightevalTask):
             determinism_scores.append(1.0 if is_deterministic else 0.0)
 
         return {
-            "determinism_rate": sum(determinism_scores) / len(determinism_scores)
-            if determinism_scores
-            else 0.0,
-            "fully_deterministic": 1.0
-            if all(s == 1.0 for s in determinism_scores)
-            else 0.0,
+            "determinism_rate": (
+                sum(determinism_scores) / len(determinism_scores)
+                if determinism_scores
+                else 0.0
+            ),
+            "fully_deterministic": (
+                1.0 if all(s == 1.0 for s in determinism_scores) else 0.0
+            ),
         }
 
     def get_dataset(self) -> List[Dict[str, Any]]:
@@ -191,13 +193,16 @@ class ConsistencyTask(LightevalTask):
             consistency_scores.append(avg_similarity)
 
         return {
-            "consistency_score": sum(consistency_scores) / len(consistency_scores)
-            if consistency_scores
-            else 0.0,
-            "high_consistency_rate": sum(1 for s in consistency_scores if s > 0.7)
-            / len(consistency_scores)
-            if consistency_scores
-            else 0.0,
+            "consistency_score": (
+                sum(consistency_scores) / len(consistency_scores)
+                if consistency_scores
+                else 0.0
+            ),
+            "high_consistency_rate": (
+                sum(1 for s in consistency_scores if s > 0.7) / len(consistency_scores)
+                if consistency_scores
+                else 0.0
+            ),
         }
 
     def get_dataset(self) -> List[Dict[str, Any]]:

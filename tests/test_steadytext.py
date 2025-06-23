@@ -530,7 +530,9 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
             output = generator.generate(prompt)
             # This expected text is likely still the model-generated one,
             # will need to update after patch works.
-            expected_fallback_text = _deterministic_fallback_generate(prompt)  # noqa E501
+            expected_fallback_text = _deterministic_fallback_generate(
+                prompt
+            )  # noqa E501
             self.assertEqual(
                 output,
                 expected_fallback_text,

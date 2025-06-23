@@ -129,9 +129,9 @@ class TestConcurrentCache:
         for i in range(100, 150):
             key = f"writer_key_{i}"
             value = cache.get(key)
-            assert value == f"writer_value_{i}", (
-                f"Missing or incorrect writer data for {key}"
-            )
+            assert (
+                value == f"writer_value_{i}"
+            ), f"Missing or incorrect writer data for {key}"
 
     def _process_worker(self, args):
         """Worker function for process-based testing."""
@@ -247,9 +247,9 @@ class TestConcurrentCache:
 
         # Verify that a significant portion of data persisted
         total_expected = num_processes * operations_per_process
-        assert successful_verifications > total_expected * 0.8, (
-            f"Only {successful_verifications}/{total_expected} writes persisted correctly"
-        )
+        assert (
+            successful_verifications > total_expected * 0.8
+        ), f"Only {successful_verifications}/{total_expected} writes persisted correctly"
 
     def test_eviction_under_concurrent_load(self, temp_cache_dir):
         """Test size-based eviction with concurrent access."""
@@ -293,18 +293,18 @@ class TestConcurrentCache:
 
         # Verify cache size is under limit
         stats = cache.get_stats()
-        assert stats["total_size_bytes"] <= cache.max_size_bytes, (
-            f"Cache size {stats['total_size_bytes']} exceeds limit {cache.max_size_bytes}"
-        )
+        assert (
+            stats["total_size_bytes"] <= cache.max_size_bytes
+        ), f"Cache size {stats['total_size_bytes']} exceeds limit {cache.max_size_bytes}"
 
         # Verify some entries were evicted
         remaining_entries = stats["entry_count"]
-        assert remaining_entries < 200, (
-            f"Expected eviction, but {remaining_entries} entries remain"
-        )
-        assert remaining_entries > 50, (
-            f"Too many entries evicted: only {remaining_entries} remain"
-        )
+        assert (
+            remaining_entries < 200
+        ), f"Expected eviction, but {remaining_entries} entries remain"
+        assert (
+            remaining_entries > 50
+        ), f"Too many entries evicted: only {remaining_entries} remain"
 
     def test_database_locking_behavior(self, temp_cache_dir):
         """Test that database locking works correctly under high contention."""
@@ -347,9 +347,9 @@ class TestConcurrentCache:
 
         # Verify all operations completed without errors
         assert len(errors) == 0, f"Locking errors: {errors}"
-        assert operation_count == 8 * 80, (
-            f"Expected 640 operations, got {operation_count}"
-        )
+        assert (
+            operation_count == 8 * 80
+        ), f"Expected 640 operations, got {operation_count}"
 
         # Verify final state is consistent
         stats = cache.get_stats()
@@ -407,18 +407,18 @@ class TestConcurrentCache:
                 self._read_process_data, (str(temp_cache_dir), cache_name)
             )
             read_results = read_future.result()
-            assert isinstance(read_results, list), (
-                f"Read process failed: {read_results}"
-            )
+            assert isinstance(
+                read_results, list
+            ), f"Read process failed: {read_results}"
 
         # Verify all data was read correctly
         for i, (key, value) in enumerate(read_results):
             expected_key = f"persist_key_{i}"
             expected_value = f"persist_value_{i}"
             assert key == expected_key, f"Key mismatch: {key} != {expected_key}"
-            assert value == expected_value, (
-                f"Value mismatch for {key}: {value} != {expected_value}"
-            )
+            assert (
+                value == expected_value
+            ), f"Value mismatch for {key}: {value} != {expected_value}"
 
     def test_stress_test_mixed_operations(self, temp_cache_dir):
         """Stress test with mixed read/write operations from multiple threads."""
@@ -475,13 +475,13 @@ class TestConcurrentCache:
 
         # Verify stress test completed successfully
         assert len(errors) == 0, f"Stress test errors: {errors}"
-        assert operations_completed == 6 * 100, (
-            f"Expected 600 operations, got {operations_completed}"
-        )
+        assert (
+            operations_completed == 6 * 100
+        ), f"Expected 600 operations, got {operations_completed}"
 
         # Verify cache is still functional
         stats = cache.get_stats()
         assert stats["entry_count"] > 0, "Cache should not be empty after stress test"
-        assert stats["total_size_bytes"] <= cache.max_size_bytes, (
-            "Cache size should be within limits"
-        )
+        assert (
+            stats["total_size_bytes"] <= cache.max_size_bytes
+        ), "Cache size should be within limits"

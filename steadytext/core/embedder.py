@@ -17,26 +17,15 @@ except ImportError as import_err:  # pragma: no cover - allow missing llama_cpp
     Llama = None  # type: ignore
     logging.getLogger(__name__).error("llama_cpp not available: %s", import_err)
 
-from ..disk_backed_frecency_cache import DiskBackedFrecencyCache
+from ..cache_manager import get_embedding_cache
 from ..models.loader import (  # Use the embedding-specific model loader
     get_embedding_model_instance,
 )
 from ..utils import EMBEDDING_DIMENSION, logger, validate_normalized_embedding
 
-# AIDEV-NOTE: Disk-backed frecency cache for embeddings
+# AIDEV-NOTE: Use centralized cache manager for consistent caching across daemon and direct access
+# AIDEV-NOTE: Cache is now shared between all components and properly centralized
 # AIDEV-QUESTION: Should zero-vector fallbacks be cached?
-# AIDEV-NOTE: Cache capacity and size can be configured via environment variables:
-# - STEADYTEXT_EMBEDDING_CACHE_CAPACITY (default: 512)
-# - STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB (default: 100.0)
-import os as _os
-
-_embedding_cache = DiskBackedFrecencyCache(
-    capacity=int(_os.environ.get("STEADYTEXT_EMBEDDING_CACHE_CAPACITY", "512")),
-    cache_name="embedding_cache",
-    max_size_mb=float(
-        _os.environ.get("STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB", "100.0")
-    ),
-)
 
 
 # AIDEV-NOTE: L2 normalization with zero-vector handling for embedding consistency
@@ -116,7 +105,7 @@ def create_embedding(
         )
         return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
 
-    cached = _embedding_cache.get(cache_key)
+    cached = get_embedding_cache().get(cache_key)
     if cached is not None:
         return cached
 
@@ -237,7 +226,7 @@ def create_embedding(
 
     # Normalize the final embedding (L2 norm)
     normalized_embedding = _normalize_l2(final_raw_embedding)
-    _embedding_cache.set(cache_key, normalized_embedding)
+    get_embedding_cache().set(cache_key, normalized_embedding)
 
     # Final validation of the output vector (shape, dtype, norm)
     if not validate_normalized_embedding(normalized_embedding, dim=EMBEDDING_DIMENSION):

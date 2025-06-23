@@ -213,9 +213,9 @@ class SteadyTextLightEvalModel(LightevalModel):
         return {
             "checks_performed": total_checks,
             "deterministic_count": deterministic_count,
-            "determinism_rate": deterministic_count / total_checks
-            if total_checks > 0
-            else 0,
+            "determinism_rate": (
+                deterministic_count / total_checks if total_checks > 0 else 0
+            ),
             "average_generation_time": np.mean(
                 [check["generation_time"] for check in self.determinism_checks]
             ),

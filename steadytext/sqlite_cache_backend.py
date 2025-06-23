@@ -201,7 +201,8 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
         conn = self._get_connection()
 
         # AIDEV-NOTE: Create main cache table with frecency metadata
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS cache (
                 key TEXT PRIMARY KEY,
                 value BLOB NOT NULL,
@@ -209,21 +210,26 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
                 last_access INTEGER NOT NULL,
                 size INTEGER NOT NULL
             )
-        """)
+        """
+        )
 
         # AIDEV-NOTE: Index for efficient frecency-based eviction
-        conn.execute("""
+        conn.execute(
+            """
             CREATE INDEX IF NOT EXISTS idx_frecency 
             ON cache(frequency ASC, last_access ASC)
-        """)
+        """
+        )
 
         # AIDEV-NOTE: Metadata table for cache configuration
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS metadata (
                 property TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             )
-        """)
+        """
+        )
 
         conn.commit()
 
@@ -313,11 +319,13 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
         with self._transaction() as conn:
             # AIDEV-NOTE: Find entries to evict based on frecency (frequency + recency)
             # Lower frequency and older access time = higher eviction priority
-            cursor = conn.execute("""
+            cursor = conn.execute(
+                """
                 SELECT key, size 
                 FROM cache 
                 ORDER BY frequency ASC, last_access ASC
-            """)
+            """
+            )
 
             removed_size = 0
             keys_to_remove = []
@@ -472,14 +480,16 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
             conn = self._get_connection()
 
             # Get basic stats
-            stats = conn.execute("""
+            stats = conn.execute(
+                """
                 SELECT 
                     COUNT(*) as entry_count,
                     COALESCE(SUM(size), 0) as total_size,
                     COALESCE(AVG(frequency), 0) as avg_frequency,
                     COALESCE(MAX(frequency), 0) as max_frequency
                 FROM cache
-            """).fetchone()
+            """
+            ).fetchone()
 
             return {
                 "entry_count": stats[0],
@@ -489,9 +499,9 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
                 "max_frequency": stats[3],
                 "max_size_bytes": self.max_size_bytes,
                 "max_size_mb": self.max_size_bytes / (1024 * 1024),
-                "utilization": stats[1] / self.max_size_bytes
-                if self.max_size_bytes > 0
-                else 0,
+                "utilization": (
+                    stats[1] / self.max_size_bytes if self.max_size_bytes > 0 else 0
+                ),
             }
 
         except Exception as e:

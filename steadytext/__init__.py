@@ -5,7 +5,7 @@ AIDEV-NOTE: Fixed "Never Fails" - embed() now catches TypeErrors & returns zero 
 """
 
 # Version of the steadytext package - should match pyproject.toml
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 # Import core functions and classes for public API
 import os
@@ -22,6 +22,7 @@ from .utils import (
 )
 from .models.loader import get_generator_model_instance, get_embedding_model_instance
 from .daemon.client import DaemonClient, use_daemon, get_daemon_client
+from .cache_manager import get_cache_manager
 
 
 def generate(
@@ -65,8 +66,8 @@ def generate(
             model_filename="qwen2.5-7b-instruct-q8_0.gguf"
         )
     """
-    # AIDEV-NOTE: Check if daemon usage is enabled via environment variable
-    if os.environ.get("STEADYTEXT_USE_DAEMON") == "1":
+    # AIDEV-NOTE: Use daemon by default unless explicitly disabled
+    if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
         client = get_daemon_client()
         try:
             return client.generate(
@@ -122,8 +123,8 @@ def generate_iter(
         str: Generated tokens/words as they are produced (if include_logprobs=False)
         dict: Token info with 'token' and 'logprobs' keys (if include_logprobs=True)
     """
-    # AIDEV-NOTE: Check if daemon usage is enabled for streaming
-    if os.environ.get("STEADYTEXT_USE_DAEMON") == "1":
+    # AIDEV-NOTE: Use daemon by default for streaming unless explicitly disabled
+    if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
         client = get_daemon_client()
         try:
             yield from client.generate_iter(
@@ -155,8 +156,8 @@ def generate_iter(
 
 def embed(text_input) -> np.ndarray:
     """Create embeddings for text input."""
-    # AIDEV-NOTE: Check if daemon usage is enabled for embeddings
-    if os.environ.get("STEADYTEXT_USE_DAEMON") == "1":
+    # AIDEV-NOTE: Use daemon by default for embeddings unless explicitly disabled
+    if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
         client = get_daemon_client()
         try:
             return client.embed(text_input)
@@ -199,6 +200,7 @@ __all__ = [
     "get_model_cache_dir",
     "use_daemon",
     "DaemonClient",
+    "get_cache_manager",
     "DEFAULT_SEED",
     "GENERATION_MAX_NEW_TOKENS",
     "EMBEDDING_DIMENSION",

@@ -41,9 +41,11 @@ def status():
             "filename": model_info["filename"],
             "repo_id": model_info["repo_id"],
             "downloaded": model_path.exists(),
-            "size_mb": model_path.stat().st_size / (1024 * 1024)
-            if model_path.exists()
-            else None,
+            "size_mb": (
+                model_path.stat().st_size / (1024 * 1024)
+                if model_path.exists()
+                else None
+            ),
         }
 
     click.echo(json.dumps(status_data, indent=2))

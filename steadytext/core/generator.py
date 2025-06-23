@@ -13,10 +13,9 @@
 # maintaining deterministic outputs for each model
 
 import hashlib
-import os as _os
 from typing import Any, Dict, List, Optional, Union, Tuple, Iterator
 
-from ..disk_backed_frecency_cache import DiskBackedFrecencyCache
+from ..cache_manager import get_generation_cache
 from ..models.loader import get_generator_model_instance
 from ..utils import set_deterministic_environment  # Assuming this is in utils.py
 from ..utils import (
@@ -32,19 +31,9 @@ from ..utils import (
 set_deterministic_environment(DEFAULT_SEED)
 
 
-# AIDEV-NOTE: Disk-backed frecency cache for generated text results
-# AIDEV-NOTE: Persistent cache for successful generation outputs with configurable limits
+# AIDEV-NOTE: Use centralized cache manager for consistent caching across daemon and direct access
+# AIDEV-NOTE: Cache is now shared between all components and properly centralized
 # AIDEV-QUESTION: Should fallback results be cached, or only model-generated ones?
-# AIDEV-NOTE: Cache capacity and size can be configured via environment variables:
-# - STEADYTEXT_GENERATION_CACHE_CAPACITY (default: 256)
-# - STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB (default: 50.0)
-_generation_cache = DiskBackedFrecencyCache(
-    capacity=int(_os.environ.get("STEADYTEXT_GENERATION_CACHE_CAPACITY", "256")),
-    cache_name="generation_cache",
-    max_size_mb=float(
-        _os.environ.get("STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB", "50.0")
-    ),
-)
 
 
 # AIDEV-NOTE: Main generator class with model instance caching and error handling
@@ -127,7 +116,7 @@ class DeterministicGenerator:
                 if eos_string == "[EOS]"
                 else f"{prompt_str}::EOS::{eos_string}"
             )
-            cached = _generation_cache.get(cache_key)
+            cached = get_generation_cache().get(cache_key)
             if cached is not None:
                 return cached
 
@@ -229,7 +218,7 @@ class DeterministicGenerator:
                     if eos_string == "[EOS]"
                     else f"{prompt_str}::EOS::{eos_string}"
                 )
-                _generation_cache.set(cache_key, generated_text)
+                get_generation_cache().set(cache_key, generated_text)
 
             return (generated_text, logprobs) if return_logprobs else generated_text
 

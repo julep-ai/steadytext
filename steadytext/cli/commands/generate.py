@@ -23,7 +23,11 @@ from .index import search_index_for_context, get_default_index_path
 @click.option(
     "--json", "output_format", flag_value="json", help="JSON output with metadata"
 )
-@click.option("--stream", is_flag=True, help="Stream tokens as they generate")
+@click.option(
+    "--wait",
+    is_flag=True,
+    help="Wait for full generation before output (disables streaming)",
+)
 @click.option("--logprobs", is_flag=True, help="Include log probabilities in output")
 @click.option(
     "--eos-string",
@@ -37,6 +41,10 @@ from .index import search_index_for_context, get_default_index_path
 @click.option(
     "--top-k", default=3, help="Number of context chunks to retrieve from index"
 )
+@click.option(
+    "--quiet", is_flag=True, default=True, help="Silence informational output (default)"
+)
+@click.option("--verbose", is_flag=True, help="Enable informational output")
 @click.option(
     "--model", default=None, help="Model name from registry (e.g., 'qwen2.5-3b')"
 )
@@ -61,28 +69,41 @@ def generate(
     ctx,
     prompt: str,
     output_format: str,
-    stream: bool,
+    wait: bool,
     logprobs: bool,
     eos_string: str,
     no_index: bool,
     index_file: str,
     top_k: int,
+    quiet: bool,
+    verbose: bool,
     model: str,
     model_repo: str,
     model_filename: str,
     size: str,
 ):
-    """Generate text from a prompt.
+    """Generate text from a prompt (streams by default).
 
     Examples:
-        st "write a hello world function"
-        st "quick task" --size small    # Uses Qwen3-0.6B
-        st "complex task" --size large   # Uses Qwen3-4B
+        st "write a hello world function"         # Streams output
+        st "quick task" --wait                   # Waits for full output
+        st "quick task" --size small             # Uses Qwen3-0.6B
+        st "complex task" --size large           # Uses Qwen3-4B
         st "explain quantum computing" --model qwen2.5-3b
         st -  # Read from stdin
         echo "explain this" | st
         st "complex task" --model-repo Qwen/Qwen2.5-7B-Instruct-GGUF --model-filename qwen2.5-7b-instruct-q8_0.gguf
     """
+    # Handle verbosity - verbose overrides quiet
+    if verbose:
+        quiet = False
+
+    # Configure logging based on quiet/verbose flags
+    if quiet:
+        import logging
+
+        logging.getLogger("steadytext").setLevel(logging.ERROR)
+        logging.getLogger("llama_cpp").setLevel(logging.ERROR)
     # Handle stdin input
     if prompt == "-":
         if sys.stdin.isatty():
@@ -113,6 +134,9 @@ def generate(
     # AIDEV-NOTE: Model switching support - pass model parameters to core functions
 
     start_time = time.time()
+
+    # Streaming is now the default - wait flag disables it
+    stream = not wait
 
     if stream:
         # Streaming mode
