@@ -22,9 +22,11 @@ if not logger.handlers:
 logger.setLevel(logging.INFO)
 
 # --- Model Configuration ---
-DEFAULT_GENERATION_MODEL_REPO = "DevQuasar/openbmb.BitCPM4-1B-GGUF"
+# AIDEV-NOTE: Switched from BitCPM4-1B to Qwen3-1.7B for better performance
+# Qwen3-1.7B offers improved reasoning while maintaining reasonable size (1.83GB)
+DEFAULT_GENERATION_MODEL_REPO = "Qwen/Qwen3-1.7B-GGUF"
 DEFAULT_EMBEDDING_MODEL_REPO = "Qwen/Qwen3-Embedding-0.6B-GGUF"
-GENERATION_MODEL_FILENAME = "openbmb.BitCPM4-1B.Q8_0.gguf"
+GENERATION_MODEL_FILENAME = "Qwen3-1.7B-Q8_0.gguf"
 EMBEDDING_MODEL_FILENAME = "Qwen3-Embedding-0.6B-Q8_0.gguf"
 
 # --- Determinism & Seeds ---
