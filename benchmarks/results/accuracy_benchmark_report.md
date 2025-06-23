@@ -9,7 +9,7 @@ Framework: lighteval
 All determinism tests **PASSED**:
 - **Identical Outputs**: 100% consistency across 100 iterations
 - **Seed Consistency**: Tested 10 different seeds - all deterministic
-- **Platform Consistency**: Verified on Tested on Linux x86_64
+- **Platform Consistency**: Tested on Linux x86_64
 
 ## Fallback Behavior ✓
 
