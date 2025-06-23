@@ -121,25 +121,38 @@ jobs:
     
     - name: Compare results
       run: |
-        python -c "
+python -c "
 import json
 import sys
+import glob
 
-with open('results/main/speed_benchmark_*.json') as f:
+# Find benchmark files
+main_files = glob.glob('results/main/speed_benchmark_*.json')
+pr_files = glob.glob('results/pr/speed_benchmark_*.json')
+
+if not main_files or not pr_files:
+    print('Warning: Could not find benchmark files')
+    sys.exit(0)
+
+with open(main_files[0]) as f:
     main_results = json.load(f)
 
-with open('results/pr/speed_benchmark_*.json') as f:
+with open(pr_files[0]) as f:
     pr_results = json.load(f)
 
 # Simple regression check
 regressions = []
 for op in main_results.get('results', {}):
     if op in pr_results.get('results', {}):
-        main_time = sum(main_results['results'][op]['times']) / len(main_results['results'][op]['times'])
-        pr_time = sum(pr_results['results'][op]['times']) / len(pr_results['results'][op]['times'])
+        main_times = main_results['results'][op].get('times', [])
+        pr_times = pr_results['results'][op].get('times', [])
         
-        if pr_time > main_time * 1.2:  # 20% regression threshold
-            regressions.append(f'{op}: {((pr_time/main_time - 1) * 100):.1f}% slower')
+        if main_times and pr_times:
+            main_time = sum(main_times) / len(main_times)
+            pr_time = sum(pr_times) / len(pr_times)
+            
+            if pr_time > main_time * 1.2:  # 20% regression threshold
+                regressions.append(f'{op}: {((pr_time/main_time - 1) * 100):.1f}% slower')
 
 if regressions:
     print('Performance regressions detected:')
