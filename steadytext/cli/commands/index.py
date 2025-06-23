@@ -76,65 +76,63 @@ def _chunk_text_deterministically(
             ]
     except Exception as e:
         logger.warning(f"Could not use model tokenizer for chunking: {e}")
-    
+
     # AIDEV-NOTE: Improved offline tokenizer-based chunking using word tokenization
     # This provides better accuracy than character-based approximation
     return _word_based_chunking(text, max_chunk_size, chunk_overlap)
 
 
-def _word_based_chunking(text: str, max_chunk_size: int = 512, chunk_overlap: int = 50) -> List[Dict[str, Any]]:
+def _word_based_chunking(
+    text: str, max_chunk_size: int = 512, chunk_overlap: int = 50
+) -> List[Dict[str, Any]]:
     """
     Word-based chunking that approximates tokenization without requiring a model.
-    
+
     AIDEV-NOTE: Uses simple word splitting with punctuation handling.
     Estimates tokens as: words + punctuation marks + 10% for subword tokens.
     """
     import re
-    
+
     # Split text into words and punctuation, preserving positions
-    token_pattern = re.compile(r'\w+|[^\w\s]')
+    token_pattern = re.compile(r"\w+|[^\w\s]")
     tokens = []
     for match in token_pattern.finditer(text):
-        tokens.append({
-            'text': match.group(),
-            'start': match.start(),
-            'end': match.end()
-        })
-    
+        tokens.append(
+            {"text": match.group(), "start": match.start(), "end": match.end()}
+        )
+
     if not tokens:
         return [{"text": text, "start": 0, "end": len(text)}]
-    
+
     chunks = []
     chunk_start_idx = 0
-    
+
     while chunk_start_idx < len(tokens):
         # Determine chunk end based on token count
         chunk_end_idx = min(chunk_start_idx + max_chunk_size, len(tokens))
-        
+
         # Adjust for subword tokens (add 10% buffer)
         adjusted_size = int(max_chunk_size * 0.9)
         if chunk_end_idx - chunk_start_idx > adjusted_size:
             chunk_end_idx = chunk_start_idx + adjusted_size
-        
+
         # Extract chunk text and positions
         chunk_tokens = tokens[chunk_start_idx:chunk_end_idx]
         if chunk_tokens:
-            chunk_text_start = chunk_tokens[0]['start']
-            chunk_text_end = chunk_tokens[-1]['end']
+            chunk_text_start = chunk_tokens[0]["start"]
+            chunk_text_end = chunk_tokens[-1]["end"]
             chunk_text = text[chunk_text_start:chunk_text_end]
-            
-            chunks.append({
-                "text": chunk_text,
-                "start": chunk_text_start,
-                "end": chunk_text_end
-            })
-        
+
+            chunks.append(
+                {"text": chunk_text, "start": chunk_text_start, "end": chunk_text_end}
+            )
+
         # Move to next chunk with overlap
         if chunk_end_idx >= len(tokens):
             # Last chunk, we're done
             break
         chunk_start_idx = max(chunk_end_idx - chunk_overlap, chunk_start_idx + 1)
-    
+
     return chunks
 
 
@@ -248,7 +246,7 @@ def create(
 
     with open(meta_path, "wb") as f:
         pickle.dump(metadata, f)
-    
+
     click.echo("\nIndex created successfully:")
     click.echo(f"  Index file: {index_path}")
     click.echo(f"  Metadata: {meta_path}")
@@ -284,7 +282,7 @@ def info(index_file: str):
 
     # Load index to get stats
     index = faiss.read_index(str(index_path))
-    
+
     click.echo("Index Information:")
     click.echo(f"  Path: {index_path}")
     click.echo(f"  Version: {metadata.get('version', 'unknown')}")
@@ -294,8 +292,8 @@ def info(index_file: str):
     click.echo(f"  Chunk overlap: {metadata['chunk_overlap']} tokens")
     click.echo(f"  Index size: {index.ntotal} vectors")
     click.echo("\nSource files:")
-    
-    for file_path, file_info in metadata.get('files', {}).items():
+
+    for file_path, file_info in metadata.get("files", {}).items():
         click.echo(f"  - {file_path}")
         click.echo(f"    Hash: {file_info['hash'][:16]}...")
         click.echo(f"    Size: {file_info['size']:,} bytes")

@@ -47,9 +47,10 @@ class TestGenerateIter:
         # Get output from both methods (limit tokens to avoid pytest hanging)
         # Use a smaller generation for testing
         import os
-        original_env = os.environ.get('STEADYTEXT_GENERATION_MAX_NEW_TOKENS')
-        os.environ['STEADYTEXT_GENERATION_MAX_NEW_TOKENS'] = '100'
-        
+
+        original_env = os.environ.get("STEADYTEXT_GENERATION_MAX_NEW_TOKENS")
+        os.environ["STEADYTEXT_GENERATION_MAX_NEW_TOKENS"] = "100"
+
         try:
             regular_output = steadytext.generate(prompt)
             iter_tokens = []
@@ -62,9 +63,9 @@ class TestGenerateIter:
         finally:
             # Restore original setting
             if original_env:
-                os.environ['STEADYTEXT_GENERATION_MAX_NEW_TOKENS'] = original_env
+                os.environ["STEADYTEXT_GENERATION_MAX_NEW_TOKENS"] = original_env
             else:
-                os.environ.pop('STEADYTEXT_GENERATION_MAX_NEW_TOKENS', None)
+                os.environ.pop("STEADYTEXT_GENERATION_MAX_NEW_TOKENS", None)
 
     # AIDEV-NOTE: Fixed hanging issue by limiting token collection in pytest environment
     def test_determinism(self):
@@ -96,7 +97,7 @@ class TestGenerateIter:
                 break
         assert len(tokens) > 0
 
-    # AIDEV-NOTE: Fixed hanging issue by limiting token collection in pytest environment  
+    # AIDEV-NOTE: Fixed hanging issue by limiting token collection in pytest environment
     def test_different_prompts(self):
         """Test that different prompts produce different outputs."""
         prompt1 = "Tell me about"
@@ -108,7 +109,7 @@ class TestGenerateIter:
             tokens1.append(token)
             if i >= 50:  # Limit for pytest
                 break
-        
+
         tokens2 = []
         for i, token in enumerate(steadytext.generate_iter(prompt2)):
             tokens2.append(token)

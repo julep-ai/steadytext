@@ -16,8 +16,9 @@ try:
         GreedyUntilRequest,
         LoglikelihoodRequest,
         LoglikelihoodRollingRequest,
-        LoglikelihoodSingleTokenRequest
+        LoglikelihoodSingleTokenRequest,
     )
+
     LIGHTEVAL_AVAILABLE = True
 except ImportError:
     LIGHTEVAL_AVAILABLE = False
@@ -36,6 +37,7 @@ import steadytext
 @dataclass
 class SteadyTextConfig:
     """Configuration for SteadyText in LightEval."""
+
     model_name: str = "steadytext"
     deterministic: bool = True
     verify_determinism: bool = True
@@ -44,29 +46,29 @@ class SteadyTextConfig:
 
 class SteadyTextLightEvalModel(LightevalModel):
     """SteadyText model adapter for LightEval.
-    
+
     This class wraps SteadyText to work with LightEval's evaluation framework.
     """
-    
+
     def __init__(self, config: Optional[SteadyTextConfig] = None):
         if not LIGHTEVAL_AVAILABLE:
             raise ImportError(
                 "LightEval is not installed. Install with: pip install lighteval"
             )
-        
+
         self.config = config or SteadyTextConfig()
         self._name = self.config.model_name
-        
+
         # Preload models
         steadytext.preload_models(verbose=True)
-        
+
         # Track determinism verification
         self.determinism_checks = []
-    
+
     @property
     def model_name(self) -> str:
         return self._name
-    
+
     @property
     def model_info(self) -> Dict[str, Any]:
         """Return model information for logging."""
@@ -77,65 +79,65 @@ class SteadyTextLightEvalModel(LightevalModel):
             "max_length": self.config.max_length,
             "version": steadytext.__version__,
         }
-    
+
     def greedy_until(
-        self,
-        requests: List[GreedyUntilRequest],
-        override_bs: Optional[int] = None
+        self, requests: List[GreedyUntilRequest], override_bs: Optional[int] = None
     ) -> List[GenerateReturn]:
         """Generate text greedily until stop sequences are met.
-        
+
         This is the main generation method used by most LightEval tasks.
         """
         results = []
-        
+
         for request in requests:
             # Extract prompt and stop sequences
             prompt = request.context
             stop_sequences = request.stop_sequence or []
-            
+
             # Generate text
             start_time = time.time()
             generated_text = steadytext.generate(prompt)
             generation_time = time.time() - start_time
-            
+
             # Verify determinism if requested
             if self.config.verify_determinism:
                 second_generation = steadytext.generate(prompt)
                 is_deterministic = generated_text == second_generation
-                self.determinism_checks.append({
-                    "prompt": prompt[:50] + "...",
-                    "deterministic": is_deterministic,
-                    "generation_time": generation_time
-                })
-            
+                self.determinism_checks.append(
+                    {
+                        "prompt": prompt[:50] + "...",
+                        "deterministic": is_deterministic,
+                        "generation_time": generation_time,
+                    }
+                )
+
             # Truncate at stop sequences
             truncated_text = generated_text
             for stop_seq in stop_sequences:
                 if stop_seq in truncated_text:
                     truncated_text = truncated_text.split(stop_seq)[0]
-            
+
             # Create result
             result = GenerateReturn(
                 result=truncated_text,
                 logits=None,  # SteadyText doesn't expose logits in the same way
-                generated_tokens=[]  # Would need tokenizer integration
+                generated_tokens=[],  # Would need tokenizer integration
             )
             results.append(result)
-        
+
         return results
-    
+
     def loglikelihood(
         self,
         requests: List[Union[LoglikelihoodRequest, LoglikelihoodRollingRequest]],
-        override_bs: Optional[int] = None
+        override_bs: Optional[int] = None,
     ) -> List[LoglikelihoodReturn]:
         """Compute log-likelihood of continuations.
-        
+
         This is used for multiple-choice and classification tasks.
         """
         results = []
-        
+
         for request in requests:
             if isinstance(request, LoglikelihoodRollingRequest):
                 # For rolling requests, we need the full context
@@ -145,13 +147,12 @@ class SteadyTextLightEvalModel(LightevalModel):
                 context = request.context
                 continuation = request.continuation
                 context + continuation
-            
+
             # Generate with logprobs to get likelihood information
             generated_text, logprobs_dict = steadytext.generate(
-                context,
-                return_logprobs=True
+                context, return_logprobs=True
             )
-            
+
             # Since SteadyText is deterministic and doesn't provide
             # true log-likelihoods, we'll use a proxy based on whether
             # the model would generate the continuation
@@ -165,98 +166,100 @@ class SteadyTextLightEvalModel(LightevalModel):
                     loglikelihood = 0.0  # High likelihood (log scale)
                 else:
                     loglikelihood = -100.0  # Low likelihood
-            
+
             result = LoglikelihoodReturn(
                 result=(loglikelihood, False),  # (loglikelihood, is_greedy)
                 logits=None,
-                generated_tokens=[]
+                generated_tokens=[],
             )
             results.append(result)
-        
+
         return results
-    
+
     def loglikelihood_single_token(
         self,
         requests: List[LoglikelihoodSingleTokenRequest],
-        override_bs: Optional[int] = None
+        override_bs: Optional[int] = None,
     ) -> List[LoglikelihoodReturn]:
         """Compute log-likelihood for single token predictions.
-        
+
         Used for tasks that require next-token prediction.
         """
         # For SteadyText, we'll treat this similarly to regular loglikelihood
         # but focusing on just the first token
         return self.loglikelihood(requests, override_bs)
-    
+
     def get_model_context_length(self) -> int:
         """Return the model's context length."""
         # SteadyText uses GENERATION_MAX_NEW_TOKENS for output length
         # Context length would depend on the underlying model
         return 2048  # Conservative estimate
-    
+
     def cleanup(self):
         """Cleanup model resources if needed."""
         # SteadyText handles its own cleanup
         pass
-    
+
     def get_determinism_report(self) -> Dict[str, Any]:
         """Get a report on determinism verification."""
         if not self.determinism_checks:
             return {"checks_performed": 0}
-        
+
         total_checks = len(self.determinism_checks)
         deterministic_count = sum(
             1 for check in self.determinism_checks if check["deterministic"]
         )
-        
+
         return {
             "checks_performed": total_checks,
             "deterministic_count": deterministic_count,
-            "determinism_rate": deterministic_count / total_checks if total_checks > 0 else 0,
-            "average_generation_time": np.mean([
-                check["generation_time"] for check in self.determinism_checks
-            ])
+            "determinism_rate": deterministic_count / total_checks
+            if total_checks > 0
+            else 0,
+            "average_generation_time": np.mean(
+                [check["generation_time"] for check in self.determinism_checks]
+            ),
         }
 
 
 class SteadyTextEvaluator:
     """High-level evaluator for running SteadyText through LightEval benchmarks."""
-    
+
     def __init__(self, config: Optional[SteadyTextConfig] = None):
         if not LIGHTEVAL_AVAILABLE:
             raise ImportError(
                 "LightEval is not installed. Install with: pip install lighteval"
             )
-        
+
         self.config = config or SteadyTextConfig()
         self.model = SteadyTextLightEvalModel(config)
-    
+
     def evaluate(
         self,
         tasks: List[str],
         num_shots: int = 0,
         batch_size: int = 1,
         output_dir: Optional[str] = None,
-        save_details: bool = True
+        save_details: bool = True,
     ) -> Dict[str, Any]:
         """Run evaluation on specified tasks.
-        
+
         Args:
             tasks: List of task names (e.g., ["truthfulqa:mc", "gsm8k"])
             num_shots: Number of few-shot examples
             batch_size: Batch size for evaluation
             output_dir: Directory to save results
             save_details: Whether to save detailed results
-            
+
         Returns:
             Dictionary with evaluation results
         """
         from lighteval.evaluator import evaluate
         from lighteval.tasks.registry import Registry
-        
+
         # Initialize task registry
         Registry()
-        
+
         # Configure evaluation
         eval_config = {
             "model": self.model,
@@ -266,43 +269,41 @@ class SteadyTextEvaluator:
             "output_path": output_dir,
             "save_details": save_details,
         }
-        
+
         # Run evaluation
         results = evaluate(**eval_config)
-        
+
         # Add determinism report
         results["determinism_report"] = self.model.get_determinism_report()
-        
+
         return results
-    
+
     def evaluate_standard_benchmarks(
-        self,
-        output_dir: Optional[str] = None
+        self, output_dir: Optional[str] = None
     ) -> Dict[str, Any]:
         """Run evaluation on a standard set of benchmarks.
-        
+
         This includes common benchmarks like TruthfulQA, GSM8K, etc.
         """
         standard_tasks = [
             "leaderboard|truthfulqa:mc|0|0",  # TruthfulQA multiple choice
-            "leaderboard|gsm8k|0|0",           # Grade school math
-            "leaderboard|hellaswag|0|0",       # Common sense reasoning
-            "leaderboard|arc:easy|0|0",        # AI2 Reasoning Challenge (Easy)
+            "leaderboard|gsm8k|0|0",  # Grade school math
+            "leaderboard|hellaswag|0|0",  # Common sense reasoning
+            "leaderboard|arc:easy|0|0",  # AI2 Reasoning Challenge (Easy)
         ]
-        
+
         return self.evaluate(
             tasks=standard_tasks,
             num_shots=0,  # Zero-shot evaluation
-            output_dir=output_dir
+            output_dir=output_dir,
         )
 
 
 def create_steadytext_model(
-    model_name: str = "steadytext",
-    **kwargs
+    model_name: str = "steadytext", **kwargs
 ) -> SteadyTextLightEvalModel:
     """Factory function to create a SteadyText model for LightEval.
-    
+
     This function can be registered with LightEval's model registry.
     """
     config = SteadyTextConfig(model_name=model_name, **kwargs)

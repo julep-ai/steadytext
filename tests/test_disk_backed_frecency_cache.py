@@ -104,7 +104,7 @@ class TestDiskBackedFrecencyCache:
         # Should still be functional
         cache.set("new_key", "new_value")
         assert cache.get("new_key") == "new_value"
-        
+
         # Verify the corrupted file was moved aside
         corrupted_files = list(temp_cache_dir.glob("corrupt_test.corrupted.*"))
         assert len(corrupted_files) == 1, "Corrupted file should have been moved aside"

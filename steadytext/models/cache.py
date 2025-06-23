@@ -62,14 +62,14 @@ def get_generation_model_path(
     repo_id: Optional[str] = None, filename: Optional[str] = None
 ) -> Optional[Path]:
     """Get path to generation model, with support for dynamic model switching.
-    
+
     AIDEV-NOTE: Now accepts optional parameters to support loading different models.
     Falls back to environment variables or defaults if not specified.
-    
+
     Args:
         repo_id: Hugging Face repository ID (e.g., "Qwen/Qwen2.5-3B-Instruct-GGUF")
         filename: Model filename (e.g., "qwen2.5-3b-instruct-q8_0.gguf")
-    
+
     Returns:
         Path to downloaded model or None if download fails
     """

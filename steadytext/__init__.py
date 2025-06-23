@@ -45,17 +45,17 @@ def generate(
 
     Returns:
         Generated text string, or tuple (text, logprobs) if return_logprobs=True
-        
+
     Examples:
         # Use default model
         text = generate("Hello, world!")
-        
+
         # Use size parameter
         text = generate("Quick response", size="small")
-        
+
         # Use a model from the registry
         text = generate("Explain quantum computing", model="qwen2.5-3b")
-        
+
         # Use a custom model
         text = generate(
             "Write a poem",

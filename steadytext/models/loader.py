@@ -33,7 +33,7 @@ class _ModelInstanceCache:
     _embedder_model: Optional[Llama] = None
     _generator_path: Optional[Path] = None
     _embedder_path: Optional[Path] = None
-    
+
     # AIDEV-NOTE: Cache for multiple generator models to support switching
     _generator_models_cache: Dict[str, Optional[Llama]] = {}
     _generator_paths_cache: Dict[str, Optional[Path]] = {}
@@ -71,12 +71,18 @@ class _ModelInstanceCache:
         with inst._lock:
             # Create cache key for this specific model
             cache_key = f"{repo_id or 'default'}::{filename or 'default'}"
-            
+
             # Use default model if no custom params and it's already loaded
-            if repo_id is None and filename is None and inst._generator_model is not None:
-                if not force_reload and enable_logits == getattr(inst, "_generator_logits_enabled", False):
+            if (
+                repo_id is None
+                and filename is None
+                and inst._generator_model is not None
+            ):
+                if not force_reload and enable_logits == getattr(
+                    inst, "_generator_logits_enabled", False
+                ):
                     return inst._generator_model
-            
+
             # Check if this model is already cached
             if cache_key in inst._generator_models_cache and not force_reload:
                 cached_model = inst._generator_models_cache[cache_key]
@@ -85,10 +91,12 @@ class _ModelInstanceCache:
                     cached_logits = getattr(cached_model, "_logits_enabled", False)
                     if cached_logits == enable_logits:
                         return cached_model
-            
+
             model_path = get_generation_model_path(repo_id, filename)
             if model_path is None:
-                logger.error(f"Generator model file not found by cache for {cache_key}.")
+                logger.error(
+                    f"Generator model file not found by cache for {cache_key}."
+                )
                 return None
 
             # For custom models, always load fresh (or use cache)
@@ -113,25 +121,28 @@ class _ModelInstanceCache:
 
                     new_model = Llama(model_path=str(model_path), **params)
                     new_model._logits_enabled = enable_logits  # Store logits config
-                    
+
                     # Store in cache
                     inst._generator_models_cache[cache_key] = new_model
                     inst._generator_paths_cache[cache_key] = model_path
-                    
+
                     # Update default model reference if this is the default
                     if repo_id is None and filename is None:
                         inst._generator_model = new_model
                         inst._generator_path = model_path
                         inst._generator_logits_enabled = enable_logits
-                    
+
                     logger.info(f"Generator model loaded successfully for {cache_key}.")
                     return new_model
                 except Exception as e:
-                    logger.error(f"Failed to load generator model {cache_key}: {e}", exc_info=True)
+                    logger.error(
+                        f"Failed to load generator model {cache_key}: {e}",
+                        exc_info=True,
+                    )
                     inst._generator_models_cache[cache_key] = None
                     inst._generator_paths_cache[cache_key] = None
                     return None
-            
+
             # Return cached model
             return inst._generator_models_cache.get(cache_key)
 
@@ -201,11 +212,13 @@ def get_generator_model_instance(
     filename: Optional[str] = None,
 ) -> Optional[Llama]:
     """Get a generator model instance with optional custom model specification.
-    
+
     AIDEV-NOTE: Extended to support dynamic model loading. Maintains backward
     compatibility when repo_id and filename are not specified.
     """
-    return _ModelInstanceCache.get_generator(force_reload, enable_logits, repo_id, filename)
+    return _ModelInstanceCache.get_generator(
+        force_reload, enable_logits, repo_id, filename
+    )
 
 
 def get_embedding_model_instance(force_reload: bool = False) -> Optional[Llama]:
@@ -231,7 +244,7 @@ def clear_model_cache():
             inst._generator_model = None
         inst._generator_path = None
         inst._generator_logits_enabled = False
-        
+
         # Clear all cached generator models
         for key, model in inst._generator_models_cache.items():
             if model is not None:

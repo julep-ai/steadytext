@@ -65,7 +65,7 @@ class DeterministicGenerator:
         force_reload: bool = False,
     ):
         """Load or reload the model with specific logits configuration.
-        
+
         AIDEV-NOTE: Now supports loading custom models via repo_id and filename.
         """
         self.model = get_generator_model_instance(
@@ -92,7 +92,7 @@ class DeterministicGenerator:
         size: Optional[str] = None,
     ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
         """Generate text with optional model switching.
-        
+
         Args:
             prompt: Input text prompt
             return_logprobs: Whether to return token log probabilities
@@ -101,21 +101,23 @@ class DeterministicGenerator:
             model_repo: Custom Hugging Face repository ID
             model_filename: Custom model filename
             size: Size identifier ("small", "medium", "large")
-        
+
         AIDEV-NOTE: Model switching parameters allow using different models without
         restarting. Precedence: model_repo/model_filename > model > size > env vars > defaults.
         """
         # Resolve model parameters
         if model or model_repo or model_filename or size:
             try:
-                repo_id, filename = resolve_model_params(model, model_repo, model_filename, size)
+                repo_id, filename = resolve_model_params(
+                    model, model_repo, model_filename, size
+                )
             except ValueError as e:
                 logger.error(f"Invalid model specification: {e}")
                 fallback = _deterministic_fallback_generate(prompt)
                 return (fallback, None) if return_logprobs else fallback
         else:
             repo_id = filename = None
-        
+
         # Handle caching only for non-logprobs requests and default model
         if not return_logprobs and repo_id is None and filename is None:
             prompt_str = prompt if isinstance(prompt, str) else str(prompt)
@@ -140,7 +142,7 @@ class DeterministicGenerator:
         # Check if we need to load a different model
         model_key = f"{repo_id or 'default'}::{filename or 'default'}"
         needs_different_model = model_key != self._current_model_key
-        
+
         # Load appropriate model if needed
         if needs_different_model or (return_logprobs and not self._logits_enabled):
             logger.info(f"Loading model {model_key} with logits={return_logprobs}")
@@ -281,7 +283,9 @@ class DeterministicGenerator:
         # Resolve model parameters
         if model or model_repo or model_filename or size:
             try:
-                repo_id, filename = resolve_model_params(model, model_repo, model_filename, size)
+                repo_id, filename = resolve_model_params(
+                    model, model_repo, model_filename, size
+                )
             except ValueError as e:
                 logger.error(f"Invalid model specification: {e}")
                 # Yield words from fallback
@@ -291,11 +295,11 @@ class DeterministicGenerator:
                 return
         else:
             repo_id = filename = None
-        
+
         # Check if we need to load a different model
         model_key = f"{repo_id or 'default'}::{filename or 'default'}"
         needs_different_model = model_key != self._current_model_key
-        
+
         # Load appropriate model if needed
         if needs_different_model or (include_logprobs and not self._logits_enabled):
             logger.info(f"Loading model {model_key} with logits={include_logprobs}")
@@ -534,10 +538,10 @@ def generate(
     size: Optional[str] = None,
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
     """Generate text deterministically with optional model switching.
-    
+
     This is the main public API for text generation. It maintains backward
     compatibility while adding support for dynamic model switching.
-    
+
     Args:
         prompt: Input text prompt
         return_logprobs: Whether to return token log probabilities
@@ -546,28 +550,28 @@ def generate(
         model_repo: Custom Hugging Face repository ID (e.g., "Qwen/Qwen2.5-3B-Instruct-GGUF")
         model_filename: Custom model filename (e.g., "qwen2.5-3b-instruct-q8_0.gguf")
         size: Size identifier ("small", "medium", "large") - maps to Qwen3 0.6B/1.7B/4B models
-    
+
     Returns:
         Generated text string, or tuple of (text, logprobs) if return_logprobs=True
-    
+
     Examples:
         # Use default model (medium/1.7B)
         text = generate("Hello, world!")
-        
+
         # Use size parameter
         text = generate("Quick response", size="small")  # Uses Qwen3-0.6B
         text = generate("Complex task", size="large")    # Uses Qwen3-4B
-        
+
         # Use a model from the registry
         text = generate("Explain quantum computing", model="qwen2.5-3b")
-        
+
         # Use a custom model
         text = generate(
             "Write a poem",
             model_repo="Qwen/Qwen2.5-7B-Instruct-GGUF",
             model_filename="qwen2.5-7b-instruct-q8_0.gguf"
         )
-    
+
     AIDEV-NOTE: Model switching allows using different models without changing
     environment variables. Models are cached after first load for efficiency.
     The size parameter provides convenient access to Qwen3 models of different sizes.
@@ -593,9 +597,9 @@ def generate_iter(
     size: Optional[str] = None,
 ) -> Iterator[Union[str, Dict[str, Any]]]:
     """Generate text iteratively with optional model switching.
-    
+
     Yields tokens as they are generated, enabling real-time streaming output.
-    
+
     Args:
         prompt: Input text prompt
         eos_string: End-of-sequence string ("[EOS]" uses model defaults)
@@ -604,10 +608,10 @@ def generate_iter(
         model_repo: Custom Hugging Face repository ID
         model_filename: Custom model filename
         size: Size identifier ("small", "medium", "large") - maps to Qwen3 0.6B/1.7B/4B models
-    
+
     Yields:
         String tokens, or dicts with 'token' and 'logprobs' if include_logprobs=True
-    
+
     AIDEV-NOTE: Streaming generation with model switching support. Falls back
     to word-by-word yielding from deterministic fallback when model unavailable.
     """

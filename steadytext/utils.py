@@ -35,53 +35,52 @@ EMBEDDING_MODEL_FILENAME = "Qwen3-Embedding-0.6B-Q8_0.gguf"
 # Each entry contains repo_id and filename for known working models
 MODEL_REGISTRY = {
     # Qwen3 models
-    "qwen3-0.6b": {
-        "repo": "Qwen/Qwen3-0.6B-GGUF",
-        "filename": "Qwen3-0.6B-Q8_0.gguf"
-    },
-    "qwen3-1.7b": {
-        "repo": "Qwen/Qwen3-1.7B-GGUF",
-        "filename": "Qwen3-1.7B-Q8_0.gguf"
-    },
+    "qwen3-0.6b": {"repo": "Qwen/Qwen3-0.6B-GGUF", "filename": "Qwen3-0.6B-Q8_0.gguf"},
+    "qwen3-1.7b": {"repo": "Qwen/Qwen3-1.7B-GGUF", "filename": "Qwen3-1.7B-Q8_0.gguf"},
     "qwen3-4b": {
         "repo": "Qwen/Qwen3-5B-GGUF",  # Note: The 4B model is actually in the 5B repo
-        "filename": "Qwen3-5B-Q8_0.gguf"
+        "filename": "Qwen3-5B-Q8_0.gguf",
     },
-    "qwen3-8b": {
-        "repo": "Qwen/Qwen3-8B-GGUF",
-        "filename": "qwen3-8b-q8_0.gguf"
-    },
+    "qwen3-8b": {"repo": "Qwen/Qwen3-8B-GGUF", "filename": "qwen3-8b-q8_0.gguf"},
     # Qwen2.5 models - newer series with better performance
     "qwen2.5-0.5b": {
         "repo": "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
-        "filename": "qwen2.5-0.5b-instruct-q8_0.gguf"
+        "filename": "qwen2.5-0.5b-instruct-q8_0.gguf",
     },
     "qwen2.5-1.5b": {
         "repo": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
-        "filename": "qwen2.5-1.5b-instruct-q8_0.gguf"
+        "filename": "qwen2.5-1.5b-instruct-q8_0.gguf",
     },
     "qwen2.5-3b": {
         "repo": "Qwen/Qwen2.5-3B-Instruct-GGUF",
-        "filename": "qwen2.5-3b-instruct-q8_0.gguf"
+        "filename": "qwen2.5-3b-instruct-q8_0.gguf",
     },
     "qwen2.5-7b": {
         "repo": "Qwen/Qwen2.5-7B-Instruct-GGUF",
-        "filename": "qwen2.5-7b-instruct-q8_0.gguf"
-    }
+        "filename": "qwen2.5-7b-instruct-q8_0.gguf",
+    },
 }
 
 # AIDEV-NOTE: Size to model mapping for convenient size-based selection
 SIZE_TO_MODEL = {
     "small": "qwen3-0.6b",
     "medium": "qwen3-1.7b",  # default
-    "large": "qwen3-4b"
+    "large": "qwen3-4b",
 }
 
 # Get model configuration from environment or use defaults
-GENERATION_MODEL_REPO = os.environ.get("STEADYTEXT_GENERATION_MODEL_REPO", DEFAULT_GENERATION_MODEL_REPO)
-GENERATION_MODEL_FILENAME = os.environ.get("STEADYTEXT_GENERATION_MODEL_FILENAME", GENERATION_MODEL_FILENAME)
-EMBEDDING_MODEL_REPO = os.environ.get("STEADYTEXT_EMBEDDING_MODEL_REPO", DEFAULT_EMBEDDING_MODEL_REPO)
-EMBEDDING_MODEL_FILENAME = os.environ.get("STEADYTEXT_EMBEDDING_MODEL_FILENAME", EMBEDDING_MODEL_FILENAME)
+GENERATION_MODEL_REPO = os.environ.get(
+    "STEADYTEXT_GENERATION_MODEL_REPO", DEFAULT_GENERATION_MODEL_REPO
+)
+GENERATION_MODEL_FILENAME = os.environ.get(
+    "STEADYTEXT_GENERATION_MODEL_FILENAME", GENERATION_MODEL_FILENAME
+)
+EMBEDDING_MODEL_REPO = os.environ.get(
+    "STEADYTEXT_EMBEDDING_MODEL_REPO", DEFAULT_EMBEDDING_MODEL_REPO
+)
+EMBEDDING_MODEL_FILENAME = os.environ.get(
+    "STEADYTEXT_EMBEDDING_MODEL_FILENAME", EMBEDDING_MODEL_FILENAME
+)
 
 # --- Determinism & Seeds ---
 DEFAULT_SEED = 42
@@ -183,7 +182,7 @@ def get_cache_dir() -> Path:
     except OSError as e:
         # AIDEV-NOTE: Enhanced permission error handling with OS-specific guidance
         system = platform.system()
-        
+
         # Provide OS-specific guidance
         if system == "Windows":
             guidance = (
@@ -212,16 +211,17 @@ def get_cache_dir() -> Path:
                 f"  3. Check if home directory is mounted read-only\n"
                 f"  4. Ensure your user owns the directory: sudo chown -R $(whoami):$(whoami) ~/.cache"
             )
-        
+
         logger.error(f"{guidance}\nOriginal error: {e}")
-        
+
         import tempfile
+
         fallback_dir = Path(tempfile.gettempdir()) / DEFAULT_CACHE_DIR_NAME / "models"
         logger.warning(
             f"Attempting to use temporary fallback cache directory: {fallback_dir}\n"
             f"Note: Models cached here may be deleted on system restart."
         )
-        
+
         try:
             fallback_dir.mkdir(parents=True, exist_ok=True)
             return fallback_dir
@@ -255,13 +255,13 @@ def validate_normalized_embedding(  # noqa E501
 # AIDEV-NOTE: Helper functions for model configuration and switching
 def get_model_config(model_name: str) -> Dict[str, str]:
     """Get model configuration from registry by name.
-    
+
     Args:
         model_name: Name of the model (e.g., "qwen2.5-3b", "qwen3-8b")
-    
+
     Returns:
         Dict with 'repo' and 'filename' keys
-    
+
     Raises:
         ValueError: If model_name is not in registry
     """
@@ -277,28 +277,28 @@ def resolve_model_params(
     model: Optional[str] = None,
     repo: Optional[str] = None,
     filename: Optional[str] = None,
-    size: Optional[str] = None
+    size: Optional[str] = None,
 ) -> tuple[str, str]:
     """Resolve model parameters with precedence: explicit params > model name > size > env vars > defaults.
-    
+
     Args:
         model: Model name from registry (e.g., "qwen2.5-3b")
         repo: Explicit repository ID (overrides model lookup)
         filename: Explicit filename (overrides model lookup)
         size: Size identifier ("small", "medium", "large")
-    
+
     Returns:
         Tuple of (repo_id, filename) to use for model loading
     """
     # If explicit repo and filename provided, use them
     if repo and filename:
         return repo, filename
-    
+
     # If model name provided, look it up
     if model:
         config = get_model_config(model)
         return config["repo"], config["filename"]
-    
+
     # If size provided, convert to model name and look it up
     if size:
         if size not in SIZE_TO_MODEL:
@@ -309,6 +309,6 @@ def resolve_model_params(
         model_name = SIZE_TO_MODEL[size]
         config = get_model_config(model_name)
         return config["repo"], config["filename"]
-    
+
     # Otherwise use environment variables or defaults
     return GENERATION_MODEL_REPO, GENERATION_MODEL_FILENAME
