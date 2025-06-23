@@ -231,8 +231,8 @@ st index info my_index.faiss
 st index search my_index.faiss "query text" --top-k 5
 
 # Use index with generation (automatic with default.faiss)
-st "What is Python?" --index-file my_index.faiss
-st "explain this error" --no-index  # Disable index search
+echo "What is Python?" | st --index-file my_index.faiss
+echo "explain this error" | st --no-index  # Disable index search
 ```
 
 AIDEV-NOTE: The index functionality uses:

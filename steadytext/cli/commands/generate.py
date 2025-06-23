@@ -85,14 +85,14 @@ def generate(
     """Generate text from a prompt (streams by default).
 
     Examples:
-        st "write a hello world function"         # Streams output
-        st "quick task" --wait                   # Waits for full output
-        st "quick task" --size small             # Uses Qwen3-0.6B
-        st "complex task" --size large           # Uses Qwen3-4B
-        st "explain quantum computing" --model qwen2.5-3b
+        echo "write a hello world function" | st  # Streams output
+        echo "quick task" | st --wait            # Waits for full output
+        echo "quick task" | st generate --size small    # Uses Qwen3-0.6B
+        echo "complex task" | st generate --size large  # Uses Qwen3-4B
+        echo "explain quantum computing" | st generate --model qwen2.5-3b
         st -  # Read from stdin
         echo "explain this" | st
-        st "complex task" --model-repo Qwen/Qwen2.5-7B-Instruct-GGUF --model-filename qwen2.5-7b-instruct-q8_0.gguf
+        echo "complex task" | st generate --model-repo Qwen/Qwen2.5-7B-Instruct-GGUF --model-filename qwen2.5-7b-instruct-q8_0.gguf
     """
     # Handle verbosity - verbose overrides quiet
     if verbose:
