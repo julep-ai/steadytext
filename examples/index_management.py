@@ -202,9 +202,7 @@ def demo_incremental_index():
             f.write("Advanced Python topics and best practices")
 
         # Recreate index with all documents (using --force)
-        run_command(
-            f"st index create {tmpdir}/*.txt --output my_index.faiss --force"
-        )
+        run_command(f"st index create {tmpdir}/*.txt --output my_index.faiss --force")
         print("Index updated with new documents")
 
         # Verify the update
