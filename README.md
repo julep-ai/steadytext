@@ -1,3 +1,7 @@
+<p align="center">
+    <img src="https://github.com/user-attachments/assets/735141f8-56ff-40ce-8a4e-013dbecfe299" alt="SteadyText Logo" height=320 width=480 />
+</p>
+
 # SteadyText
 
 *Deterministic text generation and embeddings with zero configuration*
@@ -107,6 +111,20 @@ Available models: `qwen3-0.6b`, `qwen3-1.7b`, `qwen3-4b`, `qwen3-8b`, `qwen2.5-0
 Size shortcuts: `small` (0.6B), `medium` (1.7B, default), `large` (4B)
 
 > Each model produces deterministic outputs. The default model remains fixed per major version.
+
+---
+
+## ⚡ Performance
+
+SteadyText delivers deterministic AI with production-ready performance:
+
+* **Text Generation**: 21.4 generations/sec (46.7ms latency)
+* **Embeddings**: 104-599 embeddings/sec (single to batch-50)
+* **Cache Speedup**: 48x faster for repeated prompts
+* **Memory**: ~1.4GB models, 150-200MB runtime
+* **100% Deterministic**: Same output every time
+
+📊 **[Full benchmarks →](docs/benchmarks.md)**
 
 ---
 
