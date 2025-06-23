@@ -81,6 +81,20 @@ pip install steadytext
 
 ---
 
+## ⚡ Performance
+
+SteadyText delivers deterministic AI with production-ready performance:
+
+* **Text Generation**: 21.4 generations/sec (46.7ms latency)
+* **Embeddings**: 104-599 embeddings/sec (single to batch-50)
+* **Cache Speedup**: 48x faster for repeated prompts
+* **Memory**: ~1.4GB models, 150-200MB runtime
+* **100% Deterministic**: Same output every time
+
+📊 **[Full benchmarks →](docs/benchmarks.md)**
+
+---
+
 ## 🎯 Examples
 
 Use SteadyText in tests or CLI tools for consistent, reproducible results:

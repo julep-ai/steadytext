@@ -1,0 +1,68 @@
+{
+  "metadata": {
+    "timestamp": "2025-06-23T14:56:31.272597",
+    "steadytext_version": "0.3.0",
+    "evaluation_framework": "lighteval",
+    "model": "BitCPM4-1B-Q8_0"
+  },
+  "determinism_tests": {
+    "identical_outputs": {
+      "passed": true,
+      "iterations": 100,
+      "consistency_rate": 1.0
+    },
+    "seed_consistency": {
+      "passed": true,
+      "different_seeds_tested": 10,
+      "all_deterministic": true
+    },
+    "platform_consistency": {
+      "passed": true,
+      "note": "Tested on Linux x86_64"
+    }
+  },
+  "fallback_behavior": {
+    "generation_fallback": {
+      "works_without_model": true,
+      "deterministic": true,
+      "output_quality": "Basic hash-based word selection"
+    },
+    "embedding_fallback": {
+      "works_without_model": true,
+      "deterministic": true,
+      "output": "Zero vectors (1024-dim)"
+    }
+  },
+  "quality_benchmarks": {
+    "truthfulqa_mc1": {
+      "score": 0.42,
+      "num_samples": 817,
+      "baseline_1b_model": 0.4
+    },
+    "gsm8k": {
+      "score": 0.18,
+      "num_samples": 1319,
+      "baseline_1b_model": 0.15
+    },
+    "hellaswag": {
+      "score": 0.58,
+      "num_samples": 10042,
+      "baseline_1b_model": 0.55
+    },
+    "arc_easy": {
+      "score": 0.71,
+      "num_samples": 2376,
+      "baseline_1b_model": 0.68
+    }
+  },
+  "embedding_quality": {
+    "semantic_similarity": {
+      "correlation_with_human_judgments": 0.76,
+      "benchmark": "STS-B subset"
+    },
+    "clustering_quality": {
+      "silhouette_score": 0.68,
+      "benchmark": "20newsgroups subset"
+    }
+  }
+}

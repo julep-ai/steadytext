@@ -1,0 +1,164 @@
+name: Benchmarks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      full_benchmarks:
+        description: 'Run full benchmarks (not quick mode)'
+        required: false
+        default: 'false'
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.12']
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache models
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/steadytext
+        key: ${{ runner.os }}-steadytext-models-${{ hashFiles('**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-steadytext-models-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[benchmark]"
+    
+    - name: Run benchmark tests
+      run: |
+        python benchmarks/test_benchmarks.py
+    
+    - name: Run quick benchmarks
+      if: github.event.inputs.full_benchmarks != 'true'
+      run: |
+        python benchmarks/run_all_benchmarks.py --quick --output-dir results/quick
+    
+    - name: Run full benchmarks
+      if: github.event.inputs.full_benchmarks == 'true'
+      run: |
+        python benchmarks/run_all_benchmarks.py --output-dir results/full
+    
+    - name: Upload results
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmark-results-${{ matrix.python-version }}
+        path: results/
+    
+    - name: Comment PR with results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          // Find the latest report
+          const resultsDir = 'results/quick';
+          const files = fs.readdirSync(resultsDir);
+          const reportFile = files.find(f => f.startsWith('benchmark_report_') && f.endsWith('.md'));
+          
+          if (reportFile) {
+            const report = fs.readFileSync(path.join(resultsDir, reportFile), 'utf8');
+            
+            // Truncate if too long
+            const maxLength = 65000;
+            const truncated = report.length > maxLength 
+              ? report.substring(0, maxLength) + '\n\n... (truncated)'
+              : report;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Benchmark Results\n\n${truncated}`
+            });
+          }
+
+  benchmark-regression:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[benchmark]"
+    
+    - name: Run benchmarks on main
+      run: |
+        git checkout main
+        python benchmarks/run_all_benchmarks.py --quick --output-dir results/main
+    
+    - name: Run benchmarks on PR
+      run: |
+        git checkout ${{ github.head_ref }}
+        python benchmarks/run_all_benchmarks.py --quick --output-dir results/pr
+    
+    - name: Compare results
+      run: |
+python -c "
+import json
+import sys
+import glob
+
+# Find benchmark files
+main_files = glob.glob('results/main/speed_benchmark_*.json')
+pr_files = glob.glob('results/pr/speed_benchmark_*.json')
+
+if not main_files or not pr_files:
+    print('Warning: Could not find benchmark files')
+    sys.exit(0)
+
+with open(main_files[0]) as f:
+    main_results = json.load(f)
+
+with open(pr_files[0]) as f:
+    pr_results = json.load(f)
+
+# Simple regression check
+regressions = []
+for op in main_results.get('results', {}):
+    if op in pr_results.get('results', {}):
+        main_times = main_results['results'][op].get('times', [])
+        pr_times = pr_results['results'][op].get('times', [])
+        
+        if main_times and pr_times:
+            main_time = sum(main_times) / len(main_times)
+            pr_time = sum(pr_times) / len(pr_times)
+            
+            if pr_time > main_time * 1.2:  # 20% regression threshold
+                regressions.append(f'{op}: {((pr_time/main_time - 1) * 100):.1f}% slower')
+
+if regressions:
+    print('Performance regressions detected:')
+    for r in regressions:
+        print(f'  - {r}')
+    sys.exit(1)
+else:
+    print('No significant performance regressions detected')
+"
