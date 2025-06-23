@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-06-23
+
+### Added
+- Comprehensive documentation for model switching feature in `docs/model-switching.md`
+- Added model-switching guide to main documentation navigation
+
+### Fixed
+- Documentation organization and navigation structure
+
+## [1.0.0] - 2025-06-23
+
+### Added
+- **Dynamic Model Switching**: Switch between different language models at runtime
+  - New `model` parameter in `generate()` and `generate_iter()` functions
+  - Built-in model registry with 8 pre-configured models (Qwen3 and Qwen2.5 series)
+  - New `size` parameter for convenient model selection: "small" (0.6B), "medium" (1.7B), "large" (4B)
+  - Added Qwen3-0.6B model for ultra-fast generation
+  - Support for custom models via `model_repo` and `model_filename` parameters
+  - Environment variable overrides: `STEADYTEXT_GENERATION_MODEL_REPO` and `STEADYTEXT_GENERATION_MODEL_FILENAME`
+  - CLI support with `--model`, `--model-repo`, `--model-filename`, and `--size` options
+  - Multiple model caching for efficient switching
+  - Each model maintains deterministic outputs
+
+### Changed
+- **BREAKING**: Switched default generation model from BitCPM4-1B to Qwen3-1.7B for improved text generation quality
+- Model size increased from 1.3GB to 1.83GB for better reasoning capabilities
+- Updated model repository from `DevQuasar/openbmb.BitCPM4-1B-GGUF` to `Qwen/Qwen3-1.7B-GGUF`
+- Changed model filename from `openbmb.BitCPM4-1B.Q8_0.gguf` to `Qwen3-1.7B-Q8_0.gguf`
+
+### Notes
+- This is a major version bump due to the model change which may produce different outputs
+- Existing cached models will need to be re-downloaded
+- The new model offers improved reasoning while maintaining reasonable size
+- Model switching allows choosing between speed (smaller models) and quality (larger models)
+
 ## [0.3.0] - 2025-06-23
 
 ### Added

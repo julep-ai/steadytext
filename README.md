@@ -35,6 +35,15 @@ for token in steadytext.generate_iter("explain quantum computing"):
 
 # Deterministic embeddings
 vec = steadytext.embed("Hello world")  # 1024-dim numpy array
+
+# Model switching (new in v1.0.0!)
+fast_response = steadytext.generate("Quick task", model="qwen2.5-0.5b")
+quality_response = steadytext.generate("Complex analysis", model="qwen2.5-7b")
+
+# Size-based selection (new!)
+small = steadytext.generate("Quick response", size="small")    # Qwen3-0.6B
+medium = steadytext.generate("Standard task", size="medium")   # Qwen3-1.7B (default)
+large = steadytext.generate("Complex analysis", size="large")  # Qwen3-4B
 ```
 
 _Or,_
@@ -53,6 +62,7 @@ SteadyText achieves determinism via:
 * **Greedy decoding:** Always chooses highest-probability token
 * **Frecency cache:** LRU cache with frequency counting—popular prompts stay cached longer
 * **Quantized models:** 8-bit quantization ensures identical results across platforms
+* **Model switching:** Dynamically switch between models while maintaining determinism (v1.0.0+)
 
 This means `generate("hello")` returns the exact same 512 tokens on any machine, every single time.
 
@@ -68,12 +78,35 @@ pip install steadytext
 
 #### Models
 
-**Corresponding to pypi versions `0.x.y`**:
+**Default models (v1.0.0)**:
 
-* Generation: `BitCPM4-1B-Q8_0` (1.3GB)
+* Generation: `Qwen3-1.7B-Q8_0` (1.83GB)
 * Embeddings: `Qwen3-0.6B-Q8_0` (610MB)
 
-> Each major version will use a fixed set of models only, so that only forced upgrades from pip will change the models (and the deterministic output)
+**Dynamic model switching (new in v1.0.0):**
+
+Switch between different models at runtime:
+
+```python
+# Use built-in model registry
+text = steadytext.generate("Hello", model="qwen2.5-3b")
+
+# Use size parameter for Qwen3 models
+text = steadytext.generate("Hello", size="large")  # Uses Qwen3-4B
+
+# Or specify custom models
+text = steadytext.generate(
+    "Hello",
+    model_repo="Qwen/Qwen2.5-7B-Instruct-GGUF",
+    model_filename="qwen2.5-7b-instruct-q8_0.gguf"
+)
+```
+
+Available models: `qwen3-0.6b`, `qwen3-1.7b`, `qwen3-4b`, `qwen3-8b`, `qwen2.5-0.5b`, `qwen2.5-1.5b`, `qwen2.5-3b`, `qwen2.5-7b`
+
+Size shortcuts: `small` (0.6B), `medium` (1.7B, default), `large` (4B)
+
+> Each model produces deterministic outputs. The default model remains fixed per major version.
 
 ---
 
@@ -312,7 +345,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ## 📄 License
 
 * **Code:** MIT
-* **Models:** MIT (BitCPM4, Qwen3)
+* **Models:** MIT (Qwen3)
 
 ---
 

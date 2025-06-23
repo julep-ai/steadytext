@@ -6,8 +6,8 @@ from huggingface_hub import hf_hub_download
 from ..utils import (
     logger,
     get_cache_dir,
-    DEFAULT_GENERATION_MODEL_REPO,
     DEFAULT_EMBEDDING_MODEL_REPO,
+    GENERATION_MODEL_REPO,
     GENERATION_MODEL_FILENAME,
     EMBEDDING_MODEL_FILENAME,
 )
@@ -15,6 +15,7 @@ from typing import Optional
 
 
 # AIDEV-NOTE: Core download function with path validation and error handling
+# AIDEV-NOTE: Extended to support dynamic model loading for model switching
 def _download_model_if_needed(
     repo_id: str, filename: str, cache_dir: Path
 ) -> Optional[Path]:
@@ -57,11 +58,26 @@ def _download_model_if_needed(
     return model_path
 
 
-def get_generation_model_path() -> Optional[Path]:
+def get_generation_model_path(
+    repo_id: Optional[str] = None, filename: Optional[str] = None
+) -> Optional[Path]:
+    """Get path to generation model, with support for dynamic model switching.
+    
+    AIDEV-NOTE: Now accepts optional parameters to support loading different models.
+    Falls back to environment variables or defaults if not specified.
+    
+    Args:
+        repo_id: Hugging Face repository ID (e.g., "Qwen/Qwen2.5-3B-Instruct-GGUF")
+        filename: Model filename (e.g., "qwen2.5-3b-instruct-q8_0.gguf")
+    
+    Returns:
+        Path to downloaded model or None if download fails
+    """
     cache = get_cache_dir()
-    return _download_model_if_needed(
-        DEFAULT_GENERATION_MODEL_REPO, GENERATION_MODEL_FILENAME, cache
-    )
+    # Use provided params or fall back to configured defaults
+    repo = repo_id or GENERATION_MODEL_REPO
+    fname = filename or GENERATION_MODEL_FILENAME
+    return _download_model_if_needed(repo, fname, cache)
 
 
 def get_embedding_model_path() -> Optional[Path]:

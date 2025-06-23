@@ -42,6 +42,13 @@ steadytext generate [OPTIONS] PROMPT
 | `--json` | `-j` | flag | `false` | Output as JSON with metadata |
 | `--logprobs` | `-l` | flag | `false` | Include log probabilities |
 | `--eos-string` | `-e` | string | `"[EOS]"` | Custom end-of-sequence string |
+| `--size` | | choice | | Model size: small (0.6B), medium (1.7B), large (4B) |
+| `--model` | | string | | Model name from registry (e.g., "qwen2.5-3b") |
+| `--model-repo` | | string | | Custom model repository |
+| `--model-filename` | | string | | Custom model filename |
+| `--no-index` | | flag | `false` | Disable automatic index search |
+| `--index-file` | | path | | Use specific index file |
+| `--top-k` | | int | `3` | Number of context chunks to retrieve |
 
 ### Examples
 
@@ -80,6 +87,27 @@ steadytext generate [OPTIONS] PROMPT
 
     ```bash
     st generate "List colors until STOP" --eos-string "STOP"
+    ```
+
+=== "Using Size Parameter"
+
+    ```bash
+    # Fast generation with small model
+    st generate "Quick response" --size small
+    
+    # High quality with large model  
+    st generate "Complex analysis" --size large
+    ```
+
+=== "Model Selection"
+
+    ```bash
+    # Use specific model from registry
+    st generate "Technical explanation" --model qwen2.5-3b
+    
+    # Use custom model
+    st generate "Write code" --model-repo Qwen/Qwen2.5-7B-Instruct-GGUF \
+        --model-filename qwen2.5-7b-instruct-q8_0.gguf
     ```
 
 ### Stdin Support
@@ -179,7 +207,7 @@ steadytext models [OPTIONS]
     ```bash
     st models --list
     # Output:
-    # Generation Model: BitCPM4-1B-Q8_0 (1.3GB)
+    # Generation Model: Qwen3-1.7B-Q8_0 (1.83GB)
     # Embedding Model: Qwen3-0.6B-Q8_0 (610MB)
     ```
 
@@ -198,9 +226,9 @@ steadytext models [OPTIONS]
 
     st models --cache-info
     # Cache directory: /home/user/.cache/steadytext/models/
-    # Generation model: 1.3GB (downloaded)
+    # Generation model: 1.83GB (downloaded)
     # Embedding model: 610MB (not downloaded)
-    # Total size: 1.3GB / 1.9GB
+    # Total size: 1.83GB / 2.44GB
     ```
 
 ---

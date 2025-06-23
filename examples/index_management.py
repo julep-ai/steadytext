@@ -10,7 +10,6 @@ import json
 import tempfile
 import os
 
-
 def run_command(cmd):
     """Run a shell command and return the output."""
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True)

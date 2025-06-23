@@ -8,6 +8,9 @@
 # no explicit seed is provided to ensure consistent outputs
 # AIDEV-NOTE: Added generate_iter() method for streaming token generation
 # with graceful fallback to word-by-word yielding when model unavailable
+# AIDEV-NOTE: Added dynamic model switching (v1.0.0) - generate() and generate_iter()
+# now accept model parameters to switch between different models at runtime while
+# maintaining deterministic outputs for each model
 
 import hashlib
 import os as _os
@@ -22,6 +25,7 @@ from ..utils import (
     GENERATION_MAX_NEW_TOKENS,
     LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC,
     logger,
+    resolve_model_params,
 )
 
 # Ensure environment is set for determinism when this module is loaded
@@ -44,29 +48,76 @@ _generation_cache = DiskBackedFrecencyCache(
 
 
 # AIDEV-NOTE: Main generator class with model instance caching and error handling
+# AIDEV-NOTE: Extended to support dynamic model switching via generate() parameters
 class DeterministicGenerator:
     def __init__(self):
         self.model = None
         self._logits_enabled = False
+        self._current_model_key = "default::default"
         # Load model without logits_all initially
         self._load_model(enable_logits=False)
 
-    def _load_model(self, enable_logits: bool = False):
-        """Load or reload the model with specific logits configuration."""
+    def _load_model(
+        self,
+        enable_logits: bool = False,
+        repo_id: Optional[str] = None,
+        filename: Optional[str] = None,
+        force_reload: bool = False,
+    ):
+        """Load or reload the model with specific logits configuration.
+        
+        AIDEV-NOTE: Now supports loading custom models via repo_id and filename.
+        """
         self.model = get_generator_model_instance(
-            force_reload=True, enable_logits=enable_logits
+            force_reload=force_reload,
+            enable_logits=enable_logits,
+            repo_id=repo_id,
+            filename=filename,
         )
         self._logits_enabled = enable_logits
+        self._current_model_key = f"{repo_id or 'default'}::{filename or 'default'}"
         if self.model is None:
             logger.error(
-                "DeterministicGenerator: Model instance is None after attempting to load."
+                f"DeterministicGenerator: Model instance is None after attempting to load {self._current_model_key}."
             )
 
     def generate(
-        self, prompt: str, return_logprobs: bool = False, eos_string: str = "[EOS]"
+        self,
+        prompt: str,
+        return_logprobs: bool = False,
+        eos_string: str = "[EOS]",
+        model: Optional[str] = None,
+        model_repo: Optional[str] = None,
+        model_filename: Optional[str] = None,
+        size: Optional[str] = None,
     ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
-        # Handle caching only for non-logprobs requests
-        if not return_logprobs:
+        """Generate text with optional model switching.
+        
+        Args:
+            prompt: Input text prompt
+            return_logprobs: Whether to return token log probabilities
+            eos_string: End-of-sequence string ("[EOS]" uses model defaults)
+            model: Model name from registry (e.g., "qwen2.5-3b")
+            model_repo: Custom Hugging Face repository ID
+            model_filename: Custom model filename
+            size: Size identifier ("small", "medium", "large")
+        
+        AIDEV-NOTE: Model switching parameters allow using different models without
+        restarting. Precedence: model_repo/model_filename > model > size > env vars > defaults.
+        """
+        # Resolve model parameters
+        if model or model_repo or model_filename or size:
+            try:
+                repo_id, filename = resolve_model_params(model, model_repo, model_filename, size)
+            except ValueError as e:
+                logger.error(f"Invalid model specification: {e}")
+                fallback = _deterministic_fallback_generate(prompt)
+                return (fallback, None) if return_logprobs else fallback
+        else:
+            repo_id = filename = None
+        
+        # Handle caching only for non-logprobs requests and default model
+        if not return_logprobs and repo_id is None and filename is None:
             prompt_str = prompt if isinstance(prompt, str) else str(prompt)
             # Include eos_string in cache key if it's not the default
             cache_key = (
@@ -86,14 +137,19 @@ class DeterministicGenerator:
             fallback = _deterministic_fallback_generate(str(prompt))
             return (fallback, None) if return_logprobs else fallback
 
-        # Reload model if logprobs requested but not enabled
-        if return_logprobs and not self._logits_enabled:
-            logger.info("Reloading model with logits support for logprobs generation.")
-            self._load_model(enable_logits=True)
-        elif not return_logprobs and self._logits_enabled:
-            # Optionally reload without logits to save memory/performance
-            # For now, we'll keep the model loaded with logits if already enabled
-            pass
+        # Check if we need to load a different model
+        model_key = f"{repo_id or 'default'}::{filename or 'default'}"
+        needs_different_model = model_key != self._current_model_key
+        
+        # Load appropriate model if needed
+        if needs_different_model or (return_logprobs and not self._logits_enabled):
+            logger.info(f"Loading model {model_key} with logits={return_logprobs}")
+            self._load_model(
+                enable_logits=return_logprobs,
+                repo_id=repo_id,
+                filename=filename,
+                force_reload=False,  # Use cache if available
+            )
 
         # AIDEV-NOTE: This is where the fallback to _deterministic_fallback_generate occurs if the model isn't loaded.
         if self.model is None:
@@ -162,8 +218,8 @@ class DeterministicGenerator:
                     f"whitespace-only text for prompt: '{prompt[:50]}...'"
                 )
 
-            # Only cache non-logprobs results
-            if not return_logprobs:
+            # Only cache non-logprobs results for default model
+            if not return_logprobs and repo_id is None and filename is None:
                 prompt_str = prompt if isinstance(prompt, str) else str(prompt)
                 # Include eos_string in cache key if it's not the default
                 cache_key = (
@@ -185,7 +241,14 @@ class DeterministicGenerator:
             return (fallback_output, None) if return_logprobs else fallback_output
 
     def generate_iter(
-        self, prompt: str, eos_string: str = "[EOS]", include_logprobs: bool = False
+        self,
+        prompt: str,
+        eos_string: str = "[EOS]",
+        include_logprobs: bool = False,
+        model: Optional[str] = None,
+        model_repo: Optional[str] = None,
+        model_filename: Optional[str] = None,
+        size: Optional[str] = None,
     ) -> Iterator[Union[str, Dict[str, Any]]]:
         """Generate text iteratively, yielding tokens as they are produced.
 
@@ -196,10 +259,14 @@ class DeterministicGenerator:
             prompt: The input prompt to generate from
             eos_string: Custom end-of-sequence string. "[EOS]" means use model's default.
             include_logprobs: If True, yield dicts with token and logprob info
+            model: Model name from registry (e.g., "qwen2.5-3b")
+            model_repo: Custom Hugging Face repository ID
+            model_filename: Custom model filename
+            size: Size identifier ("small", "medium", "large")
 
-        AIDEV-TODO: Investigate potential hanging issues in pytest when multiple
-        generate_iter calls are made in the same session. Works fine in isolation
-        but may have state/threading issues in test environment.
+        AIDEV-NOTE: When running in pytest, collecting many tokens (>400) can cause
+        hanging due to interaction between streaming API and pytest's output capture.
+        Tests should limit token collection to avoid this issue. Works fine outside pytest.
         """
         if not isinstance(prompt, str):
             logger.error(
@@ -211,10 +278,33 @@ class DeterministicGenerator:
                 yield word + " "
             return
 
-        # Reload model if logprobs requested but not enabled
-        if include_logprobs and not self._logits_enabled:
-            logger.info("Reloading model with logits support for logprobs generation.")
-            self._load_model(enable_logits=True)
+        # Resolve model parameters
+        if model or model_repo or model_filename or size:
+            try:
+                repo_id, filename = resolve_model_params(model, model_repo, model_filename, size)
+            except ValueError as e:
+                logger.error(f"Invalid model specification: {e}")
+                # Yield words from fallback
+                fallback_text = _deterministic_fallback_generate(prompt)
+                for word in fallback_text.split():
+                    yield word + " "
+                return
+        else:
+            repo_id = filename = None
+        
+        # Check if we need to load a different model
+        model_key = f"{repo_id or 'default'}::{filename or 'default'}"
+        needs_different_model = model_key != self._current_model_key
+        
+        # Load appropriate model if needed
+        if needs_different_model or (include_logprobs and not self._logits_enabled):
+            logger.info(f"Loading model {model_key} with logits={include_logprobs}")
+            self._load_model(
+                enable_logits=include_logprobs,
+                repo_id=repo_id,
+                filename=filename,
+                force_reload=False,
+            )
 
         # AIDEV-NOTE: Check if model is loaded, fallback to word-by-word generation if not
         if self.model is None:
@@ -428,3 +518,105 @@ def _deterministic_fallback_generate_iter(prompt: str) -> Iterator[str]:
     fallback_text = _deterministic_fallback_generate(prompt)
     for word in fallback_text.split():
         yield word + " "
+
+
+# AIDEV-NOTE: Module-level singleton generator instance for backward compatibility
+_generator_instance = DeterministicGenerator()
+
+
+def generate(
+    prompt: str,
+    return_logprobs: bool = False,
+    eos_string: str = "[EOS]",
+    model: Optional[str] = None,
+    model_repo: Optional[str] = None,
+    model_filename: Optional[str] = None,
+    size: Optional[str] = None,
+) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
+    """Generate text deterministically with optional model switching.
+    
+    This is the main public API for text generation. It maintains backward
+    compatibility while adding support for dynamic model switching.
+    
+    Args:
+        prompt: Input text prompt
+        return_logprobs: Whether to return token log probabilities
+        eos_string: End-of-sequence string ("[EOS]" uses model defaults)
+        model: Model name from registry (e.g., "qwen2.5-3b", "qwen3-8b")
+        model_repo: Custom Hugging Face repository ID (e.g., "Qwen/Qwen2.5-3B-Instruct-GGUF")
+        model_filename: Custom model filename (e.g., "qwen2.5-3b-instruct-q8_0.gguf")
+        size: Size identifier ("small", "medium", "large") - maps to Qwen3 0.6B/1.7B/4B models
+    
+    Returns:
+        Generated text string, or tuple of (text, logprobs) if return_logprobs=True
+    
+    Examples:
+        # Use default model (medium/1.7B)
+        text = generate("Hello, world!")
+        
+        # Use size parameter
+        text = generate("Quick response", size="small")  # Uses Qwen3-0.6B
+        text = generate("Complex task", size="large")    # Uses Qwen3-4B
+        
+        # Use a model from the registry
+        text = generate("Explain quantum computing", model="qwen2.5-3b")
+        
+        # Use a custom model
+        text = generate(
+            "Write a poem",
+            model_repo="Qwen/Qwen2.5-7B-Instruct-GGUF",
+            model_filename="qwen2.5-7b-instruct-q8_0.gguf"
+        )
+    
+    AIDEV-NOTE: Model switching allows using different models without changing
+    environment variables. Models are cached after first load for efficiency.
+    The size parameter provides convenient access to Qwen3 models of different sizes.
+    """
+    return _generator_instance.generate(
+        prompt=prompt,
+        return_logprobs=return_logprobs,
+        eos_string=eos_string,
+        model=model,
+        model_repo=model_repo,
+        model_filename=model_filename,
+        size=size,
+    )
+
+
+def generate_iter(
+    prompt: str,
+    eos_string: str = "[EOS]",
+    include_logprobs: bool = False,
+    model: Optional[str] = None,
+    model_repo: Optional[str] = None,
+    model_filename: Optional[str] = None,
+    size: Optional[str] = None,
+) -> Iterator[Union[str, Dict[str, Any]]]:
+    """Generate text iteratively with optional model switching.
+    
+    Yields tokens as they are generated, enabling real-time streaming output.
+    
+    Args:
+        prompt: Input text prompt
+        eos_string: End-of-sequence string ("[EOS]" uses model defaults)
+        include_logprobs: Whether to include log probabilities in output
+        model: Model name from registry (e.g., "qwen2.5-3b")
+        model_repo: Custom Hugging Face repository ID
+        model_filename: Custom model filename
+        size: Size identifier ("small", "medium", "large") - maps to Qwen3 0.6B/1.7B/4B models
+    
+    Yields:
+        String tokens, or dicts with 'token' and 'logprobs' if include_logprobs=True
+    
+    AIDEV-NOTE: Streaming generation with model switching support. Falls back
+    to word-by-word yielding from deterministic fallback when model unavailable.
+    """
+    return _generator_instance.generate_iter(
+        prompt=prompt,
+        eos_string=eos_string,
+        include_logprobs=include_logprobs,
+        model=model,
+        model_repo=model_repo,
+        model_filename=model_filename,
+        size=size,
+    )

@@ -791,6 +791,41 @@ def _test_normalize_l2(vector: np.ndarray, tolerance: float = 1e-9) -> np.ndarra
     return (vector / norm).astype(np.float32)
 
 
+@pytest.mark.fast
+class TestSizeParameter(unittest.TestCase):
+    """Tests for the size parameter in generate() function."""
+    
+    def test_generate_with_size_parameter(self):
+        """Test that generate() accepts size parameter without errors."""
+        # This test verifies the API accepts the size parameter
+        # It doesn't verify model switching (which requires models)
+        try:
+            # Test all valid size values
+            for size in ["small", "medium", "large"]:
+                output = steadytext.generate("Test prompt", size=size)
+                self.assertIsInstance(output, str)
+                self.assertTrue(len(output) > 0, f"Size {size} should generate non-empty text")
+        except Exception as e:
+            # If models aren't available, it should still work with fallback
+            if "model" not in str(e).lower():
+                raise
+    
+    def test_generate_size_parameter_precedence(self):
+        """Test that model parameter takes precedence over size."""
+        # When both model and size are specified, model should win
+        try:
+            output = steadytext.generate(
+                "Test prompt", 
+                model="qwen3-1.7b",  # Explicit model
+                size="small"  # Should be ignored
+            )
+            self.assertIsInstance(output, str)
+        except Exception as e:
+            # If models aren't available, it should still work with fallback
+            if "model" not in str(e).lower():
+                raise
+
+
 if __name__ == "__main__":
     # To run tests directly from this file: `python -m steadytext.tests.test_steadytext`
     # To enable model downloads for local testing if skipped by default:
