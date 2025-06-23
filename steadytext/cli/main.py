@@ -6,6 +6,8 @@ from .commands.generate import generate
 from .commands.embed import embed
 from .commands.cache import cache
 from .commands.models import models
+from .commands.vector import vector
+from .commands.index import index
 
 
 @click.group(invoke_without_command=True)
@@ -42,6 +44,8 @@ cli.add_command(generate)
 cli.add_command(embed)
 cli.add_command(cache)
 cli.add_command(models)
+cli.add_command(vector)
+cli.add_command(index)
 
 
 def main():

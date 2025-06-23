@@ -205,6 +205,84 @@ steadytext models [OPTIONS]
 
 ---
 
+## vector
+
+Perform vector operations on embeddings.
+
+### Usage
+
+```bash
+st vector COMMAND [OPTIONS]
+steadytext vector COMMAND [OPTIONS]
+```
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `similarity` | Compute similarity between text embeddings |
+| `distance` | Compute distance between text embeddings |
+| `search` | Find most similar texts from candidates |
+| `average` | Compute average of multiple embeddings |
+| `arithmetic` | Perform vector arithmetic operations |
+
+### Examples
+
+=== "Similarity"
+
+    ```bash
+    # Cosine similarity
+    st vector similarity "cat" "dog"
+    # 0.823456
+    
+    # With JSON output
+    st vector similarity "king" "queen" --json
+    ```
+
+=== "Distance"
+
+    ```bash
+    # Euclidean distance
+    st vector distance "hot" "cold"
+    
+    # Manhattan distance
+    st vector distance "yes" "no" --metric manhattan
+    ```
+
+=== "Search"
+
+    ```bash
+    # Find similar from stdin
+    echo -e "apple\norange\ncar" | st vector search "fruit" --stdin
+    
+    # From file, top 3
+    st vector search "python" --candidates langs.txt --top 3
+    ```
+
+=== "Average"
+
+    ```bash
+    # Average embeddings
+    st vector average "cat" "dog" "hamster"
+    
+    # With full embedding output
+    st vector average "red" "green" "blue" --json
+    ```
+
+=== "Arithmetic"
+
+    ```bash
+    # Classic analogy: king + woman - man ≈ queen
+    st vector arithmetic "king" "woman" --subtract "man"
+    
+    # Location arithmetic
+    st vector arithmetic "paris" "italy" --subtract "france"
+    ```
+
+See [Vector Operations Documentation](vector.md) for detailed usage.
+
+---
+
 ## cache
 
 Manage result caches.
