@@ -1,6 +1,7 @@
 # AIDEV-NOTE: SQLite-based concurrent disk-backed frecency cache implementation
 # Provides thread-safe and process-safe caching with frecency eviction algorithm
 # AIDEV-NOTE: Uses SQLite WAL mode for optimal concurrent access performance
+# AIDEV-NOTE: Fixed in v1.3.1 - Added __len__ method for compatibility with cache manager
 from __future__ import annotations
 
 import pickle
@@ -507,6 +508,16 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
         except Exception as e:
             logger.error(f"Failed to get cache stats: {e}")
             return {}
+
+    def __len__(self) -> int:
+        """Return number of entries in cache."""
+        try:
+            conn = self._get_connection()
+            result = conn.execute("SELECT COUNT(*) FROM cache").fetchone()
+            return result[0] if result else 0
+        except Exception as e:
+            logger.error(f"Failed to get cache length: {e}")
+            return 0
 
     def __del__(self):
         """Clean up database connections with proper shutdown sequence."""

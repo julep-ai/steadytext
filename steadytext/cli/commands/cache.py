@@ -3,7 +3,7 @@ import os
 import json
 from pathlib import Path
 
-from ...disk_backed_frecency_cache import DiskBackedFrecencyCache
+from ...cache_manager import get_cache_manager
 from ...utils import get_cache_dir
 
 
@@ -17,60 +17,29 @@ def cache():
 def stats():
     """Show cache statistics."""
     cache_dir = get_cache_dir() / "caches"
-
-    stats_data = {
-        "generation_cache": {},
-        "embedding_cache": {},
-        "cache_directory": str(cache_dir),
-    }
-
-    # Check generation cache
-    gen_cache_path = cache_dir / "generation_cache.pkl"
-    if gen_cache_path.exists():
-        try:
-            gen_cache = DiskBackedFrecencyCache(
-                str(gen_cache_path),
-                capacity=int(
-                    os.environ.get("STEADYTEXT_GENERATION_CACHE_CAPACITY", "256")
-                ),
-                max_size_mb=float(
-                    os.environ.get("STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB", "50.0")
-                ),
-            )
-            stats_data["generation_cache"] = {
-                "entries": len(gen_cache.cache),
-                "file_size_mb": gen_cache_path.stat().st_size / (1024 * 1024),
-                "capacity": gen_cache.capacity,
-                "max_size_mb": gen_cache.max_size_mb,
-            }
-        except Exception as e:
-            stats_data["generation_cache"]["error"] = str(e)
-    else:
-        stats_data["generation_cache"]["status"] = "not found"
-
-    # Check embedding cache
-    embed_cache_path = cache_dir / "embedding_cache.pkl"
-    if embed_cache_path.exists():
-        try:
-            embed_cache = DiskBackedFrecencyCache(
-                str(embed_cache_path),
-                capacity=int(
-                    os.environ.get("STEADYTEXT_EMBEDDING_CACHE_CAPACITY", "512")
-                ),
-                max_size_mb=float(
-                    os.environ.get("STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB", "100.0")
-                ),
-            )
-            stats_data["embedding_cache"] = {
-                "entries": len(embed_cache.cache),
-                "file_size_mb": embed_cache_path.stat().st_size / (1024 * 1024),
-                "capacity": embed_cache.capacity,
-                "max_size_mb": embed_cache.max_size_mb,
-            }
-        except Exception as e:
-            stats_data["embedding_cache"]["error"] = str(e)
-    else:
-        stats_data["embedding_cache"]["status"] = "not found"
+    
+    # AIDEV-NOTE: Use centralized cache manager for consistent stats
+    # AIDEV-NOTE: Fixed in v1.3.1 - Now uses SQLite backend instead of pickle files
+    cache_manager = get_cache_manager()
+    
+    # Force cache initialization to get proper stats
+    cache_manager.get_generation_cache()
+    cache_manager.get_embedding_cache()
+    
+    stats_data = cache_manager.get_cache_stats()
+    
+    # Add cache directory info
+    stats_data["cache_directory"] = str(cache_dir)
+    
+    # Check for actual database files
+    gen_db_path = cache_dir / "generation_cache.db"
+    embed_db_path = cache_dir / "embedding_cache.db"
+    
+    if gen_db_path.exists():
+        stats_data.setdefault("generation", {})["file_size_mb"] = gen_db_path.stat().st_size / (1024 * 1024)
+    
+    if embed_db_path.exists():
+        stats_data.setdefault("embedding", {})["file_size_mb"] = embed_db_path.stat().st_size / (1024 * 1024)
 
     click.echo(json.dumps(stats_data, indent=2))
 
@@ -81,30 +50,36 @@ def stats():
 @click.confirmation_option(prompt="Are you sure you want to clear the cache(s)?")
 def clear(generation: bool, embedding: bool):
     """Clear all caches or specific caches."""
-    cache_dir = get_cache_dir() / "caches"
+    cache_manager = get_cache_manager()
 
     # If neither flag is set, clear both
     if not generation and not embedding:
-        generation = embedding = True
+        cache_manager.clear_all_caches()
+        click.echo("Cleared all caches")
+        return
 
     cleared = []
 
     if generation:
-        gen_cache_path = cache_dir / "generation_cache.pkl"
-        if gen_cache_path.exists():
-            gen_cache_path.unlink()
+        try:
+            gen_cache = cache_manager.get_generation_cache()
+            gen_cache.clear()
             cleared.append("generation")
+        except Exception as e:
+            click.echo(f"Error clearing generation cache: {e}", err=True)
 
     if embedding:
-        embed_cache_path = cache_dir / "embedding_cache.pkl"
-        if embed_cache_path.exists():
-            embed_cache_path.unlink()
+        try:
+            embed_cache = cache_manager.get_embedding_cache()
+            embed_cache.clear()
             cleared.append("embedding")
+        except Exception as e:
+            click.echo(f"Error clearing embedding cache: {e}", err=True)
 
     if cleared:
         click.echo(f"Cleared caches: {', '.join(cleared)}")
     else:
-        click.echo("No caches found to clear")
+        click.echo("No caches were cleared")
 
 
 @cache.command()

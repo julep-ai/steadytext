@@ -79,6 +79,11 @@ os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 - AIDEV-NOTE: All operations gracefully fall back to direct model loading on connection failure
 - AIDEV-NOTE: Centralized cache system ensures consistent caching between daemon and direct access
 - AIDEV-NOTE: Cache is shared via SQLite backend for thread/process safety
+- AIDEV-NOTE: Daemon server now fully integrated with centralized cache manager (v1.3.1+)
+- AIDEV-NOTE: Cache hits in daemon mode return identical results to direct access mode
+- AIDEV-NOTE: Streaming generation simulates streaming from cached results for consistency
+- AIDEV-NOTE: Logprobs requests bypass cache in both daemon and direct modes
+- AIDEV-NOTE: Custom eos_string parameters are included in cache keys to prevent collisions
 - AIDEV-TODO: Consider adding connection pooling for high-concurrency scenarios
 - AIDEV-TODO: Add metrics/monitoring endpoints for production deployments
 - AIDEV-QUESTION: Should we support multiple daemon instances for load balancing?

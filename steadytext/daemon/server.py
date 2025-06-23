@@ -24,6 +24,7 @@ except ImportError:
 
 from ..core.generator import DeterministicGenerator
 from ..core.embedder import create_embedding
+from ..cache_manager import get_generation_cache
 from ..utils import logger, set_deterministic_environment, DEFAULT_SEED
 from .protocol import (
     Request,
@@ -36,6 +37,8 @@ from .protocol import (
 
 # AIDEV-NOTE: Server maintains singleton instances of generator and embedder
 # to avoid repeated model loading overhead
+# AIDEV-NOTE: v1.3.1+ Server now fully integrated with centralized cache system
+# ensuring consistent cache behavior between daemon and direct access modes
 class DaemonServer:
     def __init__(
         self,
@@ -71,7 +74,11 @@ class DaemonServer:
         # Embedder is loaded on-demand by create_embedding
 
     def _handle_generate(self, params: Dict[str, Any]) -> Any:
-        """Handle text generation request."""
+        """Handle text generation request.
+        
+        AIDEV-NOTE: Now uses centralized cache for consistent caching behavior
+        between daemon and direct access modes.
+        """
         if self.generator is None:
             self.generator = DeterministicGenerator()
 
@@ -83,6 +90,21 @@ class DaemonServer:
         model_filename = params.get("model_filename")
         size = params.get("size")
 
+        # AIDEV-NOTE: Check cache first for non-logprobs requests using default model
+        # This mirrors the caching logic in core/generator.py
+        if not return_logprobs and model is None and model_repo is None and model_filename is None and size is None:
+            prompt_str = prompt if isinstance(prompt, str) else str(prompt)
+            # Include eos_string in cache key if it's not the default
+            cache_key = (
+                prompt_str
+                if eos_string == "[EOS]"
+                else f"{prompt_str}::EOS::{eos_string}"
+            )
+            cached = get_generation_cache().get(cache_key)
+            if cached is not None:
+                logger.debug(f"Daemon: Cache hit for prompt: {prompt_str[:50]}...")
+                return cached
+
         result = self.generator.generate(
             prompt=prompt,
             return_logprobs=return_logprobs,
@@ -92,6 +114,20 @@ class DaemonServer:
             model_filename=model_filename,
             size=size,
         )
+
+        # AIDEV-NOTE: Cache the result for non-logprobs requests using default model
+        # This ensures cache consistency between daemon and direct access
+        if not return_logprobs and model is None and model_repo is None and model_filename is None and size is None:
+            prompt_str = prompt if isinstance(prompt, str) else str(prompt)
+            cache_key = (
+                prompt_str
+                if eos_string == "[EOS]"
+                else f"{prompt_str}::EOS::{eos_string}"
+            )
+            # Extract text from result if it's a tuple (shouldn't be for non-logprobs, but safety check)
+            text_to_cache = result[0] if isinstance(result, tuple) else result
+            get_generation_cache().set(cache_key, text_to_cache)
+            logger.debug(f"Daemon: Cached result for prompt: {prompt_str[:50]}...")
 
         # AIDEV-NOTE: Handle tuple return for logprobs
         if return_logprobs and isinstance(result, tuple):
@@ -103,6 +139,10 @@ class DaemonServer:
 
         AIDEV-NOTE: Streaming is handled by yielding multiple responses with the same ID.
         The client will accumulate these until it receives STREAM_END_MARKER.
+        
+        AIDEV-NOTE: For streaming, we check cache first. If cached, we simulate streaming
+        by yielding words from the cached result. This ensures cache consistency while
+        maintaining the streaming API.
         """
         if self.generator is None:
             self.generator = DeterministicGenerator()
@@ -115,6 +155,27 @@ class DaemonServer:
         model_filename = params.get("model_filename")
         size = params.get("size")
 
+        # AIDEV-NOTE: Check cache for non-logprobs streaming requests using default model
+        # If cached, simulate streaming by yielding words from cached result
+        if not include_logprobs and model is None and model_repo is None and model_filename is None and size is None:
+            prompt_str = prompt if isinstance(prompt, str) else str(prompt)
+            cache_key = (
+                prompt_str
+                if eos_string == "[EOS]"
+                else f"{prompt_str}::EOS::{eos_string}"
+            )
+            cached = get_generation_cache().get(cache_key)
+            if cached is not None:
+                logger.debug(f"Daemon streaming: Cache hit for prompt: {prompt_str[:50]}...")
+                # Simulate streaming by yielding words from cached result
+                words = cached.split()
+                for i, word in enumerate(words):
+                    # Add space after each word except the last one
+                    token = word + (" " if i < len(words) - 1 else "")
+                    yield token
+                return
+
+        # No cache hit or logprobs requested - use actual streaming
         for token in self.generator.generate_iter(
             prompt=prompt,
             eos_string=eos_string,

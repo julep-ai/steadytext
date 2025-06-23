@@ -70,22 +70,32 @@ class DiskBackedFrecencyCache:
         """Get value from cache, updating frecency metadata."""
         if self._backend:
             return self._backend.get(key)
-        else:
+        elif hasattr(self, '_memory_cache'):
             return self._memory_cache.get(key)
+        else:
+            # AIDEV-NOTE: Invalid cache state - return None for cache miss
+            return None
 
     def set(self, key: Any, value: Any) -> None:
         """Set value in cache and persist to disk."""
         if self._backend:
             self._backend.set(key, value)
+        elif hasattr(self, '_memory_cache'):
+            self._memory_cache[key] = value
         else:
+            # AIDEV-NOTE: Invalid cache state - create memory cache as fallback
+            self._memory_cache = {}
             self._memory_cache[key] = value
 
     def clear(self) -> None:
         """Clear cache and remove disk file."""
         if self._backend:
             self._backend.clear()
-        else:
+        elif hasattr(self, '_memory_cache'):
             self._memory_cache.clear()
+        else:
+            # AIDEV-NOTE: Invalid cache state - create empty memory cache
+            self._memory_cache = {}
 
     def sync(self) -> None:
         """Explicitly sync cache to disk."""
@@ -97,9 +107,26 @@ class DiskBackedFrecencyCache:
         """Get cache statistics for monitoring and debugging."""
         if self._backend:
             return self._backend.get_stats()
-        else:
+        elif hasattr(self, '_memory_cache'):
             return {
                 "entries": len(self._memory_cache),
                 "backend": "memory",
                 "capacity": self.capacity,
             }
+        else:
+            # AIDEV-NOTE: Invalid cache state - return minimal stats
+            return {
+                "entries": 0,
+                "backend": "invalid",
+                "capacity": self.capacity,
+            }
+
+    def __len__(self) -> int:
+        """Return number of entries in cache."""
+        if self._backend:
+            return len(self._backend)
+        elif hasattr(self, '_memory_cache'):
+            return len(self._memory_cache)
+        else:
+            # AIDEV-NOTE: Fallback for invalid cache state 
+            return 0
