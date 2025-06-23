@@ -1,3 +1,7 @@
+<p align="center">
+    <img src="https://github.com/user-attachments/assets/735141f8-56ff-40ce-8a4e-013dbecfe299" alt="SteadyText Logo" height=320 width=480 />
+</p>
+
 # SteadyText
 
 *Deterministic text generation and embeddings with zero configuration*
