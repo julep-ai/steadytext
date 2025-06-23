@@ -101,5 +101,5 @@ class DiskBackedFrecencyCache:
             return {
                 "entries": len(self._memory_cache),
                 "backend": "memory",
-                "capacity": self.capacity
+                "capacity": self.capacity,
             }
