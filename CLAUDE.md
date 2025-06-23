@@ -76,6 +76,29 @@ poe format
 poe check
 ```
 
+### Index Management
+```bash
+# Create FAISS index from text files
+st index create document1.txt document2.txt --output my_index.faiss
+st index create *.txt --output project.faiss --chunk-size 256
+
+# View index information
+st index info my_index.faiss
+
+# Search index
+st index search my_index.faiss "query text" --top-k 5
+
+# Use index with generation (automatic with default.faiss)
+st "What is Python?" --index-file my_index.faiss
+st "explain this error" --no-index  # Disable index search
+```
+
+AIDEV-NOTE: The index functionality uses:
+- chonkie for deterministic text chunking (512 token default)
+- faiss-cpu for vector storage (IndexFlatL2 for exact search)
+- Automatic context retrieval when default.faiss exists
+- Aggressive caching of search results for determinism
+
 ### Installation
 ```bash
 # Install in development mode
@@ -189,3 +212,25 @@ When working on features described in `todos/`:
 2. Follow the technical specifications and design decisions outlined
 3. Move or archive completed todo files once implemented
 4. Update todo files if implementation details change during development
+
+## Benchmarking
+
+The `benchmarks/` directory contains comprehensive speed and accuracy benchmarks:
+
+### Running Benchmarks
+```bash
+# Run all benchmarks
+python benchmarks/run_all_benchmarks.py
+
+# Quick benchmarks for CI
+python benchmarks/run_all_benchmarks.py --quick
+
+# Test benchmarks are working
+python benchmarks/test_benchmarks.py
+```
+
+### Key Metrics
+- **Speed**: Generation/embedding throughput, latency percentiles, memory usage
+- **Accuracy**: Determinism verification, quality checks, LightEval standard benchmarks
+
+AIDEV-NOTE: When modifying core generation/embedding code, always run benchmarks to check for performance regressions

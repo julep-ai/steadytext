@@ -112,6 +112,17 @@ st generate "explain recursion" --stream
 # Get embeddings
 st embed "machine learning"
 
+# Vector operations
+st vector similarity "cat" "dog"
+st vector search "Python" candidate1.txt candidate2.txt candidate3.txt
+
+# Create and search FAISS indices
+st index create *.txt --output docs.faiss
+st index search docs.faiss "how to install" --top-k 5
+
+# Generate with automatic context from index
+st generate "what is the configuration?" --index-file docs.faiss
+
 # Preload models
 st models --preload
 ```
@@ -127,6 +138,8 @@ st models --preload
 * Reproducible documentation & demos
 * Offline/dev/staging environments
 * Semantic caching and embedding search
+* Vector similarity comparisons
+* Document retrieval & RAG applications
 
 ❌ **Not ideal for:**
 
@@ -151,6 +164,41 @@ steadytext.embed(text: str | List[str]) -> np.ndarray
 
 # Model preloading
 steadytext.preload_models(verbose=True)
+```
+
+### Vector Operations (CLI)
+
+```bash
+# Compute similarity between texts
+st vector similarity "text1" "text2" [--metric cosine|dot]
+
+# Calculate distance between texts
+st vector distance "text1" "text2" [--metric euclidean|manhattan|cosine]
+
+# Find most similar text from candidates
+st vector search "query" file1.txt file2.txt [--top-k 3]
+
+# Average multiple text embeddings
+st vector average "text1" "text2" "text3"
+
+# Vector arithmetic
+st vector arithmetic "king" - "man" + "woman"
+```
+
+### Index Management (CLI)
+
+```bash
+# Create FAISS index from documents
+st index create doc1.txt doc2.txt --output my_index.faiss
+
+# View index information
+st index info my_index.faiss
+
+# Search index
+st index search my_index.faiss "query text" --top-k 5
+
+# Use index with generation
+st generate "question" --index-file my_index.faiss
 ```
 
 📚 [Full API Documentation](docs/api.md)

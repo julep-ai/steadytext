@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-06-23
+
+### Added
+- New `vector` CLI command group for vector operations on embeddings
+- `vector similarity` - Compute cosine or dot product similarity between texts
+- `vector distance` - Calculate euclidean, manhattan, or cosine distance
+- `vector search` - Find most similar texts from a list of candidates
+- `vector average` - Compute average of multiple text embeddings
+- `vector arithmetic` - Perform vector arithmetic (addition/subtraction)
+- Support for stdin input and JSON output in all vector commands
+- Comprehensive documentation for vector operations
+- New `index` CLI command group for FAISS index management
+- `index create` - Create deterministic FAISS indices from text files
+- `index info` - Display index statistics and metadata
+- `index search` - Search for similar chunks in an index
+- Automatic context retrieval in `generate` command when index exists
+- Deterministic text chunking with chonkie library (512 token default)
+- FAISS-based vector storage with exact search (IndexFlatL2)
+- Index search result caching for deterministic retrieval
+- `--no-index`, `--index-file`, and `--top-k` options for generate command
+
+### Dependencies
+- Added `chonkie>=0.2.1` for deterministic text chunking
+- Added `faiss-cpu>=1.7.0` for vector index storage and search
+
 ## [0.2.3] - 2025-06-19
 
 ### Added
