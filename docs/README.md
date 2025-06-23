@@ -1,6 +1,9 @@
 # SteadyText Documentation
 
+<img src="https://github.com/user-attachments/assets/af90186a-8271-4f84-a5d8-898861a4fcaf" alt="SteadyText Logo" height=320 width=320 />
+
 Welcome to the SteadyText documentation. This directory contains comprehensive guides and references for using SteadyText.
+
 
 ## Documentation Index
 
@@ -10,7 +13,7 @@ Welcome to the SteadyText documentation. This directory contains comprehensive g
 ### Features and Implementation
 - **[EOS String Implementation](eos-string-implementation.md)** - Detailed guide on custom end-of-sequence string functionality
 
-## Quick Links
+## Quick Examples
 
 ### Getting Started
 ```python
