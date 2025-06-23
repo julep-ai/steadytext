@@ -6,7 +6,6 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 import sys
-import warnings
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))

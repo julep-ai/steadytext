@@ -2,7 +2,6 @@
 """Run mock benchmarks to generate realistic results for documentation."""
 
 import json
-import time
 import random
 from datetime import datetime
 from pathlib import Path
@@ -365,12 +364,12 @@ def main():
     
     # Print summary
     print("\nBenchmark results generated successfully!")
-    print(f"\nKey highlights:")
+    print("\nKey highlights:")
     print(f"- Generation: {speed_results['results']['generation']['throughput']:.1f} generations/sec")
     print(f"- Embeddings: {speed_results['results']['embedding_batch_1']['throughput']:.1f} embeddings/sec")
     print(f"- Cache speedup: {speed_results['results']['cache_hit']['speedup']:.0f}x")
-    print(f"- Determinism: 100% consistent")
-    print(f"\nResults saved to benchmarks/results/")
+    print("- Determinism: 100% consistent")
+    print("\nResults saved to benchmarks/results/")
 
 if __name__ == "__main__":
     main()

@@ -158,7 +158,7 @@ def run_all_benchmarks(args):
         # Save summary markdown
         summary_path = output_path.with_suffix('.md')
         with open(summary_path, 'w') as f:
-            f.write(f"# SteadyText Speed Benchmark Results\n\n")
+            f.write("# SteadyText Speed Benchmark Results\n\n")
             f.write(f"**Date**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
             f.write("## Summary\n\n")
             f.write("```\n")

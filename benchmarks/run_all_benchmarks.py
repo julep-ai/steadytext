@@ -218,7 +218,7 @@ Examples:
     args.timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     
     print(f"\n{'='*80}")
-    print(f"SteadyText Comprehensive Benchmarks")
+    print("SteadyText Comprehensive Benchmarks")
     print(f"{'='*80}")
     print(f"Timestamp: {args.timestamp}")
     print(f"Output directory: {output_dir}")
