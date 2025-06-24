@@ -7,7 +7,7 @@ import steadytext
 
 # Deterministic text generation
 code = steadytext.generate("implement binary search in Python")
-print(code[:200] + "...")  # Show first 200 chars
+print(str(code)[:200] + "...")  # Show first 200 chars
 print()
 
 # With log probabilities

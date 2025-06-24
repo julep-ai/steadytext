@@ -13,10 +13,11 @@
 # maintaining deterministic outputs for each model
 
 import hashlib
-import os as _os
+import os
+import re
 from typing import Any, Dict, List, Optional, Union, Tuple, Iterator
 
-from ..disk_backed_frecency_cache import DiskBackedFrecencyCache
+from ..cache_manager import get_generation_cache
 from ..models.loader import get_generator_model_instance
 from ..utils import set_deterministic_environment  # Assuming this is in utils.py
 from ..utils import (
@@ -32,19 +33,9 @@ from ..utils import (
 set_deterministic_environment(DEFAULT_SEED)
 
 
-# AIDEV-NOTE: Disk-backed frecency cache for generated text results
-# AIDEV-NOTE: Persistent cache for successful generation outputs with configurable limits
+# AIDEV-NOTE: Use centralized cache manager for consistent caching across daemon and direct access
+# AIDEV-NOTE: Cache is now shared between all components and properly centralized
 # AIDEV-QUESTION: Should fallback results be cached, or only model-generated ones?
-# AIDEV-NOTE: Cache capacity and size can be configured via environment variables:
-# - STEADYTEXT_GENERATION_CACHE_CAPACITY (default: 256)
-# - STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB (default: 50.0)
-_generation_cache = DiskBackedFrecencyCache(
-    capacity=int(_os.environ.get("STEADYTEXT_GENERATION_CACHE_CAPACITY", "256")),
-    cache_name="generation_cache",
-    max_size_mb=float(
-        _os.environ.get("STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB", "50.0")
-    ),
-)
 
 
 # AIDEV-NOTE: Main generator class with model instance caching and error handling
@@ -55,7 +46,9 @@ class DeterministicGenerator:
         self._logits_enabled = False
         self._current_model_key = "default::default"
         # Load model without logits_all initially
-        self._load_model(enable_logits=False)
+        # AIDEV-NOTE: Skip model loading if STEADYTEXT_SKIP_MODEL_LOAD is set
+        if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") != "1":
+            self._load_model(enable_logits=False)
 
     def _load_model(
         self,
@@ -67,7 +60,15 @@ class DeterministicGenerator:
         """Load or reload the model with specific logits configuration.
 
         AIDEV-NOTE: Now supports loading custom models via repo_id and filename.
+        AIDEV-NOTE: Respects STEADYTEXT_SKIP_MODEL_LOAD for test environments.
         """
+        if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
+            logger.debug(
+                "_load_model: STEADYTEXT_SKIP_MODEL_LOAD=1, skipping model load"
+            )
+            self.model = None
+            return
+
         self.model = get_generator_model_instance(
             force_reload=force_reload,
             enable_logits=enable_logits,
@@ -90,6 +91,7 @@ class DeterministicGenerator:
         model_repo: Optional[str] = None,
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
+        thinking_mode: bool = False,
     ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
         """Generate text with optional model switching.
 
@@ -101,11 +103,17 @@ class DeterministicGenerator:
             model_repo: Custom Hugging Face repository ID
             model_filename: Custom model filename
             size: Size identifier ("small", "medium", "large")
+            thinking_mode: Enable Qwen3 thinking mode (default: False appends /no_think, True appends /think)
 
         AIDEV-NOTE: Model switching parameters allow using different models without
         restarting. Precedence: model_repo/model_filename > model > size > env vars > defaults.
+        AIDEV-NOTE: For Qwen3 models, thinking_mode=False (default) appends '/no_think' to prevent
+        verbose reasoning output. Set thinking_mode=True to append '/think' and see the model's thinking process.
         """
         # Resolve model parameters
+        repo_id: Optional[str] = None
+        filename: Optional[str] = None
+
         if model or model_repo or model_filename or size:
             try:
                 repo_id, filename = resolve_model_params(
@@ -115,8 +123,6 @@ class DeterministicGenerator:
                 logger.error(f"Invalid model specification: {e}")
                 fallback = _deterministic_fallback_generate(prompt)
                 return (fallback, None) if return_logprobs else fallback
-        else:
-            repo_id = filename = None
 
         # Handle caching only for non-logprobs requests and default model
         if not return_logprobs and repo_id is None and filename is None:
@@ -127,7 +133,7 @@ class DeterministicGenerator:
                 if eos_string == "[EOS]"
                 else f"{prompt_str}::EOS::{eos_string}"
             )
-            cached = _generation_cache.get(cache_key)
+            cached = get_generation_cache().get(cache_key)
             if cached is not None:
                 return cached
 
@@ -154,12 +160,31 @@ class DeterministicGenerator:
             )
 
         # AIDEV-NOTE: This is where the fallback to _deterministic_fallback_generate occurs if the model isn't loaded.
-        if self.model is None:
-            logger.warning(
-                "DeterministicGenerator.generate: Model not loaded. "
-                "Using fallback generator."
-            )
+        # Also check for STEADYTEXT_SKIP_MODEL_LOAD environment variable
+        if self.model is None or os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
+            if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
+                logger.debug(
+                    "DeterministicGenerator.generate: STEADYTEXT_SKIP_MODEL_LOAD=1. "
+                    "Using fallback generator."
+                )
+            else:
+                logger.warning(
+                    "DeterministicGenerator.generate: Model not loaded. "
+                    "Using fallback generator."
+                )
             fallback = _deterministic_fallback_generate(prompt)
+
+            # Cache fallback result for non-logprobs requests and default model
+            if not return_logprobs and repo_id is None and filename is None:
+                prompt_str = prompt if isinstance(prompt, str) else str(prompt)
+                # Include eos_string in cache key if it's not the default
+                cache_key = (
+                    prompt_str
+                    if eos_string == "[EOS]"
+                    else f"{prompt_str}::EOS::{eos_string}"
+                )
+                get_generation_cache().set(cache_key, fallback)
+
             return (fallback, None) if return_logprobs else fallback
 
         if not prompt or not prompt.strip():  # Check after ensuring prompt is a string
@@ -169,6 +194,18 @@ class DeterministicGenerator:
             )
             # Call fallback for empty/whitespace
             fallback = _deterministic_fallback_generate(prompt)
+
+            # Cache fallback result for non-logprobs requests and default model
+            if not return_logprobs and repo_id is None and filename is None:
+                prompt_str = prompt if isinstance(prompt, str) else str(prompt)
+                # Include eos_string in cache key if it's not the default
+                cache_key = (
+                    prompt_str
+                    if eos_string == "[EOS]"
+                    else f"{prompt_str}::EOS::{eos_string}"
+                )
+                get_generation_cache().set(cache_key, fallback)
+
             return (fallback, None) if return_logprobs else fallback
 
         try:
@@ -176,6 +213,14 @@ class DeterministicGenerator:
             # behavior across multiple calls with the same seed
             if hasattr(self.model, "reset"):
                 self.model.reset()
+
+            # AIDEV-NOTE: Add /think to prompt for Qwen3 thinking mode when enabled,
+            # otherwise add /no_think to disable thinking mode (default)
+            final_prompt = prompt
+            if thinking_mode:
+                final_prompt = prompt + " /think"
+            else:
+                final_prompt = prompt + " /no_think"
 
             sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
             # AIDEV-NOTE: Handle custom eos_string - if it's "[EOS]", use default stop sequences
@@ -194,7 +239,7 @@ class DeterministicGenerator:
 
             # AIDEV-NOTE: Use create_chat_completion for model interaction.
             output: Dict[str, Any] = self.model.create_chat_completion(
-                messages=[{"role": "user", "content": prompt}], **sampling_params
+                messages=[{"role": "user", "content": final_prompt}], **sampling_params
             )
 
             generated_text = ""
@@ -220,6 +265,15 @@ class DeterministicGenerator:
                     f"whitespace-only text for prompt: '{prompt[:50]}...'"
                 )
 
+            # AIDEV-NOTE: Strip empty or whitespace-only <think></think> tags from output
+            # This handles cases where think tags contain only whitespace/newlines
+            generated_text = re.sub(
+                r"<think>\s*</think>\s*",
+                "",
+                generated_text,
+                flags=re.MULTILINE | re.DOTALL,
+            )
+
             # Only cache non-logprobs results for default model
             if not return_logprobs and repo_id is None and filename is None:
                 prompt_str = prompt if isinstance(prompt, str) else str(prompt)
@@ -229,7 +283,7 @@ class DeterministicGenerator:
                     if eos_string == "[EOS]"
                     else f"{prompt_str}::EOS::{eos_string}"
                 )
-                _generation_cache.set(cache_key, generated_text)
+                get_generation_cache().set(cache_key, generated_text)
 
             return (generated_text, logprobs) if return_logprobs else generated_text
 
@@ -251,6 +305,7 @@ class DeterministicGenerator:
         model_repo: Optional[str] = None,
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
+        thinking_mode: bool = False,
     ) -> Iterator[Union[str, Dict[str, Any]]]:
         """Generate text iteratively, yielding tokens as they are produced.
 
@@ -265,6 +320,7 @@ class DeterministicGenerator:
             model_repo: Custom Hugging Face repository ID
             model_filename: Custom model filename
             size: Size identifier ("small", "medium", "large")
+            thinking_mode: Enable Qwen3 thinking mode (default: False appends /no_think, True appends /think)
 
         AIDEV-NOTE: When running in pytest, collecting many tokens (>400) can cause
         hanging due to interaction between streaming API and pytest's output capture.
@@ -281,6 +337,9 @@ class DeterministicGenerator:
             return
 
         # Resolve model parameters
+        repo_id: Optional[str] = None
+        filename: Optional[str] = None
+
         if model or model_repo or model_filename or size:
             try:
                 repo_id, filename = resolve_model_params(
@@ -293,8 +352,6 @@ class DeterministicGenerator:
                 for word in fallback_text.split():
                     yield word + " "
                 return
-        else:
-            repo_id = filename = None
 
         # Check if we need to load a different model
         model_key = f"{repo_id or 'default'}::{filename or 'default'}"
@@ -311,11 +368,18 @@ class DeterministicGenerator:
             )
 
         # AIDEV-NOTE: Check if model is loaded, fallback to word-by-word generation if not
-        if self.model is None:
-            logger.warning(
-                "DeterministicGenerator.generate_iter: Model not loaded. "
-                "Using fallback generator."
-            )
+        # Also check for STEADYTEXT_SKIP_MODEL_LOAD environment variable
+        if self.model is None or os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
+            if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
+                logger.debug(
+                    "DeterministicGenerator.generate_iter: STEADYTEXT_SKIP_MODEL_LOAD=1. "
+                    "Using fallback generator."
+                )
+            else:
+                logger.warning(
+                    "DeterministicGenerator.generate_iter: Model not loaded. "
+                    "Using fallback generator."
+                )
             fallback_text = _deterministic_fallback_generate(prompt)
             for word in fallback_text.split():
                 yield word + " "
@@ -336,6 +400,14 @@ class DeterministicGenerator:
             if hasattr(self.model, "reset"):
                 self.model.reset()
 
+            # AIDEV-NOTE: Add /think to prompt for Qwen3 thinking mode when enabled,
+            # otherwise add /no_think to disable thinking mode (default)
+            final_prompt = prompt
+            if thinking_mode:
+                final_prompt = prompt + " /think"
+            else:
+                final_prompt = prompt + " /no_think"
+
             sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
             # AIDEV-NOTE: Handle custom eos_string for streaming generation
             if eos_string == "[EOS]":
@@ -351,7 +423,7 @@ class DeterministicGenerator:
 
             # AIDEV-NOTE: Streaming API returns an iterator of partial outputs
             stream = self.model.create_chat_completion(
-                messages=[{"role": "user", "content": prompt}], **sampling_params
+                messages=[{"role": "user", "content": final_prompt}], **sampling_params
             )
 
             for chunk in stream:
@@ -536,6 +608,7 @@ def generate(
     model_repo: Optional[str] = None,
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
+    thinking_mode: bool = False,
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
     """Generate text deterministically with optional model switching.
 
@@ -550,6 +623,7 @@ def generate(
         model_repo: Custom Hugging Face repository ID (e.g., "Qwen/Qwen2.5-3B-Instruct-GGUF")
         model_filename: Custom model filename (e.g., "qwen2.5-3b-instruct-q8_0.gguf")
         size: Size identifier ("small", "medium", "large") - maps to Qwen3 0.6B/1.7B/4B models
+        thinking_mode: Enable Qwen3 thinking mode (default: False appends /no_think)
 
     Returns:
         Generated text string, or tuple of (text, logprobs) if return_logprobs=True
@@ -584,6 +658,7 @@ def generate(
         model_repo=model_repo,
         model_filename=model_filename,
         size=size,
+        thinking_mode=thinking_mode,
     )
 
 
@@ -595,6 +670,7 @@ def generate_iter(
     model_repo: Optional[str] = None,
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
+    thinking_mode: bool = False,
 ) -> Iterator[Union[str, Dict[str, Any]]]:
     """Generate text iteratively with optional model switching.
 
@@ -608,6 +684,7 @@ def generate_iter(
         model_repo: Custom Hugging Face repository ID
         model_filename: Custom model filename
         size: Size identifier ("small", "medium", "large") - maps to Qwen3 0.6B/1.7B/4B models
+        thinking_mode: Enable Qwen3 thinking mode (default: False appends /no_think)
 
     Yields:
         String tokens, or dicts with 'token' and 'logprobs' if include_logprobs=True
@@ -623,4 +700,5 @@ def generate_iter(
         model_repo=model_repo,
         model_filename=model_filename,
         size=size,
+        thinking_mode=thinking_mode,
     )

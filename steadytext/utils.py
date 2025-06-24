@@ -5,6 +5,8 @@ from pathlib import Path
 import logging
 import platform  # For get_cache_dir
 from typing import Dict, Any, List, Optional  # For type hints
+import sys
+from contextlib import contextmanager
 
 # AIDEV-NOTE: Core utility functions for SteadyText - handles deterministic
 # environment setup, model configuration, and cross-platform cache directory
@@ -19,7 +21,8 @@ if not logger.handlers:
     )
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-logger.setLevel(logging.INFO)
+# AIDEV-NOTE: Don't set a default level - let CLI control it
+# This prevents INFO messages from appearing in quiet mode
 
 # --- Model Configuration ---
 # AIDEV-NOTE: Switched from BitCPM4-1B to Qwen3-1.7B for better performance
@@ -95,17 +98,19 @@ def set_deterministic_environment(seed: int = DEFAULT_SEED):
     np.random.seed(seed)
     # Note: llama.cpp itself is seeded at model load time via its parameters.
     # TF/PyTorch seeds would be set here if used directly.
-    logger.info(f"Deterministic environment set with seed: {seed}")
+    # Only log if logger level allows INFO messages
+    if logger.isEnabledFor(logging.INFO):
+        logger.info(f"Deterministic environment set with seed: {seed}")
 
 
-# Call it on import to ensure early setup
-set_deterministic_environment(DEFAULT_SEED)
+# AIDEV-NOTE: Removed automatic call on import - now called explicitly where needed
+# (in generator.py, daemon server, and model loader)
 
 
 # --- Llama.cpp Model Parameters ---
 # These are now structured as per the new loader.py's expectation
 LLAMA_CPP_BASE_PARAMS: Dict[str, Any] = {
-    "n_ctx": 2048,  # Default context, Qwen0.5B supports more but this is a safe default
+    "n_ctx": 3072,  # Increased context for Qwen3 thinking mode support
     "n_gpu_layers": 0,  # CPU-only for zero-config
     "seed": DEFAULT_SEED,
     "verbose": False,
@@ -119,8 +124,8 @@ LLAMA_CPP_MAIN_PARAMS_DETERMINISTIC: Dict[str, Any] = {
 }
 
 # --- Output Configuration (from previous full utils.py) ---
-# AIDEV-NOTE: Increased default max tokens for generation from 256 to 512
-GENERATION_MAX_NEW_TOKENS = 512
+# AIDEV-NOTE: Increased default max tokens for generation from 512 to 1024 for Qwen3 thinking support
+GENERATION_MAX_NEW_TOKENS = 1024
 EMBEDDING_DIMENSION = 1024  # Setting to 1024 as per objective
 
 LLAMA_CPP_EMBEDDING_PARAMS_DETERMINISTIC: Dict[str, Any] = {
@@ -312,3 +317,43 @@ def resolve_model_params(
 
     # Otherwise use environment variables or defaults
     return GENERATION_MODEL_REPO, GENERATION_MODEL_FILENAME
+
+
+# AIDEV-NOTE: Context manager to suppress llama.cpp's direct stdout/stderr output
+# Used during model loading to prevent verbose warnings in quiet mode
+# AIDEV-NOTE: Quiet mode fix (v1.3.2+) - Suppresses llama_context warnings
+# - Logger no longer sets default INFO level (controlled by CLI)
+# - set_deterministic_environment() no longer called on import
+# - All INFO logs check logger.isEnabledFor() before logging
+# - llama.cpp stdout/stderr suppressed during model loading in quiet mode
+@contextmanager
+def suppress_llama_output():
+    """Context manager to suppress stdout/stderr during llama.cpp operations.
+
+    This is needed because llama.cpp writes some messages directly to stdout/stderr,
+    bypassing Python's logging system. Only used when logger is set to ERROR or higher.
+    """
+    # Only suppress if logger level is ERROR or higher (quiet mode)
+    if logger.isEnabledFor(logging.INFO):
+        # In verbose mode, don't suppress anything
+        yield
+        return
+
+    # Save original stdout/stderr
+    old_stdout = sys.stdout
+    old_stderr = sys.stderr
+
+    try:
+        # Redirect to devnull
+        devnull = open(os.devnull, "w")
+        sys.stdout = devnull
+        sys.stderr = devnull
+        yield
+    finally:
+        # Always restore original streams
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
+        try:
+            devnull.close()
+        except Exception:
+            pass

@@ -33,6 +33,11 @@ class TestDiskBackedFrecencyCache:
         cache1.set("key2", "value2")
         cache1.set("key3", [1, 2, 3])  # Test different types
 
+        # AIDEV-NOTE: Ensure data is written and visible to other connections
+        # WAL mode requires proper cleanup for cross-connection visibility
+        cache1.sync()
+        del cache1  # Explicitly delete to trigger cleanup
+
         # Verify cache database file exists
         cache_file = temp_cache_dir / "test_cache.db"
         assert cache_file.exists()
@@ -180,6 +185,9 @@ class TestDiskBackedFrecencyCache:
         cache.set("key", "value")
         cache.sync()  # Explicit sync
 
+        # AIDEV-NOTE: Delete first cache to ensure connection cleanup
+        del cache
+
         # Verify data persists by creating new cache instance
         cache2 = DiskBackedFrecencyCache(
             capacity=10, cache_name="sync_test", cache_dir=temp_cache_dir
@@ -208,6 +216,10 @@ class TestDiskBackedFrecencyCache:
         # Verify all keys work
         for key in special_keys:
             assert cache.get(key) == f"value_for_{key}"
+
+        # AIDEV-NOTE: Ensure data is written before creating new instance
+        cache.sync()
+        del cache
 
         # Verify persistence
         cache2 = DiskBackedFrecencyCache(

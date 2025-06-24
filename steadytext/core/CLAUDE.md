@@ -5,6 +5,8 @@ This directory contains the core text generation and embedding functionality.
 ## Key Components
 
 - `generator.py`: Deterministic text generation with model-based and fallback mechanisms
+  - Includes Qwen3 thinking mode control via `/no_think` tag (default)
+  - `thinking_mode` parameter controls whether to append `/no_think`
 - `embedder.py`: L2-normalized embeddings with zero-vector fallbacks
 
 ## Critical Design Patterns

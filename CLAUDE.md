@@ -18,6 +18,155 @@ Add specially formatted comments throughout the codebase, where appropriate, for
   * very important, or
   * could have a bug
 
+## Daemon Architecture
+
+SteadyText includes a daemon mode for persistent model serving via ZeroMQ. This avoids the overhead of repeated model loading.
+
+### Key Components
+
+**daemon/protocol.py**
+- Defines JSON-based request/response protocol
+- Request types: generate, generate_iter, embed, ping, shutdown
+- Uses unique IDs for request-response matching
+
+**daemon/server.py**
+- ZeroMQ REP server that keeps models loaded in memory
+- Handles multiple request types with error recovery
+- Supports streaming generation with acknowledgment protocol
+- Graceful shutdown via signals (SIGINT, SIGTERM)
+
+**daemon/client.py**
+- Client wrapper with automatic fallback to direct model loading
+- `use_daemon()` context manager for scoped daemon usage
+- Environment variable support (STEADYTEXT_DISABLE_DAEMON to opt-out)
+
+### Usage Patterns
+
+**CLI Commands:**
+```bash
+# Start daemon
+st daemon start [--host HOST] [--port PORT] [--foreground]
+
+# Check status
+st daemon status [--json]
+
+# Stop daemon
+st daemon stop [--force]
+
+# Restart daemon
+st daemon restart
+```
+
+**SDK Usage:**
+```python
+# Daemon is used by default - no setup needed
+text = generate("Hello world")  # Uses daemon automatically
+embedding = embed("Some text")   # Uses daemon automatically
+
+# Use daemon for all operations in a scope (ensures connection)
+with use_daemon():
+    text = generate("Hello world")
+    embedding = embed("Some text")
+
+# Disable daemon globally via environment
+os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
+```
+
+### AIDEV Considerations
+
+- AIDEV-NOTE: The daemon maintains singleton model instances to avoid memory duplication
+- AIDEV-NOTE: Streaming uses a special acknowledgment protocol for flow control  
+- AIDEV-NOTE: All operations gracefully fall back to direct model loading on connection failure
+- AIDEV-NOTE: Centralized cache system ensures consistent caching between daemon and direct access
+- AIDEV-NOTE: Cache is shared via SQLite backend for thread/process safety
+- AIDEV-NOTE: Daemon server now fully integrated with centralized cache manager (v1.3.3+)
+- AIDEV-NOTE: Cache hits in daemon mode return identical results to direct access mode
+- AIDEV-NOTE: Streaming generation simulates streaming from cached results for consistency
+- AIDEV-NOTE: Logprobs requests bypass cache in both daemon and direct modes
+- AIDEV-NOTE: Custom eos_string parameters are included in cache keys to prevent collisions
+- AIDEV-TODO: Consider adding connection pooling for high-concurrency scenarios
+- AIDEV-TODO: Add metrics/monitoring endpoints for production deployments
+- AIDEV-QUESTION: Should we support multiple daemon instances for load balancing?
+
+## Qwen3 Thinking Mode Control
+
+SteadyText includes special handling for Qwen3 models' built-in "thinking mode" feature.
+
+### Overview
+
+Qwen3 models can output their internal reasoning process in `<think>...</think>` tags when prompted with `/think`. By default, SteadyText disables this mode for efficiency by appending `/no_think` to all prompts. When thinking mode is enabled, SteadyText appends `/think` to prompts to activate the thinking process.
+
+### Usage
+
+**Python API:**
+```python
+# Default: thinking disabled (appends /no_think)
+text = generate("Complex problem")
+
+# Enable thinking mode (appends /think)
+text = generate("Complex problem", thinking_mode=True)
+```
+
+**CLI:**
+```bash
+# Default: thinking disabled
+echo "solve problem" | st
+
+# Enable thinking mode
+echo "solve problem" | st --think
+```
+
+### AIDEV Considerations
+
+- AIDEV-NOTE: Thinking mode is disabled by default to prevent verbose output that slows generation
+- AIDEV-NOTE: Context window increased to 3072 tokens to accommodate thinking output
+- AIDEV-NOTE: Max tokens increased to 1024 to support longer reasoning chains
+- AIDEV-NOTE: The `/no_think` tag is appended to prompts unless thinking_mode=True
+- AIDEV-NOTE: Thinking mode works with all model switching features
+
+## Cache Management
+
+SteadyText v1.3+ uses a centralized cache management system to ensure consistent behavior between daemon and direct access modes.
+
+### Key Components
+
+**cache_manager.py**
+- Centralized cache management with singleton pattern
+- Shared SQLite-backed caches for generation and embedding results
+- Thread-safe and process-safe access across all components
+
+**Centralized Architecture:**
+- Generation cache: Shared between daemon and direct generation calls
+- Embedding cache: Shared between daemon and direct embedding calls
+- Cache files stored in consistent locations across all access modes
+- Automatic cache directory creation and management
+
+### Cache Configuration
+
+Same environment variables as before, but now affect both daemon and direct access:
+
+**Generation Cache:**
+- `STEADYTEXT_GENERATION_CACHE_CAPACITY` (default: 256)
+- `STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB` (default: 50.0)
+
+**Embedding Cache:**
+- `STEADYTEXT_EMBEDDING_CACHE_CAPACITY` (default: 512)
+- `STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB` (default: 100.0)
+
+### Cache Usage
+
+```python
+from steadytext import get_cache_manager
+
+# Get cache statistics
+cache_manager = get_cache_manager()
+stats = cache_manager.get_cache_stats()
+print(f"Generation cache size: {stats['generation']['size']}")
+
+# Clear all caches (for testing)
+cache_manager.clear_all_caches()
+```
+
 ## AI Assistant Workflow: Step-by-Step Methodology
 
 When responding to user instructions, the AI assistant (Claude, Cursor, GPT, etc.) should follow this process to ensure clarity, correctness, and maintainability:
@@ -37,44 +186,73 @@ When responding to user instructions, the AI assistant (Claude, Cursor, GPT, etc
 ## Development Commands
 
 ### Testing
+
+**Using UV (recommended):**
 ```bash
-# Run all tests
-python -m pytest
+# Run all tests with UV
+uv run python -m pytest
 
 # Run tests with coverage
-python -m pytest --cov=steadytext --cov-report=xml
+uv run python -m pytest --cov=steadytext --cov-report=xml
 
 # Run specific test files
-python -m pytest tests/test_steadytext.py
-python -m pytest test_gen.py
-python -m pytest test_fallback_gen.py
+uv run python -m pytest tests/test_steadytext.py
+uv run python -m pytest test_gen.py
+uv run python -m pytest test_fallback_gen.py
 
 # Allow model downloads in tests (models are downloaded on first use)
-STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true python -m pytest
+STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true uv run python -m pytest
 
 # Configure cache settings
-STEADYTEXT_GENERATION_CACHE_CAPACITY=512 python -m pytest
-STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB=100.0 python -m pytest
-STEADYTEXT_EMBEDDING_CACHE_CAPACITY=1024 python -m pytest
-STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB=200.0 python -m pytest
+STEADYTEXT_GENERATION_CACHE_CAPACITY=512 uv run python -m pytest
+STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB=100.0 uv run python -m pytest
+STEADYTEXT_EMBEDDING_CACHE_CAPACITY=1024 uv run python -m pytest
+STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB=200.0 uv run python -m pytest
+
+# Alternative: run pytest as tool (if not project dependency)
+uvx pytest
+```
+
+**Legacy method:**
+```bash
+# Run all tests with plain Python
+python -m pytest
 ```
 
 All tests are designed to pass even if models cannot be downloaded. Model-dependent tests are automatically skipped unless `STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true` is set.
 
 ### Linting and Formatting
+
+**Using UV (recommended):**
 ```bash
-# Check code quality
-python -m flake8 .
+# Run tools without installing them in project environment
+uvx ruff check .
+uvx ruff format .
+uvx black .
+uvx mypy .
 
 # Install and run pre-commit hooks
-pre-commit install
-pre-commit run --all-files
+uvx pre-commit install
+uvx pre-commit run --all-files
+
+# If tools are added as dev dependencies
+uv add --dev ruff black mypy pre-commit
+uv run ruff check .
+uv run black .
+```
+
+**Legacy methods:**
+```bash
+# Check code quality with flake8
+python -m flake8 .
 
 # Using poethepoet tasks (if available)
 poe lint
 poe format
 poe check
 ```
+
+AIDEV-NOTE: UV's tool runner (uvx) allows using linting tools without polluting project dependencies
 
 ### Index Management
 ```bash
@@ -89,8 +267,8 @@ st index info my_index.faiss
 st index search my_index.faiss "query text" --top-k 5
 
 # Use index with generation (automatic with default.faiss)
-st "What is Python?" --index-file my_index.faiss
-st "explain this error" --no-index  # Disable index search
+echo "What is Python?" | st --index-file my_index.faiss
+echo "explain this error" | st --no-index  # Disable index search
 ```
 
 AIDEV-NOTE: The index functionality uses:
@@ -100,16 +278,26 @@ AIDEV-NOTE: The index functionality uses:
 - Aggressive caching of search results for determinism
 
 ### Installation
-```bash
-# Install in development mode
-python -m pip install -e .
 
-# Install with uv (if available)
+**Preferred method using UV (recommended):**
+```bash
+# Install in development mode with UV
 uv pip install -e .
 
-# Build package with uv
+# Or if project uses pyproject.toml with UV
+uv sync --all-extras --dev
+
+# Build package with UV
 uv build
 ```
+
+**Alternative method using pip:**
+```bash
+# Install in development mode with pip (legacy)
+python -m pip install -e .
+```
+
+AIDEV-NOTE: Always prefer UV for new development - it's faster and handles virtual environments automatically
 
 ## Architecture Overview
 
@@ -173,9 +361,10 @@ SteadyText includes a command-line interface built with Click:
 - Entry point for both `steadytext` and `st` commands
 - Supports stdin pipe input when no subcommand provided
 - Version flag support
+- Quiet by default with `--verbose` option for informational output
 
 **Commands (`steadytext/cli/commands/`)**
-- `generate.py`: Text generation with streaming, JSON output, and logprobs support
+- `generate.py`: Text generation with streaming by default, JSON output, and logprobs support
 - `embed.py`: Embedding creation with multiple output formats (JSON, numpy, hex)
 - `cache.py`: Cache management and status commands
 - `models.py`: Model management (list, preload, etc.)
@@ -183,7 +372,8 @@ SteadyText includes a command-line interface built with Click:
 **CLI Features:**
 - Deterministic outputs matching the Python API
 - Multiple output formats (raw text, JSON with metadata, structured data)
-- Streaming support for real-time text generation
+- Streaming by default for real-time text generation (use `--wait` to disable)
+- Quiet by default (use `--verbose` to enable informational output)
 - Stdin/pipe support for unix-style command chaining
 - Log probability access for advanced use cases
 
@@ -218,15 +408,23 @@ When working on features described in `todos/`:
 The `benchmarks/` directory contains comprehensive speed and accuracy benchmarks:
 
 ### Running Benchmarks
+
+**Using UV (recommended):**
 ```bash
 # Run all benchmarks
-python benchmarks/run_all_benchmarks.py
+uv run python benchmarks/run_all_benchmarks.py
 
 # Quick benchmarks for CI
-python benchmarks/run_all_benchmarks.py --quick
+uv run python benchmarks/run_all_benchmarks.py --quick
 
 # Test benchmarks are working
-python benchmarks/test_benchmarks.py
+uv run python benchmarks/test_benchmarks.py
+```
+
+**Legacy method:**
+```bash
+# Run with plain Python
+python benchmarks/run_all_benchmarks.py
 ```
 
 ### Key Metrics
@@ -234,3 +432,211 @@ python benchmarks/test_benchmarks.py
 - **Accuracy**: Determinism verification, quality checks, LightEval standard benchmarks
 
 AIDEV-NOTE: When modifying core generation/embedding code, always run benchmarks to check for performance regressions
+
+## UV Package Manager
+
+UV is a modern, blazing-fast Python package and project manager written in Rust. It serves as a drop-in replacement for pip, virtualenv, poetry, and other Python tooling, offering 10-100x speed improvements.
+
+AIDEV-NOTE: UV is now the preferred package manager for SteadyText development. It automatically handles virtual environments, avoids activation/deactivation issues, and provides superior dependency resolution.
+
+### Key Benefits
+
+- **Speed**: 10-100x faster than pip for package installation and dependency resolution
+- **Automatic Virtual Environments**: Creates and manages `.venv` automatically when needed
+- **No Activation Required**: Commands work without manual virtual environment activation
+- **Superior Dependency Resolution**: Modern resolver prevents version conflicts
+- **Unified Tooling**: Replaces multiple tools (pip, virtualenv, poetry, pyenv) with one
+- **Drop-in Compatibility**: Works with existing requirements.txt and pyproject.toml files
+
+### Installation
+
+Install UV system-wide using the official installer:
+
+```bash
+# Linux/macOS
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows PowerShell (run as administrator)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Alternative: using pip (not recommended)
+pip install uv
+```
+
+### Basic Usage
+
+**Project Initialization:**
+```bash
+# Initialize new project with pyproject.toml
+uv init steadytext-project
+cd steadytext-project
+
+# Initialize in existing directory
+uv init .
+```
+
+**Virtual Environment Management:**
+```bash
+# Create virtual environment (done automatically with uv add)
+uv venv
+
+# Create with specific Python version
+uv venv --python 3.11
+
+# UV automatically finds and uses .venv when present - no activation needed!
+```
+
+**Package Management:**
+```bash
+# Add dependencies (creates .venv automatically if needed)
+uv add requests numpy pandas
+
+# Add development dependencies
+uv add --dev pytest black ruff
+
+# Add optional dependencies
+uv add --optional test pytest coverage
+
+# Remove dependencies
+uv remove requests
+
+# Install from requirements.txt
+uv pip install -r requirements.txt
+
+# Install project in development mode
+uv pip install -e .
+
+# Sync dependencies from lock file
+uv sync
+```
+
+**Running Code:**
+```bash
+# Run Python scripts (automatically uses project's .venv)
+uv run python script.py
+uv run pytest
+uv run python -m pytest
+
+# Run tools without installing in project
+uv tool run black .
+uv tool run ruff check .
+
+# Short alias for tool run
+uvx black .
+uvx ruff check .
+```
+
+### Python Version Management
+
+```bash
+# Install Python versions
+uv python install 3.10 3.11 3.12
+
+# List available Python versions
+uv python list
+
+# Use specific Python version for project
+uv python pin 3.11
+
+# Create venv with specific Python version
+uv venv --python 3.11
+```
+
+### Advanced Features
+
+**Lock Files and Reproducibility:**
+```bash
+# Generate lock file (done automatically with uv add)
+uv lock
+
+# Export to requirements.txt format
+uv export -o requirements.txt
+
+# Install from lock file
+uv sync
+```
+
+**Development Workflow:**
+```bash
+# Install project with all development dependencies
+uv sync --all-extras --dev
+
+# Update dependencies
+uv lock --upgrade
+
+# Check for dependency conflicts
+uv tree
+```
+
+### Migration from pip/virtualenv
+
+Replace common commands:
+```bash
+# Old way                          # New way
+python -m venv .venv              # uv venv (automatic)
+source .venv/bin/activate         # (not needed)
+pip install requests              # uv add requests
+pip install -r requirements.txt  # uv pip install -r requirements.txt
+pip freeze > requirements.txt    # uv export -o requirements.txt
+deactivate                        # (not needed)
+```
+
+### Common Patterns for SteadyText Development
+
+**Setting up development environment:**
+```bash
+# Clone and setup
+git clone <repo>
+cd steadytext
+uv sync --all-extras --dev
+
+# Run tests
+uv run python -m pytest
+
+# Run linting
+uvx ruff check .
+uvx black .
+
+# Install in development mode
+uv pip install -e .
+```
+
+**Working with dependencies:**
+```bash
+# Add ML libraries commonly used
+uv add numpy torch transformers
+
+# Add development tools
+uv add --dev pytest ruff black mypy
+
+# Check installed packages
+uv pip list
+
+# Show dependency tree
+uv tree
+```
+
+### Troubleshooting
+
+**Common Issues:**
+- If UV can't find Python version, install it: `uv python install 3.11`
+- For permission errors on Linux/Mac: `sudo chown -R $USER ~/.local/share/uv`
+- To force recreation of virtual environment: `rm -rf .venv && uv sync`
+
+**Cache Management:**
+```bash
+# Show cache info
+uv cache info
+
+# Clean cache
+uv cache clean
+```
+
+AIDEV-TODO: Consider adding UV-specific CI/CD configurations for faster builds
+AIDEV-NOTE: UV's automatic virtual environment management eliminates common "forgot to activate venv" issues
+
+## Development Workflow
+
+### Additional Process Guidance
+
+- At the end of code changes, please make sure to run `poe format` and `poe lint` (in that order) to make sure the code follows the style guide.

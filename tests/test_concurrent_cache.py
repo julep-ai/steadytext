@@ -84,26 +84,29 @@ class TestConcurrentCache:
 
         write_count = 0
         read_count = 0
-        errors = []
+        errors: list = []
+        lock = threading.Lock()
 
         def writer():
-            nonlocal write_count
+            nonlocal write_count, errors
             try:
                 for i in range(100, 150):  # Write 50 new entries
                     cache.set(f"writer_key_{i}", f"writer_value_{i}")
-                    write_count += 1
+                    with lock:
+                        write_count += 1  # type: ignore
                     time.sleep(0.001)  # Small delay to interleave operations
             except Exception as e:
                 errors.append(f"Writer error: {e}")
 
         def reader():
-            nonlocal read_count
+            nonlocal read_count, errors
             try:
                 for _ in range(100):  # Read existing entries
                     key = f"initial_key_{_ % 50}"
                     result = cache.get(key)
                     if result is not None:
-                        read_count += 1
+                        with lock:
+                            read_count += 1  # type: ignore
                     time.sleep(0.001)  # Small delay to interleave operations
             except Exception as e:
                 errors.append(f"Reader error: {e}")
@@ -264,15 +267,17 @@ class TestConcurrentCache:
         # Value size of approximately 1KB each
         large_value = "x" * 1000
         total_writes = 0
-        errors = []
+        errors: list = []
+        lock = threading.Lock()
 
         def writer(writer_id):
-            nonlocal total_writes
+            nonlocal total_writes, errors
             try:
                 for i in range(50):  # Each writer adds 50KB
                     key = f"writer_{writer_id}_key_{i}"
                     cache.set(key, large_value + f"_w{writer_id}_i{i}")
-                    total_writes += 1
+                    with lock:
+                        total_writes += 1  # type: ignore
                     time.sleep(0.001)  # Small delay
             except Exception as e:
                 errors.append(f"Writer {writer_id} error: {e}")
@@ -313,10 +318,11 @@ class TestConcurrentCache:
         )
 
         operation_count = 0
-        errors = []
+        errors: list = []
+        lock = threading.Lock()
 
         def high_contention_worker(worker_id):
-            nonlocal operation_count
+            nonlocal operation_count, errors
             try:
                 # Rapid operations on overlapping keys to create contention
                 for i in range(20):
@@ -330,7 +336,8 @@ class TestConcurrentCache:
                     cache.get(shared_key)
                     cache.get(unique_key)
 
-                    operation_count += 4  # 2 sets + 2 gets
+                    with lock:
+                        operation_count += 4  # type: ignore  # 2 sets + 2 gets
 
             except Exception as e:
                 errors.append(f"Worker {worker_id} error: {e}")
@@ -434,10 +441,11 @@ class TestConcurrentCache:
             cache.set(f"initial_{i}", f"initial_value_{i}")
 
         operations_completed = 0
-        errors = []
+        errors: list = []
+        lock = threading.Lock()
 
         def mixed_operations_worker(worker_id):
-            nonlocal operations_completed
+            nonlocal operations_completed, errors
             try:
                 for i in range(100):
                     # Mix of operations
@@ -458,7 +466,8 @@ class TestConcurrentCache:
                         key = f"worker_{worker_id}_new_{i - (i % 4)}"
                         cache.get(key)
 
-                    operations_completed += 1
+                    with lock:
+                        operations_completed += 1  # type: ignore
 
             except Exception as e:
                 errors.append(f"Worker {worker_id} error: {e}")

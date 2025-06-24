@@ -11,6 +11,7 @@ except ImportError as import_err:  # pragma: no cover - import failure path
     logging.getLogger(__name__).error("llama_cpp not available: %s", import_err)
 from pathlib import Path
 import threading
+import logging
 from typing import Optional, Dict
 from ..utils import (
     logger,
@@ -18,6 +19,7 @@ from ..utils import (
     LLAMA_CPP_EMBEDDING_PARAMS_DETERMINISTIC,
     EMBEDDING_DIMENSION,
     set_deterministic_environment,
+    suppress_llama_output,
 )
 from .cache import get_generation_model_path, get_embedding_model_path
 
@@ -110,17 +112,21 @@ class _ModelInstanceCache:
                         del old_model
                     inst._generator_models_cache[cache_key] = None
 
-                logger.info(
-                    f"Loading generator model from: {model_path} (logits_all={enable_logits})"
-                )
+                # Only log if logger level allows INFO messages
+                if logger.isEnabledFor(logging.INFO):
+                    logger.info(
+                        f"Loading generator model from: {model_path} (logits_all={enable_logits})"
+                    )
                 try:
                     params = {**LLAMA_CPP_MAIN_PARAMS_DETERMINISTIC}
                     params["embedding"] = False
                     if enable_logits:
                         params["logits_all"] = True
 
-                    new_model = Llama(model_path=str(model_path), **params)
-                    new_model._logits_enabled = enable_logits  # Store logits config
+                    # Suppress llama.cpp output in quiet mode
+                    with suppress_llama_output():
+                        new_model = Llama(model_path=str(model_path), **params)
+                    new_model._logits_enabled = enable_logits  # type: ignore[attr-defined]
 
                     # Store in cache
                     inst._generator_models_cache[cache_key] = new_model
@@ -132,7 +138,11 @@ class _ModelInstanceCache:
                         inst._generator_path = model_path
                         inst._generator_logits_enabled = enable_logits
 
-                    logger.info(f"Generator model loaded successfully for {cache_key}.")
+                    # Only log if logger level allows INFO messages
+                    if logger.isEnabledFor(logging.INFO):
+                        logger.info(
+                            f"Generator model loaded successfully for {cache_key}."
+                        )
                     return new_model
                 except Exception as e:
                     logger.error(
@@ -172,11 +182,17 @@ class _ModelInstanceCache:
                     del inst._embedder_model
                     inst._embedder_model = None
 
-                logger.info(f"Loading embedder model from: {model_path}")
+                # Only log if logger level allows INFO messages
+                if logger.isEnabledFor(logging.INFO):
+                    logger.info(f"Loading embedder model from: {model_path}")
                 try:
                     params = {**LLAMA_CPP_EMBEDDING_PARAMS_DETERMINISTIC}
                     logger.debug(f"Embedding Llama params: {params}")  # ADDED LOGGING
-                    inst._embedder_model = Llama(model_path=str(model_path), **params)
+                    # Suppress llama.cpp output in quiet mode
+                    with suppress_llama_output():
+                        inst._embedder_model = Llama(
+                            model_path=str(model_path), **params
+                        )
 
                     model_n_embd = (
                         inst._embedder_model.n_embd()
@@ -197,7 +213,9 @@ class _ModelInstanceCache:
                         inst._embedder_path = None  # Also clear path
                     else:
                         inst._embedder_path = model_path
-                        logger.info("Embedder model loaded successfully.")
+                        # Only log if logger level allows INFO messages
+                        if logger.isEnabledFor(logging.INFO):
+                            logger.info("Embedder model loaded successfully.")
                 except Exception as e:
                     logger.error(f"Failed to load embedder model: {e}", exc_info=True)
                     inst._embedder_model = None
@@ -236,7 +254,7 @@ def clear_model_cache():
     pattern caches real model instances across test runs. Without clearing,
     patches may not take effect when cached models exist.
     """
-    inst = _ModelInstanceCache._ModelInstanceCache__getInstance()
+    inst = _ModelInstanceCache._ModelInstanceCache__getInstance()  # type: ignore[attr-defined]
     with inst._lock:
         # Clear generator model and state
         if inst._generator_model is not None:

@@ -138,17 +138,37 @@ def mock_steadytext_functions():
         def __len__(self):
             return len(self.data)
 
+    # Mock cache manager
+    class MockCacheManager:
+        def __init__(self):
+            self.generation_cache = MockCache()
+            self.embedding_cache = MockCache()
+
+        def get_generation_cache(self):
+            return self.generation_cache
+
+        def get_embedding_cache(self):
+            return self.embedding_cache
+
+    mock_cache_manager = MockCacheManager()
+
+    sys.modules["steadytext.cache_manager"] = type(
+        "Module",
+        (),
+        {
+            "get_generation_cache": mock_cache_manager.get_generation_cache,
+            "get_embedding_cache": mock_cache_manager.get_embedding_cache,
+        },
+    )
+
     sys.modules["steadytext.core.generator"] = type(
         "Module",
         (),
         {
-            "_generation_cache": MockCache(),
             "_deterministic_fallback_generate": lambda x: f"Fallback: {x}",
         },
     )
-    sys.modules["steadytext.core.embedder"] = type(
-        "Module", (), {"_embedding_cache": MockCache()}
-    )
+    sys.modules["steadytext.core.embedder"] = type("Module", (), {})
 
     return MockSteadyText
 

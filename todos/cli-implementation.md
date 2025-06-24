@@ -7,17 +7,17 @@ Create a command-line interface for SteadyText that provides instant, determinis
 
 ### 1. Basic Text Generation
 ```bash
-st "prompt"                  # Generate text from prompt
+echo "prompt" | st           # Generate text from prompt
 st -                        # Read prompt from stdin
 echo "prompt" | st          # Pipeline support
 ```
 
 ### 2. Output Modes
 ```bash
-st "prompt" --raw           # No formatting, just generated text (default)
-st "prompt" --json          # JSON output with metadata
-st "prompt" --stream        # Stream tokens as they generate
-st "prompt" --logprobs      # Include log probabilities in output
+echo "prompt" | st           # Raw output (default, streaming)
+echo "prompt" | st --wait    # Wait for full output before displaying
+echo "prompt" | st generate --json     # JSON output with metadata
+echo "prompt" | st generate --logprobs # Include log probabilities
 ```
 
 ### 3. Embedding Generation
@@ -103,8 +103,8 @@ st shell-integration --shell bash >> ~/.bashrc
 st shell-integration --shell zsh >> ~/.zshrc
 
 # This would enable:
-gitdo() { $(st "git command to $*"); }
-howto() { st "how to $*"; }
+gitdo() { $(echo "git command to $*" | st --wait); }
+howto() { echo "how to $*" | st; }
 ```
 
 ### 3. Configuration File
@@ -176,16 +176,16 @@ st batch embed <documents.txt> --output <embeddings.npy>
 
 ```bash
 # Command generation
-st "ls command to find .banana files recursively"
+echo "ls command to find .banana files recursively" | st
 
 # Error explanation
-systemctl status nginx | st "explain this error"
+systemctl status nginx | st  # Will use stdin as context
 
 # Config generation
-st "nginx config for reverse proxy port 3000" > nginx.conf
+echo "nginx config for reverse proxy port 3000" | st > nginx.conf
 
 # Batch processing
-find . -name "*.py" | xargs -I {} st "summarize {}" > summaries.txt
+find . -name "*.py" | xargs -I {} sh -c 'echo "summarize {}" | st' > summaries.txt
 
 # Interactive shell helper
 alias '??'='st'

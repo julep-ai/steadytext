@@ -5,9 +5,10 @@ AIDEV-NOTE: Fixed "Never Fails" - embed() now catches TypeErrors & returns zero 
 """
 
 # Version of the steadytext package - should match pyproject.toml
-__version__ = "1.1.0"
+__version__ = "1.3.3"
 
 # Import core functions and classes for public API
+import os
 import numpy as np
 from typing import Optional, Any, Union, Tuple, Dict, Iterator
 from .core.generator import generate as _generate, generate_iter as _generate_iter
@@ -20,6 +21,8 @@ from .utils import (
     get_cache_dir,
 )
 from .models.loader import get_generator_model_instance, get_embedding_model_instance
+from .daemon.client import DaemonClient, use_daemon, get_daemon_client
+from .cache_manager import get_cache_manager
 
 
 def generate(
@@ -30,6 +33,7 @@ def generate(
     model_repo: Optional[str] = None,
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
+    thinking_mode: bool = False,
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
     """Generate text deterministically from a prompt.
 
@@ -42,6 +46,7 @@ def generate(
         model_repo: Custom Hugging Face repository ID
         model_filename: Custom model filename
         size: Size identifier ("small", "medium", "large") - maps to Qwen3 0.6B/1.7B/4B models
+        thinking_mode: Enable Qwen3 thinking mode (default: False appends /no_think)
 
     Returns:
         Generated text string, or tuple (text, logprobs) if return_logprobs=True
@@ -63,6 +68,25 @@ def generate(
             model_filename="qwen2.5-7b-instruct-q8_0.gguf"
         )
     """
+    # AIDEV-NOTE: Use daemon by default unless explicitly disabled
+    if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
+        client = get_daemon_client()
+        if client is not None:
+            try:
+                return client.generate(
+                    prompt=prompt,
+                    return_logprobs=return_logprobs,
+                    eos_string=eos_string,
+                    model=model,
+                    model_repo=model_repo,
+                    model_filename=model_filename,
+                    size=size,
+                    thinking_mode=thinking_mode,
+                )
+            except ConnectionError:
+                # Fall back to direct generation
+                logger.debug("Daemon not available, falling back to direct generation")
+
     return _generate(
         prompt,
         return_logprobs=return_logprobs,
@@ -71,6 +95,7 @@ def generate(
         model_repo=model_repo,
         model_filename=model_filename,
         size=size,
+        thinking_mode=thinking_mode,
     )
 
 
@@ -82,6 +107,7 @@ def generate_iter(
     model_repo: Optional[str] = None,
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
+    thinking_mode: bool = False,
 ) -> Iterator[Union[str, Dict[str, Any]]]:
     """Generate text iteratively, yielding tokens as they are produced.
 
@@ -98,12 +124,35 @@ def generate_iter(
         model_repo: Custom Hugging Face repository ID
         model_filename: Custom model filename
         size: Size identifier ("small", "medium", "large") - maps to Qwen3 0.6B/1.7B/4B models
+        thinking_mode: Enable Qwen3 thinking mode (default: False appends /no_think)
 
     Yields:
         str: Generated tokens/words as they are produced (if include_logprobs=False)
         dict: Token info with 'token' and 'logprobs' keys (if include_logprobs=True)
     """
-    return _generate_iter(
+    # AIDEV-NOTE: Use daemon by default for streaming unless explicitly disabled
+    if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
+        client = get_daemon_client()
+        if client is not None:
+            try:
+                yield from client.generate_iter(
+                    prompt=prompt,
+                    eos_string=eos_string,
+                    include_logprobs=include_logprobs,
+                    model=model,
+                    model_repo=model_repo,
+                    model_filename=model_filename,
+                    size=size,
+                    thinking_mode=thinking_mode,
+                )
+                return
+            except ConnectionError:
+                # Fall back to direct generation
+                logger.debug(
+                    "Daemon not available, falling back to direct streaming generation"
+                )
+
+    yield from _generate_iter(
         prompt,
         eos_string=eos_string,
         include_logprobs=include_logprobs,
@@ -111,11 +160,22 @@ def generate_iter(
         model_repo=model_repo,
         model_filename=model_filename,
         size=size,
+        thinking_mode=thinking_mode,
     )
 
 
 def embed(text_input) -> np.ndarray:
     """Create embeddings for text input."""
+    # AIDEV-NOTE: Use daemon by default for embeddings unless explicitly disabled
+    if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
+        client = get_daemon_client()
+        if client is not None:
+            try:
+                return client.embed(text_input)
+            except ConnectionError:
+                # Fall back to direct embedding
+                logger.debug("Daemon not available, falling back to direct embedding")
+
     try:
         return create_embedding(text_input)
     except TypeError as e:
@@ -149,6 +209,9 @@ __all__ = [
     "embed",
     "preload_models",
     "get_model_cache_dir",
+    "use_daemon",
+    "DaemonClient",
+    "get_cache_manager",
     "DEFAULT_SEED",
     "GENERATION_MAX_NEW_TOKENS",
     "EMBEDDING_DIMENSION",

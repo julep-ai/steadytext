@@ -98,7 +98,11 @@ def _word_based_chunking(
     tokens = []
     for match in token_pattern.finditer(text):
         tokens.append(
-            {"text": match.group(), "start": match.start(), "end": match.end()}
+            {
+                "text": match.group(),
+                "start": int(match.start()),
+                "end": int(match.end()),
+            }
         )
 
     if not tokens:
@@ -119,8 +123,8 @@ def _word_based_chunking(
         # Extract chunk text and positions
         chunk_tokens = tokens[chunk_start_idx:chunk_end_idx]
         if chunk_tokens:
-            chunk_text_start = chunk_tokens[0]["start"]
-            chunk_text_end = chunk_tokens[-1]["end"]
+            chunk_text_start: int = chunk_tokens[0]["start"]
+            chunk_text_end: int = chunk_tokens[-1]["end"]
             chunk_text = text[chunk_text_start:chunk_text_end]
 
             chunks.append(
@@ -228,7 +232,8 @@ def create(
     # AIDEV-NOTE: Using IndexFlatL2 for exact search (deterministic)
     dimension = embeddings_array.shape[1]
     index = faiss.IndexFlatL2(dimension)
-    index.add(embeddings_array)
+    # AIDEV-NOTE: Add embeddings to index - FAISS expects float32 arrays
+    index.add(embeddings_array)  # type: ignore[call-arg]
 
     # Save index
     faiss.write_index(index, str(index_path))
@@ -431,7 +436,7 @@ def search_index_for_context(
 
         # Extract chunks
         chunks = []
-        results = []
+        results: List[Dict[str, Any]] = []
         for dist, idx in zip(distances[0], indices[0]):
             if idx < 0 or idx >= len(metadata["chunks"]):
                 continue

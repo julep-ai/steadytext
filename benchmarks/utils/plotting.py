@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 
 
-def plot_speed_results(results_file: str, output_dir: Optional[str] = None):
+def plot_speed_results(results_file: str, output_dir: Optional[str] = None) -> None:
     """Create plots from speed benchmark results."""
     with open(results_file, "r") as f:
         data = json.load(f)
@@ -16,11 +16,11 @@ def plot_speed_results(results_file: str, output_dir: Optional[str] = None):
     results = data["results"]
 
     if output_dir is None:
-        output_dir = Path(results_file).parent
+        output_path = Path(results_file).parent
     else:
-        output_dir = Path(output_dir)
+        output_path = Path(output_dir)
 
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path.mkdir(parents=True, exist_ok=True)
 
     # 1. Operation timing comparison
     fig, ax = plt.subplots(figsize=(12, 6))
@@ -53,7 +53,7 @@ def plot_speed_results(results_file: str, output_dir: Optional[str] = None):
     ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(output_dir / "operation_timing.png", dpi=300)
+    plt.savefig(output_path / "operation_timing.png", dpi=300)
     plt.close()
 
     # 2. Throughput comparison
@@ -75,7 +75,7 @@ def plot_speed_results(results_file: str, output_dir: Optional[str] = None):
     ax.grid(True, alpha=0.3, axis="x")
 
     plt.tight_layout()
-    plt.savefig(output_dir / "throughput_comparison.png", dpi=300)
+    plt.savefig(output_path / "throughput_comparison.png", dpi=300)
     plt.close()
 
     # 3. Memory usage
@@ -97,7 +97,7 @@ def plot_speed_results(results_file: str, output_dir: Optional[str] = None):
         ax.grid(True, alpha=0.3, axis="y")
 
         plt.tight_layout()
-        plt.savefig(output_dir / "memory_usage.png", dpi=300)
+        plt.savefig(output_path / "memory_usage.png", dpi=300)
         plt.close()
 
     # 4. Cache performance
@@ -135,7 +135,7 @@ def plot_speed_results(results_file: str, output_dir: Optional[str] = None):
         ax2.grid(True, alpha=0.3, axis="y")
 
     plt.tight_layout()
-    plt.savefig(output_dir / "cache_performance.png", dpi=300)
+    plt.savefig(output_path / "cache_performance.png", dpi=300)
     plt.close()
 
     # 5. Concurrent scaling
@@ -171,41 +171,41 @@ def plot_speed_results(results_file: str, output_dir: Optional[str] = None):
             ax.legend()
 
     plt.tight_layout()
-    plt.savefig(output_dir / "concurrent_scaling.png", dpi=300)
+    plt.savefig(output_path / "concurrent_scaling.png", dpi=300)
     plt.close()
 
-    print(f"Plots saved to: {output_dir}")
+    print(f"Plots saved to: {output_path}")
 
 
-def plot_accuracy_results(results_file: str, output_dir: Optional[str] = None):
+def plot_accuracy_results(results_file: str, output_dir: Optional[str] = None) -> None:
     """Create plots from accuracy benchmark results."""
     with open(results_file, "r") as f:
         data = json.load(f)
 
     if output_dir is None:
-        output_dir = Path(results_file).parent
+        output_dir_path = Path(results_file).parent
     else:
-        output_dir = Path(output_dir)
+        output_dir_path = Path(output_dir)
 
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir_path.mkdir(parents=True, exist_ok=True)
 
     # Check what type of results we have
     if "tests" in data:
         # Simple accuracy tests
-        plot_simple_accuracy_results(data["tests"], output_dir)
+        plot_simple_accuracy_results(data["tests"], output_dir_path)
 
     if "standard_benchmarks" in data:
         # LightEval standard benchmarks
-        plot_lighteval_results(data["standard_benchmarks"], output_dir, "standard")
+        plot_lighteval_results(data["standard_benchmarks"], output_dir_path, "standard")
 
     if "custom_benchmarks" in data:
         # Custom benchmarks
-        plot_lighteval_results(data["custom_benchmarks"], output_dir, "custom")
+        plot_lighteval_results(data["custom_benchmarks"], output_dir_path, "custom")
 
-    print(f"Plots saved to: {output_dir}")
+    print(f"Plots saved to: {output_dir_path}")
 
 
-def plot_simple_accuracy_results(tests: Dict[str, Any], output_dir: Path):
+def plot_simple_accuracy_results(tests: Dict[str, Any], output_dir: Path) -> None:
     """Plot results from simple accuracy tests."""
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 
@@ -254,7 +254,9 @@ def plot_simple_accuracy_results(tests: Dict[str, Any], output_dir: Path):
     plt.close()
 
 
-def plot_lighteval_results(results: Dict[str, Any], output_dir: Path, prefix: str):
+def plot_lighteval_results(
+    results: Dict[str, Any], output_dir: Path, prefix: str
+) -> None:
     """Plot LightEval benchmark results."""
     if "results" not in results:
         return
@@ -313,7 +315,7 @@ def plot_lighteval_results(results: Dict[str, Any], output_dir: Path, prefix: st
         plt.close()
 
 
-def create_comparison_plot(results_files: List[str], output_file: str):
+def create_comparison_plot(results_files: List[str], output_file: str) -> None:
     """Create comparison plots across multiple benchmark runs."""
     all_data = []
 
@@ -359,9 +361,11 @@ def create_comparison_plot(results_files: List[str], output_file: str):
         for i, run in enumerate(df["run"].unique()):
             run_data = df[df["run"] == run]
             means = [
-                run_data[run_data["operation"] == op]["mean_time_ms"].values[0]
-                if len(run_data[run_data["operation"] == op]) > 0
-                else 0
+                (
+                    run_data[run_data["operation"] == op]["mean_time_ms"].values[0]
+                    if len(run_data[run_data["operation"] == op]) > 0
+                    else 0
+                )
                 for op in operations
             ]
 
