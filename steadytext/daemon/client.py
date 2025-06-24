@@ -245,8 +245,8 @@ class DaemonClient:
                 if not include_logprobs:
                     yield token_data
                 else:
-                    # For logprobs, yield the full response dict
-                    yield response.result
+                    # For logprobs, yield the token data dict (contains token + logprobs)
+                    yield token_data
 
                 # Send acknowledgment for next token
                 self.socket.send(b"ACK")

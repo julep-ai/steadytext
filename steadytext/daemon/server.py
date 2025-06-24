@@ -202,12 +202,23 @@ class DaemonServer:
                 logger.debug(
                     f"Daemon streaming: Cache hit for prompt: {prompt_str[:50]}..."
                 )
-                # Simulate streaming by yielding words from cached result
+                # Simulate streaming by yielding cached text in chunks
+                # AIDEV-NOTE: Use same chunking logic as live streaming to ensure consistency
                 words = cached.split()
+                char_index = 0
                 for i, word in enumerate(words):
-                    # Add space after each word except the last one
-                    token = word + (" " if i < len(words) - 1 else "")
-                    yield token  # Just yield the token string - main loop will wrap it
+                    # Find the word in the original text to preserve exact spacing
+                    word_start = cached.find(word, char_index)
+                    if word_start > char_index:
+                        # Yield any whitespace before the word
+                        yield cached[char_index:word_start]
+                    # Yield the word
+                    yield word
+                    char_index = word_start + len(word)
+
+                # Yield any remaining content (trailing whitespace)
+                if char_index < len(cached):
+                    yield cached[char_index:]
                 return
 
         # No cache hit or logprobs requested - use actual streaming
@@ -244,6 +255,18 @@ class DaemonServer:
         ):
             # Join collected tokens to form complete text
             complete_text = "".join(collected_tokens)
+
+            # AIDEV-NOTE: Apply same think tag cleaning as non-streaming generate()
+            # to ensure consistency between streaming and non-streaming results
+            import re
+
+            complete_text = re.sub(
+                r"<think>\s*</think>\s*",
+                "",
+                complete_text,
+                flags=re.MULTILINE | re.DOTALL,
+            )
+
             prompt_str = prompt if isinstance(prompt, str) else str(prompt)
             cache_key = (
                 prompt_str

@@ -332,8 +332,20 @@ class DeterministicGenerator:
             )
             # Yield words from fallback
             fallback_text = _deterministic_fallback_generate(str(prompt))
-            for word in fallback_text.split():
-                yield word + " "
+            words = fallback_text.split()
+            for i, word in enumerate(words):
+                if include_logprobs:
+                    # AIDEV-NOTE: Fallback returns None logprobs for compatibility
+                    yield {"token": word + (" " if i < len(words) - 1 else ""), "logprobs": None}
+                else:
+                    yield word + (" " if i < len(words) - 1 else "")
+            
+            # Cache fallback result for non-logprobs requests with default model
+            if not include_logprobs and model is None and model_repo is None and model_filename is None and size is None:
+                from ..cache_manager import get_generation_cache
+                prompt_str = str(prompt)
+                cache_key = prompt_str if eos_string == "[EOS]" else f"{prompt_str}::EOS::{eos_string}"
+                get_generation_cache().set(cache_key, fallback_text)
             return
 
         # AIDEV-NOTE: Check cache first for non-logprobs requests using default model
@@ -358,11 +370,23 @@ class DeterministicGenerator:
                 logger.debug(
                     f"DeterministicGenerator.generate_iter: Cache hit for prompt: {prompt_str[:50]}..."
                 )
-                # Simulate streaming by yielding words from cached result
+                # Simulate streaming by yielding cached text in chunks
+                # AIDEV-NOTE: Use same chunking logic as live streaming to ensure consistency
                 words = cached.split()
+                char_index = 0
                 for i, word in enumerate(words):
-                    # Add space after each word except the last one
-                    yield word + (" " if i < len(words) - 1 else "")
+                    # Find the word in the original text to preserve exact spacing
+                    word_start = cached.find(word, char_index)
+                    if word_start > char_index:
+                        # Yield any whitespace before the word
+                        yield cached[char_index:word_start]
+                    # Yield the word
+                    yield word
+                    char_index = word_start + len(word)
+
+                # Yield any remaining content (trailing whitespace)
+                if char_index < len(cached):
+                    yield cached[char_index:]
                 return
 
         # Resolve model parameters
@@ -378,8 +402,20 @@ class DeterministicGenerator:
                 logger.error(f"Invalid model specification: {e}")
                 # Yield words from fallback
                 fallback_text = _deterministic_fallback_generate(prompt)
-                for word in fallback_text.split():
-                    yield word + " "
+                words = fallback_text.split()
+                for i, word in enumerate(words):
+                    if include_logprobs:
+                        # AIDEV-NOTE: Fallback returns None logprobs for compatibility
+                        yield {"token": word + (" " if i < len(words) - 1 else ""), "logprobs": None}
+                    else:
+                        yield word + (" " if i < len(words) - 1 else "")
+                
+                # Cache fallback result for non-logprobs requests with default model
+                if not include_logprobs and model is None and model_repo is None and model_filename is None and size is None:
+                    from ..cache_manager import get_generation_cache
+                    prompt_str = prompt if isinstance(prompt, str) else str(prompt)
+                    cache_key = prompt_str if eos_string == "[EOS]" else f"{prompt_str}::EOS::{eos_string}"
+                    get_generation_cache().set(cache_key, fallback_text)
                 return
 
         # Check if we need to load a different model
@@ -410,8 +446,20 @@ class DeterministicGenerator:
                     "Using fallback generator."
                 )
             fallback_text = _deterministic_fallback_generate(prompt)
-            for word in fallback_text.split():
-                yield word + " "
+            words = fallback_text.split()
+            for i, word in enumerate(words):
+                if include_logprobs:
+                    # AIDEV-NOTE: Fallback returns None logprobs for compatibility
+                    yield {"token": word + (" " if i < len(words) - 1 else ""), "logprobs": None}
+                else:
+                    yield word + (" " if i < len(words) - 1 else "")
+            
+            # Cache fallback result for non-logprobs requests with default model
+            if not include_logprobs and model is None and model_repo is None and model_filename is None and size is None:
+                from ..cache_manager import get_generation_cache
+                prompt_str = prompt if isinstance(prompt, str) else str(prompt)
+                cache_key = prompt_str if eos_string == "[EOS]" else f"{prompt_str}::EOS::{eos_string}"
+                get_generation_cache().set(cache_key, fallback_text)
             return
 
         if not prompt or not prompt.strip():
@@ -420,8 +468,20 @@ class DeterministicGenerator:
                 "prompt received. Using fallback generator."
             )
             fallback_text = _deterministic_fallback_generate(prompt)
-            for word in fallback_text.split():
-                yield word + " "
+            words = fallback_text.split()
+            for i, word in enumerate(words):
+                if include_logprobs:
+                    # AIDEV-NOTE: Fallback returns None logprobs for compatibility
+                    yield {"token": word + (" " if i < len(words) - 1 else ""), "logprobs": None}
+                else:
+                    yield word + (" " if i < len(words) - 1 else "")
+            
+            # Cache fallback result for non-logprobs requests with default model
+            if not include_logprobs and model is None and model_repo is None and model_filename is None and size is None:
+                from ..cache_manager import get_generation_cache
+                prompt_str = prompt if isinstance(prompt, str) else str(prompt)
+                cache_key = prompt_str if eos_string == "[EOS]" else f"{prompt_str}::EOS::{eos_string}"
+                get_generation_cache().set(cache_key, fallback_text)
             return
 
         try:
@@ -455,7 +515,7 @@ class DeterministicGenerator:
                 messages=[{"role": "user", "content": final_prompt}], **sampling_params
             )
 
-            # AIDEV-NOTE: Collect tokens for caching when eligible
+            # AIDEV-NOTE: Collect tokens for processing and caching
             collected_tokens = []
             should_cache = (
                 not include_logprobs
@@ -465,13 +525,74 @@ class DeterministicGenerator:
                 and size is None
             )
 
-            for chunk in stream:
-                if chunk and "choices" in chunk and len(chunk["choices"]) > 0:
-                    choice = chunk["choices"][0]
-                    delta = choice.get("delta", {})
+            # AIDEV-NOTE: For non-logprobs requests, collect all tokens first to enable cleaning
+            # This ensures consistency with non-streaming generate() function
+            if not include_logprobs:
+                for chunk in stream:
+                    if chunk and "choices" in chunk and len(chunk["choices"]) > 0:
+                        choice = chunk["choices"][0]
+                        delta = choice.get("delta", {})
 
-                    # AIDEV-NOTE: Streaming responses use 'delta' for incremental content
-                    if include_logprobs:
+                        # Normal string token collection
+                        token = None
+                        if "content" in delta and delta["content"]:
+                            token = delta["content"]
+                        elif "text" in choice and choice["text"]:
+                            token = choice["text"]
+
+                        if token is not None:
+                            collected_tokens.append(token)
+
+                # Apply same think tag cleaning as non-streaming generate()
+                complete_text = "".join(collected_tokens)
+                cleaned_text = re.sub(
+                    r"<think>\s*</think>\s*",
+                    "",
+                    complete_text,
+                    flags=re.MULTILINE | re.DOTALL,
+                )
+
+                # Re-yield cleaned text in chunks to preserve exact content
+                if cleaned_text:
+                    # Yield in word-sized chunks to simulate token streaming
+                    words = cleaned_text.split()
+                    char_index = 0
+                    for i, word in enumerate(words):
+                        # Find the word in the original text to preserve exact spacing
+                        word_start = cleaned_text.find(word, char_index)
+                        if word_start > char_index:
+                            # Yield any whitespace before the word
+                            yield cleaned_text[char_index:word_start]
+                        # Yield the word
+                        yield word
+                        char_index = word_start + len(word)
+
+                    # Yield any remaining content (trailing whitespace)
+                    if char_index < len(cleaned_text):
+                        yield cleaned_text[char_index:]
+
+                # Cache the cleaned text if eligible
+                if should_cache and cleaned_text:
+                    from ..cache_manager import get_generation_cache
+
+                    prompt_str = prompt if isinstance(prompt, str) else str(prompt)
+                    cache_key = (
+                        prompt_str
+                        if eos_string == "[EOS]"
+                        else f"{prompt_str}::EOS::{eos_string}"
+                    )
+                    get_generation_cache().set(cache_key, cleaned_text)
+                    logger.debug(
+                        f"DeterministicGenerator.generate_iter: Cached result for prompt: {prompt_str[:50]}..."
+                    )
+
+            else:
+                # For logprobs requests, yield tokens immediately without cleaning
+                for chunk in stream:
+                    if chunk and "choices" in chunk and len(chunk["choices"]) > 0:
+                        choice = chunk["choices"][0]
+                        delta = choice.get("delta", {})
+
                         # Yield dict with token and logprob info when requested
                         token_info = {}
                         if "content" in delta and delta["content"]:
@@ -484,36 +605,7 @@ class DeterministicGenerator:
 
                         if "token" in token_info:
                             yield token_info
-                    else:
-                        # Normal string yielding
-                        token = None
-                        if "content" in delta and delta["content"]:
-                            token = delta["content"]
-                            yield token
-                        elif "text" in choice and choice["text"]:
-                            token = choice["text"]
-                            yield token
 
-                        # Collect token for caching
-                        if should_cache and token is not None:
-                            collected_tokens.append(token)
-
-            # AIDEV-NOTE: After streaming completes, populate cache for eligible requests
-            # This ensures streaming generation benefits from caching like non-streaming mode
-            if should_cache and collected_tokens:
-                from ..cache_manager import get_generation_cache
-
-                complete_text = "".join(collected_tokens)
-                prompt_str = prompt if isinstance(prompt, str) else str(prompt)
-                cache_key = (
-                    prompt_str
-                    if eos_string == "[EOS]"
-                    else f"{prompt_str}::EOS::{eos_string}"
-                )
-                get_generation_cache().set(cache_key, complete_text)
-                logger.debug(
-                    f"DeterministicGenerator.generate_iter: Cached result for prompt: {prompt_str[:50]}..."
-                )
 
         except Exception as e:
             logger.error(

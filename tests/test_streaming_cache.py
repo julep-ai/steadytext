@@ -63,41 +63,64 @@ class TestStreamingCachePopulation:
         cache_key = test_prompt
         assert get_generation_cache().get(cache_key) is None
 
-        with daemon_server_context(preload_models=False) as (server, port):
-            # Enable daemon mode
-            if "STEADYTEXT_DISABLE_DAEMON" in os.environ:
-                del os.environ["STEADYTEXT_DISABLE_DAEMON"]
-            os.environ["STEADYTEXT_DAEMON_HOST"] = "localhost"
-            os.environ["STEADYTEXT_DAEMON_PORT"] = str(port)
+        # Save original env values
+        orig_disable_daemon = os.environ.get("STEADYTEXT_DISABLE_DAEMON")
+        orig_daemon_host = os.environ.get("STEADYTEXT_DAEMON_HOST")
+        orig_daemon_port = os.environ.get("STEADYTEXT_DAEMON_PORT")
 
-            client = DaemonClient(host="localhost", port=port, timeout_ms=60000)
-            assert client.connect()
+        try:
+            with daemon_server_context(preload_models=False) as (server, port):
+                # Enable daemon mode
+                if "STEADYTEXT_DISABLE_DAEMON" in os.environ:
+                    del os.environ["STEADYTEXT_DISABLE_DAEMON"]
+                os.environ["STEADYTEXT_DAEMON_HOST"] = "localhost"
+                os.environ["STEADYTEXT_DAEMON_PORT"] = str(port)
 
-            try:
-                # Stream via daemon (should populate cache)
-                tokens = []
-                for token in client.generate_iter(test_prompt):
-                    tokens.append(token)
+                client = DaemonClient(host="localhost", port=port, timeout_ms=60000)
+                assert client.connect()
 
-                streamed_result = "".join(tokens)
-                assert len(streamed_result) > 0
+                try:
+                    # Stream via daemon (should populate cache)
+                    tokens = []
+                    for token in client.generate_iter(test_prompt):
+                        tokens.append(token)
 
-                # Verify cache was populated
-                cached_result = get_generation_cache().get(cache_key)
-                assert cached_result is not None
-                assert cached_result == streamed_result
+                    streamed_result = "".join(tokens)
+                    assert len(streamed_result) > 0
 
-                # Stream again (should use cache)
-                tokens2 = []
-                for token in client.generate_iter(test_prompt):
-                    tokens2.append(token)
+                    # Verify cache was populated
+                    cached_result = get_generation_cache().get(cache_key)
+                    assert cached_result is not None
+                    assert cached_result == streamed_result
 
-                streamed_result2 = "".join(tokens2)
-                # Should be identical
-                assert streamed_result2 == streamed_result
+                    # Stream again (should use cache)
+                    tokens2 = []
+                    for token in client.generate_iter(test_prompt):
+                        tokens2.append(token)
 
-            finally:
-                client.disconnect()
+                    streamed_result2 = "".join(tokens2)
+                    # Should be identical
+                    assert streamed_result2 == streamed_result
+
+                finally:
+                    client.disconnect()
+        finally:
+            # Restore original environment variables
+            if orig_disable_daemon is not None:
+                os.environ["STEADYTEXT_DISABLE_DAEMON"] = orig_disable_daemon
+            elif "STEADYTEXT_DISABLE_DAEMON" not in os.environ:
+                # Ensure it's set back to "1" for subsequent tests
+                os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
+            
+            if orig_daemon_host is not None:
+                os.environ["STEADYTEXT_DAEMON_HOST"] = orig_daemon_host
+            elif "STEADYTEXT_DAEMON_HOST" in os.environ:
+                del os.environ["STEADYTEXT_DAEMON_HOST"]
+                
+            if orig_daemon_port is not None:
+                os.environ["STEADYTEXT_DAEMON_PORT"] = orig_daemon_port
+            elif "STEADYTEXT_DAEMON_PORT" in os.environ:
+                del os.environ["STEADYTEXT_DAEMON_PORT"]
 
     def test_streaming_cache_with_custom_eos(self):
         """Test that streaming with custom EOS string uses separate cache entries."""
