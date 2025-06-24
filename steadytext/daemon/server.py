@@ -7,7 +7,7 @@ requests via ZeroMQ REP socket. Implements graceful shutdown and error handling.
 
 import sys
 import signal
-from typing import Dict, Any, Iterator
+from typing import Dict, Any, Iterator, Optional
 
 try:
     import zmq
@@ -20,7 +20,7 @@ except ImportError:
         )
         sys.exit(1)
     else:
-        zmq = None
+        zmq = None  # type: ignore[assignment,unreachable]
 
 from ..core.generator import DeterministicGenerator
 from ..core.embedder import create_embedding
@@ -53,7 +53,7 @@ class DaemonServer:
         self.socket = None
 
         # AIDEV-NOTE: Model instances are created once and reused for all requests
-        self.generator = None
+        self.generator: Optional[DeterministicGenerator] = None
 
         # Set deterministic environment
         set_deterministic_environment(DEFAULT_SEED)
@@ -75,7 +75,7 @@ class DaemonServer:
 
     def _handle_generate(self, params: Dict[str, Any]) -> Any:
         """Handle text generation request.
-        
+
         AIDEV-NOTE: Now uses centralized cache for consistent caching behavior
         between daemon and direct access modes.
         """
@@ -89,10 +89,17 @@ class DaemonServer:
         model_repo = params.get("model_repo")
         model_filename = params.get("model_filename")
         size = params.get("size")
+        thinking_mode = params.get("thinking_mode", False)
 
         # AIDEV-NOTE: Check cache first for non-logprobs requests using default model
         # This mirrors the caching logic in core/generator.py
-        if not return_logprobs and model is None and model_repo is None and model_filename is None and size is None:
+        if (
+            not return_logprobs
+            and model is None
+            and model_repo is None
+            and model_filename is None
+            and size is None
+        ):
             prompt_str = prompt if isinstance(prompt, str) else str(prompt)
             # Include eos_string in cache key if it's not the default
             cache_key = (
@@ -113,11 +120,18 @@ class DaemonServer:
             model_repo=model_repo,
             model_filename=model_filename,
             size=size,
+            thinking_mode=thinking_mode,
         )
 
         # AIDEV-NOTE: Cache the result for non-logprobs requests using default model
         # This ensures cache consistency between daemon and direct access
-        if not return_logprobs and model is None and model_repo is None and model_filename is None and size is None:
+        if (
+            not return_logprobs
+            and model is None
+            and model_repo is None
+            and model_filename is None
+            and size is None
+        ):
             prompt_str = prompt if isinstance(prompt, str) else str(prompt)
             cache_key = (
                 prompt_str
@@ -139,7 +153,7 @@ class DaemonServer:
 
         AIDEV-NOTE: Streaming is handled by yielding multiple responses with the same ID.
         The client will accumulate these until it receives STREAM_END_MARKER.
-        
+
         AIDEV-NOTE: For streaming, we check cache first. If cached, we simulate streaming
         by yielding words from the cached result. This ensures cache consistency while
         maintaining the streaming API.
@@ -154,10 +168,17 @@ class DaemonServer:
         model_repo = params.get("model_repo")
         model_filename = params.get("model_filename")
         size = params.get("size")
+        thinking_mode = params.get("thinking_mode", False)
 
         # AIDEV-NOTE: Check cache for non-logprobs streaming requests using default model
         # If cached, simulate streaming by yielding words from cached result
-        if not include_logprobs and model is None and model_repo is None and model_filename is None and size is None:
+        if (
+            not include_logprobs
+            and model is None
+            and model_repo is None
+            and model_filename is None
+            and size is None
+        ):
             prompt_str = prompt if isinstance(prompt, str) else str(prompt)
             cache_key = (
                 prompt_str
@@ -166,13 +187,15 @@ class DaemonServer:
             )
             cached = get_generation_cache().get(cache_key)
             if cached is not None:
-                logger.debug(f"Daemon streaming: Cache hit for prompt: {prompt_str[:50]}...")
+                logger.debug(
+                    f"Daemon streaming: Cache hit for prompt: {prompt_str[:50]}..."
+                )
                 # Simulate streaming by yielding words from cached result
                 words = cached.split()
                 for i, word in enumerate(words):
                     # Add space after each word except the last one
                     token = word + (" " if i < len(words) - 1 else "")
-                    yield token
+                    yield token  # Just yield the token string - main loop will wrap it
                 return
 
         # No cache hit or logprobs requested - use actual streaming
@@ -184,7 +207,10 @@ class DaemonServer:
             model_repo=model_repo,
             model_filename=model_filename,
             size=size,
+            thinking_mode=thinking_mode,
         ):
+            # For consistency, always yield just the token - main loop will wrap it
+            # Token is already a dict if include_logprobs=True, otherwise it's a string
             yield token
 
     def _handle_embed(self, params: Dict[str, Any]) -> Any:
@@ -195,31 +221,37 @@ class DaemonServer:
         # AIDEV-NOTE: Convert numpy array to list for JSON serialization
         return embedding.tolist()
 
-    def _handle_request(self, request: Request) -> Response:
+    def _handle_request(self, request: Request) -> Optional[Response]:
         """Process a single request and return response."""
         try:
             if request.method == "ping":
-                return Response(id=request.id, result="pong")
+                assert request.id is not None  # Set in Request.__post_init__
+                return Response(id=request.id, result="pong")  # type: ignore[call-arg]
             elif request.method == "shutdown":
                 self.running = False
-                return Response(id=request.id, result="shutdown initiated")
+                assert request.id is not None  # Set in Request.__post_init__
+                return Response(id=request.id, result="shutdown initiated")  # type: ignore[call-arg]
             elif request.method == "generate":
                 result = self._handle_generate(request.params)
-                return Response(id=request.id, result=result)
+                assert request.id is not None  # Set in Request.__post_init__
+                return Response(id=request.id, result=result)  # type: ignore[call-arg]
             elif request.method == "generate_iter":
                 # AIDEV-NOTE: For streaming, we'll send multiple responses
                 # This is handled differently in the main loop
                 return None  # Signal to handle streaming
             elif request.method == "embed":
                 result = self._handle_embed(request.params)
-                return Response(id=request.id, result=result)
+                assert request.id is not None  # Set in Request.__post_init__
+                return Response(id=request.id, result=result)  # type: ignore[call-arg]
             else:
-                return ErrorResponse(
+                assert request.id is not None  # Set in Request.__post_init__
+                return ErrorResponse(  # type: ignore[call-arg]
                     id=request.id, error=f"Unknown method: {request.method}"
                 )
         except Exception as e:
             logger.error(f"Error handling request {request.id}: {e}", exc_info=True)
-            return ErrorResponse(id=request.id, error=str(e))
+            assert request.id is not None  # Set in Request.__post_init__
+            return ErrorResponse(id=request.id, error=str(e))  # type: ignore[call-arg]
 
     def run(self):
         """Run the daemon server."""
@@ -230,15 +262,19 @@ class DaemonServer:
         try:
             self.socket.bind(bind_address)
             logger.info(f"SteadyText daemon listening on {bind_address}")
-        except zmq.error.ZMQError as e:
+        except zmq.error.ZMQError as e:  # type: ignore[attr-defined]
             logger.error(f"Failed to bind to {bind_address}: {e}")
             return
 
         self.running = True
 
-        # AIDEV-NOTE: Set up signal handlers for graceful shutdown
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
+        # AIDEV-NOTE: Set up signal handlers for graceful shutdown (only works in main thread)
+        try:
+            signal.signal(signal.SIGINT, self._signal_handler)
+            signal.signal(signal.SIGTERM, self._signal_handler)
+        except ValueError:
+            # Signal handlers only work in main thread - ignore this error for test threads
+            logger.debug("Could not set signal handlers - running in thread")
 
         while self.running:
             try:
@@ -257,7 +293,8 @@ class DaemonServer:
                             for token in self._handle_generate_iter(request.params):
                                 # Send each token as a separate response
                                 response = Response(
-                                    id=request.id, result={"token": token}
+                                    request.id,  # type: ignore[arg-type]
+                                    {"token": token},
                                 )
                                 self.socket.send(response.to_json().encode())
 
@@ -269,11 +306,12 @@ class DaemonServer:
 
                             # Send end-of-stream marker
                             response = Response(
-                                id=request.id, result={"token": STREAM_END_MARKER}
+                                request.id,  # type: ignore[arg-type]
+                                {"token": STREAM_END_MARKER},
                             )
                             self.socket.send(response.to_json().encode())
                         except Exception as e:
-                            error_response = ErrorResponse(id=request.id, error=str(e))
+                            error_response = ErrorResponse(id=request.id, error=str(e))  # type: ignore[call-arg]  # type: ignore[call-arg]
                             self.socket.send(error_response.to_json().encode())
                     else:
                         # Normal request-response handling
@@ -281,7 +319,7 @@ class DaemonServer:
                         if response:
                             self.socket.send(response.to_json().encode())
 
-            except zmq.error.Again:
+            except zmq.error.Again:  # type: ignore[attr-defined]
                 # Timeout, continue to check self.running
                 continue
             except Exception as e:
@@ -289,7 +327,7 @@ class DaemonServer:
                 # Try to send error response if possible
                 try:
                     if "request" in locals():
-                        error_response = ErrorResponse(id=request.id, error=str(e))
+                        error_response = ErrorResponse(id=request.id, error=str(e))  # type: ignore[call-arg]
                         self.socket.send(error_response.to_json().encode())
                 except Exception:
                     pass

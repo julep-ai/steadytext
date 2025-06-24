@@ -2581,6 +2581,70 @@ wheels = [
 ]
 
 [[package]]
+name = "pytest-fast-first"
+version = "1.0.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/89/cb/aedf82ed29efbe8ee3dfa0d4555f95fd14ff8a9b895ad8b9e20259fad9f6/pytest-fast-first-1.0.5.tar.gz", hash = "sha256:4940d8196290b22804c92b3d6316781895ba6e361011df112f976376ae2e6631", size = 3376, upload-time = "2023-01-19T13:25:35.133Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f5/e2/c43299974fe6195ac197370bf9bb1dbc880fe1151d7834c4152f6af1ceb5/pytest_fast_first-1.0.5-py3-none-any.whl", hash = "sha256:5dfceb0407e66e9b3c5a5211cf283c23c7bb369c94d6468dcd79e3e1a12a9502", size = 4369, upload-time = "2023-01-19T13:25:31.73Z" },
+]
+
+[[package]]
+name = "pytest-mock"
+version = "3.14.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/71/28/67172c96ba684058a4d24ffe144d64783d2a270d0af0d9e792737bddc75c/pytest_mock-3.14.1.tar.gz", hash = "sha256:159e9edac4c451ce77a5cdb9fc5d1100708d2dd4ba3c3df572f14097351af80e", size = 33241, upload-time = "2025-05-26T13:58:45.167Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b2/05/77b60e520511c53d1c1ca75f1930c7dd8e971d0c4379b7f4b3f9644685ba/pytest_mock-3.14.1-py3-none-any.whl", hash = "sha256:178aefcd11307d874b4cd3100344e7e2d888d9791a6a1d9bfe90fbc1b74fd1d0", size = 9923, upload-time = "2025-05-26T13:58:43.487Z" },
+]
+
+[[package]]
+name = "pytest-sugar"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "packaging" },
+    { name = "pytest" },
+    { name = "termcolor" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f5/ac/5754f5edd6d508bc6493bc37d74b928f102a5fff82d9a80347e180998f08/pytest-sugar-1.0.0.tar.gz", hash = "sha256:6422e83258f5b0c04ce7c632176c7732cab5fdb909cb39cca5c9139f81276c0a", size = 14992, upload-time = "2024-02-01T18:30:36.735Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/92/fb/889f1b69da2f13691de09a111c16c4766a433382d44aa0ecf221deded44a/pytest_sugar-1.0.0-py3-none-any.whl", hash = "sha256:70ebcd8fc5795dc457ff8b69d266a4e2e8a74ae0c3edc749381c64b5246c8dfd", size = 10171, upload-time = "2024-02-01T18:30:29.395Z" },
+]
+
+[[package]]
+name = "pytest-testmon"
+version = "2.1.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "coverage" },
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/54/24/b17712bc8b9d9814a30346e5bd76a6c4539f5187455f4e0d99d95f033da6/pytest_testmon-2.1.3.tar.gz", hash = "sha256:dad41aa7d501d74571750da1abd3f6673b63fd9dbf3023bd1623814999018c97", size = 22608, upload-time = "2024-12-22T12:43:28.822Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/73/08/278800711d937e76ce59105fea1bb739ae5ff5c13583fd064fe3b4e64fa1/pytest_testmon-2.1.3-py3-none-any.whl", hash = "sha256:53ba06d8a90ce24c3a191b196aac72ca4b788beff5eb1c1bffee04dc50ec7105", size = 24994, upload-time = "2024-12-22T12:43:10.173Z" },
+]
+
+[[package]]
+name = "pytest-watcher"
+version = "0.4.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tomli", marker = "python_full_version < '3.11'" },
+    { name = "watchdog" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/72/72/a2a1e81f1b272ddd9a1848af4959c87c39aa95c0bbfb3007cacb86c47fa9/pytest_watcher-0.4.3.tar.gz", hash = "sha256:0cb0e4661648c8c0ff2b2d25efa5a8e421784b9e4c60fcecbf9b7c30b2d731b3", size = 10386, upload-time = "2024-08-28T17:37:46.662Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5b/3a/c44a76c6bb5e9e896d9707fb1c704a31a0136950dec9514373ced0684d56/pytest_watcher-0.4.3-py3-none-any.whl", hash = "sha256:d59b1e1396f33a65ea4949b713d6884637755d641646960056a90b267c3460f9", size = 11852, upload-time = "2024-08-28T17:37:45.731Z" },
+]
+
+[[package]]
 name = "pytest-xdist"
 version = "3.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3165,7 +3229,7 @@ wheels = [
 
 [[package]]
 name = "steadytext"
-version = "1.2.0"
+version = "1.3.3"
 source = { editable = "." }
 dependencies = [
     { name = "chonkie" },
@@ -3209,6 +3273,11 @@ dev = [
     { name = "psutil" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "pytest-fast-first" },
+    { name = "pytest-mock" },
+    { name = "pytest-sugar" },
+    { name = "pytest-testmon" },
+    { name = "pytest-watcher" },
     { name = "pytest-xdist" },
     { name = "ruff" },
     { name = "tabulate" },
@@ -3252,6 +3321,11 @@ dev = [
     { name = "psutil", specifier = ">=7.0.0" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "pytest-fast-first", specifier = ">=1.0.5" },
+    { name = "pytest-mock", specifier = ">=3.14.1" },
+    { name = "pytest-sugar", specifier = ">=1.0.0" },
+    { name = "pytest-testmon", specifier = ">=2.1.3" },
+    { name = "pytest-watcher", specifier = ">=0.4.3" },
     { name = "pytest-xdist" },
     { name = "ruff", specifier = ">=0.11.13" },
     { name = "tabulate", specifier = ">=0.9.0" },

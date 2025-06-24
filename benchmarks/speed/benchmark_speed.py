@@ -100,10 +100,11 @@ class SpeedBenchmark:
             self._warmup(steadytext.generate, prompts[0])
 
         # Clear cache to measure cold performance
-        from steadytext.core.generator import _generation_cache
+        from steadytext.cache_manager import get_generation_cache
 
-        initial_size = len(_generation_cache)
-        _generation_cache.clear()
+        generation_cache = get_generation_cache()
+        initial_size = len(generation_cache)
+        generation_cache.clear()
 
         for i in range(iterations):
             prompt = prompts[i % len(prompts)]
@@ -117,7 +118,7 @@ class SpeedBenchmark:
                 result.times.append(elapsed)
 
                 # Check if this was a cache hit
-                cache_size_after = len(_generation_cache)
+                cache_size_after = len(generation_cache)
                 if cache_size_after == initial_size:
                     result.cache_hits += 1
                 else:
@@ -191,9 +192,10 @@ class SpeedBenchmark:
                 self._warmup(steadytext.embed, texts[:batch_size])
 
             # Clear embedding cache
-            from steadytext.core.embedder import _embedding_cache
+            from steadytext.cache_manager import get_embedding_cache
 
-            _embedding_cache.clear()
+            embedding_cache = get_embedding_cache()
+            embedding_cache.clear()
 
             for i in range(iterations):
                 batch_start = (i * batch_size) % len(texts)
@@ -234,8 +236,10 @@ class SpeedBenchmark:
         results = {}
 
         for workers in max_workers:
+            # Get operation name safely
+            operation_name = getattr(operation, "__name__", str(operation))
             result = BenchmarkResult(
-                operation=f"concurrent_{operation.__name__}_workers_{workers}",
+                operation=f"concurrent_{operation_name}_workers_{workers}",
                 iterations=workers * iterations_per_worker,
             )
 
@@ -302,9 +306,10 @@ class SpeedBenchmark:
         import steadytext
 
         # Clear cache first
-        from steadytext.core.generator import _generation_cache
+        from steadytext.cache_manager import get_generation_cache
 
-        _generation_cache.clear()
+        generation_cache = get_generation_cache()
+        generation_cache.clear()
 
         # First pass - all cache misses
         miss_result = BenchmarkResult(operation="cache_miss", iterations=len(prompts))

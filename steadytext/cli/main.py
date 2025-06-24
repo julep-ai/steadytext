@@ -29,6 +29,8 @@ def cli(ctx, version, quiet, verbose):
         logging.getLogger("steadytext").setLevel(logging.ERROR)
         # Also set llama_cpp logger to ERROR if it exists
         logging.getLogger("llama_cpp").setLevel(logging.ERROR)
+        # Set root logger to ERROR to catch any other loggers
+        logging.getLogger().setLevel(logging.ERROR)
 
     if version:
         from .. import __version__

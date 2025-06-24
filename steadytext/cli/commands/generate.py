@@ -64,6 +64,11 @@ from .index import search_index_for_context, get_default_index_path
     default=None,
     help="Model size (small=0.6B, medium=1.7B, large=4B)",
 )
+@click.option(
+    "--think",
+    is_flag=True,
+    help="Enable Qwen3 thinking mode (shows reasoning process)",
+)
 @click.pass_context
 def generate(
     ctx,
@@ -81,6 +86,7 @@ def generate(
     model_repo: str,
     model_filename: str,
     size: str,
+    think: bool,
 ):
     """Generate text from a prompt (streams by default).
 
@@ -141,6 +147,10 @@ def generate(
     if stream:
         # Streaming mode
         generated_text = ""
+        buffer = ""  # Buffer to detect empty think tags
+        in_think_tag = False
+        think_content = ""
+
         for token in core_generate_iter(
             final_prompt,
             eos_string=eos_string,
@@ -149,12 +159,65 @@ def generate(
             model_repo=model_repo,
             model_filename=model_filename,
             size=size,
+            thinking_mode=think,
         ):
             if logprobs and isinstance(token, dict):
                 click.echo(json.dumps(token), nl=True)
             else:
-                click.echo(token, nl=False)
-                generated_text += token
+                # Ensure token is a string
+                if isinstance(token, dict):
+                    # Extract the token text from dict if needed
+                    token = token.get("token", "")
+                buffer += str(token)
+
+                # Check for think tag patterns
+                while True:
+                    if not in_think_tag and "<think>" in buffer:
+                        # Found opening tag
+                        idx = buffer.index("<think>")
+                        # Output everything before the tag
+                        if idx > 0:
+                            click.echo(buffer[:idx], nl=False)
+                            generated_text += buffer[:idx]
+                        buffer = buffer[idx + 7 :]  # Skip past <think>
+                        in_think_tag = True
+                        think_content = ""
+                    elif in_think_tag and "</think>" in buffer:
+                        # Found closing tag
+                        idx = buffer.index("</think>")
+                        think_content += buffer[:idx]
+                        buffer = buffer[idx + 8 :]  # Skip past </think>
+                        in_think_tag = False
+
+                        # Only output think tags if they have content
+                        if think_content.strip():
+                            full_tag = f"<think>{think_content}</think>"
+                            click.echo(full_tag, nl=False)
+                            generated_text += full_tag
+                    else:
+                        # No more complete tags to process
+                        break
+
+                # If not in a think tag, output buffer content
+                if not in_think_tag and buffer and "<think>" not in buffer:
+                    click.echo(buffer, nl=False)
+                    generated_text += buffer
+                    buffer = ""
+                elif in_think_tag:
+                    # Accumulate think content
+                    think_content += buffer
+                    buffer = ""
+
+        # Handle any remaining buffer
+        if buffer and not in_think_tag:
+            click.echo(buffer, nl=False)
+            generated_text += buffer
+        elif in_think_tag and think_content.strip():
+            # Unclosed think tag with content
+            full_tag = f"<think>{think_content}"
+            click.echo(full_tag, nl=False)
+            generated_text += full_tag
+
         click.echo()  # Final newline
 
         if output_format == "json" and not logprobs:
@@ -171,7 +234,7 @@ def generate(
     else:
         # Non-streaming mode
         if logprobs:
-            text, logprobs_data = core_generate(
+            result = core_generate(
                 final_prompt,
                 return_logprobs=True,
                 eos_string=eos_string,
@@ -179,7 +242,10 @@ def generate(
                 model_repo=model_repo,
                 model_filename=model_filename,
                 size=size,
+                thinking_mode=think,
             )
+            # Unpack the tuple result
+            text, logprobs_data = result
             if output_format == "json":
                 metadata = {
                     "prompt": prompt,
@@ -206,6 +272,7 @@ def generate(
                 model_repo=model_repo,
                 model_filename=model_filename,
                 size=size,
+                thinking_mode=think,
             )
 
             if output_format == "json":

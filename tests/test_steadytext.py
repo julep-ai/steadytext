@@ -77,8 +77,13 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
             steadytext.preload_models(verbose=True)
 
             # Determine accessibility based on whether models actually loaded
-            gen_ok = steadytext.models.loader.get_generator_model_instance() is not None
-            emb_ok = steadytext.models.loader.get_embedding_model_instance() is not None
+            try:
+                gen_ok = steadytext.get_generator_model_instance() is not None
+                emb_ok = steadytext.get_embedding_model_instance() is not None
+            except AttributeError:
+                # Handle case where model access functions are not available
+                gen_ok = False
+                emb_ok = False
             MODELS_ARE_ACCESSIBLE_FOR_TESTING = gen_ok and emb_ok
             steadytext_logger.info(
                 "preload_models() completed. Generator loaded: %s, Embedder loaded: %s",
@@ -510,11 +515,11 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
         # AIDEV-NOTE: Clear any cached models and generation cache before testing to ensure clean state
         # AIDEV-NOTE: Critical fix - the singleton _ModelInstanceCache persists real models
         # across test runs, so mock patches don't work unless we clear the cache first.
-        # Also need to clear _generation_cache to prevent cached results from interfering.
+        # Also need to clear generation cache to prevent cached results from interfering.
         clear_model_cache()
-        from steadytext.core.generator import _generation_cache
+        from steadytext.cache_manager import get_generation_cache
 
-        _generation_cache.clear()
+        get_generation_cache().clear()
 
         # Test that generator uses fallback when model is None
         # Patch where get_generator_model_instance is looked up by
@@ -530,9 +535,7 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
             output = generator.generate(prompt)
             # This expected text is likely still the model-generated one,
             # will need to update after patch works.
-            expected_fallback_text = _deterministic_fallback_generate(
-                prompt
-            )  # noqa E501
+            expected_fallback_text = _deterministic_fallback_generate(prompt)  # noqa E501
             self.assertEqual(
                 output,
                 expected_fallback_text,
@@ -562,10 +565,14 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
 
     def test_stop_sequences_integration(self):
         """Test that stop sequences are properly integrated into generation."""
+        import os
         from steadytext.core.generator import DeterministicGenerator
         from steadytext.utils import DEFAULT_STOP_SEQUENCES
         from steadytext.models.loader import clear_model_cache
         from unittest.mock import Mock, patch
+
+        # Ensure daemon is disabled for this test
+        os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 
         # Create a mock model that captures the parameters passed to it
         mock_model = Mock()
@@ -577,11 +584,11 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
         # AIDEV-NOTE: Clear any cached models and generation cache before testing to ensure clean state
         # AIDEV-NOTE: Critical fix - the singleton _ModelInstanceCache persists real models
         # across test runs, so mock patches don't work unless we clear the cache first.
-        # Also need to clear _generation_cache to prevent cached results from interfering.
+        # Also need to clear generation cache to prevent cached results from interfering.
         clear_model_cache()
-        from steadytext.core.generator import _generation_cache
+        from steadytext.cache_manager import get_generation_cache
 
-        _generation_cache.clear()
+        get_generation_cache().clear()
 
         # Patch where get_generator_model_instance is looked up
         # by DeterministicGenerator
@@ -589,7 +596,12 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
             "steadytext.core.generator.get_generator_model_instance",
             return_value=mock_model,
         ):
+            # Also need to skip model load during init
+            os.environ["STEADYTEXT_SKIP_MODEL_LOAD"] = "1"
             generator = DeterministicGenerator()
+            # Now manually load the model which will use our mock
+            del os.environ["STEADYTEXT_SKIP_MODEL_LOAD"]
+            generator._load_model(enable_logits=False)
             self.assertIs(
                 generator.model,
                 mock_model,
@@ -613,9 +625,11 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
                 call_kwargs,
                 "Messages parameter should be passed to create_chat_completion",
             )
+            # AIDEV-NOTE: With thinking_mode=False (default), /no_think is appended to prompts
+            expected_content = test_prompt_for_stop_sequence + " /no_think"
             self.assertEqual(
                 call_kwargs["messages"],
-                [{"role": "user", "content": test_prompt_for_stop_sequence}],
+                [{"role": "user", "content": expected_content}],
             )
             self.assertIn(
                 "stop",
@@ -661,7 +675,9 @@ class TestSteadyTextUtilities(unittest.TestCase):
         """Test that key constants and __version__ are accessible from the
         package."""
         self.assertEqual(steadytext.DEFAULT_SEED, 42)
-        self.assertEqual(steadytext.GENERATION_MAX_NEW_TOKENS, 512)  # Updated to 512
+        self.assertEqual(
+            steadytext.GENERATION_MAX_NEW_TOKENS, 1024
+        )  # Updated to 1024 for Qwen3 thinking mode
         self.assertEqual(steadytext.EMBEDDING_DIMENSION, 1024)
         self.assertIsInstance(steadytext.__version__, str)
         self.assertTrue(

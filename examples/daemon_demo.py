@@ -42,8 +42,11 @@ def demo_with_daemon():
     """Time operations with daemon."""
     print("\nTesting WITH daemon...")
 
-    # Enable daemon usage
-    os.environ["STEADYTEXT_USE_DAEMON"] = "1"
+    # Enable daemon usage (daemon is enabled by default in v1.3+)
+    # Remove DISABLE flag if it exists
+    daemon_was_disabled = os.environ.get("STEADYTEXT_DISABLE_DAEMON") == "1"
+    if daemon_was_disabled:
+        del os.environ["STEADYTEXT_DISABLE_DAEMON"]
 
     try:
         # First call via daemon
@@ -66,7 +69,9 @@ def demo_with_daemon():
 
         return time1 + time2 + time3
     finally:
-        del os.environ["STEADYTEXT_USE_DAEMON"]
+        # Restore original state if daemon was disabled
+        if daemon_was_disabled:
+            os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 
 
 def main():

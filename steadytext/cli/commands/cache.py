@@ -2,9 +2,11 @@ import click
 import os
 import json
 from pathlib import Path
+from typing import Dict, Any
 
 from ...cache_manager import get_cache_manager
 from ...utils import get_cache_dir
+from ...disk_backed_frecency_cache import DiskBackedFrecencyCache
 
 
 @click.group()
@@ -17,29 +19,33 @@ def cache():
 def stats():
     """Show cache statistics."""
     cache_dir = get_cache_dir() / "caches"
-    
+
     # AIDEV-NOTE: Use centralized cache manager for consistent stats
     # AIDEV-NOTE: Fixed in v1.3.1 - Now uses SQLite backend instead of pickle files
     cache_manager = get_cache_manager()
-    
+
     # Force cache initialization to get proper stats
     cache_manager.get_generation_cache()
     cache_manager.get_embedding_cache()
-    
+
     stats_data = cache_manager.get_cache_stats()
-    
+
     # Add cache directory info
     stats_data["cache_directory"] = str(cache_dir)
-    
+
     # Check for actual database files
     gen_db_path = cache_dir / "generation_cache.db"
     embed_db_path = cache_dir / "embedding_cache.db"
-    
+
     if gen_db_path.exists():
-        stats_data.setdefault("generation", {})["file_size_mb"] = gen_db_path.stat().st_size / (1024 * 1024)
-    
+        stats_data.setdefault("generation", {})["file_size_mb"] = (
+            gen_db_path.stat().st_size / (1024 * 1024)
+        )
+
     if embed_db_path.exists():
-        stats_data.setdefault("embedding", {})["file_size_mb"] = embed_db_path.stat().st_size / (1024 * 1024)
+        stats_data.setdefault("embedding", {})["file_size_mb"] = (
+            embed_db_path.stat().st_size / (1024 * 1024)
+        )
 
     click.echo(json.dumps(stats_data, indent=2))
 
@@ -103,7 +109,7 @@ def export(output_file: str):
         )
 
         # Collect all cache entries
-        gen_entries = {}
+        gen_entries: Dict[str, Any] = {}
         # Note: We need a way to iterate cache entries. For now, we'll document this limitation
         click.echo(
             "Note: Cache export currently exports an empty structure. Full export coming soon."
@@ -123,7 +129,7 @@ def export(output_file: str):
             cache_dir=cache_dir,
         )
         # Collect all cache entries
-        embed_entries = {}
+        embed_entries: Dict[str, Any] = {}
         export_data["caches"]["embedding"] = embed_entries
     except Exception as e:
         click.echo(f"Warning: Could not export embedding cache: {e}", err=True)

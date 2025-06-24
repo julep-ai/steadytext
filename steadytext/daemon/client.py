@@ -8,13 +8,14 @@ falling back to direct model loading if the daemon is unavailable.
 import os
 import contextlib
 import threading
+import time
 from typing import Any, Dict, Optional, Union, Tuple, Iterator
 import numpy as np
 
 try:
     import zmq
 except ImportError:
-    zmq = None
+    zmq = None  # type: ignore[assignment]
 
 from ..utils import logger
 from .protocol import (
@@ -32,27 +33,37 @@ class DaemonClient:
 
     AIDEV-NOTE: Implements automatic fallback to direct model loading when daemon
     is unavailable. All methods match the signature of the main API functions.
+    AIDEV-NOTE: Connection failure caching added to prevent repeated connection attempts
+    in test suites and batch operations.
     """
 
     def __init__(
-        self, host: str = None, port: int = None, timeout_ms: int = REQUEST_TIMEOUT_MS
+        self,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+        timeout_ms: int = REQUEST_TIMEOUT_MS,
     ):
         if zmq is None:
             logger.warning("pyzmq not available, daemon client disabled")
             self.available = False
             return
 
-        self.host = host or os.environ.get(
-            "STEADYTEXT_DAEMON_HOST", DEFAULT_DAEMON_HOST
-        )
+        env_host = os.environ.get("STEADYTEXT_DAEMON_HOST", DEFAULT_DAEMON_HOST)
+        self.host: str = host if host is not None else env_host
         self.port = port or int(
             os.environ.get("STEADYTEXT_DAEMON_PORT", str(DEFAULT_DAEMON_PORT))
         )
         self.timeout_ms = timeout_ms
-        self.context = None
-        self.socket = None
+        self.context: Optional[Any] = None  # zmq.Context when connected
+        self.socket: Optional[Any] = None  # zmq.Socket when connected
         self.available = True
         self._connected = False
+
+        # AIDEV-NOTE: Connection failure caching to avoid repeated attempts
+        self._last_failed_time: Optional[float] = None
+        self._failure_cache_duration = float(
+            os.environ.get("STEADYTEXT_DAEMON_FAILURE_CACHE_SECONDS", "60")
+        )
 
     def connect(self) -> bool:
         """Connect to the daemon server.
@@ -65,6 +76,13 @@ class DaemonClient:
 
         if self._connected:
             return True
+
+        # AIDEV-NOTE: Check if we recently failed to connect
+        if self._last_failed_time is not None:
+            time_since_failure = time.time() - self._last_failed_time
+            if time_since_failure < self._failure_cache_duration:
+                # Still within failure cache window, don't try again
+                return False
 
         try:
             self.context = zmq.Context()
@@ -79,14 +97,17 @@ class DaemonClient:
             # Test connection with ping
             if self.ping():
                 self._connected = True
+                self._last_failed_time = None  # Clear failure cache on success
                 logger.info(f"Connected to SteadyText daemon at {connect_address}")
                 return True
             else:
+                self._last_failed_time = time.time()  # Cache failure time
                 self.disconnect()
                 return False
 
         except Exception as e:
             logger.debug(f"Failed to connect to daemon: {e}")
+            self._last_failed_time = time.time()  # Cache failure time
             self.disconnect()
             return False
 
@@ -102,6 +123,8 @@ class DaemonClient:
 
     def ping(self) -> bool:
         """Check if daemon is responsive."""
+        if not self.socket:
+            return False
         try:
             request = Request(method="ping", params={})
             self.socket.send(request.to_json().encode())
@@ -120,12 +143,14 @@ class DaemonClient:
         model_repo: Optional[str] = None,
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
+        thinking_mode: bool = False,
     ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
         """Generate text via daemon."""
         if not self.connect():
             # AIDEV-NOTE: Fallback to direct generation handled by caller
             raise ConnectionError("Daemon not available")
 
+        assert self.socket is not None  # Type guard for mypy
         try:
             params = {
                 "prompt": prompt,
@@ -135,6 +160,7 @@ class DaemonClient:
                 "model_repo": model_repo,
                 "model_filename": model_filename,
                 "size": size,
+                "thinking_mode": thinking_mode,
             }
 
             request = Request(method="generate", params=params)
@@ -145,17 +171,23 @@ class DaemonClient:
             if response.error:
                 raise RuntimeError(f"Daemon error: {response.error}")
 
-            # AIDEV-NOTE: Handle different return formats
-            if return_logprobs and isinstance(response.result, dict):
-                return (response.result["text"], response.result.get("logprobs"))
+            # AIDEV-NOTE: Return response result directly - server already formats correctly
+            # For logprobs requests, server returns {"text": "...", "logprobs": [...]},
+            # for regular requests, server returns the text string directly
             return response.result
 
-        except zmq.error.Again:
-            logger.warning("Daemon request timed out")
-            raise ConnectionError("Daemon request timed out")
         except Exception as e:
-            logger.error(f"Daemon generate error: {e}")
-            raise
+            if (
+                zmq
+                and hasattr(zmq, "error")
+                and hasattr(zmq.error, "Again")
+                and isinstance(e, zmq.error.Again)
+            ):
+                logger.warning("Daemon request timed out")
+                raise ConnectionError("Daemon request timed out")
+            else:
+                logger.error(f"Daemon generate error: {e}")
+                raise
 
     def generate_iter(
         self,
@@ -166,6 +198,7 @@ class DaemonClient:
         model_repo: Optional[str] = None,
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
+        thinking_mode: bool = False,
     ) -> Iterator[Union[str, Dict[str, Any]]]:
         """Generate text iteratively via daemon.
 
@@ -175,6 +208,7 @@ class DaemonClient:
         if not self.connect():
             raise ConnectionError("Daemon not available")
 
+        assert self.socket is not None  # Type guard for mypy
         try:
             params = {
                 "prompt": prompt,
@@ -184,6 +218,7 @@ class DaemonClient:
                 "model_repo": model_repo,
                 "model_filename": model_filename,
                 "size": size,
+                "thinking_mode": thinking_mode,
             }
 
             request = Request(method="generate_iter", params=params)
@@ -197,27 +232,44 @@ class DaemonClient:
                 if response.error:
                     raise RuntimeError(f"Daemon error: {response.error}")
 
-                token_data = response.result.get("token")
-                if token_data == STREAM_END_MARKER:
-                    break
+                # Extract token from response - response.result should be {"token": "..."}
+                if isinstance(response.result, dict) and "token" in response.result:
+                    token_data = response.result["token"]
+                else:
+                    token_data = response.result
 
-                yield token_data
+                if token_data == STREAM_END_MARKER:
+                    break  # Don't send ACK for end marker
+
+                # For normal streaming, yield just the token string
+                if not include_logprobs:
+                    yield token_data
+                else:
+                    # For logprobs, yield the full response dict
+                    yield response.result
 
                 # Send acknowledgment for next token
                 self.socket.send(b"ACK")
 
-        except zmq.error.Again:
-            logger.warning("Daemon streaming request timed out")
-            raise ConnectionError("Daemon request timed out")
         except Exception as e:
-            logger.error(f"Daemon generate_iter error: {e}")
-            raise
+            if (
+                zmq
+                and hasattr(zmq, "error")
+                and hasattr(zmq.error, "Again")
+                and isinstance(e, zmq.error.Again)
+            ):
+                logger.warning("Daemon streaming request timed out")
+                raise ConnectionError("Daemon request timed out")
+            else:
+                logger.error(f"Daemon generate_iter error: {e}")
+                raise
 
     def embed(self, text_input: Any) -> np.ndarray:
         """Generate embeddings via daemon."""
         if not self.connect():
             raise ConnectionError("Daemon not available")
 
+        assert self.socket is not None  # Type guard for mypy
         try:
             params = {"text_input": text_input}
             request = Request(method="embed", params=params)
@@ -231,18 +283,25 @@ class DaemonClient:
             # AIDEV-NOTE: Convert list back to numpy array
             return np.array(response.result, dtype=np.float32)
 
-        except zmq.error.Again:
-            logger.warning("Daemon request timed out")
-            raise ConnectionError("Daemon request timed out")
         except Exception as e:
-            logger.error(f"Daemon embed error: {e}")
-            raise
+            if (
+                zmq
+                and hasattr(zmq, "error")
+                and hasattr(zmq.error, "Again")
+                and isinstance(e, zmq.error.Again)
+            ):
+                logger.warning("Daemon request timed out")
+                raise ConnectionError("Daemon request timed out")
+            else:
+                logger.error(f"Daemon embed error: {e}")
+                raise
 
     def shutdown(self) -> bool:
         """Request daemon shutdown."""
         if not self.connect():
             return False
 
+        assert self.socket is not None  # Type guard for mypy
         try:
             request = Request(method="shutdown", params={})
             self.socket.send(request.to_json().encode())
@@ -272,7 +331,9 @@ def get_daemon_client() -> Optional[DaemonClient]:
 
 
 @contextlib.contextmanager
-def use_daemon(host: str = None, port: int = None, required: bool = False):
+def use_daemon(
+    host: Optional[str] = None, port: Optional[int] = None, required: bool = False
+):
     """Context manager for using daemon within a scope.
 
     Args:

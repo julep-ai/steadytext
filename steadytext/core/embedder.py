@@ -270,7 +270,12 @@ if __name__ == "__main__":
         ["One valid sentence", "", "Another one", "  "],  # Mixed
     ]
 
-    for i, (input_val, desc) in enumerate(test_cases):
+    for i, test_case in enumerate(test_cases):
+        if isinstance(test_case, tuple):
+            input_val, desc = test_case
+        else:
+            input_val = test_case
+            desc = "No description"
         print(f"\n--- Test Case {i + 1}: {desc} ---")
         print(f"Input: {str(input_val)[:70]}")
         embedding_output = create_embedding(input_val)

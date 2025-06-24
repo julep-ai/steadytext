@@ -10,9 +10,9 @@ from dataclasses import dataclass
 import numpy as np
 
 try:
-    from lighteval.models.abstract_model import LightevalModel
-    from lighteval.models.model_output import GenerateReturn, LoglikelihoodReturn
-    from lighteval.tasks.requests import (
+    from lighteval.models.abstract_model import LightevalModel  # type: ignore[import-not-found]
+    from lighteval.models.model_output import GenerateReturn, LoglikelihoodReturn  # type: ignore[import-not-found]
+    from lighteval.tasks.requests import (  # type: ignore[import-not-found]
         GreedyUntilRequest,
         LoglikelihoodRequest,
         LoglikelihoodRollingRequest,
@@ -22,14 +22,42 @@ try:
     LIGHTEVAL_AVAILABLE = True
 except ImportError:
     LIGHTEVAL_AVAILABLE = False
+
     # Fallback for type hints
-    LightevalModel = object
-    GreedyUntilRequest = object
-    LoglikelihoodRequest = object
-    LoglikelihoodRollingRequest = object
-    LoglikelihoodSingleTokenRequest = object
-    GenerateReturn = object
-    LoglikelihoodReturn = object
+    class LightevalModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    class GreedyUntilRequest:
+        def __init__(self, context=None, stop_sequence=None, **kwargs):
+            self.context = context
+            self.stop_sequence = stop_sequence
+
+    class LoglikelihoodRequest:
+        def __init__(self, context=None, continuation=None, **kwargs):
+            self.context = context
+            self.continuation = continuation
+
+    class LoglikelihoodRollingRequest:
+        def __init__(self, context=None, **kwargs):
+            self.context = context
+
+    class LoglikelihoodSingleTokenRequest:
+        def __init__(self, context=None, **kwargs):
+            self.context = context
+
+    class GenerateReturn:
+        def __init__(self, result=None, logits=None, generated_tokens=None, **kwargs):
+            self.result = result
+            self.logits = logits
+            self.generated_tokens = generated_tokens
+
+    class LoglikelihoodReturn:
+        def __init__(self, result=None, logits=None, generated_tokens=None, **kwargs):
+            self.result = result
+            self.logits = logits
+            self.generated_tokens = generated_tokens
+
 
 import steadytext
 
@@ -94,6 +122,10 @@ class SteadyTextLightEvalModel(LightevalModel):
             prompt = request.context
             stop_sequences = request.stop_sequence or []
 
+            # Ensure prompt is a string
+            if not isinstance(prompt, str):
+                prompt = str(prompt) if prompt is not None else ""
+
             # Generate text
             start_time = time.time()
             generated_text = steadytext.generate(prompt)
@@ -118,11 +150,16 @@ class SteadyTextLightEvalModel(LightevalModel):
                     truncated_text = truncated_text.split(stop_seq)[0]
 
             # Create result
-            result = GenerateReturn(
-                result=truncated_text,
-                logits=None,  # SteadyText doesn't expose logits in the same way
-                generated_tokens=[],  # Would need tokenizer integration
-            )
+            if LIGHTEVAL_AVAILABLE:
+                result = GenerateReturn(
+                    result=truncated_text,
+                    logits=None,  # SteadyText doesn't expose logits in the same way
+                    generated_tokens=[],  # Would need tokenizer integration
+                )
+            else:
+                result = GenerateReturn(
+                    result=truncated_text, logits=None, generated_tokens=[]
+                )
             results.append(result)
 
         return results
@@ -141,16 +178,17 @@ class SteadyTextLightEvalModel(LightevalModel):
         for request in requests:
             if isinstance(request, LoglikelihoodRollingRequest):
                 # For rolling requests, we need the full context
-                context = request.context
+                context = str(request.context) if request.context is not None else ""
+                continuation = ""
             else:
                 # For regular requests, concatenate context and continuation
-                context = request.context
-                continuation = request.continuation
+                context = str(request.context) if request.context is not None else ""
+                continuation = str(getattr(request, "continuation", ""))
                 context + continuation
 
             # Generate with logprobs to get likelihood information
             generated_text, logprobs_dict = steadytext.generate(
-                context, return_logprobs=True
+                prompt=context, return_logprobs=True
             )
 
             # Since SteadyText is deterministic and doesn't provide
@@ -167,11 +205,16 @@ class SteadyTextLightEvalModel(LightevalModel):
                 else:
                     loglikelihood = -100.0  # Low likelihood
 
-            result = LoglikelihoodReturn(
-                result=(loglikelihood, False),  # (loglikelihood, is_greedy)
-                logits=None,
-                generated_tokens=[],
-            )
+            if LIGHTEVAL_AVAILABLE:
+                result = LoglikelihoodReturn(
+                    result=(loglikelihood, False),  # (loglikelihood, is_greedy)
+                    logits=None,
+                    generated_tokens=[],
+                )
+            else:
+                result = LoglikelihoodReturn(
+                    result=(loglikelihood, False), logits=None, generated_tokens=[]
+                )
             results.append(result)
 
         return results
@@ -254,11 +297,14 @@ class SteadyTextEvaluator:
         Returns:
             Dictionary with evaluation results
         """
-        from lighteval.evaluator import evaluate
-        from lighteval.tasks.registry import Registry
+        try:
+            from lighteval.evaluator import evaluate  # type: ignore[import-not-found]
+            from lighteval.tasks.registry import Registry  # type: ignore[import-not-found]
 
-        # Initialize task registry
-        Registry()
+            # Initialize task registry
+            Registry()
+        except ImportError:
+            raise ImportError("LightEval evaluator module is not available")
 
         # Configure evaluation
         eval_config = {

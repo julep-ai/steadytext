@@ -100,17 +100,8 @@ class TestUseDaemon:
 
     def test_use_daemon_no_server(self):
         """Test use_daemon when no server is running."""
-        old_env = os.environ.get("STEADYTEXT_USE_DAEMON")
-
         with use_daemon(port=59999) as client:
             assert client is None  # No connection
-            assert "STEADYTEXT_USE_DAEMON" not in os.environ
-
-        # Environment restored
-        if old_env:
-            assert os.environ.get("STEADYTEXT_USE_DAEMON") == old_env
-        else:
-            assert "STEADYTEXT_USE_DAEMON" not in os.environ
 
     def test_use_daemon_required(self):
         """Test use_daemon with required=True."""
@@ -127,19 +118,11 @@ class TestUseDaemon:
         mock_client.port = 5555
         mock_client_class.return_value = mock_client
 
-        old_env = os.environ.get("STEADYTEXT_USE_DAEMON")
-
         with use_daemon() as client:
             assert client is mock_client
-            assert os.environ.get("STEADYTEXT_USE_DAEMON") == "1"
+            # Verify the daemon client configuration
             assert os.environ.get("STEADYTEXT_DAEMON_HOST") == "localhost"
             assert os.environ.get("STEADYTEXT_DAEMON_PORT") == "5555"
-
-        # Environment restored
-        if old_env:
-            assert os.environ.get("STEADYTEXT_USE_DAEMON") == old_env
-        else:
-            assert "STEADYTEXT_USE_DAEMON" not in os.environ
 
 
 class TestDaemonIntegration:
@@ -152,13 +135,18 @@ class TestDaemonIntegration:
         mock_client.generate.return_value = "daemon generated text"
         mock_get_client.return_value = mock_client
 
-        os.environ["STEADYTEXT_USE_DAEMON"] = "1"
+        # Enable daemon by removing the DISABLE flag set in conftest.py
+        disabled_was_set = "STEADYTEXT_DISABLE_DAEMON" in os.environ
+        if disabled_was_set:
+            del os.environ["STEADYTEXT_DISABLE_DAEMON"]
         try:
             result = generate("test prompt")
             assert result == "daemon generated text"
             mock_client.generate.assert_called_once()
         finally:
-            del os.environ["STEADYTEXT_USE_DAEMON"]
+            # Restore original state
+            if disabled_was_set:
+                os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 
     @patch("steadytext.get_daemon_client")
     def test_generate_daemon_fallback(self, mock_get_client):
@@ -167,14 +155,19 @@ class TestDaemonIntegration:
         mock_client.generate.side_effect = ConnectionError("Daemon not available")
         mock_get_client.return_value = mock_client
 
-        os.environ["STEADYTEXT_USE_DAEMON"] = "1"
+        # Enable daemon by removing the DISABLE flag set in conftest.py
+        disabled_was_set = "STEADYTEXT_DISABLE_DAEMON" in os.environ
+        if disabled_was_set:
+            del os.environ["STEADYTEXT_DISABLE_DAEMON"]
         try:
             # Should fall back to direct generation
             result = generate("test prompt")
             assert isinstance(result, str)
             assert len(result) > 0
         finally:
-            del os.environ["STEADYTEXT_USE_DAEMON"]
+            # Restore original state
+            if disabled_was_set:
+                os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 
     @patch("steadytext.get_daemon_client")
     def test_embed_with_daemon(self, mock_get_client):
@@ -184,13 +177,18 @@ class TestDaemonIntegration:
         mock_client.embed.return_value = mock_embedding
         mock_get_client.return_value = mock_client
 
-        os.environ["STEADYTEXT_USE_DAEMON"] = "1"
+        # Enable daemon by removing the DISABLE flag set in conftest.py
+        disabled_was_set = "STEADYTEXT_DISABLE_DAEMON" in os.environ
+        if disabled_was_set:
+            del os.environ["STEADYTEXT_DISABLE_DAEMON"]
         try:
             result = embed("test text")
             assert np.array_equal(result, mock_embedding)
             mock_client.embed.assert_called_once()
         finally:
-            del os.environ["STEADYTEXT_USE_DAEMON"]
+            # Restore original state
+            if disabled_was_set:
+                os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 
 
 # AIDEV-NOTE: Server tests would require actually starting a server,

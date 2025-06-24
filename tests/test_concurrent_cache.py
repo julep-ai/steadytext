@@ -84,26 +84,29 @@ class TestConcurrentCache:
 
         write_count = 0
         read_count = 0
-        errors = []
+        errors: list = []
+        lock = threading.Lock()
 
         def writer():
-            nonlocal write_count
+            nonlocal write_count, errors
             try:
                 for i in range(100, 150):  # Write 50 new entries
                     cache.set(f"writer_key_{i}", f"writer_value_{i}")
-                    write_count += 1
+                    with lock:
+                        write_count += 1  # type: ignore
                     time.sleep(0.001)  # Small delay to interleave operations
             except Exception as e:
                 errors.append(f"Writer error: {e}")
 
         def reader():
-            nonlocal read_count
+            nonlocal read_count, errors
             try:
                 for _ in range(100):  # Read existing entries
                     key = f"initial_key_{_ % 50}"
                     result = cache.get(key)
                     if result is not None:
-                        read_count += 1
+                        with lock:
+                            read_count += 1  # type: ignore
                     time.sleep(0.001)  # Small delay to interleave operations
             except Exception as e:
                 errors.append(f"Reader error: {e}")
@@ -129,9 +132,9 @@ class TestConcurrentCache:
         for i in range(100, 150):
             key = f"writer_key_{i}"
             value = cache.get(key)
-            assert (
-                value == f"writer_value_{i}"
-            ), f"Missing or incorrect writer data for {key}"
+            assert value == f"writer_value_{i}", (
+                f"Missing or incorrect writer data for {key}"
+            )
 
     def _process_worker(self, args):
         """Worker function for process-based testing."""
@@ -247,9 +250,9 @@ class TestConcurrentCache:
 
         # Verify that a significant portion of data persisted
         total_expected = num_processes * operations_per_process
-        assert (
-            successful_verifications > total_expected * 0.8
-        ), f"Only {successful_verifications}/{total_expected} writes persisted correctly"
+        assert successful_verifications > total_expected * 0.8, (
+            f"Only {successful_verifications}/{total_expected} writes persisted correctly"
+        )
 
     def test_eviction_under_concurrent_load(self, temp_cache_dir):
         """Test size-based eviction with concurrent access."""
@@ -264,15 +267,17 @@ class TestConcurrentCache:
         # Value size of approximately 1KB each
         large_value = "x" * 1000
         total_writes = 0
-        errors = []
+        errors: list = []
+        lock = threading.Lock()
 
         def writer(writer_id):
-            nonlocal total_writes
+            nonlocal total_writes, errors
             try:
                 for i in range(50):  # Each writer adds 50KB
                     key = f"writer_{writer_id}_key_{i}"
                     cache.set(key, large_value + f"_w{writer_id}_i{i}")
-                    total_writes += 1
+                    with lock:
+                        total_writes += 1  # type: ignore
                     time.sleep(0.001)  # Small delay
             except Exception as e:
                 errors.append(f"Writer {writer_id} error: {e}")
@@ -293,18 +298,18 @@ class TestConcurrentCache:
 
         # Verify cache size is under limit
         stats = cache.get_stats()
-        assert (
-            stats["total_size_bytes"] <= cache.max_size_bytes
-        ), f"Cache size {stats['total_size_bytes']} exceeds limit {cache.max_size_bytes}"
+        assert stats["total_size_bytes"] <= cache.max_size_bytes, (
+            f"Cache size {stats['total_size_bytes']} exceeds limit {cache.max_size_bytes}"
+        )
 
         # Verify some entries were evicted
         remaining_entries = stats["entry_count"]
-        assert (
-            remaining_entries < 200
-        ), f"Expected eviction, but {remaining_entries} entries remain"
-        assert (
-            remaining_entries > 50
-        ), f"Too many entries evicted: only {remaining_entries} remain"
+        assert remaining_entries < 200, (
+            f"Expected eviction, but {remaining_entries} entries remain"
+        )
+        assert remaining_entries > 50, (
+            f"Too many entries evicted: only {remaining_entries} remain"
+        )
 
     def test_database_locking_behavior(self, temp_cache_dir):
         """Test that database locking works correctly under high contention."""
@@ -313,10 +318,11 @@ class TestConcurrentCache:
         )
 
         operation_count = 0
-        errors = []
+        errors: list = []
+        lock = threading.Lock()
 
         def high_contention_worker(worker_id):
-            nonlocal operation_count
+            nonlocal operation_count, errors
             try:
                 # Rapid operations on overlapping keys to create contention
                 for i in range(20):
@@ -330,7 +336,8 @@ class TestConcurrentCache:
                     cache.get(shared_key)
                     cache.get(unique_key)
 
-                    operation_count += 4  # 2 sets + 2 gets
+                    with lock:
+                        operation_count += 4  # type: ignore  # 2 sets + 2 gets
 
             except Exception as e:
                 errors.append(f"Worker {worker_id} error: {e}")
@@ -347,9 +354,9 @@ class TestConcurrentCache:
 
         # Verify all operations completed without errors
         assert len(errors) == 0, f"Locking errors: {errors}"
-        assert (
-            operation_count == 8 * 80
-        ), f"Expected 640 operations, got {operation_count}"
+        assert operation_count == 8 * 80, (
+            f"Expected 640 operations, got {operation_count}"
+        )
 
         # Verify final state is consistent
         stats = cache.get_stats()
@@ -407,18 +414,18 @@ class TestConcurrentCache:
                 self._read_process_data, (str(temp_cache_dir), cache_name)
             )
             read_results = read_future.result()
-            assert isinstance(
-                read_results, list
-            ), f"Read process failed: {read_results}"
+            assert isinstance(read_results, list), (
+                f"Read process failed: {read_results}"
+            )
 
         # Verify all data was read correctly
         for i, (key, value) in enumerate(read_results):
             expected_key = f"persist_key_{i}"
             expected_value = f"persist_value_{i}"
             assert key == expected_key, f"Key mismatch: {key} != {expected_key}"
-            assert (
-                value == expected_value
-            ), f"Value mismatch for {key}: {value} != {expected_value}"
+            assert value == expected_value, (
+                f"Value mismatch for {key}: {value} != {expected_value}"
+            )
 
     def test_stress_test_mixed_operations(self, temp_cache_dir):
         """Stress test with mixed read/write operations from multiple threads."""
@@ -434,10 +441,11 @@ class TestConcurrentCache:
             cache.set(f"initial_{i}", f"initial_value_{i}")
 
         operations_completed = 0
-        errors = []
+        errors: list = []
+        lock = threading.Lock()
 
         def mixed_operations_worker(worker_id):
-            nonlocal operations_completed
+            nonlocal operations_completed, errors
             try:
                 for i in range(100):
                     # Mix of operations
@@ -458,7 +466,8 @@ class TestConcurrentCache:
                         key = f"worker_{worker_id}_new_{i - (i % 4)}"
                         cache.get(key)
 
-                    operations_completed += 1
+                    with lock:
+                        operations_completed += 1  # type: ignore
 
             except Exception as e:
                 errors.append(f"Worker {worker_id} error: {e}")
@@ -475,13 +484,13 @@ class TestConcurrentCache:
 
         # Verify stress test completed successfully
         assert len(errors) == 0, f"Stress test errors: {errors}"
-        assert (
-            operations_completed == 6 * 100
-        ), f"Expected 600 operations, got {operations_completed}"
+        assert operations_completed == 6 * 100, (
+            f"Expected 600 operations, got {operations_completed}"
+        )
 
         # Verify cache is still functional
         stats = cache.get_stats()
         assert stats["entry_count"] > 0, "Cache should not be empty after stress test"
-        assert (
-            stats["total_size_bytes"] <= cache.max_size_bytes
-        ), "Cache size should be within limits"
+        assert stats["total_size_bytes"] <= cache.max_size_bytes, (
+            "Cache size should be within limits"
+        )

@@ -126,14 +126,15 @@ class TestGenerateIter:
         """Test generate_iter with invalid input type."""
         # Should handle gracefully and use fallback
         tokens = []
-        for i, token in enumerate(steadytext.generate_iter(123)):  # Invalid type
+        for i, token in enumerate(steadytext.generate_iter(123)):  # type: ignore # Intentionally testing invalid type
             tokens.append(token)
             if i > 1000:  # Safety limit
                 break
         assert len(tokens) > 0  # Should still produce output via fallback
 
     @pytest.mark.skipif(
-        not steadytext.models.loader.get_generator_model_instance(),
+        not hasattr(steadytext, "models")
+        or not steadytext.models.loader.get_generator_model_instance(),
         reason="Model not available",
     )
     def test_streaming_behavior(self):

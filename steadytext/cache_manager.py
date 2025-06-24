@@ -67,7 +67,7 @@ class CacheManager:
     def get_cache_stats(self) -> dict:
         """Get statistics for all caches."""
         stats = {}
-        
+
         # AIDEV-NOTE: Use cache.get_stats() method for comprehensive statistics
         # instead of direct len() calls which may not be implemented
         try:
@@ -76,24 +76,24 @@ class CacheManager:
                 stats["generation"] = {
                     "size": len(self._generation_cache),
                     "capacity": self._generation_cache.capacity,
-                    **cache_stats
+                    **cache_stats,
                 }
         except Exception as e:
             # Fallback if len() fails
             stats["generation"] = {"error": str(e)}
-            
+
         try:
             if self._embedding_cache is not None:
                 cache_stats = self._embedding_cache.get_stats()
                 stats["embedding"] = {
                     "size": len(self._embedding_cache),
                     "capacity": self._embedding_cache.capacity,
-                    **cache_stats
+                    **cache_stats,
                 }
         except Exception as e:
             # Fallback if len() fails
             stats["embedding"] = {"error": str(e)}
-            
+
         return stats
 
 

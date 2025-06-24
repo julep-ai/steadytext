@@ -29,7 +29,7 @@ pip install steadytext
 ```python
 import steadytext
 
-# Deterministic text generation
+# Deterministic text generation (uses daemon by default)
 code = steadytext.generate("implement binary search in Python")
 assert "def binary_search" in code  # Always passes!
 
@@ -37,14 +37,20 @@ assert "def binary_search" in code  # Always passes!
 for token in steadytext.generate_iter("explain quantum computing"):
     print(token, end="", flush=True)
 
-# Deterministic embeddings
+# Deterministic embeddings (uses daemon by default)
 vec = steadytext.embed("Hello world")  # 1024-dim numpy array
 
-# Model switching (new in v1.0.0!)
+# Explicit daemon usage (ensures connection)
+from steadytext.daemon import use_daemon
+with use_daemon():
+    code = steadytext.generate("implement quicksort")
+    embedding = steadytext.embed("machine learning")
+
+# Model switching (v1.0.0+)
 fast_response = steadytext.generate("Quick task", model="qwen2.5-0.5b")
 quality_response = steadytext.generate("Complex analysis", model="qwen2.5-7b")
 
-# Size-based selection (new!)
+# Size-based selection (v1.0.0+)
 small = steadytext.generate("Quick response", size="small")    # Qwen3-0.6B
 medium = steadytext.generate("Standard task", size="medium")   # Qwen3-1.7B (default)
 large = steadytext.generate("Complex analysis", size="large")  # Qwen3-4B
@@ -53,7 +59,7 @@ large = steadytext.generate("Complex analysis", size="large")  # Qwen3-4B
 _Or,_
 
 ```bash
-uvx steadytext generate 'hello'
+echo "hello" | uvx steadytext
 ```
 
 ---
@@ -67,8 +73,58 @@ SteadyText achieves determinism via:
 * **Frecency cache:** LRU cache with frequency counting—popular prompts stay cached longer
 * **Quantized models:** 8-bit quantization ensures identical results across platforms
 * **Model switching:** Dynamically switch between models while maintaining determinism (v1.0.0+)
+* **Daemon architecture:** Persistent model serving eliminates loading overhead (v1.2.0+)
 
 This means `generate("hello")` returns the exact same 512 tokens on any machine, every single time.
+
+### ⚡ Daemon Architecture (Default)
+
+SteadyText uses a daemon architecture by default for optimal performance:
+
+* **Persistent serving:** Models stay loaded in memory between requests
+* **Zero loading overhead:** Skip the 2-3 second model loading time on each call
+* **Automatic fallback:** Gracefully falls back to direct model loading if daemon unavailable
+* **Centralized caching:** Consistent cache behavior between daemon and direct access
+* **Background operation:** Daemon runs silently in the background
+
+```python
+# Daemon is used automatically - no setup needed
+text = steadytext.generate("Hello world")  # Uses daemon by default
+
+# Explicit daemon usage (ensures connection)
+from steadytext.daemon import use_daemon
+with use_daemon():
+    text = steadytext.generate("Hello world")
+    embedding = steadytext.embed("Some text")
+
+# Disable daemon globally
+import os
+os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
+text = steadytext.generate("Hello world")  # Direct model loading
+```
+
+### 🧠 Qwen3 Thinking Mode Control
+
+Qwen3 models have a built-in "thinking mode" that shows internal reasoning. By default, SteadyText disables this for efficiency by appending `/no_think` to prompts.
+
+```python
+# Default: thinking disabled (efficient)
+text = steadytext.generate("Quick task")
+
+# Enable thinking mode (shows reasoning process)
+text = steadytext.generate("Complex problem", thinking_mode=True)
+```
+
+CLI usage:
+```bash
+# Default: thinking disabled
+echo "solve problem" | st
+
+# Enable thinking mode
+echo "solve problem" | st --think
+```
+
+**Note:** The default context window has been increased to 3072 tokens and max output to 1024 tokens to support thinking mode when enabled.
 
 ---
 
@@ -82,12 +138,12 @@ pip install steadytext
 
 #### Models
 
-**Default models (v1.0.0)**:
+**Default models (v1.3.3)**:
 
 * Generation: `Qwen3-1.7B-Q8_0` (1.83GB)
 * Embeddings: `Qwen3-0.6B-Q8_0` (610MB)
 
-**Dynamic model switching (new in v1.0.0):**
+**Dynamic model switching (v1.0.0+):**
 
 Switch between different models at runtime:
 
@@ -111,6 +167,14 @@ Available models: `qwen3-0.6b`, `qwen3-1.7b`, `qwen3-4b`, `qwen3-8b`, `qwen2.5-0
 Size shortcuts: `small` (0.6B), `medium` (1.7B, default), `large` (4B)
 
 > Each model produces deterministic outputs. The default model remains fixed per major version.
+
+### Breaking Changes in v1.3.0+
+
+* **Daemon enabled by default:** Use `STEADYTEXT_DISABLE_DAEMON=1` to opt-out
+* **Streaming by default:** CLI streams output by default, use `--wait` to disable
+* **Quiet by default:** CLI is quiet by default, use `--verbose` for informational output
+* **Centralized caching:** Cache system now shared between daemon and direct access
+* **New CLI syntax:** Use `echo "prompt" | st` instead of `st generate "prompt"`
 
 ---
 
@@ -154,15 +218,49 @@ def ai_tool(prompt):
 
 ## 🖥️ CLI Usage
 
+### Daemon Management
+
 ```bash
-# Generate text
-st generate "write a hello world function"
+# Daemon commands
+st daemon start                    # Start daemon in background
+st daemon start --foreground       # Run daemon in foreground
+st daemon status                   # Check daemon status
+st daemon status --json            # JSON status output
+st daemon stop                     # Stop daemon gracefully
+st daemon stop --force             # Force stop daemon
+st daemon restart                  # Restart daemon
 
-# Stream output
-st generate "explain recursion" --stream
+# Daemon configuration
+st daemon start --host 127.0.0.1 --port 5678  # Custom host/port
+```
 
+### Text Generation
+
+```bash
+# Generate text (streams by default, uses daemon automatically)
+echo "write a hello world function" | st
+
+# Disable streaming (wait for complete output)
+echo "write a function" | st --wait
+
+# Enable verbose output
+echo "explain recursion" | st --verbose
+
+# Qwen3 thinking mode control
+echo "solve complex problem" | st --think  # Enable thinking mode
+
+# JSON output with metadata
+echo "hello world" | st --json
+
+# Get log probabilities
+echo "predict next word" | st --logprobs
+```
+
+### Other Operations
+
+```bash
 # Get embeddings
-st embed "machine learning"
+echo "machine learning" | st embed
 
 # Vector operations
 st vector similarity "cat" "dog"
@@ -173,7 +271,10 @@ st index create *.txt --output docs.faiss
 st index search docs.faiss "how to install" --top-k 5
 
 # Generate with automatic context from index
-st generate "what is the configuration?" --index-file docs.faiss
+echo "what is the configuration?" | st --index-file docs.faiss
+
+# Disable daemon for specific command
+STEADYTEXT_DISABLE_DAEMON=1 echo "hello" | st
 
 # Preload models
 st models --preload
@@ -204,18 +305,29 @@ st models --preload
 ## 🔍 API Overview
 
 ```python
-# Text generation
+# Text generation (uses daemon by default)
 steadytext.generate(prompt: str) -> str
 steadytext.generate(prompt, return_logprobs=True)
+steadytext.generate(prompt, thinking_mode=True)  # Enable Qwen3 thinking
 
 # Streaming generation
 steadytext.generate_iter(prompt: str)
 
-# Embeddings
+# Embeddings (uses daemon by default)
 steadytext.embed(text: str | List[str]) -> np.ndarray
+
+# Daemon management
+from steadytext.daemon import use_daemon
+with use_daemon():  # Ensure daemon connection
+    text = steadytext.generate("Hello")
 
 # Model preloading
 steadytext.preload_models(verbose=True)
+
+# Cache management
+from steadytext import get_cache_manager
+cache_manager = get_cache_manager()
+stats = cache_manager.get_cache_stats()
 ```
 
 ### Vector Operations (CLI)
@@ -250,7 +362,7 @@ st index info my_index.faiss
 st index search my_index.faiss "query text" --top-k 5
 
 # Use index with generation
-st generate "question" --index-file my_index.faiss
+echo "question" | st --index-file my_index.faiss
 ```
 
 📚 [Full API Documentation](docs/api.md)
@@ -259,7 +371,9 @@ st generate "question" --index-file my_index.faiss
 
 ## 🔧 Configuration
 
-Control caching behavior via environment variables:
+### Cache Configuration
+
+Control caching behavior via environment variables (affects both daemon and direct access):
 
 ```bash
 # Generation cache (default: 256 entries, 50MB)
@@ -269,6 +383,24 @@ export STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB=50
 # Embedding cache (default: 512 entries, 100MB)
 export STEADYTEXT_EMBEDDING_CACHE_CAPACITY=512
 export STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB=100
+```
+
+### Daemon Configuration
+
+```bash
+# Disable daemon globally (use direct model loading)
+export STEADYTEXT_DISABLE_DAEMON=1
+
+# Daemon connection settings
+export STEADYTEXT_DAEMON_HOST=127.0.0.1
+export STEADYTEXT_DAEMON_PORT=5678
+```
+
+### Model Downloads
+
+```bash
+# Allow model downloads in tests
+export STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true
 ```
 
 ---
@@ -368,4 +500,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
-Built with ❤️ for developers tired of flaky AI tests.
+## 📈 What's New in v1.3.3\n\n### Daemon Architecture (v1.2.0+)\n- **Persistent model serving** with ZeroMQ for 10-100x faster repeated calls\n- **Automatic fallback** to direct model loading when daemon unavailable\n- **Zero configuration** - daemon starts automatically on first use\n- **Background operation** - daemon runs silently in the background\n\n### Centralized Cache System (v1.3.0+)\n- **Unified caching** - consistent behavior between daemon and direct access\n- **Thread-safe SQLite backend** for reliable concurrent access\n- **Shared cache files** across all access modes\n- **Cache integration** with daemon server for optimal performance\n\n### Improved CLI Experience (v1.3.0+)\n- **Streaming by default** - see output as it's generated\n- **Quiet by default** - clean output without informational messages\n- **New pipe syntax** - `echo \"prompt\" | st` for better unix integration\n- **Daemon management** - built-in commands for daemon lifecycle\n\n### Qwen3 Thinking Mode (v1.3.0+)\n- **Controllable reasoning** - enable/disable internal thinking process\n- **Efficiency by default** - thinking disabled for faster generation\n- **Extended context** - increased to 3072 tokens to support thinking output\n\n---\n\nBuilt with ❤️ for developers tired of flaky AI tests.

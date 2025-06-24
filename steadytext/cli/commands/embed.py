@@ -43,7 +43,7 @@ def embed(text: str, output_format: str):
 
     if output_format == "numpy":
         # Output as numpy text representation
-        np.set_printoptions(threshold=np.inf, linewidth=np.inf)
+        np.set_printoptions(threshold=sys.maxsize, linewidth=sys.maxsize)
         click.echo(np.array2string(embedding, separator=", "))
     elif output_format == "hex":
         # Output as hex string

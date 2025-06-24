@@ -79,7 +79,7 @@ os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 - AIDEV-NOTE: All operations gracefully fall back to direct model loading on connection failure
 - AIDEV-NOTE: Centralized cache system ensures consistent caching between daemon and direct access
 - AIDEV-NOTE: Cache is shared via SQLite backend for thread/process safety
-- AIDEV-NOTE: Daemon server now fully integrated with centralized cache manager (v1.3.1+)
+- AIDEV-NOTE: Daemon server now fully integrated with centralized cache manager (v1.3.3+)
 - AIDEV-NOTE: Cache hits in daemon mode return identical results to direct access mode
 - AIDEV-NOTE: Streaming generation simulates streaming from cached results for consistency
 - AIDEV-NOTE: Logprobs requests bypass cache in both daemon and direct modes
@@ -87,6 +87,42 @@ os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 - AIDEV-TODO: Consider adding connection pooling for high-concurrency scenarios
 - AIDEV-TODO: Add metrics/monitoring endpoints for production deployments
 - AIDEV-QUESTION: Should we support multiple daemon instances for load balancing?
+
+## Qwen3 Thinking Mode Control
+
+SteadyText includes special handling for Qwen3 models' built-in "thinking mode" feature.
+
+### Overview
+
+Qwen3 models can output their internal reasoning process in `<think>...</think>` tags when prompted with `/think`. By default, SteadyText disables this mode for efficiency by appending `/no_think` to all prompts. When thinking mode is enabled, SteadyText appends `/think` to prompts to activate the thinking process.
+
+### Usage
+
+**Python API:**
+```python
+# Default: thinking disabled (appends /no_think)
+text = generate("Complex problem")
+
+# Enable thinking mode (appends /think)
+text = generate("Complex problem", thinking_mode=True)
+```
+
+**CLI:**
+```bash
+# Default: thinking disabled
+echo "solve problem" | st
+
+# Enable thinking mode
+echo "solve problem" | st --think
+```
+
+### AIDEV Considerations
+
+- AIDEV-NOTE: Thinking mode is disabled by default to prevent verbose output that slows generation
+- AIDEV-NOTE: Context window increased to 3072 tokens to accommodate thinking output
+- AIDEV-NOTE: Max tokens increased to 1024 to support longer reasoning chains
+- AIDEV-NOTE: The `/no_think` tag is appended to prompts unless thinking_mode=True
+- AIDEV-NOTE: Thinking mode works with all model switching features
 
 ## Cache Management
 
@@ -598,3 +634,9 @@ uv cache clean
 
 AIDEV-TODO: Consider adding UV-specific CI/CD configurations for faster builds
 AIDEV-NOTE: UV's automatic virtual environment management eliminates common "forgot to activate venv" issues
+
+## Development Workflow
+
+### Additional Process Guidance
+
+- At the end of code changes, please make sure to run `poe format` and `poe lint` (in that order) to make sure the code follows the style guide.

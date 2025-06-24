@@ -12,11 +12,14 @@ try:
 except ImportError:
     try:
         # For direct testing
-        from sqlite_cache_backend import SQLiteDiskBackedFrecencyCache
+        import sys
+
+        sys.path.insert(0, str(Path(__file__).parent))
+        from sqlite_cache_backend import SQLiteDiskBackedFrecencyCache  # type: ignore[import-not-found,no-redef]
     except ImportError:
         # If SQLite is not available, we'll need to handle this gracefully
         # AIDEV-NOTE: This is a temporary workaround for environments without SQLite
-        SQLiteDiskBackedFrecencyCache = None
+        SQLiteDiskBackedFrecencyCache = None  # type: ignore[assignment,misc]
 
 
 class DiskBackedFrecencyCache:
@@ -31,6 +34,9 @@ class DiskBackedFrecencyCache:
 
     Maintains the same API as the original pickle-based implementation.
     """
+
+    _backend: Optional[Any]  # SQLiteDiskBackedFrecencyCache when available
+    _memory_cache: Dict[Any, Any]  # Fallback memory cache
 
     def __init__(
         self,
@@ -55,6 +61,7 @@ class DiskBackedFrecencyCache:
                 max_size_mb=max_size_mb,
                 cache_dir=cache_dir,
             )
+            self._memory_cache = {}  # Initialize but not used when backend available
         else:
             # AIDEV-NOTE: Fallback to a simple in-memory cache when SQLite unavailable
             self._backend = None
@@ -68,65 +75,45 @@ class DiskBackedFrecencyCache:
 
     def get(self, key: Any) -> Any | None:
         """Get value from cache, updating frecency metadata."""
-        if self._backend:
+        if self._backend is not None:
             return self._backend.get(key)
-        elif hasattr(self, '_memory_cache'):
-            return self._memory_cache.get(key)
         else:
-            # AIDEV-NOTE: Invalid cache state - return None for cache miss
-            return None
+            return self._memory_cache.get(key)
 
     def set(self, key: Any, value: Any) -> None:
         """Set value in cache and persist to disk."""
-        if self._backend:
+        if self._backend is not None:
             self._backend.set(key, value)
-        elif hasattr(self, '_memory_cache'):
-            self._memory_cache[key] = value
         else:
-            # AIDEV-NOTE: Invalid cache state - create memory cache as fallback
-            self._memory_cache = {}
             self._memory_cache[key] = value
 
     def clear(self) -> None:
         """Clear cache and remove disk file."""
-        if self._backend:
+        if self._backend is not None:
             self._backend.clear()
-        elif hasattr(self, '_memory_cache'):
-            self._memory_cache.clear()
         else:
-            # AIDEV-NOTE: Invalid cache state - create empty memory cache
-            self._memory_cache = {}
+            self._memory_cache.clear()
 
     def sync(self) -> None:
         """Explicitly sync cache to disk."""
-        if self._backend:
+        if self._backend is not None:
             self._backend.sync()
         # No-op for memory cache
 
     def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics for monitoring and debugging."""
-        if self._backend:
+        if self._backend is not None:
             return self._backend.get_stats()
-        elif hasattr(self, '_memory_cache'):
+        else:
             return {
                 "entries": len(self._memory_cache),
                 "backend": "memory",
                 "capacity": self.capacity,
             }
-        else:
-            # AIDEV-NOTE: Invalid cache state - return minimal stats
-            return {
-                "entries": 0,
-                "backend": "invalid",
-                "capacity": self.capacity,
-            }
 
     def __len__(self) -> int:
         """Return number of entries in cache."""
-        if self._backend:
+        if self._backend is not None:
             return len(self._backend)
-        elif hasattr(self, '_memory_cache'):
-            return len(self._memory_cache)
         else:
-            # AIDEV-NOTE: Fallback for invalid cache state 
-            return 0
+            return len(self._memory_cache)

@@ -5,16 +5,41 @@ These tasks test determinism, consistency, and other unique aspects of SteadyTex
 
 from typing import Dict, List, Any, Optional
 import json
+import numpy as np
 
 try:
-    from lighteval.tasks.task import LightevalTask
-    from lighteval.tasks.requests import GreedyUntilRequest
+    from lighteval.tasks.task import LightevalTask  # type: ignore[import-not-found]
+    from lighteval.tasks.requests import GreedyUntilRequest  # type: ignore[import-not-found]
 
     LIGHTEVAL_AVAILABLE = True
 except ImportError:
     LIGHTEVAL_AVAILABLE = False
-    LightevalTask = object
-    GreedyUntilRequest = object
+
+    # Create proper base classes for type compatibility
+    class LightevalTask:
+        def __init__(
+            self,
+            name=None,
+            prompt_function=None,
+            suite=None,
+            metric=None,
+            few_shots_split=None,
+            few_shots_select=None,
+            generation_size=None,
+            stop_sequence=None,
+            output_regex=None,
+            **kwargs,
+        ):
+            pass
+
+    class GreedyUntilRequest:
+        def __init__(
+            self, context=None, stop_sequence=None, generation_size=None, **kwargs
+        ):
+            self.context = context
+            self.stop_sequence = stop_sequence
+            self.generation_size = generation_size
+
 
 import steadytext
 
@@ -58,7 +83,15 @@ class DeterminismTask(LightevalTask):
             "prompt", self.test_prompts[sample.get("idx", 0) % len(self.test_prompts)]
         )
 
-        return GreedyUntilRequest(context=prompt, stop_sequence=[], generation_size=512)
+        return GreedyUntilRequest(
+            context=prompt,
+            stop_sequence=[],
+            generation_size=512,
+            task_name=self.name,
+            sample_index=sample.get("idx", 0),
+            request_index=0,
+            metric_categories=["determinism"],
+        )
 
     @staticmethod
     def determinism_metric(
@@ -154,8 +187,16 @@ class ConsistencyTask(LightevalTask):
         group = self.prompt_groups[group_idx]
 
         return [
-            GreedyUntilRequest(context=variation, stop_sequence=[], generation_size=512)
-            for variation in group["variations"]
+            GreedyUntilRequest(
+                context=variation,
+                stop_sequence=[],
+                generation_size=512,
+                task_name=self.name,
+                sample_index=sample.get("group_idx", 0),
+                request_index=i,
+                metric_categories=["consistency"],
+            )
+            for i, variation in enumerate(group["variations"])
         ]
 
     @staticmethod
@@ -266,8 +307,6 @@ class FallbackBehaviorTask(LightevalTask):
                 elif test_type == "embedding":
                     output = steadytext.embed(prompt)
                     # Check if it returns a numpy array of correct shape
-                    import numpy as np
-
                     if isinstance(output, np.ndarray) and output.shape == (
                         steadytext.EMBEDDING_DIMENSION,
                     ):
@@ -338,7 +377,7 @@ class PerformanceRegressionTask(LightevalTask):
             "How does a computer processor work?",
         ]
 
-    def load_baseline(self) -> Dict[str, Any]:
+    def load_baseline(self) -> Optional[Dict[str, Any]]:
         """Load baseline performance data."""
         try:
             with open(self.baseline_file, "r") as f:
@@ -352,7 +391,15 @@ class PerformanceRegressionTask(LightevalTask):
             sample.get("idx", 0) % len(self.performance_prompts)
         ]
 
-        return GreedyUntilRequest(context=prompt, stop_sequence=[], generation_size=512)
+        return GreedyUntilRequest(
+            context=prompt,
+            stop_sequence=[],
+            generation_size=512,
+            task_name=self.name,
+            sample_index=sample.get("idx", 0),
+            request_index=0,
+            metric_categories=["performance"],
+        )
 
     def regression_metric(
         self, predictions: List[str], references: List[str]
@@ -402,19 +449,46 @@ def register_steadytext_tasks():
     if not LIGHTEVAL_AVAILABLE:
         raise ImportError("LightEval is required to register tasks")
 
-    from lighteval.tasks.registry import Registry
+    try:
+        from lighteval.tasks.registry import Registry
 
-    registry = Registry()
+        registry = Registry()
 
-    # Register each custom task
-    tasks = [
-        DeterminismTask(),
-        ConsistencyTask(),
-        FallbackBehaviorTask(),
-        PerformanceRegressionTask(),
-    ]
+        # Register each custom task
+        tasks = [
+            DeterminismTask(),
+            ConsistencyTask(),
+            FallbackBehaviorTask(),
+            PerformanceRegressionTask(),
+        ]
 
-    for task in tasks:
-        registry.register_task(task)
+        for task in tasks:
+            register_func = getattr(registry, "register_task", None)
+            add_func = getattr(registry, "add_task", None)
+
+            if register_func is not None and callable(register_func):
+                register_func(task)
+            elif add_func is not None and callable(add_func):
+                add_func(task)
+            else:
+                # Fallback - just store in a dict-like structure
+                setattr(registry, task.name, task)
+    except (ImportError, AttributeError):
+        # Create a simple registry fallback
+        class SimpleRegistry:
+            def __init__(self):
+                self.tasks = {}
+
+            def register_task(self, task):
+                self.tasks[task.name] = task
+
+        registry = SimpleRegistry()
+        for task in [
+            DeterminismTask(),
+            ConsistencyTask(),
+            FallbackBehaviorTask(),
+            PerformanceRegressionTask(),
+        ]:
+            registry.register_task(task)
 
     return registry

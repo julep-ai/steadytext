@@ -5,6 +5,7 @@ AIDEV-NOTE: Uses JSON serialization over ZeroMQ for simplicity and debugging.
 All messages include an ID for request-response matching.
 """
 
+import os
 import json
 import uuid
 from typing import Any, Dict, Optional, Union
@@ -17,7 +18,7 @@ class Request:
 
     method: str  # "generate", "generate_iter", "embed", "ping", "shutdown"
     params: Dict[str, Any]
-    id: str = None
+    id: Optional[str] = None
 
     def __post_init__(self):
         if self.id is None:
@@ -68,5 +69,9 @@ class ErrorResponse(Response):
 # AIDEV-NOTE: Protocol constants for consistent communication
 DEFAULT_DAEMON_PORT = 5555
 DEFAULT_DAEMON_HOST = "localhost"
-REQUEST_TIMEOUT_MS = 30000  # 30 seconds
+# AIDEV-NOTE: Reasonable timeout for daemon operations including model loading
+# Can be overridden via STEADYTEXT_DAEMON_TIMEOUT_MS environment variable
+REQUEST_TIMEOUT_MS = int(
+    os.environ.get("STEADYTEXT_DAEMON_TIMEOUT_MS", "30000")
+)  # 30 seconds default for reliable operation
 STREAM_END_MARKER = "##STREAM_END##"
