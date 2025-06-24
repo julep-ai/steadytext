@@ -111,12 +111,12 @@ class TestStreamingCachePopulation:
             elif "STEADYTEXT_DISABLE_DAEMON" not in os.environ:
                 # Ensure it's set back to "1" for subsequent tests
                 os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
-            
+
             if orig_daemon_host is not None:
                 os.environ["STEADYTEXT_DAEMON_HOST"] = orig_daemon_host
             elif "STEADYTEXT_DAEMON_HOST" in os.environ:
                 del os.environ["STEADYTEXT_DAEMON_HOST"]
-                
+
             if orig_daemon_port is not None:
                 os.environ["STEADYTEXT_DAEMON_PORT"] = orig_daemon_port
             elif "STEADYTEXT_DAEMON_PORT" in os.environ:

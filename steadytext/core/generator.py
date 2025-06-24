@@ -336,15 +336,29 @@ class DeterministicGenerator:
             for i, word in enumerate(words):
                 if include_logprobs:
                     # AIDEV-NOTE: Fallback returns None logprobs for compatibility
-                    yield {"token": word + (" " if i < len(words) - 1 else ""), "logprobs": None}
+                    yield {
+                        "token": word + (" " if i < len(words) - 1 else ""),
+                        "logprobs": None,
+                    }
                 else:
                     yield word + (" " if i < len(words) - 1 else "")
-            
+
             # Cache fallback result for non-logprobs requests with default model
-            if not include_logprobs and model is None and model_repo is None and model_filename is None and size is None:
+            if (
+                not include_logprobs
+                and model is None
+                and model_repo is None
+                and model_filename is None
+                and size is None
+            ):
                 from ..cache_manager import get_generation_cache
+
                 prompt_str = str(prompt)
-                cache_key = prompt_str if eos_string == "[EOS]" else f"{prompt_str}::EOS::{eos_string}"
+                cache_key = (
+                    prompt_str
+                    if eos_string == "[EOS]"
+                    else f"{prompt_str}::EOS::{eos_string}"
+                )
                 get_generation_cache().set(cache_key, fallback_text)
             return
 
@@ -406,15 +420,29 @@ class DeterministicGenerator:
                 for i, word in enumerate(words):
                     if include_logprobs:
                         # AIDEV-NOTE: Fallback returns None logprobs for compatibility
-                        yield {"token": word + (" " if i < len(words) - 1 else ""), "logprobs": None}
+                        yield {
+                            "token": word + (" " if i < len(words) - 1 else ""),
+                            "logprobs": None,
+                        }
                     else:
                         yield word + (" " if i < len(words) - 1 else "")
-                
+
                 # Cache fallback result for non-logprobs requests with default model
-                if not include_logprobs and model is None and model_repo is None and model_filename is None and size is None:
+                if (
+                    not include_logprobs
+                    and model is None
+                    and model_repo is None
+                    and model_filename is None
+                    and size is None
+                ):
                     from ..cache_manager import get_generation_cache
+
                     prompt_str = prompt if isinstance(prompt, str) else str(prompt)
-                    cache_key = prompt_str if eos_string == "[EOS]" else f"{prompt_str}::EOS::{eos_string}"
+                    cache_key = (
+                        prompt_str
+                        if eos_string == "[EOS]"
+                        else f"{prompt_str}::EOS::{eos_string}"
+                    )
                     get_generation_cache().set(cache_key, fallback_text)
                 return
 
@@ -450,15 +478,29 @@ class DeterministicGenerator:
             for i, word in enumerate(words):
                 if include_logprobs:
                     # AIDEV-NOTE: Fallback returns None logprobs for compatibility
-                    yield {"token": word + (" " if i < len(words) - 1 else ""), "logprobs": None}
+                    yield {
+                        "token": word + (" " if i < len(words) - 1 else ""),
+                        "logprobs": None,
+                    }
                 else:
                     yield word + (" " if i < len(words) - 1 else "")
-            
+
             # Cache fallback result for non-logprobs requests with default model
-            if not include_logprobs and model is None and model_repo is None and model_filename is None and size is None:
+            if (
+                not include_logprobs
+                and model is None
+                and model_repo is None
+                and model_filename is None
+                and size is None
+            ):
                 from ..cache_manager import get_generation_cache
+
                 prompt_str = prompt if isinstance(prompt, str) else str(prompt)
-                cache_key = prompt_str if eos_string == "[EOS]" else f"{prompt_str}::EOS::{eos_string}"
+                cache_key = (
+                    prompt_str
+                    if eos_string == "[EOS]"
+                    else f"{prompt_str}::EOS::{eos_string}"
+                )
                 get_generation_cache().set(cache_key, fallback_text)
             return
 
@@ -472,15 +514,29 @@ class DeterministicGenerator:
             for i, word in enumerate(words):
                 if include_logprobs:
                     # AIDEV-NOTE: Fallback returns None logprobs for compatibility
-                    yield {"token": word + (" " if i < len(words) - 1 else ""), "logprobs": None}
+                    yield {
+                        "token": word + (" " if i < len(words) - 1 else ""),
+                        "logprobs": None,
+                    }
                 else:
                     yield word + (" " if i < len(words) - 1 else "")
-            
+
             # Cache fallback result for non-logprobs requests with default model
-            if not include_logprobs and model is None and model_repo is None and model_filename is None and size is None:
+            if (
+                not include_logprobs
+                and model is None
+                and model_repo is None
+                and model_filename is None
+                and size is None
+            ):
                 from ..cache_manager import get_generation_cache
+
                 prompt_str = prompt if isinstance(prompt, str) else str(prompt)
-                cache_key = prompt_str if eos_string == "[EOS]" else f"{prompt_str}::EOS::{eos_string}"
+                cache_key = (
+                    prompt_str
+                    if eos_string == "[EOS]"
+                    else f"{prompt_str}::EOS::{eos_string}"
+                )
                 get_generation_cache().set(cache_key, fallback_text)
             return
 
@@ -605,7 +661,6 @@ class DeterministicGenerator:
 
                         if "token" in token_info:
                             yield token_info
-
 
         except Exception as e:
             logger.error(
