@@ -5,7 +5,7 @@ AIDEV-NOTE: Fixed "Never Fails" - embed() now catches TypeErrors & returns zero 
 """
 
 # Version of the steadytext package - should match pyproject.toml
-__version__ = "1.3.3"
+__version__ = "1.3.4"
 
 # Import core functions and classes for public API
 import os
@@ -183,11 +183,28 @@ def embed(text_input) -> np.ndarray:
         return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
 
 
-def preload_models(verbose: bool = False):
-    """Preload models to ensure they're available for generation and embedding."""
+def preload_models(verbose: bool = False, size: Optional[str] = None):
+    """Preload models to ensure they're available for generation and embedding.
+
+    Args:
+        verbose: Whether to log progress messages
+        size: Model size to preload ("small", "medium", "large")
+    """
     if verbose:
-        logger.info("Preloading generator model...")
-    get_generator_model_instance()
+        if size:
+            logger.info(f"Preloading {size} generator model...")
+        else:
+            logger.info("Preloading generator model...")
+
+    # If size is specified, preload that specific model
+    if size:
+        from .utils import resolve_model_params
+
+        repo_id, filename = resolve_model_params(size=size)
+        # Force the model to load by doing a dummy generation
+        generate("test", size=size)
+    else:
+        get_generator_model_instance()
 
     if verbose:
         logger.info("Preloading embedding model...")

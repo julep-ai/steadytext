@@ -3,6 +3,9 @@ Daemon management CLI commands.
 
 AIDEV-NOTE: Provides commands to start, stop, and check status of the SteadyText
 daemon server for persistent model serving.
+
+AIDEV-NOTE: Added --size parameter (v1.3.4+) to allow preloading specific model sizes
+when starting the daemon. Supports small (0.6B), medium (1.7B default), and large (4B).
 """
 
 import os
@@ -13,6 +16,7 @@ import signal
 import click
 import json
 from pathlib import Path
+from typing import Optional
 
 from ...daemon.client import DaemonClient
 from ...daemon.protocol import DEFAULT_DAEMON_HOST, DEFAULT_DAEMON_PORT
@@ -59,7 +63,19 @@ def daemon():
 @click.option(
     "--force", is_flag=True, help="Force start even if daemon appears to be running"
 )
-def start(host: str, port: int, foreground: bool, no_preload: bool, force: bool):
+@click.option(
+    "--size",
+    type=click.Choice(["small", "medium", "large"]),
+    help="Model size to preload (small=0.6B, medium=1.7B, large=4B)",
+)
+def start(
+    host: str,
+    port: int,
+    foreground: bool,
+    no_preload: bool,
+    force: bool,
+    size: Optional[str],
+):
     """Start the SteadyText daemon server."""
     pid_file = get_pid_file()
 
@@ -72,13 +88,17 @@ def start(host: str, port: int, foreground: bool, no_preload: bool, force: bool)
     env = os.environ.copy()
     env["STEADYTEXT_DAEMON_HOST"] = host
     env["STEADYTEXT_DAEMON_PORT"] = str(port)
+    if size:
+        env["STEADYTEXT_DAEMON_SIZE"] = size
 
     if foreground:
         # Run in foreground
         click.echo(f"Starting SteadyText daemon in foreground on {host}:{port}...")
         from ...daemon.server import DaemonServer
 
-        server = DaemonServer(host=host, port=port, preload_models=not no_preload)
+        server = DaemonServer(
+            host=host, port=port, preload_models=not no_preload, size=size
+        )
         try:
             server.run()
         except KeyboardInterrupt:
@@ -99,6 +119,8 @@ def start(host: str, port: int, foreground: bool, no_preload: bool, force: bool)
         ]
         if no_preload:
             cmd.append("--no-preload")
+        if size:
+            cmd.extend(["--size", size])
 
         # AIDEV-NOTE: Start daemon as background process
         # On Unix, we could use fork() but subprocess works cross-platform
@@ -219,7 +241,12 @@ def status(output_json: bool):
 @click.option("--host", default=DEFAULT_DAEMON_HOST, help="Host to bind to")
 @click.option("--port", type=int, default=DEFAULT_DAEMON_PORT, help="Port to bind to")
 @click.option("--no-preload", is_flag=True, help="Don't preload models on startup")
-def restart(host: str, port: int, no_preload: bool):
+@click.option(
+    "--size",
+    type=click.Choice(["small", "medium", "large"]),
+    help="Model size to preload (small=0.6B, medium=1.7B, large=4B)",
+)
+def restart(host: str, port: int, no_preload: bool, size: Optional[str]):
     """Restart the SteadyText daemon server."""
     # Stop existing daemon if running
     pid_file = get_pid_file()
@@ -239,4 +266,5 @@ def restart(host: str, port: int, no_preload: bool):
         foreground=False,
         no_preload=no_preload,
         force=False,
+        size=size,
     )

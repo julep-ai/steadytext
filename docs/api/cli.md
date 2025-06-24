@@ -7,6 +7,10 @@ Complete command-line interface documentation for SteadyText.
 The CLI is automatically installed with SteadyText:
 
 ```bash
+# Using UV (recommended)
+uv add steadytext
+
+# Or using pip
 pip install steadytext
 ```
 
@@ -30,6 +34,11 @@ Generate deterministic text from a prompt.
 ### Usage
 
 ```bash
+# New pipe syntax (recommended)
+echo "prompt" | st [OPTIONS]
+echo "prompt" | steadytext [OPTIONS]
+
+# Legacy syntax (still supported)
 st generate [OPTIONS] PROMPT
 steadytext generate [OPTIONS] PROMPT
 ```
@@ -38,9 +47,10 @@ steadytext generate [OPTIONS] PROMPT
 
 | Option | Short | Type | Default | Description |
 |--------|-------|------|---------|-------------|
-| `--stream` | `-s` | flag | `false` | Stream output token by token |
+| `--wait` | `-w` | flag | `false` | Wait for complete output (disable streaming) |
 | `--json` | `-j` | flag | `false` | Output as JSON with metadata |
 | `--logprobs` | `-l` | flag | `false` | Include log probabilities |
+| `--think` | | flag | `false` | Enable Qwen3 thinking mode (shows reasoning) |
 | `--eos-string` | `-e` | string | `"[EOS]"` | Custom end-of-sequence string |
 | `--size` | | choice | | Model size: small (0.6B), medium (1.7B), large (4B) |
 | `--model` | | string | | Model name from registry (e.g., "qwen2.5-3b") |
@@ -55,13 +65,25 @@ steadytext generate [OPTIONS] PROMPT
 === "Basic Generation"
 
     ```bash
+    # New pipe syntax
+    echo "Write a Python function to calculate fibonacci" | st
+    
+    # Legacy syntax
     st generate "Write a Python function to calculate fibonacci"
     ```
 
-=== "Streaming Output"
+=== "Wait for Complete Output"
 
     ```bash
-    st generate "Explain machine learning" --stream
+    # Disable streaming
+    echo "Explain machine learning" | st --wait
+    ```
+
+=== "Thinking Mode"
+
+    ```bash
+    # Enable Qwen3 thinking mode to show reasoning
+    echo "Solve this complex problem" | st --think
     ```
 
 === "JSON Output"
@@ -349,6 +371,173 @@ steadytext cache [OPTIONS]
 
     st cache --clear --generation-only
     # Cleared generation cache only
+    ```
+
+---
+
+## daemon
+
+Manage the SteadyText daemon for persistent model serving.
+
+### Usage
+
+```bash
+st daemon COMMAND [OPTIONS]
+steadytext daemon COMMAND [OPTIONS]
+```
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `start` | Start the daemon server |
+| `stop` | Stop the daemon server |
+| `status` | Check daemon status |
+| `restart` | Restart the daemon server |
+
+### Options
+
+#### start
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--host` | string | `127.0.0.1` | Bind address |
+| `--port` | int | `5557` | Port number |
+| `--foreground` | flag | `false` | Run in foreground |
+
+#### stop
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--force` | flag | `false` | Force kill if graceful shutdown fails |
+
+#### status
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--json` | flag | `false` | Output as JSON |
+
+### Examples
+
+=== "Start Daemon"
+
+    ```bash
+    # Start in background (default)
+    st daemon start
+    
+    # Start in foreground for debugging
+    st daemon start --foreground
+    
+    # Custom host/port
+    st daemon start --host 0.0.0.0 --port 8080
+    ```
+
+=== "Check Status"
+
+    ```bash
+    st daemon status
+    # Output: Daemon is running (PID: 12345)
+    
+    # JSON output
+    st daemon status --json
+    # {"running": true, "pid": 12345, "host": "127.0.0.1", "port": 5557}
+    ```
+
+=== "Stop/Restart"
+
+    ```bash
+    # Graceful stop
+    st daemon stop
+    
+    # Force stop
+    st daemon stop --force
+    
+    # Restart
+    st daemon restart
+    ```
+
+### Benefits
+
+- **160x faster first request**: No model loading overhead
+- **Persistent cache**: Shared across all operations
+- **Automatic fallback**: Operations work without daemon
+- **Zero configuration**: Used by default when available
+
+---
+
+## index
+
+Manage FAISS vector indexes for retrieval-augmented generation.
+
+### Usage
+
+```bash
+st index COMMAND [OPTIONS]
+steadytext index COMMAND [OPTIONS]
+```
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `create` | Create index from text files |
+| `search` | Search index for similar chunks |
+| `info` | Show index information |
+
+### Options
+
+#### create
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--output` | path | required | Output index file |
+| `--chunk-size` | int | `512` | Chunk size in tokens |
+| `--glob` | string | | File glob pattern |
+
+#### search
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--top-k` | int | `5` | Number of results |
+| `--threshold` | float | | Similarity threshold |
+
+### Examples
+
+=== "Create Index"
+
+    ```bash
+    # From specific files
+    st index create doc1.txt doc2.txt --output docs.faiss
+    
+    # From glob pattern
+    st index create --glob "**/*.md" --output project.faiss
+    
+    # Custom chunk size
+    st index create *.txt --output custom.faiss --chunk-size 256
+    ```
+
+=== "Search Index"
+
+    ```bash
+    # Basic search
+    st index search docs.faiss "query text"
+    
+    # Top 10 results
+    st index search docs.faiss "error message" --top-k 10
+    
+    # With threshold
+    st index search docs.faiss "specific term" --threshold 0.8
+    ```
+
+=== "Index Info"
+
+    ```bash
+    st index info docs.faiss
+    # Output:
+    # Index: docs.faiss
+    # Chunks: 1,234
+    # Dimension: 1024
+    # Size: 5.2MB
     ```
 
 ---

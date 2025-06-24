@@ -24,6 +24,16 @@ The benchmarking suite consists of two main components:
 
 Install benchmark dependencies:
 
+**Using UV (recommended):**
+```bash
+# Install with benchmark extras
+uv add "steadytext[benchmark]"
+
+# Or if already installed
+uv sync --all-extras
+```
+
+**Legacy method:**
 ```bash
 pip install steadytext[benchmark]
 ```
@@ -39,6 +49,12 @@ This installs:
 
 Run all benchmarks:
 
+**Using UV (recommended):**
+```bash
+uv run python benchmarks/run_all_benchmarks.py
+```
+
+**Legacy method:**
 ```bash
 python benchmarks/run_all_benchmarks.py
 ```
@@ -46,18 +62,30 @@ python benchmarks/run_all_benchmarks.py
 Run quick benchmarks (reduced iterations):
 
 ```bash
+# UV
+uv run python benchmarks/run_all_benchmarks.py --quick
+
+# Legacy
 python benchmarks/run_all_benchmarks.py --quick
 ```
 
 Run only speed benchmarks:
 
 ```bash
+# UV
+uv run python benchmarks/run_all_benchmarks.py --only speed
+
+# Legacy
 python benchmarks/run_all_benchmarks.py --only speed
 ```
 
 Run only accuracy benchmarks:
 
 ```bash
+# UV
+uv run python benchmarks/run_all_benchmarks.py --only accuracy
+
+# Legacy
 python benchmarks/run_all_benchmarks.py --only accuracy
 ```
 
@@ -68,6 +96,10 @@ python benchmarks/run_all_benchmarks.py --only accuracy
 Run full speed benchmark suite:
 
 ```bash
+# UV (recommended)
+uv run python benchmarks/speed/run_speed_benchmarks.py
+
+# Legacy
 python benchmarks/speed/run_speed_benchmarks.py
 ```
 
@@ -82,6 +114,14 @@ Options:
 Example with custom settings:
 
 ```bash
+# UV (recommended)
+uv run python benchmarks/speed/run_speed_benchmarks.py \
+    --generation-iterations 50 \
+    --embedding-iterations 100 \
+    --batch-sizes 1 5 10 25 \
+    --output results/my_speed_test.json
+
+# Legacy
 python benchmarks/speed/run_speed_benchmarks.py \
     --generation-iterations 50 \
     --embedding-iterations 100 \
@@ -94,6 +134,10 @@ python benchmarks/speed/run_speed_benchmarks.py \
 Run accuracy benchmarks:
 
 ```bash
+# UV (recommended)
+uv run python benchmarks/accuracy/run_accuracy_benchmarks.py
+
+# Legacy
 python benchmarks/accuracy/run_accuracy_benchmarks.py
 ```
 
@@ -106,6 +150,13 @@ Options:
 Example running specific tasks:
 
 ```bash
+# UV (recommended)
+uv run python benchmarks/accuracy/run_accuracy_benchmarks.py \
+    --benchmarks standard \
+    --tasks "leaderboard|truthfulqa:mc|0|0" "leaderboard|gsm8k|0|0" \
+    --verify-determinism
+
+# Legacy
 python benchmarks/accuracy/run_accuracy_benchmarks.py \
     --benchmarks standard \
     --tasks "leaderboard|truthfulqa:mc|0|0" "leaderboard|gsm8k|0|0" \
@@ -178,6 +229,10 @@ Running benchmarks generates:
 For continuous integration, use quick mode:
 
 ```bash
+# UV (recommended for CI - faster and more reliable)
+uv run python benchmarks/run_all_benchmarks.py --quick --output-dir ci_results
+
+# Legacy
 python benchmarks/run_all_benchmarks.py --quick --output-dir ci_results
 ```
 
@@ -185,11 +240,11 @@ To detect performance regressions:
 
 ```bash
 # Run benchmarks and save baseline
-python benchmarks/run_all_benchmarks.py --output-dir baseline
+uv run python benchmarks/run_all_benchmarks.py --output-dir baseline
 
 # Later, compare against baseline
-python benchmarks/run_all_benchmarks.py --output-dir current
-python benchmarks/utils/compare_runs.py baseline/speed_*.json current/speed_*.json
+uv run python benchmarks/run_all_benchmarks.py --output-dir current
+uv run python benchmarks/utils/compare_runs.py baseline/speed_*.json current/speed_*.json
 ```
 
 ## Custom Benchmarks

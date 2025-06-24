@@ -18,7 +18,13 @@ from .commands.daemon import daemon
     "--quiet", "-q", is_flag=True, default=True, help="Silence log output (default)"
 )
 @click.option("--verbose", "-v", is_flag=True, help="Enable informational output")
-def cli(ctx, version, quiet, verbose):
+@click.option(
+    "--size",
+    type=click.Choice(["small", "medium", "large"]),
+    default=None,
+    help="Model size (small=0.6B, medium=1.7B, large=4B)",
+)
+def cli(ctx, version, quiet, verbose, size):
     """SteadyText: Deterministic text generation and embedding CLI."""
     # Handle verbosity - verbose overrides quiet
     if verbose:
@@ -45,7 +51,7 @@ def cli(ctx, version, quiet, verbose):
 
     if ctx.invoked_subcommand is None and not sys.stdin.isatty():
         # If no subcommand and input is from pipe, assume generate
-        ctx.invoke(generate, prompt="-")
+        ctx.invoke(generate, prompt="-", size=size)
     elif ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
 

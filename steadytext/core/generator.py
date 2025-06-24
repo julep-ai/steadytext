@@ -336,6 +336,35 @@ class DeterministicGenerator:
                 yield word + " "
             return
 
+        # AIDEV-NOTE: Check cache first for non-logprobs requests using default model
+        # This ensures streaming benefits from caching like non-streaming mode
+        if (
+            not include_logprobs
+            and model is None
+            and model_repo is None
+            and model_filename is None
+            and size is None
+        ):
+            from ..cache_manager import get_generation_cache
+
+            prompt_str = prompt if isinstance(prompt, str) else str(prompt)
+            cache_key = (
+                prompt_str
+                if eos_string == "[EOS]"
+                else f"{prompt_str}::EOS::{eos_string}"
+            )
+            cached = get_generation_cache().get(cache_key)
+            if cached is not None:
+                logger.debug(
+                    f"DeterministicGenerator.generate_iter: Cache hit for prompt: {prompt_str[:50]}..."
+                )
+                # Simulate streaming by yielding words from cached result
+                words = cached.split()
+                for i, word in enumerate(words):
+                    # Add space after each word except the last one
+                    yield word + (" " if i < len(words) - 1 else "")
+                return
+
         # Resolve model parameters
         repo_id: Optional[str] = None
         filename: Optional[str] = None
@@ -426,6 +455,16 @@ class DeterministicGenerator:
                 messages=[{"role": "user", "content": final_prompt}], **sampling_params
             )
 
+            # AIDEV-NOTE: Collect tokens for caching when eligible
+            collected_tokens = []
+            should_cache = (
+                not include_logprobs
+                and model is None
+                and model_repo is None
+                and model_filename is None
+                and size is None
+            )
+
             for chunk in stream:
                 if chunk and "choices" in chunk and len(chunk["choices"]) > 0:
                     choice = chunk["choices"][0]
@@ -447,10 +486,34 @@ class DeterministicGenerator:
                             yield token_info
                     else:
                         # Normal string yielding
+                        token = None
                         if "content" in delta and delta["content"]:
-                            yield delta["content"]
+                            token = delta["content"]
+                            yield token
                         elif "text" in choice and choice["text"]:
-                            yield choice["text"]
+                            token = choice["text"]
+                            yield token
+
+                        # Collect token for caching
+                        if should_cache and token is not None:
+                            collected_tokens.append(token)
+
+            # AIDEV-NOTE: After streaming completes, populate cache for eligible requests
+            # This ensures streaming generation benefits from caching like non-streaming mode
+            if should_cache and collected_tokens:
+                from ..cache_manager import get_generation_cache
+
+                complete_text = "".join(collected_tokens)
+                prompt_str = prompt if isinstance(prompt, str) else str(prompt)
+                cache_key = (
+                    prompt_str
+                    if eos_string == "[EOS]"
+                    else f"{prompt_str}::EOS::{eos_string}"
+                )
+                get_generation_cache().set(cache_key, complete_text)
+                logger.debug(
+                    f"DeterministicGenerator.generate_iter: Cached result for prompt: {prompt_str[:50]}..."
+                )
 
         except Exception as e:
             logger.error(

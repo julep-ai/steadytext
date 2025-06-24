@@ -82,8 +82,11 @@ os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 - AIDEV-NOTE: Daemon server now fully integrated with centralized cache manager (v1.3.3+)
 - AIDEV-NOTE: Cache hits in daemon mode return identical results to direct access mode
 - AIDEV-NOTE: Streaming generation simulates streaming from cached results for consistency
+- AIDEV-NOTE: Streaming now populates cache after completion in both daemon and direct modes (v1.3.3+)
+- AIDEV-NOTE: Cached streaming results may have normalized whitespace when simulated from cache
 - AIDEV-NOTE: Logprobs requests bypass cache in both daemon and direct modes
 - AIDEV-NOTE: Custom eos_string parameters are included in cache keys to prevent collisions
+- AIDEV-NOTE: CLI cache fix (v1.3.3+): CLI generate command now uses main API layer (generate, generate_iter) instead of core functions (core_generate, core_generate_iter), enabling full cache functionality in both streaming and wait modes
 - AIDEV-TODO: Consider adding connection pooling for high-concurrency scenarios
 - AIDEV-TODO: Add metrics/monitoring endpoints for production deployments
 - AIDEV-QUESTION: Should we support multiple daemon instances for load balancing?

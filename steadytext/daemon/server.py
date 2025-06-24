@@ -25,7 +25,11 @@ except ImportError:
 from ..core.generator import DeterministicGenerator
 from ..core.embedder import create_embedding
 from ..cache_manager import get_generation_cache
-from ..utils import logger, set_deterministic_environment, DEFAULT_SEED
+from ..utils import (
+    logger,
+    set_deterministic_environment,
+    DEFAULT_SEED,
+)
 from .protocol import (
     Request,
     Response,
@@ -45,12 +49,14 @@ class DaemonServer:
         host: str = "localhost",
         port: int = DEFAULT_DAEMON_PORT,
         preload_models: bool = True,
+        size: Optional[str] = None,
     ):
         self.host = host
         self.port = port
         self.running = False
         self.context = None
         self.socket = None
+        self.size = size  # AIDEV-NOTE: Model size to preload (small, medium, large)
 
         # AIDEV-NOTE: Model instances are created once and reused for all requests
         self.generator: Optional[DeterministicGenerator] = None
@@ -65,8 +71,14 @@ class DaemonServer:
         """Preload models to ensure they're ready for requests."""
         logger.info("Preloading models...")
         try:
+            # AIDEV-NOTE: Use the public preload_models function with size parameter
+            from .. import preload_models
+
+            preload_models(verbose=True, size=self.size)
+
+            # Create generator instance after preloading
             self.generator = DeterministicGenerator()
-            logger.info("Generator model loaded")
+            logger.info(f"Generator ready with {self.size or 'default'} model")
         except Exception as e:
             logger.error(f"Failed to load generator model: {e}")
             self.generator = None
@@ -199,6 +211,8 @@ class DaemonServer:
                 return
 
         # No cache hit or logprobs requested - use actual streaming
+        # AIDEV-NOTE: Collect tokens during streaming to populate cache after completion
+        collected_tokens = []
         for token in self.generator.generate_iter(
             prompt=prompt,
             eos_string=eos_string,
@@ -212,6 +226,34 @@ class DaemonServer:
             # For consistency, always yield just the token - main loop will wrap it
             # Token is already a dict if include_logprobs=True, otherwise it's a string
             yield token
+
+            # Collect tokens for caching (only for non-logprobs requests)
+            if not include_logprobs:
+                # Token is a string when not including logprobs
+                collected_tokens.append(token)
+
+        # AIDEV-NOTE: After streaming completes, populate cache for eligible requests
+        # Only cache for default model, non-logprobs requests
+        if (
+            not include_logprobs
+            and model is None
+            and model_repo is None
+            and model_filename is None
+            and size is None
+            and collected_tokens
+        ):
+            # Join collected tokens to form complete text
+            complete_text = "".join(collected_tokens)
+            prompt_str = prompt if isinstance(prompt, str) else str(prompt)
+            cache_key = (
+                prompt_str
+                if eos_string == "[EOS]"
+                else f"{prompt_str}::EOS::{eos_string}"
+            )
+            get_generation_cache().set(cache_key, complete_text)
+            logger.debug(
+                f"Daemon streaming: Cached result for prompt: {prompt_str[:50]}..."
+            )
 
     def _handle_embed(self, params: Dict[str, Any]) -> Any:
         """Handle embedding generation request."""
@@ -361,11 +403,19 @@ def main():
     parser.add_argument(
         "--no-preload", action="store_true", help="Don't preload models on startup"
     )
+    parser.add_argument(
+        "--size",
+        choices=["small", "medium", "large"],
+        help="Model size to preload (small=0.6B, medium=1.7B, large=4B)",
+    )
 
     args = parser.parse_args()
 
     server = DaemonServer(
-        host=args.host, port=args.port, preload_models=not args.no_preload
+        host=args.host,
+        port=args.port,
+        preload_models=not args.no_preload,
+        size=args.size,
     )
     server.run()
 

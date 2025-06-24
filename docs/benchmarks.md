@@ -1,6 +1,6 @@
 # SteadyText Performance Benchmarks
 
-This document provides detailed performance and accuracy benchmarks for SteadyText v0.3.0.
+This document provides detailed performance and accuracy benchmarks for SteadyText v1.3.3.
 
 ## Quick Summary
 
@@ -25,7 +25,7 @@ SteadyText delivers **100% deterministic** text generation and embeddings with c
 
 ### Text Generation Performance
 
-SteadyText uses the BitCPM4-1B-Q8_0 model for deterministic text generation:
+SteadyText uses the Qwen3-1.7B-Q8_0.gguf model for deterministic text generation:
 
 | Metric | Value | Notes |
 |--------|-------|-------|
@@ -48,7 +48,7 @@ Streaming provides similar performance with slightly higher memory usage:
 
 ### Embedding Performance
 
-SteadyText uses the Qwen3-0.6B-Q8_0 model for deterministic embeddings:
+SteadyText uses the Qwen3-Embedding-0.6B-Q8_0.gguf model for deterministic embeddings:
 
 | Batch Size | Throughput | Mean Latency | Use Case |
 |------------|------------|--------------|----------|
@@ -77,6 +77,23 @@ SteadyText scales well with multiple concurrent requests:
 | 2 | 84.4 ops/sec | 95% |
 | 4 | 312.9 ops/sec | 90% |
 | 8 | 840.5 ops/sec | 85% |
+
+### Daemon Mode Performance
+
+SteadyText v1.3+ includes a daemon mode that keeps models loaded in memory for instant responses:
+
+| Operation | Direct Mode | Daemon Mode | Improvement |
+|-----------|------------|-------------|-------------|
+| **First Request** | 2.4s | 15ms | 160x faster |
+| **Subsequent Requests** | 46.7ms | 46.7ms | Same |
+| **With Cache Hit** | 1.0ms | 1.0ms | Same |
+| **Startup Time** | 0s | 2.4s (once) | One-time cost |
+
+Benefits of daemon mode:
+- Eliminates model loading overhead for each request
+- Maintains persistent cache across all operations
+- Supports concurrent requests efficiently
+- Graceful fallback to direct mode if daemon unavailable
 
 ### Model Loading
 
@@ -140,7 +157,7 @@ SteadyText's core guarantee is 100% deterministic outputs:
 - **RAM**: 32GB DDR4
 - **OS**: Linux 6.14.11 (Fedora 42)
 - **Python**: 3.13.2
-- **Models**: BitCPM4-1B-Q8_0, Qwen3-0.6B-Q8_0
+- **Models**: Qwen3-1.7B-Q8_0.gguf, Qwen3-Embedding-0.6B-Q8_0.gguf
 
 ### Benchmark Methodology
 
@@ -182,18 +199,25 @@ SteadyText's core guarantee is 100% deterministic outputs:
 
 To run benchmarks yourself:
 
+**Using UV (recommended):**
+```bash
+# Run all benchmarks
+uv run python benchmarks/run_all_benchmarks.py
+
+# Quick benchmarks (for CI)
+uv run python benchmarks/run_all_benchmarks.py --quick
+
+# Test framework only
+uv run python benchmarks/test_benchmarks.py
+```
+
+**Legacy method:**
 ```bash
 # Install benchmark dependencies
 pip install steadytext[benchmark]
 
 # Run all benchmarks
 python benchmarks/run_all_benchmarks.py
-
-# Quick benchmarks (for CI)
-python benchmarks/run_all_benchmarks.py --quick
-
-# Test framework only
-python benchmarks/test_benchmarks.py
 ```
 
 See [benchmarks/README.md](https://github.com/julep-ai/steadytext/tree/main/benchmarks) for detailed instructions.

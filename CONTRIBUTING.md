@@ -10,18 +10,44 @@ We welcome contributions to SteadyText! This document provides guidelines for co
 
 ## Development Setup
 
+### Using UV (Recommended)
+
+UV is a modern, blazing-fast Python package manager that's 10-100x faster than pip. We recommend using UV for development:
+
+```bash
+# Install UV
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Clone and setup
+git clone https://github.com/your-username/steadytext.git
+cd steadytext
+
+# Install in development mode with all dependencies
+uv sync --all-extras --dev
+
+# Run tests
+uv run python -m pytest
+
+# Run linting and formatting
+uvx ruff check .
+uvx ruff format .
+uvx black .
+```
+
+### Legacy Method (pip)
+
 ```bash
 # Install in development mode
 pip install -e .
 
 # Install development dependencies
-pip install pytest flake8
+pip install pytest ruff black pre-commit
 
 # Run tests
 python -m pytest
 
 # Run linting
-python -m flake8 .
+ruff check .
 ```
 
 ## Making Changes
@@ -50,6 +76,28 @@ python -m flake8 .
 - Write tests for all new functionality
 - Ensure tests are deterministic
 - Use pytest for testing
+
+### Running Tests
+
+**Using UV (recommended):**
+```bash
+# Run all tests
+uv run python -m pytest
+
+# Run with coverage
+uv run python -m pytest --cov=steadytext
+
+# Run specific test file
+uv run python -m pytest tests/test_steadytext.py
+
+# Allow model downloads in tests
+STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true uv run python -m pytest
+```
+
+**Legacy method:**
+```bash
+python -m pytest
+```
 
 ## Questions?
 

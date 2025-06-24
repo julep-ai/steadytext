@@ -4,10 +4,7 @@ import json
 import time
 from pathlib import Path
 
-from ...core.generator import (
-    generate as core_generate,
-    generate_iter as core_generate_iter,
-)
+from ... import generate as steady_generate, generate_iter as steady_generate_iter
 from .index import search_index_for_context, get_default_index_path
 
 
@@ -151,7 +148,7 @@ def generate(
         in_think_tag = False
         think_content = ""
 
-        for token in core_generate_iter(
+        for token in steady_generate_iter(
             final_prompt,
             eos_string=eos_string,
             include_logprobs=logprobs,
@@ -234,7 +231,7 @@ def generate(
     else:
         # Non-streaming mode
         if logprobs:
-            result = core_generate(
+            result = steady_generate(
                 final_prompt,
                 return_logprobs=True,
                 eos_string=eos_string,
@@ -265,7 +262,7 @@ def generate(
                 }
                 click.echo(json.dumps(result_dict, indent=2))
         else:
-            generated = core_generate(
+            generated = steady_generate(
                 final_prompt,
                 eos_string=eos_string,
                 model=model,

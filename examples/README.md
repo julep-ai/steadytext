@@ -53,7 +53,22 @@ FAISS index creation and search:
 
 ## Running the Examples
 
-Each example can be run directly:
+### Using UV (Recommended)
+
+```bash
+# Install UV if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Run examples with UV
+uv run python examples/basic_usage.py
+uv run python examples/testing_with_ai.py
+uv run python examples/cli_tools.py
+uv run python examples/content_generation.py
+uv run python examples/vector_operations.py
+uv run python examples/index_management.py
+```
+
+### Legacy Method
 
 ```bash
 python examples/basic_usage.py
@@ -67,9 +82,52 @@ python examples/index_management.py
 The CLI tools example also supports command-line arguments:
 
 ```bash
+# Using UV
+uv run python examples/cli_tools.py quote
+uv run python examples/cli_tools.py error ECONNREFUSED
+uv run python examples/cli_tools.py git "undo last commit"
+
+# Legacy method
 python examples/cli_tools.py quote
 python examples/cli_tools.py error ECONNREFUSED
 python examples/cli_tools.py git "undo last commit"
+```
+
+## Daemon Mode Examples
+
+SteadyText includes a daemon mode for faster responses:
+
+```bash
+# Start the daemon
+st daemon start
+
+# All generation now uses the daemon automatically
+echo "Write a function" | st
+
+# Python code also uses daemon when available
+uv run python examples/basic_usage.py  # Uses daemon automatically
+
+# Check daemon status
+st daemon status
+
+# Stop daemon when done
+st daemon stop
+```
+
+### Daemon in Python Code
+
+```python
+import steadytext
+from steadytext.daemon import use_daemon
+
+# Daemon is used automatically when available
+text = steadytext.generate("Hello world")  # Fast if daemon running
+
+# Explicitly use daemon for a scope
+with use_daemon():
+    text = steadytext.generate("Complex prompt")
+    embedding = steadytext.embed("Some text")
+    # All operations in this block use the daemon
 ```
 
 ## Note

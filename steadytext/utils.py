@@ -41,8 +41,8 @@ MODEL_REGISTRY = {
     "qwen3-0.6b": {"repo": "Qwen/Qwen3-0.6B-GGUF", "filename": "Qwen3-0.6B-Q8_0.gguf"},
     "qwen3-1.7b": {"repo": "Qwen/Qwen3-1.7B-GGUF", "filename": "Qwen3-1.7B-Q8_0.gguf"},
     "qwen3-4b": {
-        "repo": "Qwen/Qwen3-5B-GGUF",  # Note: The 4B model is actually in the 5B repo
-        "filename": "Qwen3-5B-Q8_0.gguf",
+        "repo": "Qwen/Qwen3-4B-GGUF",
+        "filename": "Qwen3-4B-Q8_0.gguf",
     },
     "qwen3-8b": {"repo": "Qwen/Qwen3-8B-GGUF", "filename": "qwen3-8b-q8_0.gguf"},
     # Qwen2.5 models - newer series with better performance

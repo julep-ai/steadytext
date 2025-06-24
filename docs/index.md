@@ -20,6 +20,11 @@ Ever had an AI test fail randomly? Or a CLI tool give different answers each run
 ## 🚀 Quick Start
 
 ```bash
+# Using UV (recommended - 10-100x faster)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv add steadytext
+
+# Or using pip
 pip install steadytext
 ```
 
@@ -43,17 +48,20 @@ pip install steadytext
 === "Command Line"
 
     ```bash
-    # Generate text
-    st generate "hello world"
+    # Generate text (pipe syntax)
+    echo "hello world" | st
 
-    # Stream output  
-    st generate "explain recursion" --stream
+    # Stream output (default)  
+    echo "explain recursion" | st
+
+    # Wait for complete output
+    echo "explain recursion" | st --wait
 
     # Get embeddings
-    st embed "machine learning"
+    echo "machine learning" | st embed
 
-    # Preload models
-    st models --preload
+    # Start daemon for faster responses
+    st daemon start
     ```
 
 ---
@@ -69,6 +77,41 @@ SteadyText achieves determinism via:
 
 This means `generate("hello")` returns the exact same 512 tokens on any machine, every single time.
 
+### Daemon Mode (v1.3+)
+
+SteadyText includes a daemon mode that keeps models loaded in memory for instant responses:
+
+* **160x faster first request**: No model loading overhead
+* **Persistent cache**: Shared across all operations
+* **Automatic fallback**: Works without daemon if unavailable
+* **Zero configuration**: Daemon used by default when available
+
+```bash
+# Start daemon
+st daemon start
+
+# Check status
+st daemon status
+
+# All operations now use daemon automatically
+echo "hello" | st  # Instant response!
+```
+
+### FAISS Indexing
+
+Create and search vector indexes for retrieval-augmented generation:
+
+```bash
+# Create index from documents
+st index create *.txt --output docs.faiss
+
+# Search index
+st index search docs.faiss "query text" --top-k 5
+
+# Use with generation (automatic with default.faiss)
+echo "explain this error" | st --index-file docs.faiss
+```
+
 ---
 
 ## 📦 Installation & Models
@@ -76,15 +119,19 @@ This means `generate("hello")` returns the exact same 512 tokens on any machine,
 Install stable release:
 
 ```bash
+# Using UV (recommended - 10-100x faster)
+uv add steadytext
+
+# Or using pip
 pip install steadytext
 ```
 
 ### Models
 
-**Corresponding to pypi versions `0.x.y`**:
+**Current models (v1.x)**:
 
-* Generation: `Qwen3-1.7B-Q8_0` (1.83GB)
-* Embeddings: `Qwen3-0.6B-Q8_0` (610MB)
+* Generation: `Qwen3-1.7B-Q8_0.gguf` (1.83GB)
+* Embeddings: `Qwen3-Embedding-0.6B-Q8_0.gguf` (610MB)
 
 !!! note "Version Stability"
     Each major version will use a fixed set of models only, so that only forced upgrades from pip will change the models (and the deterministic output)
