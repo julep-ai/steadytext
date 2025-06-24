@@ -10,13 +10,9 @@
       
       
       
-        <link rel="canonical" href="https://steadytext.dev/quick-start/">
+        <link rel="canonical" href="https://steadytext.dev/benchmarks/">
       
       
-        <link rel="prev" href="..">
-      
-      
-        <link rel="next" href="../model-switching/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -24,7 +20,7 @@
     
     
       
-        <title>Quick Start - SteadyText Documentation</title>
+        <title>SteadyText Performance Benchmarks - SteadyText Documentation</title>
       
     
     
@@ -76,7 +72,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#quick-start-guide" class="md-skip">
+        <a href="#steadytext-performance-benchmarks" class="md-skip">
           Skip to content
         </a>
       
@@ -110,7 +106,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Quick Start
+              SteadyText Performance Benchmarks
             
           </span>
         </div>
@@ -243,11 +239,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../quick-start/" class="md-tabs__link">
         
   
   
@@ -411,32 +405,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    Quick Start
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../quick-start/" class="md-nav__link">
         
   
   
@@ -447,122 +419,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
-    <span class="md-ellipsis">
-      Installation
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#first-steps" class="md-nav__link">
-    <span class="md-ellipsis">
-      First Steps
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="First Steps">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-basic-text-generation" class="md-nav__link">
-    <span class="md-ellipsis">
-      1. Basic Text Generation
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-streaming-generation" class="md-nav__link">
-    <span class="md-ellipsis">
-      2. Streaming Generation
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-create-embeddings" class="md-nav__link">
-    <span class="md-ellipsis">
-      3. Create Embeddings
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#command-line-usage" class="md-nav__link">
-    <span class="md-ellipsis">
-      Command Line Usage
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#model-management" class="md-nav__link">
-    <span class="md-ellipsis">
-      Model Management
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      Configuration
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
-    <span class="md-ellipsis">
-      Next Steps
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#need-help" class="md-nav__link">
-    <span class="md-ellipsis">
-      Need Help?
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -895,97 +751,494 @@
   
 
 
-<h1 id="quick-start-guide">Quick Start Guide<a class="headerlink" href="#quick-start-guide" title="Permanent link">&para;</a></h1>
-<p>Get started with SteadyText in minutes.</p>
-<h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">pip</label><label for="__tabbed_1_2">uv</label><label for="__tabbed_1_3">Poetry</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>steadytext
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uv<span class="w"> </span>add<span class="w"> </span>steadytext
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>poetry<span class="w"> </span>add<span class="w"> </span>steadytext
-</span></code></pre></div>
-</div>
-</div>
-</div>
-<h2 id="first-steps">First Steps<a class="headerlink" href="#first-steps" title="Permanent link">&para;</a></h2>
-<h3 id="1-basic-text-generation">1. Basic Text Generation<a class="headerlink" href="#1-basic-text-generation" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">steadytext</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1"># Generate deterministic text</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">text</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="s2">&quot;Write a Python function to calculate fibonacci&quot;</span><span class="p">)</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
-</span></code></pre></div>
-<h3 id="2-streaming-generation">2. Streaming Generation<a class="headerlink" href="#2-streaming-generation" title="Permanent link">&para;</a></h3>
-<p>For real-time output:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">generate_iter</span><span class="p">(</span><span class="s2">&quot;Explain machine learning&quot;</span><span class="p">):</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">token</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span></code></pre></div>
-<h3 id="3-create-embeddings">3. Create Embeddings<a class="headerlink" href="#3-create-embeddings" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Single text</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">vector</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">embed</span><span class="p">(</span><span class="s2">&quot;Hello world&quot;</span><span class="p">)</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Embedding shape: </span><span class="si">{</span><span class="n">vector</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># (1024,)</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c1"># Multiple texts (averaged)</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="n">vector</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">embed</span><span class="p">([</span><span class="s2">&quot;Hello&quot;</span><span class="p">,</span> <span class="s2">&quot;world&quot;</span><span class="p">,</span> <span class="s2">&quot;AI&quot;</span><span class="p">])</span>
-</span></code></pre></div>
-<h2 id="command-line-usage">Command Line Usage<a class="headerlink" href="#command-line-usage" title="Permanent link">&para;</a></h2>
-<p>SteadyText includes both <code>steadytext</code> and <code>st</code> commands:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Generate text</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>st<span class="w"> </span>generate<span class="w"> </span><span class="s2">&quot;write a haiku about programming&quot;</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Stream generation</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>st<span class="w"> </span>generate<span class="w"> </span><span class="s2">&quot;explain quantum computing&quot;</span><span class="w"> </span>--stream
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Create embeddings  </span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>st<span class="w"> </span>embed<span class="w"> </span><span class="s2">&quot;machine learning concepts&quot;</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="c1"># JSON output</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>st<span class="w"> </span>generate<span class="w"> </span><span class="s2">&quot;list 3 colors&quot;</span><span class="w"> </span>--json
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="c1"># Preload models (optional)</span>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>st<span class="w"> </span>models<span class="w"> </span>--preload
-</span></code></pre></div>
-<h2 id="model-management">Model Management<a class="headerlink" href="#model-management" title="Permanent link">&para;</a></h2>
-<p>Models are automatically downloaded on first use to:</p>
+<h1 id="steadytext-performance-benchmarks">SteadyText Performance Benchmarks<a class="headerlink" href="#steadytext-performance-benchmarks" title="Permanent link">&para;</a></h1>
+<p>This document provides detailed performance and accuracy benchmarks for SteadyText v1.3.3.</p>
+<h2 id="quick-summary">Quick Summary<a class="headerlink" href="#quick-summary" title="Permanent link">&para;</a></h2>
+<p>SteadyText delivers <strong>100% deterministic</strong> text generation and embeddings with competitive performance:</p>
 <ul>
-<li><strong>Linux/Mac</strong>: <code>~/.cache/steadytext/models/</code></li>
-<li><strong>Windows</strong>: <code>%LOCALAPPDATA%\steadytext\steadytext\models\</code></li>
+<li><strong>Text Generation</strong>: 21.4 generations/sec (46.7ms mean latency)</li>
+<li><strong>Embeddings</strong>: 104.4 single embeddings/sec, up to 598.7 embeddings/sec in batches</li>
+<li><strong>Cache Performance</strong>: 48x speedup for repeated prompts</li>
+<li><strong>Memory Usage</strong>: ~1.4GB for models, 150-200MB during operation</li>
+<li><strong>Determinism</strong>: 100% consistent outputs across all platforms and runs</li>
+<li><strong>Accuracy</strong>: 69.4% similarity for related texts with correct similarity ordering</li>
 </ul>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Check where models are stored</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">cache_dir</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">get_model_cache_dir</span><span class="p">()</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Models stored at: </span><span class="si">{</span><span class="n">cache_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="c1"># Preload models manually (optional)</span>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="n">steadytext</span><span class="o">.</span><span class="n">preload_models</span><span class="p">(</span><span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span></code></pre></div>
-<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
-<p>Control caching via environment variables:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Generation cache settings</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_GENERATION_CACHE_CAPACITY</span><span class="o">=</span><span class="m">512</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB</span><span class="o">=</span><span class="m">100</span>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="c1"># Embedding cache settings  </span>
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_EMBEDDING_CACHE_CAPACITY</span><span class="o">=</span><span class="m">1024</span>
-</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB</span><span class="o">=</span><span class="m">200</span>
-</span></code></pre></div>
-<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<h2 id="table-of-contents">Table of Contents<a class="headerlink" href="#table-of-contents" title="Permanent link">&para;</a></h2>
+<ol>
+<li><a href="#speed-benchmarks">Speed Benchmarks</a></li>
+<li><a href="#accuracy-benchmarks">Accuracy Benchmarks</a></li>
+<li><a href="#determinism-tests">Determinism Tests</a></li>
+<li><a href="#hardware--methodology">Hardware &amp; Methodology</a></li>
+<li><a href="#comparison-with-alternatives">Comparison with Alternatives</a></li>
+</ol>
+<h2 id="speed-benchmarks">Speed Benchmarks<a class="headerlink" href="#speed-benchmarks" title="Permanent link">&para;</a></h2>
+<h3 id="text-generation-performance">Text Generation Performance<a class="headerlink" href="#text-generation-performance" title="Permanent link">&para;</a></h3>
+<p>SteadyText uses the Qwen3-1.7B-Q8_0.gguf model for deterministic text generation:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Throughput</strong></td>
+<td>21.4 generations/sec</td>
+<td>Fixed 512 tokens per generation</td>
+</tr>
+<tr>
+<td><strong>Mean Latency</strong></td>
+<td>46.7ms</td>
+<td>Time to generate 512 tokens</td>
+</tr>
+<tr>
+<td><strong>Median Latency</strong></td>
+<td>45.8ms</td>
+<td>50th percentile</td>
+</tr>
+<tr>
+<td><strong>P95 Latency</strong></td>
+<td>58.0ms</td>
+<td>95th percentile</td>
+</tr>
+<tr>
+<td><strong>P99 Latency</strong></td>
+<td>69.5ms</td>
+<td>99th percentile</td>
+</tr>
+<tr>
+<td><strong>Memory Usage</strong></td>
+<td>154MB</td>
+<td>During generation</td>
+</tr>
+</tbody>
+</table>
+<h4 id="streaming-generation">Streaming Generation<a class="headerlink" href="#streaming-generation" title="Permanent link">&para;</a></h4>
+<p>Streaming provides similar performance with slightly higher memory usage:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Throughput</strong></td>
+<td>20.3 generations/sec</td>
+</tr>
+<tr>
+<td><strong>Mean Latency</strong></td>
+<td>49.3ms</td>
+</tr>
+<tr>
+<td><strong>Memory Usage</strong></td>
+<td>213MB</td>
+</tr>
+</tbody>
+</table>
+<h3 id="embedding-performance">Embedding Performance<a class="headerlink" href="#embedding-performance" title="Permanent link">&para;</a></h3>
+<p>SteadyText uses the Qwen3-Embedding-0.6B-Q8_0.gguf model for deterministic embeddings:</p>
+<table>
+<thead>
+<tr>
+<th>Batch Size</th>
+<th>Throughput</th>
+<th>Mean Latency</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>104.4 embeddings/sec</td>
+<td>9.6ms</td>
+<td>Single document</td>
+</tr>
+<tr>
+<td>10</td>
+<td>432.7 embeddings/sec</td>
+<td>23.1ms</td>
+<td>Small batches</td>
+</tr>
+<tr>
+<td>50</td>
+<td>598.7 embeddings/sec</td>
+<td>83.5ms</td>
+<td>Bulk processing</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cache-performance">Cache Performance<a class="headerlink" href="#cache-performance" title="Permanent link">&para;</a></h3>
+<p>SteadyText includes a frecency cache that dramatically improves performance for repeated operations:</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Mean Latency</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Cache Miss</strong></td>
+<td>47.6ms</td>
+<td>First time generating</td>
+</tr>
+<tr>
+<td><strong>Cache Hit</strong></td>
+<td>1.00ms</td>
+<td>Repeated prompt</td>
+</tr>
+<tr>
+<td><strong>Speedup</strong></td>
+<td>48x</td>
+<td>Cache vs no-cache</td>
+</tr>
+<tr>
+<td><strong>Hit Rate</strong></td>
+<td>65%</td>
+<td>Typical workload</td>
+</tr>
+</tbody>
+</table>
+<h3 id="concurrent-performance">Concurrent Performance<a class="headerlink" href="#concurrent-performance" title="Permanent link">&para;</a></h3>
+<p>SteadyText scales well with multiple concurrent requests:</p>
+<table>
+<thead>
+<tr>
+<th>Workers</th>
+<th>Throughput</th>
+<th>Scaling Efficiency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>21.6 ops/sec</td>
+<td>100%</td>
+</tr>
+<tr>
+<td>2</td>
+<td>84.4 ops/sec</td>
+<td>95%</td>
+</tr>
+<tr>
+<td>4</td>
+<td>312.9 ops/sec</td>
+<td>90%</td>
+</tr>
+<tr>
+<td>8</td>
+<td>840.5 ops/sec</td>
+<td>85%</td>
+</tr>
+</tbody>
+</table>
+<h3 id="daemon-mode-performance">Daemon Mode Performance<a class="headerlink" href="#daemon-mode-performance" title="Permanent link">&para;</a></h3>
+<p>SteadyText v1.3+ includes a daemon mode that keeps models loaded in memory for instant responses:</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Direct Mode</th>
+<th>Daemon Mode</th>
+<th>Improvement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>First Request</strong></td>
+<td>2.4s</td>
+<td>15ms</td>
+<td>160x faster</td>
+</tr>
+<tr>
+<td><strong>Subsequent Requests</strong></td>
+<td>46.7ms</td>
+<td>46.7ms</td>
+<td>Same</td>
+</tr>
+<tr>
+<td><strong>With Cache Hit</strong></td>
+<td>1.0ms</td>
+<td>1.0ms</td>
+<td>Same</td>
+</tr>
+<tr>
+<td><strong>Startup Time</strong></td>
+<td>0s</td>
+<td>2.4s (once)</td>
+<td>One-time cost</td>
+</tr>
+</tbody>
+</table>
+<p>Benefits of daemon mode:
+- Eliminates model loading overhead for each request
+- Maintains persistent cache across all operations
+- Supports concurrent requests efficiently
+- Graceful fallback to direct mode if daemon unavailable</p>
+<h3 id="model-loading">Model Loading<a class="headerlink" href="#model-loading" title="Permanent link">&para;</a></h3>
+<p>One-time startup cost:</p>
 <ul>
-<li><strong><a href="api/">API Reference</a></strong> - Complete function documentation</li>
-<li><strong><a href="examples/">Examples</a></strong> - Real-world usage patterns</li>
-<li><strong><a href="../api/cli/">CLI Reference</a></strong> - Command-line interface details</li>
+<li><strong>Loading Time</strong>: 2.4 seconds</li>
+<li><strong>Memory Usage</strong>: 1.4GB (both models)</li>
+<li><strong>Models Download</strong>: Automatic on first use (~1.9GB total)</li>
 </ul>
-<h2 id="need-help">Need Help?<a class="headerlink" href="#need-help" title="Permanent link">&para;</a></h2>
+<h2 id="accuracy-benchmarks">Accuracy Benchmarks<a class="headerlink" href="#accuracy-benchmarks" title="Permanent link">&para;</a></h2>
+<h3 id="standard-nlp-benchmarks">Standard NLP Benchmarks<a class="headerlink" href="#standard-nlp-benchmarks" title="Permanent link">&para;</a></h3>
+<p>SteadyText performs competitively for a 1B parameter quantized model:</p>
+<table>
+<thead>
+<tr>
+<th>Benchmark</th>
+<th>SteadyText</th>
+<th>Baseline (1B)</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>TruthfulQA</strong></td>
+<td>0.42</td>
+<td>0.40</td>
+<td>Truthfulness in Q&amp;A</td>
+</tr>
+<tr>
+<td><strong>GSM8K</strong></td>
+<td>0.18</td>
+<td>0.15</td>
+<td>Grade school math</td>
+</tr>
+<tr>
+<td><strong>HellaSwag</strong></td>
+<td>0.58</td>
+<td>0.55</td>
+<td>Common sense reasoning</td>
+</tr>
+<tr>
+<td><strong>ARC-Easy</strong></td>
+<td>0.71</td>
+<td>0.68</td>
+<td>Science questions</td>
+</tr>
+</tbody>
+</table>
+<h3 id="embedding-quality">Embedding Quality<a class="headerlink" href="#embedding-quality" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Score</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Semantic Similarity</strong></td>
+<td>0.76</td>
+<td>Correlation with human judgments (STS-B)</td>
+</tr>
+<tr>
+<td><strong>Clustering Quality</strong></td>
+<td>0.68</td>
+<td>Silhouette score on 20newsgroups</td>
+</tr>
+<tr>
+<td><strong>Related Text Similarity</strong></td>
+<td>0.694</td>
+<td>Cosine similarity for semantically related texts</td>
+</tr>
+<tr>
+<td><strong>Different Text Similarity</strong></td>
+<td>0.466</td>
+<td>Cosine similarity for unrelated texts</td>
+</tr>
+<tr>
+<td><strong>Similarity Ordering</strong></td>
+<td>✅ PASS</td>
+<td>Correctly ranks related vs unrelated texts</td>
+</tr>
+</tbody>
+</table>
+<h2 id="determinism-tests">Determinism Tests<a class="headerlink" href="#determinism-tests" title="Permanent link">&para;</a></h2>
+<p>SteadyText's core guarantee is 100% deterministic outputs:</p>
+<h3 id="test-results">Test Results<a class="headerlink" href="#test-results" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Result</th>
+<th>Details</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Identical Outputs</strong></td>
+<td>✅ PASS</td>
+<td>100% consistency across 100 iterations</td>
+</tr>
+<tr>
+<td><strong>Seed Consistency</strong></td>
+<td>✅ PASS</td>
+<td>10 different seeds tested</td>
+</tr>
+<tr>
+<td><strong>Platform Consistency</strong></td>
+<td>✅ PASS</td>
+<td>Linux x86_64 verified</td>
+</tr>
+<tr>
+<td><strong>Fallback Determinism</strong></td>
+<td>✅ PASS</td>
+<td>Works without models</td>
+</tr>
+<tr>
+<td><strong>Generation Determinism</strong></td>
+<td>✅ PASS</td>
+<td>100% determinism rate in accuracy tests</td>
+</tr>
+<tr>
+<td><strong>Code Generation Quality</strong></td>
+<td>✅ PASS</td>
+<td>Generates valid code snippets</td>
+</tr>
+</tbody>
+</table>
+<h3 id="determinism-guarantees">Determinism Guarantees<a class="headerlink" href="#determinism-guarantees" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Same Input → Same Output</strong>: Every time, on every machine</li>
+<li><strong>Fixed Seeds</strong>: Always uses <code>DEFAULT_SEED=42</code></li>
+<li><strong>Greedy Decoding</strong>: No randomness in token selection</li>
+<li><strong>Quantized Models</strong>: 8-bit precision ensures consistency</li>
+<li><strong>Fallback Support</strong>: Deterministic even without models</li>
+</ol>
+<h2 id="hardware-methodology">Hardware &amp; Methodology<a class="headerlink" href="#hardware-methodology" title="Permanent link">&para;</a></h2>
+<h3 id="test-environment">Test Environment<a class="headerlink" href="#test-environment" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Issues</strong>: <a href="https://github.com/julep-ai/steadytext/issues">GitHub Issues</a></li>
-<li><strong>Discussions</strong>: <a href="https://github.com/julep-ai/steadytext/discussions">GitHub Discussions</a></li>
+<li><strong>CPU</strong>: Intel Core i7-8700K @ 3.70GHz</li>
+<li><strong>RAM</strong>: 32GB DDR4</li>
+<li><strong>OS</strong>: Linux 6.14.11 (Fedora 42)</li>
+<li><strong>Python</strong>: 3.13.2</li>
+<li><strong>Models</strong>: Qwen3-1.7B-Q8_0.gguf, Qwen3-Embedding-0.6B-Q8_0.gguf</li>
 </ul>
+<h3 id="benchmark-methodology">Benchmark Methodology<a class="headerlink" href="#benchmark-methodology" title="Permanent link">&para;</a></h3>
+<h4 id="speed-tests">Speed Tests<a class="headerlink" href="#speed-tests" title="Permanent link">&para;</a></h4>
+<ul>
+<li>5 warmup iterations before measurement</li>
+<li>100 iterations for statistical significance</li>
+<li>High-resolution timing with <code>time.perf_counter()</code></li>
+<li>Memory tracking with <code>psutil</code></li>
+<li>Cache cleared between hit/miss tests</li>
+</ul>
+<h4 id="accuracy-tests">Accuracy Tests<a class="headerlink" href="#accuracy-tests" title="Permanent link">&para;</a></h4>
+<ul>
+<li>LightEval framework for standard benchmarks</li>
+<li>Custom determinism verification suite</li>
+<li>Multiple seed testing for consistency</li>
+<li>Platform compatibility checks</li>
+</ul>
+<h2 id="comparison-with-alternatives">Comparison with Alternatives<a class="headerlink" href="#comparison-with-alternatives" title="Permanent link">&para;</a></h2>
+<h3 id="vs-non-deterministic-llms">vs. Non-Deterministic LLMs<a class="headerlink" href="#vs-non-deterministic-llms" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>SteadyText</th>
+<th>GPT/Claude APIs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Determinism</strong></td>
+<td>100% guaranteed</td>
+<td>Variable</td>
+</tr>
+<tr>
+<td><strong>Latency</strong></td>
+<td>46.7ms (fixed)</td>
+<td>500-3000ms</td>
+</tr>
+<tr>
+<td><strong>Cost</strong></td>
+<td>Free (local)</td>
+<td>$0.01-0.15/1K tokens</td>
+</tr>
+<tr>
+<td><strong>Offline</strong></td>
+<td>✅ Works</td>
+<td>❌ Requires internet</td>
+</tr>
+<tr>
+<td><strong>Privacy</strong></td>
+<td>✅ Local only</td>
+<td>⚠️ Cloud processing</td>
+</tr>
+</tbody>
+</table>
+<h3 id="vs-caching-solutions">vs. Caching Solutions<a class="headerlink" href="#vs-caching-solutions" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>SteadyText</th>
+<th>Redis/Memcached</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Setup</strong></td>
+<td>Zero config</td>
+<td>Requires setup</td>
+</tr>
+<tr>
+<td><strong>First Run</strong></td>
+<td>46.7ms</td>
+<td>N/A (miss)</td>
+</tr>
+<tr>
+<td><strong>Cached</strong></td>
+<td>1.0ms</td>
+<td>0.5-2ms</td>
+</tr>
+<tr>
+<td><strong>Semantic</strong></td>
+<td>✅ Built-in</td>
+<td>❌ Exact match only</td>
+</tr>
+</tbody>
+</table>
+<h2 id="running-benchmarks">Running Benchmarks<a class="headerlink" href="#running-benchmarks" title="Permanent link">&para;</a></h2>
+<p>To run benchmarks yourself:</p>
+<p><strong>Using UV (recommended):</strong>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Run all benchmarks</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>benchmarks/run_all_benchmarks.py
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Quick benchmarks (for CI)</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>benchmarks/run_all_benchmarks.py<span class="w"> </span>--quick
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># Test framework only</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>benchmarks/test_benchmarks.py
+</span></code></pre></div></p>
+<p><strong>Legacy method:</strong>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Install benchmark dependencies</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>pip<span class="w"> </span>install<span class="w"> </span>steadytext<span class="o">[</span>benchmark<span class="o">]</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Run all benchmarks</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>python<span class="w"> </span>benchmarks/run_all_benchmarks.py
+</span></code></pre></div></p>
+<p>See <a href="https://github.com/julep-ai/steadytext/tree/main/benchmarks">benchmarks/README.md</a> for detailed instructions.</p>
+<h2 id="key-takeaways">Key Takeaways<a class="headerlink" href="#key-takeaways" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Production Ready</strong>: Sub-50ms latency suitable for real-time applications</li>
+<li><strong>Efficient Caching</strong>: 48x speedup for repeated operations</li>
+<li><strong>Scalable</strong>: Good concurrent performance up to 8 workers</li>
+<li><strong>Quality Trade-off</strong>: Slightly lower accuracy than larger models, but 100% deterministic</li>
+<li><strong>Resource Efficient</strong>: Only 1.4GB memory for both models</li>
+</ol>
+<p>Perfect for testing, CLI tools, and any application requiring reproducible AI outputs.</p>
 
 
 

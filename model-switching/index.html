@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://steadytext.dev/quick-start/">
+        <link rel="canonical" href="https://steadytext.dev/model-switching/">
       
       
-        <link rel="prev" href="..">
+        <link rel="prev" href="../quick-start/">
       
       
-        <link rel="next" href="../model-switching/">
+        <link rel="next" href="../api/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -24,7 +24,7 @@
     
     
       
-        <title>Quick Start - SteadyText Documentation</title>
+        <title>Model Switching - SteadyText Documentation</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#quick-start-guide" class="md-skip">
+        <a href="#model-switching-in-steadytext" class="md-skip">
           Skip to content
         </a>
       
@@ -110,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Quick Start
+              Model Switching
             
           </span>
         </div>
@@ -243,11 +243,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../quick-start/" class="md-tabs__link">
         
   
   
@@ -264,9 +262,11 @@
   
   
   
+    
   
-    <li class="md-tabs__item">
-      <a href="../model-switching/" class="md-tabs__link">
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
         
   
   
@@ -411,6 +411,28 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quick Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -428,7 +450,7 @@
   
   
   <span class="md-ellipsis">
-    Quick Start
+    Model Switching
     
   </span>
   
@@ -441,7 +463,7 @@
   
   
   <span class="md-ellipsis">
-    Quick Start
+    Model Switching
     
   </span>
   
@@ -464,46 +486,55 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
+  <a href="#overview" class="md-nav__link">
     <span class="md-ellipsis">
-      Installation
+      Overview
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#first-steps" class="md-nav__link">
+  <a href="#usage-methods" class="md-nav__link">
     <span class="md-ellipsis">
-      First Steps
+      Usage Methods
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="First Steps">
+    <nav class="md-nav" aria-label="Usage Methods">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#1-basic-text-generation" class="md-nav__link">
+  <a href="#1-using-size-parameter-new" class="md-nav__link">
     <span class="md-ellipsis">
-      1. Basic Text Generation
+      1. Using Size Parameter (New!)
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-streaming-generation" class="md-nav__link">
+  <a href="#2-using-the-model-registry" class="md-nav__link">
     <span class="md-ellipsis">
-      2. Streaming Generation
+      2. Using the Model Registry
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-create-embeddings" class="md-nav__link">
+  <a href="#3-using-custom-models" class="md-nav__link">
     <span class="md-ellipsis">
-      3. Create Embeddings
+      3. Using Custom Models
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-using-environment-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Using Environment Variables
     </span>
   </a>
   
@@ -515,47 +546,137 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#command-line-usage" class="md-nav__link">
+  <a href="#streaming-generation" class="md-nav__link">
     <span class="md-ellipsis">
-      Command Line Usage
+      Streaming Generation
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#model-management" class="md-nav__link">
+  <a href="#model-selection-guide" class="md-nav__link">
     <span class="md-ellipsis">
-      Model Management
+      Model Selection Guide
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Model Selection Guide">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#for-speed-05b-15b-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      For Speed (0.5B - 1.5B models)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#for-balance-17b-3b-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      For Balance (1.7B - 3B models)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#for-quality-4b-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      For Quality (4B+ models)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance Considerations
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#configuration" class="md-nav__link">
+  <a href="#examples" class="md-nav__link">
     <span class="md-ellipsis">
-      Configuration
+      Examples
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adaptive-model-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      Adaptive Model Selection
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#ab-testing-models" class="md-nav__link">
     <span class="md-ellipsis">
-      Next Steps
+      A/B Testing Models
     </span>
   </a>
   
 </li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
         <li class="md-nav__item">
-  <a href="#need-help" class="md-nav__link">
+  <a href="#troubleshooting" class="md-nav__link">
     <span class="md-ellipsis">
-      Need Help?
+      Troubleshooting
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-not-found" class="md-nav__link">
+    <span class="md-ellipsis">
+      Model Not Found
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#out-of-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      Out of Memory
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slow-first-load" class="md-nav__link">
+    <span class="md-ellipsis">
+      Slow First Load
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -563,28 +684,6 @@
   
 </nav>
       
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../model-switching/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Model Switching
-    
-  </span>
-  
-
-      </a>
     </li>
   
 
@@ -895,97 +994,200 @@
   
 
 
-<h1 id="quick-start-guide">Quick Start Guide<a class="headerlink" href="#quick-start-guide" title="Permanent link">&para;</a></h1>
-<p>Get started with SteadyText in minutes.</p>
-<h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">pip</label><label for="__tabbed_1_2">uv</label><label for="__tabbed_1_3">Poetry</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>steadytext
+<h1 id="model-switching-in-steadytext">Model Switching in SteadyText<a class="headerlink" href="#model-switching-in-steadytext" title="Permanent link">&para;</a></h1>
+<p>SteadyText 1.0.0 introduces dynamic model switching, allowing you to use different language models without restarting your application or changing environment variables.</p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>The model switching feature enables you to:</p>
+<ol>
+<li><strong>Use different models for different tasks</strong> - Choose smaller models for speed or larger models for quality</li>
+<li><strong>Switch models at runtime</strong> - No need to restart your application</li>
+<li><strong>Maintain deterministic outputs</strong> - Each model produces consistent results</li>
+<li><strong>Cache multiple models</strong> - Models are cached after first load for efficiency</li>
+</ol>
+<h2 id="usage-methods">Usage Methods<a class="headerlink" href="#usage-methods" title="Permanent link">&para;</a></h2>
+<h3 id="1-using-size-parameter-new">1. Using Size Parameter (New!)<a class="headerlink" href="#1-using-size-parameter-new" title="Permanent link">&para;</a></h3>
+<p>The simplest way to choose a model based on your needs:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">steadytext</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Quick, lightweight tasks</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">text</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="s2">&quot;Simple question&quot;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="s2">&quot;small&quot;</span><span class="p">)</span>    <span class="c1"># Uses Qwen3-0.6B</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># Balanced performance (default)</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">text</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="s2">&quot;General task&quot;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="s2">&quot;medium&quot;</span><span class="p">)</span>      <span class="c1"># Uses Qwen3-1.7B</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># Complex, high-quality output</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">text</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="s2">&quot;Complex analysis&quot;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="s2">&quot;large&quot;</span><span class="p">)</span>   <span class="c1"># Uses Qwen3-4B</span>
 </span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uv<span class="w"> </span>add<span class="w"> </span>steadytext
+<h3 id="2-using-the-model-registry">2. Using the Model Registry<a class="headerlink" href="#2-using-the-model-registry" title="Permanent link">&para;</a></h3>
+<p>For more specific model selection:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">steadytext</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># Use a smaller, faster model</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">text</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="s2">&quot;Explain machine learning&quot;</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen2.5-0.5b&quot;</span><span class="p">)</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c1"># Use a larger, more capable model</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">text</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="s2">&quot;Write a detailed essay&quot;</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen2.5-7b&quot;</span><span class="p">)</span>
 </span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>poetry<span class="w"> </span>add<span class="w"> </span>steadytext
+<p>Available models in the registry:</p>
+<table>
+<thead>
+<tr>
+<th>Model Name</th>
+<th>Size</th>
+<th>Use Case</th>
+<th>Size Parameter</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>qwen3-0.6b</code></td>
+<td>0.6B</td>
+<td>Very fast, simple tasks</td>
+<td><code>small</code></td>
+</tr>
+<tr>
+<td><code>qwen3-1.7b</code></td>
+<td>1.7B</td>
+<td>Default, balanced performance</td>
+<td><code>medium</code></td>
+</tr>
+<tr>
+<td><code>qwen3-4b</code></td>
+<td>4B</td>
+<td>Better quality, slower</td>
+<td><code>large</code></td>
+</tr>
+<tr>
+<td><code>qwen3-8b</code></td>
+<td>8B</td>
+<td>High quality, resource intensive</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>qwen2.5-0.5b</code></td>
+<td>0.5B</td>
+<td>Fast, lightweight tasks</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>qwen2.5-1.5b</code></td>
+<td>1.5B</td>
+<td>Good balance of speed/quality</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>qwen2.5-3b</code></td>
+<td>3B</td>
+<td>Enhanced capabilities</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>qwen2.5-7b</code></td>
+<td>7B</td>
+<td>Best quality, slower</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3-using-custom-models">3. Using Custom Models<a class="headerlink" href="#3-using-custom-models" title="Permanent link">&para;</a></h3>
+<p>Specify any GGUF model from Hugging Face:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">steadytext</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="c1"># Use a custom model</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">text</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="s2">&quot;Create a Python function&quot;</span><span class="p">,</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="n">model_repo</span><span class="o">=</span><span class="s2">&quot;Qwen/Qwen2.5-7B-Instruct-GGUF&quot;</span><span class="p">,</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">model_filename</span><span class="o">=</span><span class="s2">&quot;qwen2.5-7b-instruct-q8_0.gguf&quot;</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="p">)</span>
 </span></code></pre></div>
-</div>
-</div>
-</div>
-<h2 id="first-steps">First Steps<a class="headerlink" href="#first-steps" title="Permanent link">&para;</a></h2>
-<h3 id="1-basic-text-generation">1. Basic Text Generation<a class="headerlink" href="#1-basic-text-generation" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">steadytext</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1"># Generate deterministic text</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">text</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="s2">&quot;Write a Python function to calculate fibonacci&quot;</span><span class="p">)</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+<h3 id="4-using-environment-variables">4. Using Environment Variables<a class="headerlink" href="#4-using-environment-variables" title="Permanent link">&para;</a></h3>
+<p>Set default models via environment variables:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_GENERATION_MODEL_REPO</span><span class="o">=</span><span class="s2">&quot;Qwen/Qwen2.5-3B-Instruct-GGUF&quot;</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_GENERATION_MODEL_FILENAME</span><span class="o">=</span><span class="s2">&quot;qwen2.5-3b-instruct-q8_0.gguf&quot;</span>
 </span></code></pre></div>
-<h3 id="2-streaming-generation">2. Streaming Generation<a class="headerlink" href="#2-streaming-generation" title="Permanent link">&para;</a></h3>
-<p>For real-time output:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">generate_iter</span><span class="p">(</span><span class="s2">&quot;Explain machine learning&quot;</span><span class="p">):</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">token</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<h2 id="streaming-generation">Streaming Generation<a class="headerlink" href="#streaming-generation" title="Permanent link">&para;</a></h2>
+<p>Model switching works with streaming generation too:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">steadytext</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_iter</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># Stream with a specific model</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">generate_iter</span><span class="p">(</span><span class="s2">&quot;Tell me a story&quot;</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen2.5-3b&quot;</span><span class="p">):</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">token</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </span></code></pre></div>
-<h3 id="3-create-embeddings">3. Create Embeddings<a class="headerlink" href="#3-create-embeddings" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Single text</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">vector</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">embed</span><span class="p">(</span><span class="s2">&quot;Hello world&quot;</span><span class="p">)</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Embedding shape: </span><span class="si">{</span><span class="n">vector</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># (1024,)</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c1"># Multiple texts (averaged)</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="n">vector</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">embed</span><span class="p">([</span><span class="s2">&quot;Hello&quot;</span><span class="p">,</span> <span class="s2">&quot;world&quot;</span><span class="p">,</span> <span class="s2">&quot;AI&quot;</span><span class="p">])</span>
-</span></code></pre></div>
-<h2 id="command-line-usage">Command Line Usage<a class="headerlink" href="#command-line-usage" title="Permanent link">&para;</a></h2>
-<p>SteadyText includes both <code>steadytext</code> and <code>st</code> commands:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Generate text</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>st<span class="w"> </span>generate<span class="w"> </span><span class="s2">&quot;write a haiku about programming&quot;</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Stream generation</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>st<span class="w"> </span>generate<span class="w"> </span><span class="s2">&quot;explain quantum computing&quot;</span><span class="w"> </span>--stream
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Create embeddings  </span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>st<span class="w"> </span>embed<span class="w"> </span><span class="s2">&quot;machine learning concepts&quot;</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="c1"># JSON output</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>st<span class="w"> </span>generate<span class="w"> </span><span class="s2">&quot;list 3 colors&quot;</span><span class="w"> </span>--json
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="c1"># Preload models (optional)</span>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>st<span class="w"> </span>models<span class="w"> </span>--preload
-</span></code></pre></div>
-<h2 id="model-management">Model Management<a class="headerlink" href="#model-management" title="Permanent link">&para;</a></h2>
-<p>Models are automatically downloaded on first use to:</p>
+<h2 id="model-selection-guide">Model Selection Guide<a class="headerlink" href="#model-selection-guide" title="Permanent link">&para;</a></h2>
+<h3 id="for-speed-05b-15b-models">For Speed (0.5B - 1.5B models)<a class="headerlink" href="#for-speed-05b-15b-models" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Linux/Mac</strong>: <code>~/.cache/steadytext/models/</code></li>
-<li><strong>Windows</strong>: <code>%LOCALAPPDATA%\steadytext\steadytext\models\</code></li>
+<li><strong>Use cases</strong>: Chat responses, simple completions, real-time applications</li>
+<li><strong>Recommended</strong>: <code>qwen3-0.6b</code> (size="small"), <code>qwen2.5-0.5b</code>, <code>qwen2.5-1.5b</code></li>
+<li><strong>Trade-off</strong>: Faster generation, simpler outputs</li>
 </ul>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Check where models are stored</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">cache_dir</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">get_model_cache_dir</span><span class="p">()</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Models stored at: </span><span class="si">{</span><span class="n">cache_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="c1"># Preload models manually (optional)</span>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="n">steadytext</span><span class="o">.</span><span class="n">preload_models</span><span class="p">(</span><span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span></code></pre></div>
-<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
-<p>Control caching via environment variables:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Generation cache settings</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_GENERATION_CACHE_CAPACITY</span><span class="o">=</span><span class="m">512</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB</span><span class="o">=</span><span class="m">100</span>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="c1"># Embedding cache settings  </span>
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_EMBEDDING_CACHE_CAPACITY</span><span class="o">=</span><span class="m">1024</span>
-</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB</span><span class="o">=</span><span class="m">200</span>
-</span></code></pre></div>
-<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<h3 id="for-balance-17b-3b-models">For Balance (1.7B - 3B models)<a class="headerlink" href="#for-balance-17b-3b-models" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong><a href="api/">API Reference</a></strong> - Complete function documentation</li>
-<li><strong><a href="examples/">Examples</a></strong> - Real-world usage patterns</li>
-<li><strong><a href="../api/cli/">CLI Reference</a></strong> - Command-line interface details</li>
+<li><strong>Use cases</strong>: General text generation, summaries, explanations</li>
+<li><strong>Recommended</strong>: <code>qwen3-1.7b</code> (size="medium", default), <code>qwen2.5-3b</code></li>
+<li><strong>Trade-off</strong>: Good quality with reasonable speed</li>
 </ul>
-<h2 id="need-help">Need Help?<a class="headerlink" href="#need-help" title="Permanent link">&para;</a></h2>
+<h3 id="for-quality-4b-models">For Quality (4B+ models)<a class="headerlink" href="#for-quality-4b-models" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Issues</strong>: <a href="https://github.com/julep-ai/steadytext/issues">GitHub Issues</a></li>
-<li><strong>Discussions</strong>: <a href="https://github.com/julep-ai/steadytext/discussions">GitHub Discussions</a></li>
+<li><strong>Use cases</strong>: Complex reasoning, detailed content, creative writing</li>
+<li><strong>Recommended</strong>: <code>qwen3-4b</code> (size="large"), <code>qwen2.5-7b</code>, <code>qwen3-8b</code></li>
+<li><strong>Trade-off</strong>: Best quality, slower generation</li>
 </ul>
+<h2 id="performance-considerations">Performance Considerations<a class="headerlink" href="#performance-considerations" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>First Load</strong>: The first use of a model downloads it (if not cached) and loads it into memory</li>
+<li><strong>Model Caching</strong>: Once loaded, models remain in memory for fast switching</li>
+<li><strong>Memory Usage</strong>: Each loaded model uses RAM - consider your available resources</li>
+<li><strong>Determinism</strong>: All models maintain deterministic outputs with the same seed</li>
+</ol>
+<h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
+<h3 id="adaptive-model-selection">Adaptive Model Selection<a class="headerlink" href="#adaptive-model-selection" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">steadytext</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="k">def</span><span class="w"> </span><span class="nf">smart_generate</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Use different models based on task complexity.&quot;&quot;&quot;</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="k">if</span> <span class="n">max_length</span> <span class="o">&lt;</span> <span class="mi">50</span><span class="p">:</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>        <span class="c1"># Use fast model for short outputs</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>        <span class="k">return</span> <span class="n">generate</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen2.5-0.5b&quot;</span><span class="p">)</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="k">elif</span> <span class="n">max_length</span> <span class="o">&lt;</span> <span class="mi">200</span><span class="p">:</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>        <span class="c1"># Use balanced model</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>        <span class="k">return</span> <span class="n">generate</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen3-1.7b&quot;</span><span class="p">)</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>    <span class="k">else</span><span class="p">:</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>        <span class="c1"># Use high-quality model for long outputs</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>        <span class="k">return</span> <span class="n">generate</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen2.5-7b&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<h3 id="ab-testing-models">A/B Testing Models<a class="headerlink" href="#ab-testing-models" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">steadytext</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">prompts</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Explain quantum computing&quot;</span><span class="p">,</span> <span class="s2">&quot;Write a haiku&quot;</span><span class="p">,</span> <span class="s2">&quot;Solve 2+2&quot;</span><span class="p">]</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="k">for</span> <span class="n">prompt</span> <span class="ow">in</span> <span class="n">prompts</span><span class="p">:</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Prompt: </span><span class="si">{</span><span class="n">prompt</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    <span class="c1"># Test with small model</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="n">small</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen2.5-0.5b&quot;</span><span class="p">)</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Small model: </span><span class="si">{</span><span class="n">small</span><span class="p">[:</span><span class="mi">100</span><span class="p">]</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    <span class="c1"># Test with large model</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>    <span class="n">large</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen2.5-3b&quot;</span><span class="p">)</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Large model: </span><span class="si">{</span><span class="n">large</span><span class="p">[:</span><span class="mi">100</span><span class="p">]</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<h3 id="model-not-found">Model Not Found<a class="headerlink" href="#model-not-found" title="Permanent link">&para;</a></h3>
+<p>If a model download fails, you'll get deterministic fallback text. Check:
+- Internet connection
+- Hugging Face availability
+- Model name spelling</p>
+<h3 id="out-of-memory">Out of Memory<a class="headerlink" href="#out-of-memory" title="Permanent link">&para;</a></h3>
+<p>Large models require significant RAM. Solutions:
+- Use smaller quantized models
+- Clear model cache with <code>clear_model_cache()</code>
+- Use one model at a time</p>
+<h3 id="slow-first-load">Slow First Load<a class="headerlink" href="#slow-first-load" title="Permanent link">&para;</a></h3>
+<p>Initial model loading takes time due to:
+- Downloading (first time only)
+- Loading into memory
+- Model initialization</p>
+<p>Subsequent uses are much faster as models are cached.</p>
 
 
 

@@ -10,13 +10,9 @@
       
       
       
-        <link rel="canonical" href="https://steadytext.dev/quick-start/">
+        <link rel="canonical" href="https://steadytext.dev/mojo-max/">
       
       
-        <link rel="prev" href="..">
-      
-      
-        <link rel="next" href="../model-switching/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -24,7 +20,7 @@
     
     
       
-        <title>Quick Start - SteadyText Documentation</title>
+        <title>Mojo and MAX Documentation - SteadyText Documentation</title>
       
     
     
@@ -76,7 +72,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#quick-start-guide" class="md-skip">
+        <a href="#mojo-and-max-documentation" class="md-skip">
           Skip to content
         </a>
       
@@ -110,7 +106,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Quick Start
+              Mojo and MAX Documentation
             
           </span>
         </div>
@@ -243,11 +239,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../quick-start/" class="md-tabs__link">
         
   
   
@@ -411,32 +405,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    Quick Start
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../quick-start/" class="md-nav__link">
         
   
   
@@ -447,122 +419,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
-    <span class="md-ellipsis">
-      Installation
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#first-steps" class="md-nav__link">
-    <span class="md-ellipsis">
-      First Steps
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="First Steps">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-basic-text-generation" class="md-nav__link">
-    <span class="md-ellipsis">
-      1. Basic Text Generation
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-streaming-generation" class="md-nav__link">
-    <span class="md-ellipsis">
-      2. Streaming Generation
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-create-embeddings" class="md-nav__link">
-    <span class="md-ellipsis">
-      3. Create Embeddings
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#command-line-usage" class="md-nav__link">
-    <span class="md-ellipsis">
-      Command Line Usage
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#model-management" class="md-nav__link">
-    <span class="md-ellipsis">
-      Model Management
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      Configuration
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
-    <span class="md-ellipsis">
-      Next Steps
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#need-help" class="md-nav__link">
-    <span class="md-ellipsis">
-      Need Help?
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -895,96 +751,65 @@
   
 
 
-<h1 id="quick-start-guide">Quick Start Guide<a class="headerlink" href="#quick-start-guide" title="Permanent link">&para;</a></h1>
-<p>Get started with SteadyText in minutes.</p>
-<h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">pip</label><label for="__tabbed_1_2">uv</label><label for="__tabbed_1_3">Poetry</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>steadytext
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uv<span class="w"> </span>add<span class="w"> </span>steadytext
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>poetry<span class="w"> </span>add<span class="w"> </span>steadytext
-</span></code></pre></div>
-</div>
-</div>
-</div>
-<h2 id="first-steps">First Steps<a class="headerlink" href="#first-steps" title="Permanent link">&para;</a></h2>
-<h3 id="1-basic-text-generation">1. Basic Text Generation<a class="headerlink" href="#1-basic-text-generation" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">steadytext</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1"># Generate deterministic text</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">text</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="s2">&quot;Write a Python function to calculate fibonacci&quot;</span><span class="p">)</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
-</span></code></pre></div>
-<h3 id="2-streaming-generation">2. Streaming Generation<a class="headerlink" href="#2-streaming-generation" title="Permanent link">&para;</a></h3>
-<p>For real-time output:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">generate_iter</span><span class="p">(</span><span class="s2">&quot;Explain machine learning&quot;</span><span class="p">):</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">token</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span></code></pre></div>
-<h3 id="3-create-embeddings">3. Create Embeddings<a class="headerlink" href="#3-create-embeddings" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Single text</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">vector</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">embed</span><span class="p">(</span><span class="s2">&quot;Hello world&quot;</span><span class="p">)</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Embedding shape: </span><span class="si">{</span><span class="n">vector</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># (1024,)</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c1"># Multiple texts (averaged)</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="n">vector</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">embed</span><span class="p">([</span><span class="s2">&quot;Hello&quot;</span><span class="p">,</span> <span class="s2">&quot;world&quot;</span><span class="p">,</span> <span class="s2">&quot;AI&quot;</span><span class="p">])</span>
-</span></code></pre></div>
-<h2 id="command-line-usage">Command Line Usage<a class="headerlink" href="#command-line-usage" title="Permanent link">&para;</a></h2>
-<p>SteadyText includes both <code>steadytext</code> and <code>st</code> commands:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Generate text</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>st<span class="w"> </span>generate<span class="w"> </span><span class="s2">&quot;write a haiku about programming&quot;</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Stream generation</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>st<span class="w"> </span>generate<span class="w"> </span><span class="s2">&quot;explain quantum computing&quot;</span><span class="w"> </span>--stream
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Create embeddings  </span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>st<span class="w"> </span>embed<span class="w"> </span><span class="s2">&quot;machine learning concepts&quot;</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="c1"># JSON output</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>st<span class="w"> </span>generate<span class="w"> </span><span class="s2">&quot;list 3 colors&quot;</span><span class="w"> </span>--json
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="c1"># Preload models (optional)</span>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>st<span class="w"> </span>models<span class="w"> </span>--preload
-</span></code></pre></div>
-<h2 id="model-management">Model Management<a class="headerlink" href="#model-management" title="Permanent link">&para;</a></h2>
-<p>Models are automatically downloaded on first use to:</p>
+<h1 id="mojo-and-max-documentation">Mojo and MAX Documentation<a class="headerlink" href="#mojo-and-max-documentation" title="Permanent link">&para;</a></h1>
+<p>This documentation covers the Modular platform's Community Edition, including the Mojo programming language and MAX inference server. All features documented here are available for free under the Community License.</p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p><strong>Mojo</strong> is a Python-compatible systems programming language that enables high-performance CPU and GPU programming without CUDA. It combines Python's ease of use with the performance of C++ and Rust.</p>
+<p><strong>MAX</strong> is a high-performance inference framework for serving AI models with an OpenAI-compatible API. It supports 500+ models and provides state-of-the-art performance on both CPUs and GPUs.</p>
+<h2 id="community-edition">Community Edition<a class="headerlink" href="#community-edition" title="Permanent link">&para;</a></h2>
+<p>The Community Edition is free forever and includes:
+- Unlimited use on CPUs and NVIDIA GPUs
+- Up to 8 discrete GPUs from other vendors (AMD, etc.)
+- Free for both personal and commercial use
+- Perpetual license guarantee (cannot be revoked)</p>
+<p>For commercial use, Modular asks that you notify them at usage@modular.com so they can showcase your usage.</p>
+<h2 id="documentation-structure">Documentation Structure<a class="headerlink" href="#documentation-structure" title="Permanent link">&para;</a></h2>
+<h3 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Linux/Mac</strong>: <code>~/.cache/steadytext/models/</code></li>
-<li><strong>Windows</strong>: <code>%LOCALAPPDATA%\steadytext\steadytext\models\</code></li>
+<li><a href="getting-started/installation/">Installation</a> - Install Mojo and MAX</li>
+<li><a href="getting-started/quickstart/">Quickstart</a> - Run your first model</li>
+<li><a href="getting-started/hello-world/">Hello World</a> - Basic Mojo programs</li>
 </ul>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Check where models are stored</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">cache_dir</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">get_model_cache_dir</span><span class="p">()</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Models stored at: </span><span class="si">{</span><span class="n">cache_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="c1"># Preload models manually (optional)</span>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="n">steadytext</span><span class="o">.</span><span class="n">preload_models</span><span class="p">(</span><span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span></code></pre></div>
-<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
-<p>Control caching via environment variables:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Generation cache settings</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_GENERATION_CACHE_CAPACITY</span><span class="o">=</span><span class="m">512</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB</span><span class="o">=</span><span class="m">100</span>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="c1"># Embedding cache settings  </span>
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_EMBEDDING_CACHE_CAPACITY</span><span class="o">=</span><span class="m">1024</span>
-</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB</span><span class="o">=</span><span class="m">200</span>
-</span></code></pre></div>
-<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<h3 id="mojo-language">Mojo Language<a class="headerlink" href="#mojo-language" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong><a href="api/">API Reference</a></strong> - Complete function documentation</li>
-<li><strong><a href="examples/">Examples</a></strong> - Real-world usage patterns</li>
-<li><strong><a href="../api/cli/">CLI Reference</a></strong> - Command-line interface details</li>
+<li><a href="mojo-language/basics/">Basics</a> - Core language features</li>
+<li><a href="mojo-language/python-interop/">Python Interoperability</a> - Using Python from Mojo</li>
+<li><a href="mojo-language/calling-mojo-from-python/">Calling Mojo from Python</a> - Creating Python extensions</li>
+<li><a href="mojo-language/functions.md">Functions</a> - Function definitions and calls</li>
+<li><a href="mojo-language/structs-and-traits.md">Structs and Traits</a> - Type system</li>
+<li><a href="mojo-language/metaprogramming.md">Metaprogramming</a> - Compile-time programming</li>
 </ul>
-<h2 id="need-help">Need Help?<a class="headerlink" href="#need-help" title="Permanent link">&para;</a></h2>
+<h3 id="max-inference">MAX Inference<a class="headerlink" href="#max-inference" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Issues</strong>: <a href="https://github.com/julep-ai/steadytext/issues">GitHub Issues</a></li>
-<li><strong>Discussions</strong>: <a href="https://github.com/julep-ai/steadytext/discussions">GitHub Discussions</a></li>
+<li><a href="max-inference/overview/">Overview</a> - MAX architecture and features</li>
+<li><a href="max-inference/serving-models.md">Serving Models</a> - Running inference servers</li>
+<li><a href="max-inference/offline-inference.md">Offline Inference</a> - Direct Python API</li>
+<li><a href="max-inference/api-reference.md">API Reference</a> - OpenAI-compatible endpoints</li>
+<li><a href="max-inference/deployment.md">Deployment</a> - Docker and production setup</li>
+</ul>
+<h3 id="community-edition_1">Community Edition<a class="headerlink" href="#community-edition_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="community-edition/licensing/">Licensing</a> - License terms and usage</li>
+<li><a href="community-edition/limitations/">Limitations</a> - Current limitations and roadmap</li>
+</ul>
+<h3 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="examples/basic-examples.md">Basic Examples</a> - Simple Mojo programs</li>
+<li><a href="examples/python-integration/">Python Integration</a> - Interop examples</li>
+</ul>
+<h2 id="key-features-for-python-developers">Key Features for Python Developers<a class="headerlink" href="#key-features-for-python-developers" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Drop-in Performance</strong>: Write performance-critical code in Mojo and call it from Python</li>
+<li><strong>Python Compatibility</strong>: Import and use any Python library directly in Mojo</li>
+<li><strong>Zero-Config Inference</strong>: Deploy models with a single command</li>
+<li><strong>OpenAI API Compatible</strong>: Use existing client code with MAX endpoints</li>
+</ol>
+<h2 id="quick-links">Quick Links<a class="headerlink" href="#quick-links" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="https://docs.modular.com">Official Docs</a></li>
+<li><a href="https://builds.modular.com">Model Repository</a></li>
+<li><a href="https://forum.modular.com">Community Forum</a></li>
+<li><a href="https://github.com/modular/modular">GitHub Examples</a></li>
 </ul>
 
 
