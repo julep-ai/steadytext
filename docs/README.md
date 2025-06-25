@@ -500,4 +500,31 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
-## 📈 What's New in v1.3.3\n\n### Daemon Architecture (v1.2.0+)\n- **Persistent model serving** with ZeroMQ for 10-100x faster repeated calls\n- **Automatic fallback** to direct model loading when daemon unavailable\n- **Zero configuration** - daemon starts automatically on first use\n- **Background operation** - daemon runs silently in the background\n\n### Centralized Cache System (v1.3.0+)\n- **Unified caching** - consistent behavior between daemon and direct access\n- **Thread-safe SQLite backend** for reliable concurrent access\n- **Shared cache files** across all access modes\n- **Cache integration** with daemon server for optimal performance\n\n### Improved CLI Experience (v1.3.0+)\n- **Streaming by default** - see output as it's generated\n- **Quiet by default** - clean output without informational messages\n- **New pipe syntax** - `echo \"prompt\" | st` for better unix integration\n- **Daemon management** - built-in commands for daemon lifecycle\n\n### Qwen3 Thinking Mode (v1.3.0+)\n- **Controllable reasoning** - enable/disable internal thinking process\n- **Efficiency by default** - thinking disabled for faster generation\n- **Extended context** - increased to 3072 tokens to support thinking output\n\n---\n\nBuilt with ❤️ for developers tired of flaky AI tests.
+## 📈 What's New in v1.3.3
+
+### Daemon Architecture (v1.2.0+)
+- **Persistent model serving** with Zero-MQ for 10-100× faster repeated calls  
+- **Automatic fallback** to direct model loading when daemon unavailable  
+- **Zero configuration** – daemon starts automatically on first use  
+- **Background operation** – daemon runs silently in the background  
+
+### Centralized Cache System (v1.3.0+)
+- **Unified caching** – consistent behaviour between daemon and direct access  
+- **Thread-safe SQLite backend** for reliable concurrent access  
+- **Shared cache files** across all access modes  
+- **Cache integration** with the daemon server for optimal performance  
+
+### Improved CLI Experience (v1.3.0+)
+- **Streaming by default** – see output as it's generated  
+- **Quiet by default** – clean output without informational messages  
+- **New pipe syntax** – `echo "prompt" | st` for better Unix integration  
+- **Daemon management** – built-in commands for daemon lifecycle  
+
+### Qwen3 Thinking Mode (v1.3.0+)
+- **Controllable reasoning** – enable/disable internal thinking process  
+- **Efficiency by default** – thinking disabled for faster generation  
+- **Extended context** – increased to 3072 tokens to support thinking output  
+
+---
+
+Built with ❤️ for developers tired of flaky AI tests.
