@@ -142,6 +142,8 @@ def generate(
         in_think_tag = False
         think_content = ""
 
+        logprobs_tokens = []
+
         for token in steady_generate_iter(
             final_prompt,
             eos_string=eos_string,
@@ -152,7 +154,11 @@ def generate(
             size=size,
         ):
             if logprobs and isinstance(token, dict):
-                click.echo(json.dumps(token), nl=True)
+                # Accumulate logprobs tokens for JSON output
+                if output_format == "json":
+                    logprobs_tokens.append(token)
+                else:
+                    click.echo(json.dumps(token), nl=True)
             else:
                 # Ensure token is a string
                 if isinstance(token, dict):
@@ -167,7 +173,8 @@ def generate(
                         idx = buffer.index("<think>")
                         # Output everything before the tag
                         if idx > 0:
-                            click.echo(buffer[:idx], nl=False)
+                            if output_format != "json":
+                                click.echo(buffer[:idx], nl=False)
                             generated_text += buffer[:idx]
                         buffer = buffer[idx + 7 :]  # Skip past <think>
                         in_think_tag = True
@@ -182,7 +189,8 @@ def generate(
                         # Only output think tags if they have content
                         if think_content.strip():
                             full_tag = f"<think>{think_content}</think>"
-                            click.echo(full_tag, nl=False)
+                            if output_format != "json":
+                                click.echo(full_tag, nl=False)
                             generated_text += full_tag
                     else:
                         # No more complete tags to process
@@ -190,7 +198,8 @@ def generate(
 
                 # If not in a think tag, output buffer content
                 if not in_think_tag and buffer and "<think>" not in buffer:
-                    click.echo(buffer, nl=False)
+                    if output_format != "json":
+                        click.echo(buffer, nl=False)
                     generated_text += buffer
                     buffer = ""
                 elif in_think_tag:
@@ -200,19 +209,29 @@ def generate(
 
         # Handle any remaining buffer
         if buffer and not in_think_tag:
-            click.echo(buffer, nl=False)
+            if output_format != "json":  # Only echo if not JSON format
+                click.echo(buffer, nl=False)
             generated_text += buffer
         elif in_think_tag and think_content.strip():
             # Unclosed think tag with content
             full_tag = f"<think>{think_content}"
-            click.echo(full_tag, nl=False)
+            if output_format != "json":  # Only echo if not JSON format
+                click.echo(full_tag, nl=False)
             generated_text += full_tag
 
-        click.echo()  # Final newline
+        if output_format != "json":
+            click.echo()  # Final newline
 
-        if output_format == "json" and not logprobs:
-            # Output metadata after streaming
+        if output_format == "json":
+            # For JSON format in streaming mode, output only the JSON
             metadata = {
+                "text": generated_text,
+                "model": model or "gemma-3n-E2B-it-GGUF",
+                "usage": {
+                    "prompt_tokens": len(prompt.split()),
+                    "completion_tokens": len(generated_text.split()),
+                    "total_tokens": len(prompt.split()) + len(generated_text.split()),
+                },
                 "prompt": prompt,
                 "generated": generated_text,
                 "time_taken": time.time() - start_time,
@@ -220,6 +239,19 @@ def generate(
                 "used_index": len(context_chunks) > 0,
                 "context_chunks": len(context_chunks),
             }
+            if logprobs:
+                # In fallback mode, logprobs will be None
+                # Extract just the logprobs values from token objects
+                if logprobs_tokens and all(
+                    token.get("logprobs") is None for token in logprobs_tokens
+                ):
+                    metadata["logprobs"] = None
+                else:
+                    metadata["logprobs"] = (
+                        [token.get("logprobs") for token in logprobs_tokens]
+                        if logprobs_tokens
+                        else None
+                    )
             click.echo(json.dumps(metadata, indent=2))
     else:
         # Non-streaming mode
@@ -237,9 +269,16 @@ def generate(
             text, logprobs_data = result
             if output_format == "json":
                 metadata = {
+                    "text": text,
+                    "model": model or "gemma-3n-E2B-it-GGUF",
+                    "usage": {
+                        "prompt_tokens": len(prompt.split()),
+                        "completion_tokens": len(text.split()),
+                        "total_tokens": len(prompt.split()) + len(text.split()),
+                    },
+                    "logprobs": logprobs_data,
                     "prompt": prompt,
                     "generated": text,
-                    "logprobs": logprobs_data if logprobs_data is not None else [],
                     "time_taken": time.time() - start_time,
                     "stream": False,
                     "used_index": len(context_chunks) > 0,
@@ -265,6 +304,13 @@ def generate(
 
             if output_format == "json":
                 metadata = {
+                    "text": generated,
+                    "model": model or "gemma-3n-E2B-it-GGUF",
+                    "usage": {
+                        "prompt_tokens": len(prompt.split()),
+                        "completion_tokens": len(generated.split()),
+                        "total_tokens": len(prompt.split()) + len(generated.split()),
+                    },
                     "prompt": prompt,
                     "generated": generated,
                     "time_taken": time.time() - start_time,

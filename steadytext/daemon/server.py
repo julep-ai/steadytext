@@ -1,8 +1,7 @@
 """
 ZeroMQ server implementation for SteadyText daemon.
 
-AIDEV-NOTE: This server keeps models loaded in memory and serves generation/embedding
-requests via ZeroMQ REP socket. Implements graceful shutdown and error handling.
+AIDEV-NOTE: This server keeps models loaded in memory and serves generation/embedding requests via a ZeroMQ REP socket. It implements graceful shutdown and error handling.
 """
 
 import sys
@@ -43,10 +42,7 @@ from .protocol import (
 )
 
 
-# AIDEV-NOTE: Server maintains singleton instances of generator and embedder
-# to avoid repeated model loading overhead
-# AIDEV-NOTE: v1.3.1+ Server now fully integrated with centralized cache system
-# ensuring consistent cache behavior between daemon and direct access modes
+# AIDEV-NOTE: The server maintains singleton instances of the generator and embedder and is integrated with the centralized cache system.
 class DaemonServer:
     def __init__(
         self,
@@ -142,12 +138,7 @@ class DaemonServer:
     def _handle_generate_iter(self, params: Dict[str, Any]) -> Iterator[Dict[str, Any]]:
         """Handle streaming text generation request.
 
-        AIDEV-NOTE: Streaming is handled by yielding multiple responses with the same ID.
-        The client will accumulate these until it receives STREAM_END_MARKER.
-
-        AIDEV-NOTE: For streaming, we check cache first. If cached, we simulate streaming
-        by yielding words from the cached result. This ensures cache consistency while
-        maintaining the streaming API.
+        AIDEV-NOTE: Streaming is handled by yielding multiple responses with the same ID. If a result is cached, streaming is simulated by yielding words from the cached result.
         """
         if self.generator is None:
             self.generator = DeterministicGenerator()
@@ -327,9 +318,7 @@ class DaemonServer:
                             f"Received request: {request.method} (id: {request.id})"
                         )
 
-                    # AIDEV-NOTE: Streaming is implemented via a request-response loop. The client sends
-                    # an ACK for each token received, preventing buffer overflows and providing flow control.
-                    # The loop is terminated by a special STREAM_END_MARKER.
+                    # AIDEV-NOTE: Streaming is implemented via a request-response loop. The client sends an ACK for each token received.
                     if request.method == "generate_iter":
                         try:
                             for token in self._handle_generate_iter(request.params):

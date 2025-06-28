@@ -8,9 +8,7 @@ from typing import Dict, Any, List, Optional  # For type hints
 import sys
 from contextlib import contextmanager
 
-# AIDEV-NOTE: Core utility functions for SteadyText - handles deterministic
-# environment setup, model configuration, and cross-platform cache directory
-# management
+# AIDEV-NOTE: Core utility functions for SteadyText, handling deterministic environment setup, model configuration, and cross-platform cache directory management.
 
 # --- Logger Setup ---
 logger = logging.getLogger("steadytext")
@@ -25,12 +23,7 @@ if not logger.handlers:
 # This prevents INFO messages from appearing in quiet mode
 
 # --- Model Configuration ---
-# AIDEV-NOTE: Switched from Qwen3 to Gemma-3n for generation.
-# Gemma-3n offers state-of-the-art performance for its size.
-# AIDEV-NOTE: Using Qwen3-Embedding-0.6B for embeddings.
-# AIDEV-NOTE: Added environment variable support for model switching
-# Users can override models via STEADYTEXT_GENERATION_MODEL_REPO and STEADYTEXT_GENERATION_MODEL_FILENAME
-# AIDEV-NOTE: Updated to use unsloth repository which has the latest GGUF versions
+# AIDEV-NOTE: Switched from Qwen3 to Gemma-3n for generation and are using Qwen3-Embedding-0.6B for embeddings. Users can override the models via environment variables. The unsloth repository is used for the latest GGUF versions.
 DEFAULT_GENERATION_MODEL_REPO = "unsloth/gemma-3n-E4B-it-GGUF"
 DEFAULT_EMBEDDING_MODEL_REPO = "Qwen/Qwen3-Embedding-0.6B-GGUF"
 GENERATION_MODEL_FILENAME = "gemma-3n-E4B-it-Q8_0.gguf"
@@ -259,13 +252,7 @@ def resolve_model_params(
     return GENERATION_MODEL_REPO, GENERATION_MODEL_FILENAME
 
 
-# AIDEV-NOTE: Context manager to suppress llama.cpp's direct stdout/stderr output
-# Used during model loading to prevent verbose warnings in quiet mode
-# AIDEV-NOTE: Quiet mode fix (v1.3.2+) - Suppresses llama_context warnings
-# - Logger no longer sets default INFO level (controlled by CLI)
-# - set_deterministic_environment() no longer called on import
-# - All INFO logs check logger.isEnabledFor() before logging
-# - llama.cpp stdout/stderr suppressed during model loading in quiet mode
+# AIDEV-NOTE: A context manager to suppress llama.cpp's direct stdout/stderr output. This is used during model loading to prevent verbose warnings in quiet mode.
 @contextmanager
 def suppress_llama_output():
     """Context manager to suppress stdout/stderr during llama.cpp operations.
@@ -311,9 +298,7 @@ def generate_cache_key(prompt: str, eos_string: str = "[EOS]") -> str:
     Returns:
         A cache key string that includes eos_string if it's not the default
 
-    AIDEV-NOTE: This centralizes cache key generation logic that was previously
-    duplicated across multiple files. The key format ensures that different
-    eos_string values don't collide in the cache.
+    AIDEV-NOTE: This centralizes the cache key generation logic that was previously duplicated. The key format ensures that different eos_string values do not collide in the cache.
     """
     prompt_str = prompt if isinstance(prompt, str) else str(prompt)
     return prompt_str if eos_string == "[EOS]" else f"{prompt_str}::EOS::{eos_string}"
@@ -332,9 +317,7 @@ def should_use_cache_for_generation(
     Returns:
         True if the result should be cached, False otherwise
 
-    AIDEV-NOTE: Centralized caching decision logic. Only cache non-logprobs
-    requests using the default model to avoid cache pollution and ensure
-    deterministic behavior.
+    AIDEV-NOTE: A centralized caching decision logic. Only non-logprobs requests using the default model are cached.
     """
     return not return_logprobs and repo_id is None and filename is None
 
@@ -358,8 +341,7 @@ def should_use_cache_for_streaming(
     Returns:
         True if the result should be cached, False otherwise
 
-    AIDEV-NOTE: Specialized caching logic for streaming generation that checks
-    all the model selection parameters to ensure we only cache default model results.
+    AIDEV-NOTE: A specialized caching logic for streaming generation that checks all model selection parameters to ensure only default model results are cached.
     """
     return (
         not include_logprobs

@@ -1,7 +1,4 @@
-# AIDEV-NOTE: Disk-backed frecency cache implementation with configurable size limits
-# Now uses SQLite backend for concurrent access safety while maintaining API compatibility
-# AIDEV-NOTE: Automatically migrates from legacy pickle format to SQLite
-# AIDEV-NOTE: Falls back to pickle implementation if SQLite fails
+# AIDEV-NOTE: A disk-backed frecency cache that uses an SQLite backend for concurrent access safety, automatic migration from the legacy pickle format, and falls back to an in-memory cache if SQLite fails.
 from __future__ import annotations
 
 from pathlib import Path
