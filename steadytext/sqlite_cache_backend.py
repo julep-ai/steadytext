@@ -1,7 +1,4 @@
-# AIDEV-NOTE: SQLite-based concurrent disk-backed frecency cache implementation
-# Provides thread-safe and process-safe caching with frecency eviction algorithm
-# AIDEV-NOTE: Uses SQLite WAL mode for optimal concurrent access performance
-# AIDEV-NOTE: Fixed in v1.3.1 - Added __len__ method for compatibility with cache manager
+# AIDEV-NOTE: An SQLite-based, concurrent, disk-backed frecency cache that uses WAL mode for optimal performance and has a __len__ method for compatibility with the cache manager.
 from __future__ import annotations
 
 import pickle
@@ -107,10 +104,7 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
                         isolation_level="DEFERRED",  # Use explicit transactions for control
                     )
 
-                    # AIDEV-NOTE: WAL (Write-Ahead Logging) mode is crucial for concurrent performance.
-                    # It allows readers to continue reading while a writer is modifying the database,
-                    # which is essential for the daemon/client architecture where multiple processes
-                    # might access the cache simultaneously.
+                    # AIDEV-NOTE: WAL (Write-Ahead Logging) mode is crucial for concurrent performance, as it allows readers to continue reading while a writer is modifying the database.
                     conn.execute("PRAGMA journal_mode=WAL")
                     # Use NORMAL synchronous mode for better performance in multi-thread scenarios
                     conn.execute("PRAGMA synchronous=NORMAL")
@@ -322,10 +316,7 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
 
     def _serialize_key(self, key: Any) -> str:
         """Serialize cache key to string, handling special characters and complex types."""
-        # AIDEV-NOTE: Robust key serialization is necessary because cache keys can be
-        # complex (e.g., tuples of strings), and SQLite requires a simple string
-        # as a primary key. Base64 encoding provides a safe, reversible way to
-        # represent any key as a filesystem- and database-friendly string.
+        # AIDEV-NOTE: Robust key serialization is necessary because cache keys can be complex, and SQLite requires a simple string as a primary key.
         if isinstance(key, str):
             # For string keys, use base64 encoding to handle special characters safely
             import base64

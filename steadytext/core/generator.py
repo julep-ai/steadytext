@@ -1,16 +1,11 @@
-# AIDEV-NOTE: Core text generation module with deterministic fallback mechanism
-# Implements both model-based generation and hash-based deterministic fallback
-# AIDEV-NOTE: Fixed fallback behavior - generator now calls
-# _deterministic_fallback_generate() when model is None
-# AIDEV-NOTE: Added stop sequences integration - DEFAULT_STOP_SEQUENCES
-# are now passed to model calls
-# AIDEV-NOTE: Fixed determinism issue - now always uses DEFAULT_SEED when
-# no explicit seed is provided to ensure consistent outputs
-# AIDEV-NOTE: Added generate_iter() method for streaming token generation
-# with graceful fallback to word-by-word yielding when model unavailable
-# AIDEV-NOTE: Added dynamic model switching (v1.0.0) - generate() and generate_iter()
-# now accept model parameters to switch between different models at runtime while
-# maintaining deterministic outputs for each model
+# AIDEV-NOTE: Core text generation module with deterministic fallback.
+# Features:
+# - Implements both model-based generation and a hash-based deterministic fallback.
+# - Integrates stop sequences (DEFAULT_STOP_SEQUENCES).
+# - Ensures determinism using DEFAULT_SEED.
+# - Supports streaming token generation via generate_iter().
+# - Allows dynamic model switching at runtime.
+# - Defers environment setup to prevent pytest collection hangs.
 
 import hashlib
 import logging
@@ -37,19 +32,13 @@ from ..utils import (
 # hanging during pytest collection. This is now called lazily when needed.
 
 
-# AIDEV-NOTE: Use centralized cache manager for consistent caching across daemon and direct access
-# AIDEV-NOTE: Cache is now shared between all components and properly centralized
-# AIDEV-NOTE: Fallback results ARE cached by design for consistency and performance.
-# This ensures identical behavior between model and fallback modes, and provides
-# deterministic results for tests running with STEADYTEXT_SKIP_MODEL_LOAD=1.
+# AIDEV-NOTE: Uses centralized cache manager for consistency. Fallback results are cached.
 
 
-# AIDEV-NOTE: Main generator class with model instance caching and error handling
-# AIDEV-NOTE: Extended to support dynamic model switching via generate() parameters
+# AIDEV-NOTE: Main generator class with model caching, error handling, and dynamic model switching.
 class DeterministicGenerator:
     def __init__(self) -> None:
-        # AIDEV-NOTE: Set deterministic environment when generator is created
-        # This was moved from module-level to prevent pytest collection hanging
+        # AIDEV-NOTE: Deterministic environment is set when the generator is created to prevent pytest collection hangs.
         set_deterministic_environment(DEFAULT_SEED)
 
         self.model = None
@@ -69,8 +58,7 @@ class DeterministicGenerator:
     ):
         """Load or reload the model with specific logits configuration.
 
-        AIDEV-NOTE: Now supports loading custom models via repo_id and filename.
-        AIDEV-NOTE: Respects STEADYTEXT_SKIP_MODEL_LOAD for test environments.
+        AIDEV-NOTE: Supports loading custom models and respects STEADYTEXT_SKIP_MODEL_LOAD.
         """
         if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
             logger.debug(
@@ -113,8 +101,7 @@ class DeterministicGenerator:
             model_filename: Custom model filename
             size: Size identifier ("small", "large")
 
-        AIDEV-NOTE: Model switching parameters allow using different models without
-        restarting. Precedence: model_repo/model_filename > model > size > env vars > defaults.
+        AIDEV-NOTE: Model switching parameters allow using different models without restarting.
         """
         # Resolve model parameters
         repo_id: Optional[str] = None
@@ -159,9 +146,7 @@ class DeterministicGenerator:
                 force_reload=False,  # Use cache if available
             )
 
-        # AIDEV-NOTE: This is the critical fallback point. If the model instance is None
-        # (due to loading failure, or being disabled for tests), the code defaults
-        # to a hash-based deterministic string generator, ensuring the "never fails" principle.
+        # AIDEV-NOTE: This is the critical fallback point. If the model fails to load, it uses a hash-based generator.
         skip_model_load = os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1"
         if self.model is None or skip_model_load:
             if skip_model_load:
@@ -207,8 +192,7 @@ class DeterministicGenerator:
             final_prompt = prompt
 
             sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
-            # AIDEV-NOTE: Handle custom eos_string - if it's "[EOS]", use default stop sequences
-            # Otherwise, add the custom eos_string to stop sequences
+            # AIDEV-NOTE: Handle custom eos_string by adding it to the stop sequences.
             if eos_string == "[EOS]":
                 sampling_params["stop"] = DEFAULT_STOP_SEQUENCES
             else:
@@ -230,7 +214,7 @@ class DeterministicGenerator:
             logprobs = None
             if output and "choices" in output and len(output["choices"]) > 0:
                 choice = output["choices"][0]
-                # AIDEV-NOTE: Model response structure for chat completion may vary.
+                # AIDEV-NOTE: The model response structure for chat completion may vary.
                 # Check for 'text' or 'message.content'.
                 if "text" in choice and choice["text"] is not None:  # noqa E501
                     generated_text = choice["text"].strip()  # noqa E501
@@ -249,8 +233,7 @@ class DeterministicGenerator:
                     f"whitespace-only text for prompt: '{prompt[:50]}...'"
                 )
 
-            # AIDEV-NOTE: Strip empty or whitespace-only <think></think> tags from output
-            # This handles cases where think tags contain only whitespace/newlines
+            # AIDEV-NOTE: Strip empty or whitespace-only <think> tags from the output.
             generated_text = re.sub(
                 r"<think>\s*</think>\s*",
                 "",
@@ -286,8 +269,7 @@ class DeterministicGenerator:
     ) -> Iterator[Union[str, Dict[str, Any]]]:
         """Generate text iteratively, yielding tokens as they are produced.
 
-        AIDEV-NOTE: Streaming generation for real-time output. Falls back to
-        yielding words from deterministic fallback when model unavailable.
+        AIDEV-NOTE: Streaming generation that falls back to word-by-word yielding from the deterministic fallback.
 
         Args:
             prompt: The input prompt to generate from
@@ -298,9 +280,7 @@ class DeterministicGenerator:
             model_filename: Custom model filename
             size: Size identifier ("small", "large")
 
-        AIDEV-NOTE: When running in pytest, collecting many tokens (>400) can cause
-        hanging due to interaction between streaming API and pytest's output capture.
-        Tests should limit token collection to avoid this issue. Works fine outside pytest.
+
         """
         if not isinstance(prompt, str):
             logger.error(
@@ -340,7 +320,7 @@ class DeterministicGenerator:
                         f"DeterministicGenerator.generate_iter: Cache hit for prompt: {str(prompt)[:50]}..."
                     )
                 # Simulate streaming by yielding cached text in chunks
-                # AIDEV-NOTE: Use same chunking logic as live streaming to ensure consistency
+                # AIDEV-NOTE: Simulate streaming from cache using the same chunking logic as live streaming for consistency.
                 words = cached.split()
                 char_index = 0
                 for i, word in enumerate(words):
@@ -582,10 +562,7 @@ class DeterministicGenerator:
             # On error, don't yield anything further
 
 
-# AIDEV-NOTE: Complex hash-based fallback generation algorithm for
-# deterministic output when model is unavailable - uses multiple hash seeds
-# for word selection
-# AIDEV-NOTE: This is the hash-based fallback mechanism.
+# AIDEV-NOTE: A complex, hash-based fallback generator for deterministic output when the model is unavailable.
 def _deterministic_fallback_generate(prompt: str) -> str:
     # Ensure prompt_for_hash is always a string, even if original prompt was not.
     if not isinstance(prompt, str) or not prompt.strip():
@@ -709,24 +686,21 @@ def _deterministic_fallback_generate(prompt: str) -> str:
 def _deterministic_fallback_generate_iter(prompt: str) -> Iterator[str]:
     """Iterative version of deterministic fallback that yields words one by one.
 
-    AIDEV-NOTE: Used by generate_iter when model is unavailable. Yields the same
-    deterministic output as _deterministic_fallback_generate but word by word.
+    AIDEV-NOTE: Used by generate_iter when the model is unavailable. Yields the same output as _deterministic_fallback_generate but word by word.
     """
     fallback_text = _deterministic_fallback_generate(prompt)
     for word in fallback_text.split():
         yield word + " "
 
 
-# AIDEV-NOTE: Module-level singleton generator instance for backward compatibility
-# AIDEV-NOTE: Made lazy to prevent model loading during import (fixes pytest hang)
+# AIDEV-NOTE: A module-level singleton generator instance for backward compatibility, made lazy to prevent model loading during import.
 _generator_instance: Optional[DeterministicGenerator] = None
 
 
 def _get_generator_instance() -> DeterministicGenerator:
     """Get or create the singleton generator instance.
 
-    AIDEV-NOTE: Lazy initialization to prevent model loading at import time.
-    This fixes pytest collection hanging when models aren't available.
+    AIDEV-NOTE: Lazy initialization prevents model loading at import time, fixing pytest collection hangs.
     """
     global _generator_instance
     if _generator_instance is None:
@@ -779,9 +753,7 @@ def generate(
             model_filename="gemma-3n-E4B-it-Q8_0.gguf"
         )
 
-    AIDEV-NOTE: Model switching allows using different models without changing
-    environment variables. Models are cached after first load for efficiency.
-    The size parameter provides convenient access to Gemma-3n models of different sizes.
+    AIDEV-NOTE: Model switching allows using different models without changing environment variables. Models are cached after the first load.
     """
     return _get_generator_instance().generate(
         prompt=prompt,
@@ -819,8 +791,7 @@ def generate_iter(
     Yields:
         String tokens, or dicts with 'token' and 'logprobs' if include_logprobs=True
 
-    AIDEV-NOTE: Streaming generation with model switching support. Falls back
-    to word-by-word yielding from deterministic fallback when model unavailable.
+    AIDEV-NOTE: Streaming generation with model switching support. Falls back to word-by-word yielding from the deterministic fallback.
     """
     return _get_generator_instance().generate_iter(
         prompt=prompt,

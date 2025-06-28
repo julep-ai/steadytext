@@ -1,8 +1,4 @@
-# AIDEV-NOTE: Vector operations CLI for SteadyText embeddings
-# Provides similarity, distance, search, and arithmetic operations on
-# 1024-dimensional L2-normalized embeddings
-# AIDEV-NOTE: Implemented 2025-06-23 - Added comprehensive vector operations
-# including similarity, distance, search, average, and arithmetic commands
+# AIDEV-NOTE: Vector operations CLI for SteadyText embeddings, providing similarity, distance, search, and arithmetic operations.
 import click
 import sys
 import json

@@ -1,8 +1,7 @@
 """
 Test daemon cache integration with centralized cache system.
 
-AIDEV-NOTE: These tests ensure cache consistency between daemon and direct access modes.
-They verify that cache hits/misses work properly and that cached content is identical.
+AIDEV-NOTE: These tests ensure cache consistency between the daemon and direct access modes.
 """
 
 import os

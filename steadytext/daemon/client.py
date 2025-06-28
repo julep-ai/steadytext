@@ -1,8 +1,7 @@
 """
 ZeroMQ client implementation for SteadyText daemon.
 
-AIDEV-NOTE: This client provides transparent access to the daemon server,
-falling back to direct model loading if the daemon is unavailable.
+AIDEV-NOTE: This client provides transparent access to the daemon server, falling back to direct model loading if the daemon is unavailable.
 """
 
 import os
@@ -30,10 +29,7 @@ from .protocol import (
 class DaemonClient:
     """Client for communicating with SteadyText daemon server.
 
-    AIDEV-NOTE: Implements automatic fallback to direct model loading when daemon
-    is unavailable. All methods match the signature of the main API functions.
-    AIDEV-NOTE: Connection failure caching added to prevent repeated connection attempts
-    in test suites and batch operations.
+    AIDEV-NOTE: Implements automatic fallback to direct model loading when the daemon is unavailable and caches connection failures.
     """
 
     def __init__(
@@ -62,9 +58,7 @@ class DaemonClient:
         self.available = True
         self._connected = False
 
-        # AIDEV-NOTE: Caching connection failures prevents the client from repeatedly
-        # trying to connect to a downed daemon in a tight loop, which is crucial for
-        # performance in fallback scenarios and avoids log spam.
+        # AIDEV-NOTE: Caching connection failures prevents the client from repeatedly trying to connect to a downed daemon in a tight loop.
         self._last_failed_time: Optional[float] = None
         self._failure_cache_duration = float(
             os.environ.get("STEADYTEXT_DAEMON_FAILURE_CACHE_SECONDS", "60")
@@ -204,8 +198,7 @@ class DaemonClient:
     ) -> Iterator[Union[str, Dict[str, Any]]]:
         """Generate text iteratively via daemon.
 
-        AIDEV-NOTE: Streaming implementation receives multiple responses from server
-        and yields tokens as they arrive.
+        AIDEV-NOTE: The streaming implementation receives multiple responses from the server and yields tokens as they arrive.
         """
         if not self.connect():
             raise ConnectionError("Daemon not available")
