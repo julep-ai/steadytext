@@ -16,7 +16,13 @@ def cache():
 
 
 @cache.command()
-def stats():
+def path():
+    """Show cache directory."""
+    click.echo(str(get_cache_dir() / "caches"))
+
+
+@cache.command()
+def status():
     """Show cache statistics."""
     cache_dir = get_cache_dir() / "caches"
 
@@ -61,7 +67,7 @@ def clear(generation: bool, embedding: bool):
     # If neither flag is set, clear both
     if not generation and not embedding:
         cache_manager.clear_all_caches()
-        click.echo("Cleared all caches")
+        click.echo("All caches cleared")
         return
 
     cleared = []

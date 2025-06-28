@@ -148,6 +148,7 @@ class DaemonClient:
         model_repo: Optional[str] = None,
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
+        seed: int = 42,
     ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
         """Generate text via daemon."""
         if not self.connect():
@@ -164,6 +165,7 @@ class DaemonClient:
                 "model_repo": model_repo,
                 "model_filename": model_filename,
                 "size": size,
+                "seed": seed,
             }
 
             request = Request(method="generate", params=params)
@@ -201,6 +203,7 @@ class DaemonClient:
         model_repo: Optional[str] = None,
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
+        seed: int = 42,
     ) -> Iterator[Union[str, Dict[str, Any]]]:
         """Generate text iteratively via daemon.
 
@@ -220,6 +223,7 @@ class DaemonClient:
                 "model_repo": model_repo,
                 "model_filename": model_filename,
                 "size": size,
+                "seed": seed,
             }
 
             request = Request(method="generate_iter", params=params)
@@ -265,14 +269,14 @@ class DaemonClient:
                 logger.error(f"Daemon generate_iter error: {e}")
                 raise
 
-    def embed(self, text_input: Any) -> np.ndarray:
+    def embed(self, text_input: Any, seed: int = 42) -> np.ndarray:
         """Generate embeddings via daemon."""
         if not self.connect():
             raise ConnectionError("Daemon not available")
 
         assert self.socket is not None  # Type guard for mypy
         try:
-            params = {"text_input": text_input}
+            params = {"text_input": text_input, "seed": seed}
             request = Request(method="embed", params=params)
             self.socket.send(request.to_json().encode())
             response_data = self.socket.recv()

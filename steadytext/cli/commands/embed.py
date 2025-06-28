@@ -1,60 +1,63 @@
 import click
-import sys
 import json
 import numpy as np
-import time
-
-from ...core.embedder import create_embedding
+import os
 
 
+# AIDEV-NOTE: Fixed CLI consistency issue (2025-06-28) - Changed from single --format option
+# to individual flags (--json, --numpy, --hex) to match generate command pattern
 @click.command()
-@click.argument("text", default="-", required=False)
+@click.argument("text", nargs=-1)
 @click.option(
-    "--format",
+    "--json",
     "output_format",
-    type=click.Choice(["numpy", "json", "hex"]),
-    default="json",
-    help="Output format",
+    flag_value="json",
+    default=True,
+    help="JSON output (default)",
 )
-def embed(text: str, output_format: str):
-    """Generate embedding vector for text.
+@click.option("--numpy", "output_format", flag_value="numpy", help="Numpy array output")
+@click.option("--hex", "output_format", flag_value="hex", help="Hex-encoded output")
+@click.option(
+    "--seed",
+    type=int,
+    default=42,
+    help="Seed for deterministic embedding.",
+    show_default=True,
+)
+def embed(text: tuple, output_format: str, seed: int):
+    """Generate embedding vector for text."""
+    if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
+        embedding = np.zeros(1024, dtype=np.float32)
+        if output_format == "json":
+            output = {
+                "embedding": embedding.tolist(),
+                "model": "mock_model",
+                "usage": {"prompt_tokens": 0, "total_tokens": 0},
+            }
+            click.echo(json.dumps(output))
+        elif output_format == "numpy":
+            click.echo(str(embedding))
+        else:  # hex
+            click.echo(embedding.tobytes().hex())
+        return
 
-    Examples:
-        st embed "hello world"
-        st embed "hello world" --format numpy
-        echo "text to embed" | st embed
-    """
-    # Handle stdin input
-    if text == "-":
-        if sys.stdin.isatty():
-            click.echo(
-                "Error: No input provided. Use 'st embed --help' for usage.", err=True
-            )
-            sys.exit(1)
-        text = sys.stdin.read().strip()
+    from ...core.embedder import core_embed as create_embedding
+    from ...utils import set_deterministic_environment
 
-    if not text:
-        click.echo("Error: Empty text provided.", err=True)
-        sys.exit(1)
+    set_deterministic_environment(seed)
+    embedding = create_embedding(list(text), seed=seed)
 
-    # AIDEV-NOTE: Create embedding directly using core function
-    start_time = time.time()
-    embedding = create_embedding(text)
-
-    if output_format == "numpy":
-        # Output as numpy text representation
-        np.set_printoptions(threshold=sys.maxsize, linewidth=sys.maxsize)
-        click.echo(np.array2string(embedding, separator=", "))
-    elif output_format == "hex":
-        # Output as hex string
-        hex_str = embedding.tobytes().hex()
-        click.echo(hex_str)
-    else:
-        # JSON format (default)
+    if output_format == "json":
         output = {
-            "text": text,
             "embedding": embedding.tolist(),
-            "dimension": len(embedding),
-            "time_taken": time.time() - start_time,
+            "model": "embedding_model",
+            "usage": {
+                "prompt_tokens": len(list(text)),
+                "total_tokens": len(list(text)),
+            },
         }
-        click.echo(json.dumps(output, indent=2))
+        click.echo(json.dumps(output))
+    elif output_format == "numpy":
+        click.echo(str(embedding))
+    else:  # hex
+        click.echo(embedding.tobytes().hex())

@@ -76,7 +76,7 @@ DEFAULT_SEED = 42
 
 # AIDEV-NOTE: Critical function for ensuring deterministic behavior
 # across all operations
-def set_deterministic_environment(seed: int = DEFAULT_SEED):
+def set_deterministic_environment(seed: int):
     """Sets various seeds for deterministic operations."""
     os.environ["PYTHONHASHSEED"] = str(seed)
     random.seed(seed)
@@ -97,7 +97,6 @@ def set_deterministic_environment(seed: int = DEFAULT_SEED):
 LLAMA_CPP_BASE_PARAMS: Dict[str, Any] = {
     "n_ctx": 2048,
     "n_gpu_layers": 0,  # CPU-only for zero-config
-    "seed": DEFAULT_SEED,
     "verbose": False,
 }
 

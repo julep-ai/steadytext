@@ -136,8 +136,9 @@ class TestCacheCli:
         """Test `st cache status`."""
         result = runner.invoke(cli, ["cache", "status"])
         assert result.exit_code == 0
-        assert "Generation Cache" in result.output
-        assert "Embedding Cache" in result.output
+        data = json.loads(result.output)
+        assert "generation" in data
+        assert "embedding" in data
 
     def test_cache_clear(self, runner):
         """Test `st cache clear`."""
@@ -151,7 +152,9 @@ class TestCacheCli:
 
         # Verify it's empty
         status_result = runner.invoke(cli, ["cache", "status"])
-        assert "0 entries" in status_result.output
+        data = json.loads(status_result.output)
+        assert data["generation"]["entry_count"] == 0
+        assert data["embedding"]["entry_count"] == 0
 
 
 class TestModelsCli:
@@ -171,10 +174,11 @@ class TestModelsCli:
         assert "steadytext" in result.output
         assert "models" in result.output
 
-    def test_models_preload(self, runner):
+    def test_models_preload(self, runner, monkeypatch):
         """Test `st models preload`."""
         # This just checks that the command runs without error, as preloading
         # is disabled in tests.
+        monkeypatch.setenv("STEADYTEXT_SKIP_MODEL_LOAD", "1")
         result = runner.invoke(cli, ["models", "preload"])
         assert result.exit_code == 0
         assert "Preloading models... (skipped in test environment)" in result.output

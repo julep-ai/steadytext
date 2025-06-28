@@ -11,8 +11,11 @@ __version__ = "2.0.2"
 import os
 import numpy as np
 from typing import Optional, Any, Union, Tuple, Dict, Iterator, List
-from .core.generator import generate as _generate, generate_iter as _generate_iter
-from .core.embedder import create_embedding
+from .core.generator import (
+    core_generate as _generate,
+    core_generate_iter as _generate_iter,
+)
+from .core.embedder import core_embed
 from .utils import (
     logger,
     DEFAULT_SEED,
@@ -33,6 +36,7 @@ def generate(
     model_repo: Optional[str] = None,
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
+    seed: int = 42,
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
     """Generate text deterministically from a prompt.
 
@@ -81,6 +85,7 @@ def generate(
                     model_repo=model_repo,
                     model_filename=model_filename,
                     size=size,
+                    seed=seed,
                 )
             except ConnectionError:
                 # Fall back to direct generation
@@ -94,6 +99,7 @@ def generate(
         model_repo=model_repo,
         model_filename=model_filename,
         size=size,
+        seed=seed,
     )
 
 
@@ -105,6 +111,7 @@ def generate_iter(
     model_repo: Optional[str] = None,
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
+    seed: int = 42,
 ) -> Iterator[Union[str, Dict[str, Any]]]:
     """Generate text iteratively, yielding tokens as they are produced.
 
@@ -139,6 +146,7 @@ def generate_iter(
                     model_repo=model_repo,
                     model_filename=model_filename,
                     size=size,
+                    seed=seed,
                 )
                 return
             except ConnectionError:
@@ -155,23 +163,24 @@ def generate_iter(
         model_repo=model_repo,
         model_filename=model_filename,
         size=size,
+        seed=seed,
     )
 
 
-def embed(text_input: Union[str, List[str]]) -> np.ndarray:
+def embed(text_input: Union[str, List[str]], seed: int = 42) -> np.ndarray:
     """Create embeddings for text input."""
     # AIDEV-NOTE: Use daemon by default for embeddings unless explicitly disabled
     if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
         client = get_daemon_client()
         if client is not None:
             try:
-                return client.embed(text_input)
+                return client.embed(text_input, seed=seed)
             except ConnectionError:
                 # Fall back to direct embedding
                 logger.debug("Daemon not available, falling back to direct embedding")
 
     try:
-        return create_embedding(text_input)
+        return core_embed(text_input, seed=seed)
     except TypeError as e:
         logger.error(f"Invalid input type for embedding: {e}")
         return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)

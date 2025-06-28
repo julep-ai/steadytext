@@ -101,6 +101,7 @@ class DeterministicGenerator:
         model_repo: Optional[str] = None,
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
+        seed: int = DEFAULT_SEED,
     ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
         """Generate text with optional model switching.
 
@@ -112,10 +113,12 @@ class DeterministicGenerator:
             model_repo: Custom Hugging Face repository ID
             model_filename: Custom model filename
             size: Size identifier ("small", "large")
+            seed: Seed for deterministic generation
 
         AIDEV-NOTE: Model switching parameters allow using different models without
         restarting. Precedence: model_repo/model_filename > model > size > env vars > defaults.
         """
+        set_deterministic_environment(seed)
         # Resolve model parameters
         repo_id: Optional[str] = None
         filename: Optional[str] = None
@@ -127,7 +130,7 @@ class DeterministicGenerator:
                 )
             except ValueError as e:
                 logger.error(f"Invalid model specification: {e}")
-                fallback = _deterministic_fallback_generate(prompt)
+                fallback = _deterministic_fallback_generate(prompt, seed)
                 return (fallback, None) if return_logprobs else fallback
 
         # Handle caching only for non-logprobs requests and default model
@@ -142,7 +145,7 @@ class DeterministicGenerator:
                 f"DeterministicGenerator.generate: Invalid prompt type: {type(prompt)}. Expected str. Using fallback."
             )
             # Pass string representation to fallback
-            fallback = _deterministic_fallback_generate(str(prompt))
+            fallback = _deterministic_fallback_generate(str(prompt), seed)
             return (fallback, None) if return_logprobs else fallback
 
         # Check if we need to load a different model
@@ -174,7 +177,7 @@ class DeterministicGenerator:
                     "DeterministicGenerator.generate: Model not loaded. "
                     "Using fallback generator."
                 )
-            fallback = _deterministic_fallback_generate(prompt)
+            fallback = _deterministic_fallback_generate(prompt, seed)
 
             # Cache fallback result for non-logprobs requests and default model
             if should_use_cache_for_generation(return_logprobs, repo_id, filename):
@@ -189,7 +192,7 @@ class DeterministicGenerator:
                 "prompt received. Using fallback generator."
             )
             # Call fallback for empty/whitespace
-            fallback = _deterministic_fallback_generate(prompt)
+            fallback = _deterministic_fallback_generate(prompt, seed)
 
             # Cache fallback result for non-logprobs requests and default model
             if should_use_cache_for_generation(return_logprobs, repo_id, filename):
@@ -215,7 +218,7 @@ class DeterministicGenerator:
                 # Combine default stop sequences with custom eos_string
                 sampling_params["stop"] = DEFAULT_STOP_SEQUENCES + [eos_string]
             # Always use DEFAULT_SEED for determinism
-            sampling_params["seed"] = DEFAULT_SEED
+            sampling_params["seed"] = seed
 
             if return_logprobs:
                 # Request logprobs for each generated token
@@ -283,6 +286,7 @@ class DeterministicGenerator:
         model_repo: Optional[str] = None,
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
+        seed: int = DEFAULT_SEED,
     ) -> Iterator[Union[str, Dict[str, Any]]]:
         """Generate text iteratively, yielding tokens as they are produced.
 
@@ -297,17 +301,19 @@ class DeterministicGenerator:
             model_repo: Custom Hugging Face repository ID
             model_filename: Custom model filename
             size: Size identifier ("small", "large")
+            seed: Seed for deterministic generation
 
         AIDEV-NOTE: When running in pytest, collecting many tokens (>400) can cause
         hanging due to interaction between streaming API and pytest's output capture.
         Tests should limit token collection to avoid this issue. Works fine outside pytest.
         """
+        set_deterministic_environment(seed)
         if not isinstance(prompt, str):
             logger.error(
                 f"DeterministicGenerator.generate_iter: Invalid prompt type: {type(prompt)}. Expected str. Using fallback."
             )
             # Yield words from fallback
-            fallback_text = _deterministic_fallback_generate(str(prompt))
+            fallback_text = _deterministic_fallback_generate(str(prompt), seed)
             words = fallback_text.split()
             for i, word in enumerate(words):
                 if include_logprobs:
@@ -370,7 +376,7 @@ class DeterministicGenerator:
             except ValueError as e:
                 logger.error(f"Invalid model specification: {e}")
                 # Yield words from fallback
-                fallback_text = _deterministic_fallback_generate(prompt)
+                fallback_text = _deterministic_fallback_generate(prompt, seed)
                 words = fallback_text.split()
                 for i, word in enumerate(words):
                     if include_logprobs:
@@ -418,7 +424,7 @@ class DeterministicGenerator:
                     "DeterministicGenerator.generate_iter: Model not loaded. "
                     "Using fallback generator."
                 )
-            fallback_text = _deterministic_fallback_generate(prompt)
+            fallback_text = _deterministic_fallback_generate(prompt, seed)
             words = fallback_text.split()
             for i, word in enumerate(words):
                 if include_logprobs:
@@ -443,7 +449,7 @@ class DeterministicGenerator:
                 "DeterministicGenerator.generate_iter: Empty or whitespace-only "
                 "prompt received. Using fallback generator."
             )
-            fallback_text = _deterministic_fallback_generate(prompt)
+            fallback_text = _deterministic_fallback_generate(prompt, seed)
             words = fallback_text.split()
             for i, word in enumerate(words):
                 if include_logprobs:
@@ -476,7 +482,7 @@ class DeterministicGenerator:
                 sampling_params["stop"] = DEFAULT_STOP_SEQUENCES
             else:
                 sampling_params["stop"] = DEFAULT_STOP_SEQUENCES + [eos_string]
-            sampling_params["seed"] = DEFAULT_SEED
+            sampling_params["seed"] = seed
             sampling_params["stream"] = True  # Enable streaming
 
             if include_logprobs:
@@ -586,7 +592,7 @@ class DeterministicGenerator:
 # deterministic output when model is unavailable - uses multiple hash seeds
 # for word selection
 # AIDEV-NOTE: This is the hash-based fallback mechanism.
-def _deterministic_fallback_generate(prompt: str) -> str:
+def _deterministic_fallback_generate(prompt: str, seed: int = DEFAULT_SEED) -> str:
     # Ensure prompt_for_hash is always a string, even if original prompt was not.
     if not isinstance(prompt, str) or not prompt.strip():
         prompt_for_hash = f"invalid_prompt_type_or_empty:{type(prompt).__name__}"
@@ -679,9 +685,9 @@ def _deterministic_fallback_generate(prompt: str) -> str:
     hasher = hashlib.sha256(prompt_for_hash.encode("utf-8"))
     hex_digest = hasher.hexdigest()  # Example: '50d858e0985ecc7f60418aaf0cc5ab58...'
 
-    seed1 = int(hex_digest[:8], 16)
-    seed2 = int(hex_digest[8:16], 16)
-    seed3 = int(hex_digest[16:24], 16)
+    seed1 = int(hex_digest[:8], 16) ^ seed
+    seed2 = int(hex_digest[8:16], 16) ^ seed
+    seed3 = int(hex_digest[16:24], 16) ^ seed
 
     try:
         max_tokens_target = GENERATION_MAX_NEW_TOKENS
@@ -706,13 +712,15 @@ def _deterministic_fallback_generate(prompt: str) -> str:
     return " ".join(fallback_text_parts)
 
 
-def _deterministic_fallback_generate_iter(prompt: str) -> Iterator[str]:
+def _deterministic_fallback_generate_iter(
+    prompt: str, seed: int = DEFAULT_SEED
+) -> Iterator[str]:
     """Iterative version of deterministic fallback that yields words one by one.
 
     AIDEV-NOTE: Used by generate_iter when model is unavailable. Yields the same
     deterministic output as _deterministic_fallback_generate but word by word.
     """
-    fallback_text = _deterministic_fallback_generate(prompt)
+    fallback_text = _deterministic_fallback_generate(prompt, seed)
     for word in fallback_text.split():
         yield word + " "
 
@@ -735,7 +743,7 @@ def _get_generator_instance() -> DeterministicGenerator:
     return cast(DeterministicGenerator, _generator_instance)
 
 
-def generate(
+def core_generate(
     prompt: str,
     return_logprobs: bool = False,
     eos_string: str = "[EOS]",
@@ -743,6 +751,7 @@ def generate(
     model_repo: Optional[str] = None,
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
+    seed: int = DEFAULT_SEED,
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
     """Generate text deterministically with optional model switching.
 
@@ -757,6 +766,7 @@ def generate(
         model_repo: Custom Hugging Face repository ID
         model_filename: Custom model filename
         size: Size identifier ("small", "large")
+        seed: Seed for deterministic generation
 
     Returns:
         Generated text string, or tuple of (text, logprobs) if return_logprobs=True
@@ -791,10 +801,11 @@ def generate(
         model_repo=model_repo,
         model_filename=model_filename,
         size=size,
+        seed=seed,
     )
 
 
-def generate_iter(
+def core_generate_iter(
     prompt: str,
     eos_string: str = "[EOS]",
     include_logprobs: bool = False,
@@ -802,6 +813,7 @@ def generate_iter(
     model_repo: Optional[str] = None,
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
+    seed: int = DEFAULT_SEED,
 ) -> Iterator[Union[str, Dict[str, Any]]]:
     """Generate text iteratively with optional model switching.
 
@@ -815,6 +827,7 @@ def generate_iter(
         model_repo: Custom Hugging Face repository ID
         model_filename: Custom model filename
         size: Size identifier ("small", "large")
+        seed: Seed for deterministic generation
 
     Yields:
         String tokens, or dicts with 'token' and 'logprobs' if include_logprobs=True
@@ -830,4 +843,5 @@ def generate_iter(
         model_repo=model_repo,
         model_filename=model_filename,
         size=size,
+        seed=seed,
     )
