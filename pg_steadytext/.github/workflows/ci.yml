@@ -1,0 +1,152 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  POSTGRES_PASSWORD: postgres
+  PGPASSWORD: postgres
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        postgres: [14, 15, 16]
+        python: [3.9, 3.10, 3.11]
+    
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python }}
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          postgresql-server-dev-${{ matrix.postgres }} \
+          postgresql-plpython3-${{ matrix.postgres }} \
+          build-essential \
+          git
+    
+    - name: Install pgvector
+      run: |
+        cd /tmp
+        git clone --branch v0.5.1 https://github.com/pgvector/pgvector.git
+        cd pgvector
+        make
+        sudo make install
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install steadytext pyzmq numpy pytest
+    
+    - name: Build extension
+      run: |
+        cd pg_steadytext
+        make clean
+        make
+        sudo make install
+    
+    - name: Run tests
+      run: |
+        cd pg_steadytext
+        ./run_tests.sh
+      env:
+        PGHOST: localhost
+        PGPORT: 5432
+        PGUSER: postgres
+        PGDATABASE: test_steadytext
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-pg${{ matrix.postgres }}-py${{ matrix.python }}
+        path: pg_steadytext/test/regression.*
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install linting tools
+      run: |
+        pip install black flake8 mypy
+    
+    - name: Run black
+      run: black --check pg_steadytext/python/
+    
+    - name: Run flake8
+      run: flake8 pg_steadytext/python/
+    
+    - name: Run mypy
+      run: mypy pg_steadytext/python/
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Build Docker image
+      run: |
+        cd pg_steadytext
+        docker build -t pg_steadytext:test .
+    
+    - name: Test Docker image
+      run: |
+        docker run -d --name pg_steadytext_test -p 5432:5432 pg_steadytext:test
+        sleep 30  # Wait for initialization
+        
+        # Test extension
+        docker exec pg_steadytext_test psql -U postgres -c "SELECT steadytext_version();"
+        docker exec pg_steadytext_test psql -U postgres -c "SELECT length(steadytext_generate('Hello Docker')) > 0;"
+        
+        docker stop pg_steadytext_test
+        docker rm pg_steadytext_test
+
+  release:
+    needs: [test, lint, docker]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Create release package
+      run: |
+        cd pg_steadytext
+        make dist
+    
+    - name: Upload release artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: release-package
+        path: pg_steadytext/dist/*.tar.gz
+
+# AIDEV-NOTE: This workflow tests the extension across multiple PostgreSQL and Python versions

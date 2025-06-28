@@ -1,0 +1,44 @@
+[Unit]
+Description=pg_steadytext Background Worker
+Documentation=https://github.com/julep-ai/steadytext
+After=postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=postgres
+Group=postgres
+WorkingDirectory=/usr/lib/postgresql/pg_steadytext
+
+# Environment
+Environment="PGHOST=localhost"
+Environment="PGPORT=5432"
+Environment="PGDATABASE=postgres"
+Environment="PGUSER=postgres"
+Environment="PYTHONPATH=/usr/lib/postgresql/pg_steadytext/python"
+
+# Start command
+ExecStart=/usr/bin/python3 /usr/lib/postgresql/pg_steadytext/python/worker.py
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Resource limits
+LimitNOFILE=65536
+Nice=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pg_steadytext_worker
+
+[Install]
+WantedBy=multi-user.target
+
+# AIDEV-NOTE: Installation:
+# sudo cp pg_steadytext_worker.service /etc/systemd/system/
+# sudo systemctl daemon-reload
+# sudo systemctl enable pg_steadytext_worker
+# sudo systemctl start pg_steadytext_worker
+# sudo systemctl status pg_steadytext_worker
