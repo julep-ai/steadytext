@@ -1,7 +1,7 @@
 # Dockerfile for pg_steadytext PostgreSQL extension
 # AIDEV-NOTE: This creates a PostgreSQL image with pg_steadytext pre-installed
 
-FROM postgres:16
+FROM postgres:17
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -35,7 +35,7 @@ set -e\n\
 psql -v ON_ERROR_STOP=1 --username \"\$POSTGRES_USER\" --dbname \"\$POSTGRES_DB\" <<-EOSQL\n\
     -- Create required extensions\n\
     CREATE EXTENSION IF NOT EXISTS plpython3u CASCADE;\n\
-    CREATE EXTENSION IF NOT EXISTS pgvector CASCADE;\n\
+    CREATE EXTENSION IF NOT EXISTS vector CASCADE;\n\
     CREATE EXTENSION IF NOT EXISTS pg_steadytext CASCADE;\n\
     \n\
     -- Verify installation\n\

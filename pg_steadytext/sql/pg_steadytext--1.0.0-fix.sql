@@ -358,7 +358,7 @@ BEGIN
             DELETE FROM steadytext_cache
             WHERE id IN (
                 SELECT id 
-                FROM steadytext_cache
+                FROM steadytext_cache_with_frecency
                 ORDER BY frecency_score ASC
                 LIMIT GREATEST(
                     current_entries - max_entries,

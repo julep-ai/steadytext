@@ -150,7 +150,7 @@ echo -e "\n${YELLOW}Next steps:${NC}"
 echo "1. Connect to PostgreSQL as superuser"
 echo "2. Create required extensions:"
 echo "   CREATE EXTENSION IF NOT EXISTS plpython3u CASCADE;"
-echo "   CREATE EXTENSION IF NOT EXISTS pgvector CASCADE;"
+echo "   CREATE EXTENSION IF NOT EXISTS vector CASCADE;"
 echo "3. Create pg_steadytext extension:"
 echo "   CREATE EXTENSION pg_steadytext CASCADE;"
 echo ""
@@ -178,7 +178,7 @@ if command -v psql >/dev/null 2>&1; then
         psql -U "$DB_USER" -d "$DB_NAME" <<EOF
 -- Create extensions
 CREATE EXTENSION IF NOT EXISTS plpython3u CASCADE;
-CREATE EXTENSION IF NOT EXISTS pgvector CASCADE;
+CREATE EXTENSION IF NOT EXISTS vector CASCADE;
 CREATE EXTENSION IF NOT EXISTS pg_steadytext CASCADE;
 
 -- Test functions

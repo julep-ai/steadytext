@@ -61,7 +61,7 @@ echo -e "${YELLOW}Installing extensions...${NC}"
 psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" <<EOF
 -- Install prerequisites
 CREATE EXTENSION IF NOT EXISTS plpython3u CASCADE;
-CREATE EXTENSION IF NOT EXISTS pgvector CASCADE;
+CREATE EXTENSION IF NOT EXISTS vector CASCADE;
 
 -- Install pg_steadytext
 CREATE EXTENSION pg_steadytext CASCADE;

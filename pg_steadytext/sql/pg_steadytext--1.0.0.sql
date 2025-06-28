@@ -34,18 +34,16 @@ CREATE TABLE steadytext_cache (
     -- Generation parameters
     generation_params JSONB,  -- temperature, max_tokens, seed, etc.
     response_size INT,
-    generation_time_ms INT,  -- Time taken to generate (if not cached)
+    generation_time_ms INT  -- Time taken to generate (if not cached)
     
-    -- Frecency score (computed column for efficient eviction)
-    frecency_score FLOAT GENERATED ALWAYS AS (
-        access_count * exp(-extract(epoch from (NOW() - last_accessed)) / 86400.0)
-    ) STORED
+    -- AIDEV-NOTE: frecency_score removed - calculated via view instead
+    -- Previously used GENERATED column with NOW() which is not immutable
 );
 
 -- Create indexes for performance
 CREATE INDEX idx_steadytext_cache_key ON steadytext_cache USING hash(cache_key);
-CREATE INDEX idx_steadytext_cache_frecency ON steadytext_cache(frecency_score DESC);
 CREATE INDEX idx_steadytext_cache_last_accessed ON steadytext_cache(last_accessed);
+CREATE INDEX idx_steadytext_cache_access_count ON steadytext_cache(access_count);
 
 -- Request queue for async operations with priority and resource management
 CREATE TABLE steadytext_queue (
@@ -157,23 +155,47 @@ CREATE TABLE steadytext_audit_log (
 CREATE INDEX idx_steadytext_audit_timestamp ON steadytext_audit_log(timestamp DESC);
 CREATE INDEX idx_steadytext_audit_user ON steadytext_audit_log(user_id, timestamp DESC);
 
+-- AIDEV-SECTION: VIEWS
+-- View for calculating frecency scores dynamically
+CREATE VIEW steadytext_cache_with_frecency AS
+SELECT *,
+    -- Calculate frecency score dynamically
+    access_count * exp(-extract(epoch from (NOW() - last_accessed)) / 86400.0) AS frecency_score
+FROM steadytext_cache;
+
+-- AIDEV-NOTE: This view replaces the GENERATED column which couldn't use NOW()
+-- The frecency score decays exponentially based on time since last access
+
 -- AIDEV-SECTION: PYTHON_INTEGRATION
 -- AIDEV-NOTE: Python integration layer path setup
 -- This allows PostgreSQL to find our Python modules
 DO $$
+DECLARE
+    current_path TEXT;
+    new_path TEXT;
 BEGIN
-    -- Add extension's python directory to Python path
+    -- Get current Python path if it exists
+    BEGIN
+        current_path := current_setting('plpython3.python_path', true);
+    EXCEPTION
+        WHEN undefined_object THEN
+            current_path := NULL;
+        WHEN OTHERS THEN
+            current_path := NULL;
+    END;
+    
+    -- Build new path
+    IF current_path IS NOT NULL AND current_path != '' THEN
+        new_path := '$libdir/pg_steadytext/python:' || current_path;
+    ELSE
+        new_path := '$libdir/pg_steadytext/python';
+    END IF;
+    
+    -- Set the Python path
     EXECUTE format('ALTER DATABASE %I SET plpython3.python_path TO %L',
         current_database(),
-        '$libdir/pg_steadytext/python:' || current_setting('plpython3.python_path', true)
+        new_path
     );
-EXCEPTION
-    WHEN undefined_object THEN
-        -- If plpython3.python_path doesn't exist, create it
-        EXECUTE format('ALTER DATABASE %I SET plpython3.python_path TO %L',
-            current_database(),
-            '$libdir/pg_steadytext/python'
-        );
 END;
 $$;
 

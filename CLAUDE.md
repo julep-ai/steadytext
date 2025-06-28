@@ -623,6 +623,32 @@ uv cache clean
 AIDEV-TODO: Consider adding UV-specific CI/CD configurations for faster builds
 AIDEV-NOTE: UV's automatic virtual environment management eliminates common "forgot to activate venv" issues
 
+## PostgreSQL Extension (pg_steadytext)
+
+### Known Issues and Fixes
+
+**Python Path Configuration Error (Fixed)**
+- AIDEV-NOTE: Fixed SQL syntax error when setting plpython3.python_path in pg_steadytext--1.0.0.sql
+- Issue: `ALTER DATABASE ... SET plpython3.python_path TO NULL` causes syntax error during Docker initialization
+- Root cause: `current_setting('plpython3.python_path', true)` returns NULL when setting doesn't exist, causing invalid SQL
+- Fix: Properly handle NULL values by checking if current_path exists before concatenation
+- The fixed code uses a DECLARE block with proper exception handling to avoid NULL concatenation
+
+### Docker Development
+
+**Building and Running:**
+```bash
+cd pg_steadytext
+docker build -t pg_steadytext .
+docker run -d -p 5432:5432 --name pg_steadytext pg_steadytext
+```
+
+**Testing the Extension:**
+```bash
+docker exec -it pg_steadytext psql -U postgres -c "SELECT steadytext_generate('Hello Docker!');"
+docker exec -it pg_steadytext psql -U postgres -c "SELECT steadytext_version();"
+```
+
 ## Development Workflow
 
 ### Additional Process Guidance

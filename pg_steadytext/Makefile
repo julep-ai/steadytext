@@ -6,7 +6,7 @@ EXTVERSION = 1.0.0
 
 # SQL scripts
 DATA = sql/$(EXTENSION)--$(EXTVERSION).sql
-DATA_built = sql/$(EXTENSION)--$(EXTVERSION).sql
+# AIDEV-NOTE: Do not use DATA_built here - it causes duplicate installation attempts
 
 # Python modules to install
 PYTHON_MODULES = python/__init__.py \
@@ -45,7 +45,7 @@ check-deps:
 	@which python3 >/dev/null 2>&1 && echo "OK" || (echo "MISSING - Install python3"; exit 1)
 	@echo -n "  plpython3u: "
 	@$(PG_CONFIG) --version >/dev/null 2>&1 && echo "OK (checking at runtime)" || echo "WARNING"
-	@echo -n "  pgvector: "
+	@echo -n "  vector (pgvector package): "
 	@echo "OK (checking at runtime)"
 	@echo -n "  SteadyText: "
 	@python3 -c "import steadytext; print('OK')" 2>/dev/null || \
@@ -103,7 +103,7 @@ pgxn-release: dist
 dev-install: install
 	@echo "Installing for development..."
 	@echo "CREATE EXTENSION IF NOT EXISTS plpython3u CASCADE;" | psql -U postgres
-	@echo "CREATE EXTENSION IF NOT EXISTS pgvector CASCADE;" | psql -U postgres
+	@echo "CREATE EXTENSION IF NOT EXISTS vector CASCADE;" | psql -U postgres
 	@echo "DROP EXTENSION IF EXISTS $(EXTENSION) CASCADE;" | psql -U postgres
 	@echo "CREATE EXTENSION $(EXTENSION);" | psql -U postgres
 	@echo "Development installation complete!"
