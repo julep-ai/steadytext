@@ -175,6 +175,6 @@ class TestModelsCli:
         """Test `st models preload`."""
         # This just checks that the command runs without error, as preloading
         # is disabled in tests.
-        result = runner.invoke(cli, ["models", "preload"])
+        result = runner.invoke(cli, ["models", "preload"], env={"STEADYTEXT_SKIP_MODEL_LOAD": "1"})
         assert result.exit_code == 0
         assert "Preloading models... (skipped in test environment)" in result.output
