@@ -1,12 +1,7 @@
 """
 Pytest configuration for SteadyText tests.
 
-AIDEV-NOTE: This file configures test environment settings that apply to all tests.
-Key configuration: Disables daemon by default to prevent slow test execution.
-AIDEV-NOTE: Environment variables are set at module level to run before any imports
-AIDEV-NOTE: Fixed pytest hanging issue (v2.0.1+) - Environment variables must be set
-in pytest_addoption hook which runs BEFORE test collection and imports. Without this,
-pytest --collect-only --noconftest would hang due to module-level code execution.
+AIDEV-NOTE: This file configures the test environment settings that apply to all tests. It disables the daemon by default to prevent slow test execution. Environment variables are set at the module level to run before any imports. The pytest_addoption hook is used to set environment variables before test collection and imports.
 """
 
 import os

@@ -4,10 +4,8 @@ This directory contains the core text generation and embedding functionality.
 
 ## Key Components
 
-- `generator.py`: Deterministic text generation with model-based and fallback mechanisms
-  - Uses Gemma-3n models for state-of-the-art performance
-  
-- `embedder.py`: L2-normalized embeddings with zero-vector fallbacks
+- `generator.py`: Deterministic text generation with model-based and fallback mechanisms.
+- `embedder.py`: L2-normalized embeddings with zero-vector fallbacks.
 
 ## Critical Design Patterns
 
@@ -37,4 +35,4 @@ Add `AIDEV-TODO:` for:
 Add `AIDEV-QUESTION:` for:
 - Unclear model behavior or edge cases
 - Potential issues with determinism
-- Simple frecency cache only caching successful outputs
+- Simple frecency cache only caching successful outputs.
