@@ -21,13 +21,8 @@ The simplest way to choose a model based on your needs:
 from steadytext import generate
 
 # Quick, lightweight tasks
-text = generate("Simple question", size="small")    # Uses Qwen3-0.6B
-
-# Balanced performance (default)
-text = generate("General task", size="medium")      # Uses Qwen3-1.7B
-
-# Complex, high-quality output
-text = generate("Complex analysis", size="large")   # Uses Qwen3-4B
+text = generate("Simple task", size="small")   # Uses Gemma-3n-2B
+text = generate("Complex analysis", size="large")   # Uses Gemma-3n-4B (default)
 ```
 
 ### 2. Using the Model Registry
@@ -48,9 +43,8 @@ Available models in the registry:
 
 | Model Name | Size | Use Case | Size Parameter |
 |------------|------|----------|----------------|
-| `qwen3-0.6b` | 0.6B | Very fast, simple tasks | `small` |
-| `qwen3-1.7b` | 1.7B | Default, balanced performance | `medium` |
-| `qwen3-4b` | 4B | Better quality, slower | `large` |
+| `gemma-3n-2b` | 2B | Fast, for simple tasks | `small` |
+| `gemma-3n-4b` | 4B | Default, high quality | `large` |
 | `qwen3-8b` | 8B | High quality, resource intensive | - |
 | `qwen2.5-0.5b` | 0.5B | Fast, lightweight tasks | - |
 | `qwen2.5-1.5b` | 1.5B | Good balance of speed/quality | - |
@@ -95,19 +89,14 @@ for token in generate_iter("Tell me a story", model="qwen2.5-3b"):
 
 ## Model Selection Guide
 
-### For Speed (0.5B - 1.5B models)
+### For Speed (2B model)
 - **Use cases**: Chat responses, simple completions, real-time applications
-- **Recommended**: `qwen3-0.6b` (size="small"), `qwen2.5-0.5b`, `qwen2.5-1.5b`
+- **Recommended**: `gemma-3n-2b` (size="small")
 - **Trade-off**: Faster generation, simpler outputs
 
-### For Balance (1.7B - 3B models)
-- **Use cases**: General text generation, summaries, explanations
-- **Recommended**: `qwen3-1.7b` (size="medium", default), `qwen2.5-3b`
-- **Trade-off**: Good quality with reasonable speed
-
-### For Quality (4B+ models)
+### For Quality (4B model)
 - **Use cases**: Complex reasoning, detailed content, creative writing
-- **Recommended**: `qwen3-4b` (size="large"), `qwen2.5-7b`, `qwen3-8b`
+- **Recommended**: `gemma-3n-4b` (size="large", default)
 - **Trade-off**: Best quality, slower generation
 
 ## Performance Considerations
@@ -124,17 +113,14 @@ for token in generate_iter("Tell me a story", model="qwen2.5-3b"):
 ```python
 from steadytext import generate
 
-def smart_generate(prompt, max_length=100):
+def smart_generate(prompt, complexity="medium"):
     """Use different models based on task complexity."""
-    if max_length < 50:
-        # Use fast model for short outputs
-        return generate(prompt, model="qwen2.5-0.5b")
-    elif max_length < 200:
-        # Use balanced model
-        return generate(prompt, model="qwen3-1.7b")
+    if complexity == "low":
+        # Use fast model for simple tasks
+        return generate(prompt, size="small")
     else:
-        # Use high-quality model for long outputs
-        return generate(prompt, model="qwen2.5-7b")
+        # Use high-quality model for complex tasks
+        return generate(prompt, size="large")
 ```
 
 ### A/B Testing Models
@@ -148,11 +134,11 @@ for prompt in prompts:
     print(f"\nPrompt: {prompt}")
     
     # Test with small model
-    small = generate(prompt, model="qwen2.5-0.5b")
+    small = generate(prompt, size="small")
     print(f"Small model: {small[:100]}...")
     
     # Test with large model
-    large = generate(prompt, model="qwen2.5-3b")
+    large = generate(prompt, size="large")
     print(f"Large model: {large[:100]}...")
 ```
 

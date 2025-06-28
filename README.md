@@ -51,9 +51,8 @@ fast_response = steadytext.generate("Quick task", model="gemma-3n-2b")
 quality_response = steadytext.generate("Complex analysis", model="gemma-3n-4b")
 
 # Size-based selection (v2.0.0+)
-small = steadytext.generate("Quick response", size="small")    # Gemma-3n-2B
-medium = steadytext.generate("Standard task", size="medium")   # Gemma-3n-2B (default)
-large = steadytext.generate("Complex analysis", size="large")  # Gemma-3n-4B
+small = steadytext.generate("Simple task", size="small")      # Gemma-3n-2B
+large = steadytext.generate("Complex task", size="large")    # Gemma-3n-4B (default)
 ```
 
 _Or,_
@@ -141,9 +140,17 @@ text = steadytext.generate(
 
 Available models: `gemma-3n-2b`, `gemma-3n-4b`
 
-Size shortcuts: `small` (2B), `medium` (2B, default), `large` (4B)
+Size shortcuts: `small` (2B), `large` (4B, default)
 
 > Each model produces deterministic outputs. The default model remains fixed per major version.
+
+## Version History
+
+| Version | Key Features                                                                                                                            | Default Generation Model                               | Default Embedding Model                                | Python Versions |
+| :------ | :-------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------- | :----------------------------------------------------- | :-------------- |
+| **2.x** | - **Daemon Mode**: Persistent model serving with ZeroMQ.<br>- **Gemma-3n Models**: Switched to `gemma-3n` for generation.<br>- **Thinking Mode Deprecated**: Removed thinking mode. | `unsloth/gemma-3n-E2B-it-GGUF` (gemma-3n-E2B-it-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `>=3.10, <3.14` |
+| **1.x** | - **Model Switching**: Added support for switching models via environment variables and a model registry.<br>- **Qwen3 Models**: Switched to `qwen3-1.7b` for generation.<br>- **Indexing**: Added support for FAISS indexing. | `Qwen/Qwen3-1.7B-GGUF` (Qwen3-1.7B-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `>=3.10, <3.14` |
+| **0.x** | - **Initial Release**: Deterministic text generation and embedding.                                                                      | `Qwen/Qwen1.5-0.5B-Chat-GGUF` (qwen1_5-0_5b-chat-q4_k_m.gguf) | `Qwen/Qwen1.5-0.5B-Chat-GGUF` (qwen1_5-0_5b-chat-q8_0.gguf) | `>=3.10`        |
 
 ### Breaking Changes in v2.0.0+
 
@@ -485,4 +492,31 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
-## 📈 What's New in v1.3.3\n\n### Daemon Architecture (v1.2.0+)\n- **Persistent model serving** with ZeroMQ for 10-100x faster repeated calls\n- **Automatic fallback** to direct model loading when daemon unavailable\n- **Zero configuration** - daemon starts automatically on first use\n- **Background operation** - daemon runs silently in the background\n\n### Centralized Cache System (v1.3.0+)\n- **Unified caching** - consistent behavior between daemon and direct access\n- **Thread-safe SQLite backend** for reliable concurrent access\n- **Shared cache files** across all access modes\n- **Cache integration** with daemon server for optimal performance\n\n### Improved CLI Experience (v1.3.0+)\n- **Streaming by default** - see output as it's generated\n- **Quiet by default** - clean output without informational messages\n- **New pipe syntax** - `echo \"prompt\" | st` for better unix integration\n- **Daemon management** - built-in commands for daemon lifecycle\n\n### Qwen3 Thinking Mode (v1.3.0+)\n- **Controllable reasoning** - enable/disable internal thinking process\n- **Efficiency by default** - thinking disabled for faster generation\n- **Extended context** - increased to 3072 tokens to support thinking output\n\n---\n\nBuilt with ❤️ for developers tired of flaky AI tests.
+## 📈 What's New in v1.3.3
+
+### Daemon Architecture (v1.2.0+)
+- **Persistent model serving** with ZeroMQ for 10-100x faster repeated calls
+- **Automatic fallback** to direct model loading when daemon unavailable
+- **Zero configuration** - daemon starts automatically on first use
+- **Background operation** - daemon runs silently in the background
+
+### Centralized Cache System (v1.3.0+)
+- **Unified caching** - consistent behavior between daemon and direct access
+- **Thread-safe SQLite backend** for reliable concurrent access
+- **Shared cache files** across all access modes
+- **Cache integration** with daemon server for optimal performance
+
+### Improved CLI Experience (v1.3.0+)
+- **Streaming by default** - see output as it's generated
+- **Quiet by default** - clean output without informational messages
+- **New pipe syntax** - `echo "prompt" | st` for better unix integration
+- **Daemon management** - built-in commands for daemon lifecycle
+
+### Qwen3 Thinking Mode (v1.3.0+)
+- **Controllable reasoning** - enable/disable internal thinking process
+- **Efficiency by default** - thinking disabled for faster generation
+- **Extended context** - increased to 3072 tokens to support thinking output
+
+---
+
+Built with ❤️ for developers tired of flaky AI tests.

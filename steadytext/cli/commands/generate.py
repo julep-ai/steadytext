@@ -57,9 +57,9 @@ from .index import search_index_for_context, get_default_index_path
 )
 @click.option(
     "--size",
-    type=click.Choice(["small", "medium", "large"]),
+    type=click.Choice(["small", "large"]),
     default=None,
-    help="Model size (small=0.6B, medium=1.7B, large=4B)",
+    help="Model size (small=2B, large=4B)",
 )
 @click.pass_context
 def generate(
@@ -84,9 +84,9 @@ def generate(
     Examples:
         echo "write a hello world function" | st  # Streams output
         echo "quick task" | st --wait            # Waits for full output
-        echo "quick task" | st generate --size small    # Uses Qwen3-0.6B
-        echo "complex task" | st generate --size large  # Uses Qwen3-4B
-        echo "explain quantum computing" | st generate --model qwen2.5-3b
+        echo "quick task" | st generate --size small    # Uses Gemma-3n-2B
+        echo "complex task" | st generate --size large  # Uses Gemma-3n-4B
+        echo "explain quantum computing" | st generate --model gemma-3n-4b
         st -  # Read from stdin
         echo "explain this" | st
         echo "complex task" | st generate --model-repo Qwen/Qwen2.5-7B-Instruct-GGUF --model-filename qwen2.5-7b-instruct-q8_0.gguf

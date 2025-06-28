@@ -1,6 +1,7 @@
 # AIDEV-NOTE: Model downloading and caching from Hugging Face Hub
 # Handles download resumption and path validation
 
+import os
 from pathlib import Path
 from huggingface_hub import hf_hub_download
 from ..utils import (
@@ -19,6 +20,21 @@ from typing import Optional
 def _download_model_if_needed(
     repo_id: str, filename: str, cache_dir: Path
 ) -> Optional[Path]:
+    # AIDEV-NOTE: Check if model downloads are disabled (for testing/collection)
+    if os.environ.get("STEADYTEXT_ALLOW_MODEL_DOWNLOADS", "true").lower() == "false":
+        logger.debug(f"Model downloads disabled, skipping download of {filename}")
+        return None
+
+    # AIDEV-NOTE: Ensure cache directory exists before attempting to download.
+    # This is the lazy-initialization of the cache directory.
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        logger.error(
+            f"Failed to create cache directory at {cache_dir}: {e}", exc_info=True
+        )
+        return None
+
     model_path = cache_dir / filename
     if not model_path.exists():
         logger.info(

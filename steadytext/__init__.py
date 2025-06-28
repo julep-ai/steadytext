@@ -5,7 +5,7 @@ AIDEV-NOTE: Fixed "Never Fails" - embed() now catches TypeErrors & returns zero 
 """
 
 # Version of the steadytext package - should match pyproject.toml
-__version__ = "2.0.1"
+__version__ = "2.0.2"
 
 # Import core functions and classes for public API
 import os
@@ -44,7 +44,7 @@ def generate(
         model: Model name from registry (e.g., "gemma-3n-2b")
         model_repo: Custom Hugging Face repository ID
         model_filename: Custom model filename
-        size: Size identifier ("small", "medium", "large")
+        size: Size identifier ("small", "large")
 
     Returns:
         Generated text string, or tuple (text, logprobs) if return_logprobs=True
@@ -120,7 +120,7 @@ def generate_iter(
         model: Model name from registry (e.g., "gemma-3n-2b")
         model_repo: Custom Hugging Face repository ID
         model_filename: Custom model filename
-        size: Size identifier ("small", "medium", "large")
+        size: Size identifier ("small", "large")
 
     Yields:
         str: Generated tokens/words as they are produced (if include_logprobs=False)
@@ -184,6 +184,13 @@ def preload_models(verbose: bool = False, size: Optional[str] = None):
         verbose: Whether to log progress messages
         size: Model size to preload ("small", "medium", "large")
     """
+    # AIDEV-NOTE: Skip model loading if STEADYTEXT_SKIP_MODEL_LOAD is set
+    # This prevents hanging during tests when models aren't available
+    if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
+        if verbose:
+            logger.info("Model preloading skipped (STEADYTEXT_SKIP_MODEL_LOAD=1)")
+        return
+
     if verbose:
         if size:
             logger.info(f"Preloading {size} generator model...")

@@ -86,7 +86,10 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
                     self._init_database()
                     self._migrate_from_pickle()
                 except Exception as rename_error:
-                    logger.error(f"Failed to handle corrupted database: {rename_error}", exc_info=True)
+                    logger.error(
+                        f"Failed to handle corrupted database: {rename_error}",
+                        exc_info=True,
+                    )
                     raise
             else:
                 raise
@@ -210,7 +213,7 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
 
                 logger.error(
                     f"Database transaction failed after {attempt + 1} attempts: {e}",
-                    exc_info=True
+                    exc_info=True,
                 )
                 raise
 

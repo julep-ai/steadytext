@@ -52,7 +52,7 @@ steadytext generate [OPTIONS] PROMPT
 | `--logprobs` | `-l` | flag | `false` | Include log probabilities |
 | `--think` | | flag | `false` | Enable Qwen3 thinking mode (shows reasoning) |
 | `--eos-string` | `-e` | string | `"[EOS]"` | Custom end-of-sequence string |
-| `--size` | | choice | | Model size: small (0.6B), medium (1.7B), large (4B) |
+| `--size` | | choice | | Model size: small (2B), large (4B, default) |
 | `--model` | | string | | Model name from registry (e.g., "qwen2.5-3b") |
 | `--model-repo` | | string | | Custom model repository |
 | `--model-filename` | | string | | Custom model filename |

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "steadytext"
-version = "2.0.1"
+version = "2.0.2"
 description = "Deterministic text generation and embedding with zero configuration"
 readme = "README.md"
 authors = [
@@ -60,6 +60,7 @@ st = "steadytext.cli:main"
 
 [tool.poe.tasks]
 test = "pytest"
+test-cov = "pytest --cov=steadytext --cov-report=term-missing --cov-report=html --cov-report=xml"
 test-parallel = "pytest -p no:xdist"
 lint = "ruff check --fix --unsafe-fixes"
 format = "ruff format"
@@ -104,21 +105,16 @@ filterwarnings = [
     "ignore::UserWarning",
 ]
 markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "unit: marks tests as unit tests",
-    "workflow: marks tests as workflow tests",
+    "slow: marks tests that require model loading (deselect with '-m \"not slow\"')",
+    "fast: marks tests that use fallback behavior only",
+    "model_required: marks tests that require actual models to be loaded",
+    "concurrent: marks tests that use internal concurrency (threads/processes) - should not run in parallel",
 ]
 addopts = [
+    "-v",
     "--strict-markers",
     "--tb=short",
-    "--cov=agents_api",
-    "--cov-report=term-missing",
-    "--cov-report=html",
-    "--cov-report=xml",
-    # "-vv",
-    "--testmon",
-    # "--instafail",
+    "--disable-warnings",
     "-p no:pastebin",
     "-p no:nose",
     "-p no:doctest",

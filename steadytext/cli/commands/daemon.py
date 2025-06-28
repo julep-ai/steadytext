@@ -5,7 +5,7 @@ AIDEV-NOTE: Provides commands to start, stop, and check status of the SteadyText
 daemon server for persistent model serving.
 
 AIDEV-NOTE: Added --size parameter (v1.3.4+) to allow preloading specific model sizes
-when starting the daemon. Supports small (0.6B), medium (1.7B default), and large (4B).
+when starting the daemon. Supports small (2B) and large (4B default).
 """
 
 import os
@@ -65,8 +65,8 @@ def daemon():
 )
 @click.option(
     "--size",
-    type=click.Choice(["small", "medium", "large"]),
-    help="Model size to preload (small=0.6B, medium=1.7B, large=4B)",
+    type=click.Choice(["small", "large"]),
+    help="Model size to preload (small=2B, large=4B)",
 )
 def start(
     host: str,
@@ -243,8 +243,8 @@ def status(output_json: bool):
 @click.option("--no-preload", is_flag=True, help="Don't preload models on startup")
 @click.option(
     "--size",
-    type=click.Choice(["small", "medium", "large"]),
-    help="Model size to preload (small=0.6B, medium=1.7B, large=4B)",
+    type=click.Choice(["small", "large"]),
+    help="Model size to preload (small=2B, large=4B)",
 )
 def restart(host: str, port: int, no_preload: bool, size: Optional[str]):
     """Restart the SteadyText daemon server."""

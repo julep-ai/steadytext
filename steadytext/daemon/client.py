@@ -23,7 +23,6 @@ from .protocol import (
     Response,
     DEFAULT_DAEMON_HOST,
     DEFAULT_DAEMON_PORT,
-    REQUEST_TIMEOUT_MS,
     STREAM_END_MARKER,
 )
 
@@ -41,7 +40,7 @@ class DaemonClient:
         self,
         host: Optional[str] = None,
         port: Optional[int] = None,
-        timeout_ms: int = REQUEST_TIMEOUT_MS,
+        timeout_ms: Optional[int] = None,
     ):
         if zmq is None:
             logger.warning("pyzmq not available, daemon client disabled")
@@ -53,6 +52,10 @@ class DaemonClient:
         self.port = port or int(
             os.environ.get("STEADYTEXT_DAEMON_PORT", str(DEFAULT_DAEMON_PORT))
         )
+        # AIDEV-NOTE: Read timeout from environment at runtime, not import time
+        # This allows tests to set shorter timeouts before imports happen
+        if timeout_ms is None:
+            timeout_ms = int(os.environ.get("STEADYTEXT_DAEMON_TIMEOUT_MS", "30000"))
         self.timeout_ms = timeout_ms
         self.context: Optional[Any] = None  # zmq.Context when connected
         self.socket: Optional[Any] = None  # zmq.Socket when connected

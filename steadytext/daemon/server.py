@@ -60,7 +60,7 @@ class DaemonServer:
         self.running = False
         self.context = None
         self.socket = None
-        self.size = size  # AIDEV-NOTE: Model size to preload (small, medium, large)
+        self.size = size  # AIDEV-NOTE: Model size to preload (small, large)
 
         # AIDEV-NOTE: Model instances are created once and reused for all requests
         self.generator: Optional[DeterministicGenerator] = None
@@ -162,7 +162,9 @@ class DaemonServer:
 
         # AIDEV-NOTE: Check cache for non-logprobs streaming requests using default model
         # If cached, simulate streaming by yielding words from cached result
-        if should_use_cache_for_streaming(include_logprobs, model, model_repo, model_filename, size):
+        if should_use_cache_for_streaming(
+            include_logprobs, model, model_repo, model_filename, size
+        ):
             cache_key = generate_cache_key(prompt, eos_string)
             cached = get_generation_cache().get(cache_key)
             if cached is not None:
@@ -247,9 +249,11 @@ class DaemonServer:
         # AIDEV-NOTE: Convert numpy array to list for JSON serialization
         return embedding.tolist()
 
-    def _create_error_response(self, request_id: str, error: Exception) -> ErrorResponse:
+    def _create_error_response(
+        self, request_id: str, error: Exception
+    ) -> ErrorResponse:
         """Create a standardized error response.
-        
+
         AIDEV-NOTE: Centralized error response creation to ensure consistency
         across all error handling paths in the daemon server.
         """
@@ -368,7 +372,9 @@ class DaemonServer:
                         self.socket.send(error_response.to_json().encode())
                     else:
                         # Log error when no request context is available
-                        logger.error(f"Server error without request context: {e}", exc_info=True)
+                        logger.error(
+                            f"Server error without request context: {e}", exc_info=True
+                        )
                 except Exception:
                     pass
 
@@ -403,8 +409,8 @@ def main():
     )
     parser.add_argument(
         "--size",
-        choices=["small", "medium", "large"],
-        help="Model size to preload (small=0.6B, medium=1.7B, large=4B)",
+        choices=["small", "large"],
+        help="Model size to preload (small=2B, large=4B)",
     )
 
     args = parser.parse_args()

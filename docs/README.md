@@ -51,9 +51,8 @@ fast_response = steadytext.generate("Quick task", model="gemma-3n-2b")
 quality_response = steadytext.generate("Complex analysis", model="gemma-3n-4b")
 
 # Size-based selection (v2.0.0+)
-small = steadytext.generate("Quick response", size="small")    # Gemma-3n-2B
-medium = steadytext.generate("Standard task", size="medium")   # Gemma-3n-2B (default)
-large = steadytext.generate("Complex analysis", size="large")  # Gemma-3n-4B
+small = steadytext.generate("Simple task", size="small")      # Gemma-3n-2B
+large = steadytext.generate("Complex task", size="large")    # Gemma-3n-4B (default)
 ```
 
 _Or,_
@@ -141,7 +140,7 @@ text = steadytext.generate(
 
 Available models: `gemma-3n-2b`, `gemma-3n-4b`
 
-Size shortcuts: `small` (2B), `medium` (2B, default), `large` (4B)
+Size shortcuts: `small` (2B), `large` (4B, default)
 
 > Each model produces deterministic outputs. The default model remains fixed per major version.
 

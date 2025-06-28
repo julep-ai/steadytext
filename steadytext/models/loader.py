@@ -47,11 +47,20 @@ class _ModelInstanceCache:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = cls.__new__(cls)
-                    set_deterministic_environment()
+                    # AIDEV-NOTE: Defer deterministic environment setup until first use
+                    # set_deterministic_environment()
         return cls._instance
 
     def __init__(self) -> None:
         raise RuntimeError("Call __getInstance() instead")
+
+    @classmethod
+    def _ensure_init(cls):
+        """Ensure the singleton instance and deterministic environment are set up."""
+        if cls._instance is None:
+            cls.__getInstance()
+            # AIDEV-NOTE: Now we set the environment, only on the first real use.
+            set_deterministic_environment()
 
     # AIDEV-NOTE: Generator model loading with parameter configuration and
     # error handling
@@ -64,6 +73,7 @@ class _ModelInstanceCache:
         repo_id: Optional[str] = None,
         filename: Optional[str] = None,
     ) -> Optional[Llama]:
+        cls._ensure_init()  # AIDEV-NOTE: Lazy initialization
         if Llama is None:
             logger.error(
                 "llama_cpp.Llama not available; generator model cannot be loaded"
@@ -111,7 +121,7 @@ class _ModelInstanceCache:
                     old_model = inst._generator_models_cache[cache_key]
                     if old_model is not None:
                         # AIDEV-NOTE: Explicit cleanup to prevent memory leaks
-                        if hasattr(old_model, 'close'):
+                        if hasattr(old_model, "close"):
                             old_model.close()
                         del old_model
                     inst._generator_models_cache[cache_key] = None
@@ -165,6 +175,7 @@ class _ModelInstanceCache:
     # for consistency
     @classmethod
     def get_embedder(cls, force_reload: bool = False) -> Optional[Llama]:
+        cls._ensure_init()  # AIDEV-NOTE: Lazy initialization
         if Llama is None:
             logger.error(
                 "llama_cpp.Llama not available; embedder model cannot be loaded"
@@ -185,7 +196,7 @@ class _ModelInstanceCache:
             ):
                 if inst._embedder_model is not None:
                     # AIDEV-NOTE: Explicit cleanup to prevent memory leaks
-                    if hasattr(inst._embedder_model, 'close'):
+                    if hasattr(inst._embedder_model, "close"):
                         inst._embedder_model.close()
                     del inst._embedder_model
                     inst._embedder_model = None
@@ -219,7 +230,7 @@ class _ModelInstanceCache:
                         )
                         if inst._embedder_model is not None:  # Safety check
                             # AIDEV-NOTE: Explicit cleanup to prevent memory leaks
-                            if hasattr(inst._embedder_model, 'close'):
+                            if hasattr(inst._embedder_model, "close"):
                                 inst._embedder_model.close()
                             del inst._embedder_model
                             inst._embedder_model = None
@@ -272,7 +283,7 @@ def clear_model_cache() -> None:
         # Clear generator model and state
         if inst._generator_model is not None:
             # AIDEV-NOTE: Explicit cleanup to prevent memory leaks
-            if hasattr(inst._generator_model, 'close'):
+            if hasattr(inst._generator_model, "close"):
                 inst._generator_model.close()
             del inst._generator_model
             inst._generator_model = None
@@ -283,7 +294,7 @@ def clear_model_cache() -> None:
         for key, model in inst._generator_models_cache.items():
             if model is not None:
                 # AIDEV-NOTE: Explicit cleanup to prevent memory leaks
-                if hasattr(model, 'close'):
+                if hasattr(model, "close"):
                     model.close()
                 del model
         inst._generator_models_cache.clear()
@@ -292,7 +303,7 @@ def clear_model_cache() -> None:
         # Clear embedder model and state
         if inst._embedder_model is not None:
             # AIDEV-NOTE: Explicit cleanup to prevent memory leaks
-            if hasattr(inst._embedder_model, 'close'):
+            if hasattr(inst._embedder_model, "close"):
                 inst._embedder_model.close()
             del inst._embedder_model
             inst._embedder_model = None

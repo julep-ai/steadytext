@@ -4,11 +4,41 @@
 # AIDEV-NOTE: Fixed in v1.3.1 - Added proper __len__ method support and improved error handling
 
 import os as _os
-from typing import Optional
+from typing import Optional, cast
 from pathlib import Path
 
 from .disk_backed_frecency_cache import DiskBackedFrecencyCache
 from .utils import get_cache_dir
+
+
+# AIDEV-NOTE: Dummy cache for testing/collection scenarios
+class _DummyCache(DiskBackedFrecencyCache):
+    """A no-op cache implementation that satisfies type checking."""
+
+    def __init__(self):
+        # Don't call super().__init__() to avoid any initialization
+        self.capacity = 0
+        self._backend = None
+        self._memory_cache = {}
+        self.cache_dir = None
+
+    def get(self, key):
+        return None
+
+    def set(self, key, value):
+        pass
+
+    def clear(self):
+        pass
+
+    def sync(self):
+        pass
+
+    def __len__(self):
+        return 0
+
+    def get_stats(self):
+        return {"size": 0, "capacity": 0}
 
 
 class CacheManager:
@@ -31,6 +61,11 @@ class CacheManager:
 
     def get_generation_cache(self) -> DiskBackedFrecencyCache:
         """Get the shared generation cache instance."""
+        # AIDEV-NOTE: Check if cache initialization should be skipped
+        if _os.environ.get("STEADYTEXT_SKIP_CACHE_INIT") == "1":
+            # Return a dummy cache that does nothing
+            return _DummyCache()
+
         if self._generation_cache is None:
             self._generation_cache = DiskBackedFrecencyCache(
                 capacity=int(
@@ -46,6 +81,11 @@ class CacheManager:
 
     def get_embedding_cache(self) -> DiskBackedFrecencyCache:
         """Get the shared embedding cache instance."""
+        # AIDEV-NOTE: Check if cache initialization should be skipped
+        if _os.environ.get("STEADYTEXT_SKIP_CACHE_INIT") == "1":
+            # Return a dummy cache that does nothing
+            return _DummyCache()
+
         if self._embedding_cache is None:
             self._embedding_cache = DiskBackedFrecencyCache(
                 capacity=int(
@@ -99,20 +139,34 @@ class CacheManager:
         return stats
 
 
-# AIDEV-NOTE: Global cache manager instance
-_cache_manager = CacheManager()
+# AIDEV-NOTE: The cache manager singleton is now initialized lazily on first use
+# by the component that needs it (e.g., generate, embed, daemon),
+# avoiding initialization at import time.
+
+# AIDEV-NOTE: Module-level cache manager instance, initialized lazily
+_cache_manager: Optional[CacheManager] = None
 
 
 def get_generation_cache() -> DiskBackedFrecencyCache:
     """Get the global generation cache instance."""
+    global _cache_manager
+    if _cache_manager is None:
+        _cache_manager = CacheManager()
     return _cache_manager.get_generation_cache()
 
 
 def get_embedding_cache() -> DiskBackedFrecencyCache:
     """Get the global embedding cache instance."""
+    global _cache_manager
+    if _cache_manager is None:
+        _cache_manager = CacheManager()
     return _cache_manager.get_embedding_cache()
 
 
 def get_cache_manager() -> CacheManager:
     """Get the global cache manager instance."""
-    return _cache_manager
+    global _cache_manager
+    if _cache_manager is None:
+        _cache_manager = CacheManager()
+    # AIDEV-NOTE: Cast since we know it's not None after initialization
+    return cast(CacheManager, _cache_manager)

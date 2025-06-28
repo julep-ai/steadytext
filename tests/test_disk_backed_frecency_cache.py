@@ -13,6 +13,12 @@ os.environ["STEADYTEXT_SKIP_MODEL_LOAD"] = "1"
 from steadytext.disk_backed_frecency_cache import DiskBackedFrecencyCache
 
 
+@pytest.fixture(autouse=True)
+def enable_cache_for_tests(monkeypatch):
+    """Temporarily enable cache initialization for these tests."""
+    monkeypatch.delenv("STEADYTEXT_SKIP_CACHE_INIT", raising=False)
+
+
 class TestDiskBackedFrecencyCache:
     """Test disk-backed frecency cache functionality."""
 

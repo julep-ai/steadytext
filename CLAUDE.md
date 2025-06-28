@@ -160,6 +160,17 @@ When responding to user instructions, the AI assistant (Claude, Cursor, GPT, etc
 10. **Session Boundaries**: If the user's request isn't directly related to the current context and can be safely started in a fresh session, suggest starting from scratch to avoid context confusion.
 
 
+## pytest Collection Hanging Fix
+
+AIDEV-NOTE: Fixed in v2.0.1+ - pytest collection was hanging due to module-level code execution. The fixes include:
+
+1. **Removed module-level execution**: `set_deterministic_environment()` was being called at module level in `core/generator.py`
+2. **Added environment checks**: Model downloads check `STEADYTEXT_ALLOW_MODEL_DOWNLOADS` before attempting downloads
+3. **Lazy cache initialization**: Cache manager returns dummy caches when `STEADYTEXT_SKIP_CACHE_INIT=1` is set
+4. **Early environment setup**: `conftest.py` uses `pytest_addoption` hook to set environment variables BEFORE any imports
+
+These changes ensure pytest collection phase doesn't trigger blocking I/O operations or network requests.
+
 ## Development Commands
 
 ### Testing

@@ -78,8 +78,8 @@ def status():
 @models.command()
 @click.option(
     "--size",
-    type=click.Choice(["small", "medium", "large"]),
-    help="Download specific model size (small=0.6B, medium=1.7B, large=4B)",
+    type=click.Choice(["small", "large"]),
+    help="Download specific model size (small=2B, large=4B)",
 )
 @click.option(
     "--model",

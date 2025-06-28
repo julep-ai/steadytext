@@ -819,7 +819,7 @@ class TestSizeParameter(unittest.TestCase):
         # It doesn't verify model switching (which requires models)
         try:
             # Test all valid size values
-            for size in ["small", "medium", "large"]:
+            for size in ["small", "large"]:
                 output = steadytext.generate("Test prompt", size=size)
                 self.assertIsInstance(output, str)
                 self.assertTrue(
@@ -844,6 +844,29 @@ class TestSizeParameter(unittest.TestCase):
             # If models aren't available, it should still work with fallback
             if "model" not in str(e).lower():
                 raise
+
+    def test_generate_with_invalid_model_name(self):
+        """Test that generate() with an invalid model name falls back gracefully."""
+        with self.assertLogs("steadytext", level="WARNING") as cm:
+            output = steadytext.generate("Test prompt", model="non_existent_model")
+            self.assertIsInstance(output, str)
+            # Verify that a warning was logged
+            self.assertTrue(
+                any(
+                    "Invalid model name 'non_existent_model'" in log
+                    for log in cm.output
+                )
+            )
+
+    def test_generate_with_invalid_size(self):
+        """Test that generate() with an invalid size falls back gracefully."""
+        with self.assertLogs("steadytext", level="WARNING") as cm:
+            output = steadytext.generate("Test prompt", size="extra_large")
+            self.assertIsInstance(output, str)
+            # Verify that a warning was logged
+            self.assertTrue(
+                any("Invalid size 'extra_large'" in log for log in cm.output)
+            )
 
 
 if __name__ == "__main__":

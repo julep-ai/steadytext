@@ -31,24 +31,29 @@ if not logger.handlers:
 # AIDEV-NOTE: Added environment variable support for model switching
 # Users can override models via STEADYTEXT_GENERATION_MODEL_REPO and STEADYTEXT_GENERATION_MODEL_FILENAME
 # AIDEV-NOTE: Updated to use unsloth repository which has the latest GGUF versions
-DEFAULT_GENERATION_MODEL_REPO = "unsloth/gemma-3n-E2B-it-GGUF"
+DEFAULT_GENERATION_MODEL_REPO = "unsloth/gemma-3n-E4B-it-GGUF"
 DEFAULT_EMBEDDING_MODEL_REPO = "Qwen/Qwen3-Embedding-0.6B-GGUF"
-GENERATION_MODEL_FILENAME = "gemma-3n-E2B-it-Q8_0.gguf"
+GENERATION_MODEL_FILENAME = "gemma-3n-E4B-it-Q8_0.gguf"
 EMBEDDING_MODEL_FILENAME = "Qwen3-Embedding-0.6B-Q8_0.gguf"
 
 # AIDEV-NOTE: Model registry for validated alternative models
 # Each entry contains repo_id and filename for known working models
 MODEL_REGISTRY = {
     # Gemma-3n models
-    "gemma-3n-2b": {"repo": "unsloth/gemma-3n-E2B-it-GGUF", "filename": "gemma-3n-E2B-it-Q8_0.gguf"},
-    "gemma-3n-4b": {"repo": "unsloth/gemma-3n-E4B-it-GGUF", "filename": "gemma-3n-E4B-it-Q8_0.gguf"},
+    "gemma-3n-2b": {
+        "repo": "unsloth/gemma-3n-E2B-it-GGUF",
+        "filename": "gemma-3n-E2B-it-Q8_0.gguf",
+    },
+    "gemma-3n-4b": {
+        "repo": "unsloth/gemma-3n-E4B-it-GGUF",
+        "filename": "gemma-3n-E4B-it-Q8_0.gguf",
+    },
 }
 
 # AIDEV-NOTE: Size to model mapping for convenient size-based selection
 SIZE_TO_MODEL = {
     "small": "gemma-3n-2b",
-    "medium": "gemma-3n-2b",  # default
-    "large": "gemma-3n-4b",
+    "large": "gemma-3n-4b",  # default
 }
 
 # Get model configuration from environment or use defaults
@@ -161,63 +166,12 @@ def get_cache_dir() -> Path:
             cache_home = Path(cache_home_str)
         cache_dir = cache_home / DEFAULT_CACHE_DIR_NAME / "models"
 
-    try:
-        cache_dir.mkdir(parents=True, exist_ok=True)
-    except OSError as e:
-        # AIDEV-NOTE: Enhanced permission error handling with OS-specific guidance
-        system = platform.system()
-
-        # Provide OS-specific guidance
-        if system == "Windows":
-            guidance = (
-                f"Permission denied creating cache directory at: {cache_dir}\n"
-                f"Possible solutions:\n"
-                f"  1. Run as Administrator\n"
-                f"  2. Set LOCALAPPDATA environment variable to a writable location\n"
-                f"  3. Set XDG_CACHE_HOME to a custom cache directory\n"
-                f"  4. Ensure your user has write permissions to: {cache_dir.parent}"
-            )
-        elif system == "Darwin":  # macOS
-            guidance = (
-                f"Permission denied creating cache directory at: {cache_dir}\n"
-                f"Possible solutions:\n"
-                f"  1. Fix permissions: chmod -R u+w ~/.cache\n"
-                f"  2. Set XDG_CACHE_HOME to a writable directory\n"
-                f"  3. Check disk permissions with Disk Utility\n"
-                f"  4. Ensure your user owns the directory: sudo chown -R $(whoami) ~/.cache"
-            )
-        else:  # Linux and others
-            guidance = (
-                f"Permission denied creating cache directory at: {cache_dir}\n"
-                f"Possible solutions:\n"
-                f"  1. Fix permissions: chmod -R u+w ~/.cache\n"
-                f"  2. Set XDG_CACHE_HOME to a writable directory\n"
-                f"  3. Check if home directory is mounted read-only\n"
-                f"  4. Ensure your user owns the directory: sudo chown -R $(whoami):$(whoami) ~/.cache"
-            )
-
-        logger.error(f"{guidance}\nOriginal error: {e}", exc_info=True)
-
-        import tempfile
-
-        fallback_dir = Path(tempfile.gettempdir()) / DEFAULT_CACHE_DIR_NAME / "models"
-        logger.warning(
-            f"Attempting to use temporary fallback cache directory: {fallback_dir}\n"
-            f"Note: Models cached here may be deleted on system restart."
-        )
-
-        try:
-            fallback_dir.mkdir(parents=True, exist_ok=True)
-            return fallback_dir
-        except OSError as fe:
-            logger.critical(
-                f"Failed to create even fallback cache directory at {fallback_dir}.\n"
-                f"This may indicate severe permission issues or a full disk.\n"
-                f"Error: {fe}\n"
-                f"Please resolve the permission issues or set XDG_CACHE_HOME to a writable location."
-            )
-            # Return original cache_dir to maintain API contract
-            return cache_dir
+    # AIDEV-NOTE: Directory creation is now deferred to the components that need it,
+    # such as the model cache downloader. This prevents I/O operations during import.
+    # try:
+    #     cache_dir.mkdir(parents=True, exist_ok=True)
+    # except OSError as e:
+    #     # ... (rest of the error handling block is now dead code)
     return cache_dir
 
 
@@ -269,7 +223,7 @@ def resolve_model_params(
         model: Model name from registry (e.g., "qwen2.5-3b")
         repo: Explicit repository ID (overrides model lookup)
         filename: Explicit filename (overrides model lookup)
-        size: Size identifier ("small", "medium", "large")
+        size: Size identifier ("small", "large")
 
     Returns:
         Tuple of (repo_id, filename) to use for model loading
@@ -280,19 +234,26 @@ def resolve_model_params(
 
     # If model name provided, look it up
     if model:
-        config = get_model_config(model)
-        return config["repo"], config["filename"]
+        try:
+            config = get_model_config(model)
+            return config["repo"], config["filename"]
+        except ValueError:
+            logger.warning(
+                f"Invalid model name '{model}' provided. Falling back to default model."
+            )
+            # Fall through to default
 
     # If size provided, convert to model name and look it up
     if size:
-        if size not in SIZE_TO_MODEL:
-            available = ", ".join(sorted(SIZE_TO_MODEL.keys()))
-            raise ValueError(
-                f"Size '{size}' not recognized. Available sizes: {available}"
+        if size in SIZE_TO_MODEL:
+            model_name = SIZE_TO_MODEL[size]
+            config = get_model_config(model_name)
+            return config["repo"], config["filename"]
+        else:
+            logger.warning(
+                f"Invalid size '{size}' provided. Falling back to default model."
             )
-        model_name = SIZE_TO_MODEL[size]
-        config = get_model_config(model_name)
-        return config["repo"], config["filename"]
+            # Fall through to default
 
     # Otherwise use environment variables or defaults
     return GENERATION_MODEL_REPO, GENERATION_MODEL_FILENAME
@@ -342,41 +303,35 @@ def suppress_llama_output():
 # across all caching operations and prevent duplicate logic
 def generate_cache_key(prompt: str, eos_string: str = "[EOS]") -> str:
     """Generate a consistent cache key for generation requests.
-    
+
     Args:
         prompt: The input prompt text
         eos_string: The end-of-sequence string, defaults to "[EOS]"
-        
+
     Returns:
         A cache key string that includes eos_string if it's not the default
-        
+
     AIDEV-NOTE: This centralizes cache key generation logic that was previously
     duplicated across multiple files. The key format ensures that different
     eos_string values don't collide in the cache.
     """
     prompt_str = prompt if isinstance(prompt, str) else str(prompt)
-    return (
-        prompt_str
-        if eos_string == "[EOS]"
-        else f"{prompt_str}::EOS::{eos_string}"
-    )
+    return prompt_str if eos_string == "[EOS]" else f"{prompt_str}::EOS::{eos_string}"
 
 
 def should_use_cache_for_generation(
-    return_logprobs: bool,
-    repo_id: Optional[str],
-    filename: Optional[str]
+    return_logprobs: bool, repo_id: Optional[str], filename: Optional[str]
 ) -> bool:
     """Determine if generation result should be cached.
-    
+
     Args:
         return_logprobs: Whether logprobs were requested
         repo_id: Custom repository ID (None for default model)
         filename: Custom filename (None for default model)
-        
+
     Returns:
         True if the result should be cached, False otherwise
-        
+
     AIDEV-NOTE: Centralized caching decision logic. Only cache non-logprobs
     requests using the default model to avoid cache pollution and ensure
     deterministic behavior.
@@ -389,20 +344,20 @@ def should_use_cache_for_streaming(
     model: Optional[str],
     model_repo: Optional[str],
     model_filename: Optional[str],
-    size: Optional[str]
+    size: Optional[str],
 ) -> bool:
     """Determine if streaming generation result should be cached.
-    
+
     Args:
         include_logprobs: Whether logprobs were requested
         model: Model name parameter
         model_repo: Custom repository parameter
         model_filename: Custom filename parameter
         size: Size parameter
-        
+
     Returns:
         True if the result should be cached, False otherwise
-        
+
     AIDEV-NOTE: Specialized caching logic for streaming generation that checks
     all the model selection parameters to ensure we only cache default model results.
     """
