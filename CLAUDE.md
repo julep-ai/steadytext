@@ -91,41 +91,15 @@ os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 - AIDEV-TODO: Add metrics/monitoring endpoints for production deployments
 - AIDEV-QUESTION: Should we support multiple daemon instances for load balancing?
 
-## Qwen3 Thinking Mode Control
+## Gemma-3n Models
 
-SteadyText includes special handling for Qwen3 models' built-in "thinking mode" feature.
-
-### Overview
-
-Qwen3 models can output their internal reasoning process in `<think>...</think>` tags when prompted with `/think`. By default, SteadyText disables this mode for efficiency by appending `/no_think` to all prompts. When thinking mode is enabled, SteadyText appends `/think` to prompts to activate the thinking process.
-
-### Usage
-
-**Python API:**
-```python
-# Default: thinking disabled (appends /no_think)
-text = generate("Complex problem")
-
-# Enable thinking mode (appends /think)
-text = generate("Complex problem", thinking_mode=True)
-```
-
-**CLI:**
-```bash
-# Default: thinking disabled
-echo "solve problem" | st
-
-# Enable thinking mode
-echo "solve problem" | st --think
-```
+SteadyText v2.0+ uses Gemma-3n models for generation and Qwen3 for embeddings.
 
 ### AIDEV Considerations
 
-- AIDEV-NOTE: Thinking mode is disabled by default to prevent verbose output that slows generation
-- AIDEV-NOTE: Context window increased to 3072 tokens to accommodate thinking output
-- AIDEV-NOTE: Max tokens increased to 1024 to support longer reasoning chains
-- AIDEV-NOTE: The `/no_think` tag is appended to prompts unless thinking_mode=True
-- AIDEV-NOTE: Thinking mode works with all model switching features
+- AIDEV-NOTE: The default generation model is `gemma-3n-E2B-it-GGUF`.
+- AIDEV-NOTE: The default embedding model is `Qwen3-Embedding-0.6B-GGUF`.
+- AIDEV-NOTE: The "thinking mode" feature has been deprecated and removed.
 
 ## Cache Management
 
@@ -324,13 +298,13 @@ SteadyText provides deterministic text generation and embedding with zero config
 ### Deterministic Design
 
 **Text Generation:**
-- Uses Qwen3-1.7B-Q8_0.gguf with deterministic sampling parameters
+- Uses Gemma-3n with deterministic sampling parameters
 - Fallback generates text using hash-based word selection when model unavailable
 - Always returns strings, never raises exceptions
 - Supports both batch generation (`generate()`) and streaming generation (`generate_iter()`)
 
 **Embeddings:**
-- Uses Qwen3-Embedding-0.6B-Q8_0.gguf configured for embeddings
+- Uses Qwen3-Embedding-0.6B
 - Always returns 1024-dimensional L2-normalized float32 numpy arrays
 - Fallback returns zero vectors when model unavailable
 

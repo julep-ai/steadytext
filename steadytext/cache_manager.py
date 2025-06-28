@@ -14,8 +14,10 @@ from .utils import get_cache_dir
 class CacheManager:
     """Centralized cache manager for SteadyText.
 
-    AIDEV-NOTE: Singleton pattern ensures all components use the same cache instances.
-    Provides thread-safe and process-safe cache access through SQLite backend.
+    AIDEV-NOTE: This singleton is the linchpin for cache consistency. By ensuring
+    that both the daemon and direct API calls access the exact same cache objects,
+    it prevents a split-brain scenario where the two modes could have different
+    cached data, which would violate the determinism guarantee.
     """
 
     _instance: Optional["CacheManager"] = None

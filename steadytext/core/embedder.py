@@ -25,10 +25,20 @@ from ..utils import EMBEDDING_DIMENSION, logger, validate_normalized_embedding
 
 # AIDEV-NOTE: Use centralized cache manager for consistent caching across daemon and direct access
 # AIDEV-NOTE: Cache is now shared between all components and properly centralized
-# AIDEV-QUESTION: Should zero-vector fallbacks be cached?
+# AIDEV-NOTE: Zero-vector fallbacks for invalid inputs are NOT cached by design.
+# This decision ensures that data quality issues are visible in logs and prevents
+# masking repeated failures. Performance impact is minimal since fallbacks are rare
+# and fast to compute.
 
 
-# AIDEV-NOTE: L2 normalization with zero-vector handling for embedding consistency
+# AIDEV-NOTE: L2 normalization is crucial for consistent vector similarity calculations.
+# The tolerance handles cases where the model might output a near-zero vector,
+# preventing division by zero while preserving the zero-vector state.
+
+
+# AIDEV-NOTE: L2 normalization is crucial for consistent vector similarity calculations.
+# The tolerance handles cases where the model might output a near-zero vector,
+# preventing division by zero while preserving the zero-vector state.
 def _normalize_l2(vector: np.ndarray, tolerance: float = 1e-9) -> np.ndarray:
     """
     L2 normalizes a numpy vector.

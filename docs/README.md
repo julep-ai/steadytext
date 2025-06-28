@@ -112,7 +112,7 @@ Qwen3 models have a built-in "thinking mode" that shows internal reasoning. By d
 text = steadytext.generate("Quick task")
 
 # Enable thinking mode (shows reasoning process)
-text = steadytext.generate("Complex problem", thinking_mode=True)
+
 ```
 
 CLI usage:
@@ -308,7 +308,7 @@ st models --preload
 # Text generation (uses daemon by default)
 steadytext.generate(prompt: str) -> str
 steadytext.generate(prompt, return_logprobs=True)
-steadytext.generate(prompt, thinking_mode=True)  # Enable Qwen3 thinking
+
 
 # Streaming generation
 steadytext.generate_iter(prompt: str)

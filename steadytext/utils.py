@@ -25,50 +25,30 @@ if not logger.handlers:
 # This prevents INFO messages from appearing in quiet mode
 
 # --- Model Configuration ---
-# AIDEV-NOTE: Switched from BitCPM4-1B to Qwen3-1.7B for better performance
-# Qwen3-1.7B offers improved reasoning while maintaining reasonable size (1.83GB)
+# AIDEV-NOTE: Switched from Qwen3 to Gemma-3n for generation.
+# Gemma-3n offers state-of-the-art performance for its size.
+# AIDEV-NOTE: Using Qwen3-Embedding-0.6B for embeddings.
 # AIDEV-NOTE: Added environment variable support for model switching
 # Users can override models via STEADYTEXT_GENERATION_MODEL_REPO and STEADYTEXT_GENERATION_MODEL_FILENAME
-DEFAULT_GENERATION_MODEL_REPO = "Qwen/Qwen3-1.7B-GGUF"
+# AIDEV-NOTE: Updated to use unsloth repository which has the latest GGUF versions
+DEFAULT_GENERATION_MODEL_REPO = "unsloth/gemma-3n-E2B-it-GGUF"
 DEFAULT_EMBEDDING_MODEL_REPO = "Qwen/Qwen3-Embedding-0.6B-GGUF"
-GENERATION_MODEL_FILENAME = "Qwen3-1.7B-Q8_0.gguf"
+GENERATION_MODEL_FILENAME = "gemma-3n-E2B-it-Q8_0.gguf"
 EMBEDDING_MODEL_FILENAME = "Qwen3-Embedding-0.6B-Q8_0.gguf"
 
 # AIDEV-NOTE: Model registry for validated alternative models
 # Each entry contains repo_id and filename for known working models
 MODEL_REGISTRY = {
-    # Qwen3 models
-    "qwen3-0.6b": {"repo": "Qwen/Qwen3-0.6B-GGUF", "filename": "Qwen3-0.6B-Q8_0.gguf"},
-    "qwen3-1.7b": {"repo": "Qwen/Qwen3-1.7B-GGUF", "filename": "Qwen3-1.7B-Q8_0.gguf"},
-    "qwen3-4b": {
-        "repo": "Qwen/Qwen3-4B-GGUF",
-        "filename": "Qwen3-4B-Q8_0.gguf",
-    },
-    "qwen3-8b": {"repo": "Qwen/Qwen3-8B-GGUF", "filename": "qwen3-8b-q8_0.gguf"},
-    # Qwen2.5 models - newer series with better performance
-    "qwen2.5-0.5b": {
-        "repo": "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
-        "filename": "qwen2.5-0.5b-instruct-q8_0.gguf",
-    },
-    "qwen2.5-1.5b": {
-        "repo": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
-        "filename": "qwen2.5-1.5b-instruct-q8_0.gguf",
-    },
-    "qwen2.5-3b": {
-        "repo": "Qwen/Qwen2.5-3B-Instruct-GGUF",
-        "filename": "qwen2.5-3b-instruct-q8_0.gguf",
-    },
-    "qwen2.5-7b": {
-        "repo": "Qwen/Qwen2.5-7B-Instruct-GGUF",
-        "filename": "qwen2.5-7b-instruct-q8_0.gguf",
-    },
+    # Gemma-3n models
+    "gemma-3n-2b": {"repo": "unsloth/gemma-3n-E2B-it-GGUF", "filename": "gemma-3n-E2B-it-Q8_0.gguf"},
+    "gemma-3n-4b": {"repo": "unsloth/gemma-3n-E4B-it-GGUF", "filename": "gemma-3n-E4B-it-Q8_0.gguf"},
 }
 
 # AIDEV-NOTE: Size to model mapping for convenient size-based selection
 SIZE_TO_MODEL = {
-    "small": "qwen3-0.6b",
-    "medium": "qwen3-1.7b",  # default
-    "large": "qwen3-4b",
+    "small": "gemma-3n-2b",
+    "medium": "gemma-3n-2b",  # default
+    "large": "gemma-3n-4b",
 }
 
 # Get model configuration from environment or use defaults
@@ -110,7 +90,7 @@ def set_deterministic_environment(seed: int = DEFAULT_SEED):
 # --- Llama.cpp Model Parameters ---
 # These are now structured as per the new loader.py's expectation
 LLAMA_CPP_BASE_PARAMS: Dict[str, Any] = {
-    "n_ctx": 3072,  # Increased context for Qwen3 thinking mode support
+    "n_ctx": 2048,
     "n_gpu_layers": 0,  # CPU-only for zero-config
     "seed": DEFAULT_SEED,
     "verbose": False,
@@ -124,8 +104,7 @@ LLAMA_CPP_MAIN_PARAMS_DETERMINISTIC: Dict[str, Any] = {
 }
 
 # --- Output Configuration (from previous full utils.py) ---
-# AIDEV-NOTE: Increased default max tokens for generation from 512 to 1024 for Qwen3 thinking support
-GENERATION_MAX_NEW_TOKENS = 1024
+GENERATION_MAX_NEW_TOKENS = 512
 EMBEDDING_DIMENSION = 1024  # Setting to 1024 as per objective
 
 LLAMA_CPP_EMBEDDING_PARAMS_DETERMINISTIC: Dict[str, Any] = {
@@ -217,7 +196,7 @@ def get_cache_dir() -> Path:
                 f"  4. Ensure your user owns the directory: sudo chown -R $(whoami):$(whoami) ~/.cache"
             )
 
-        logger.error(f"{guidance}\nOriginal error: {e}")
+        logger.error(f"{guidance}\nOriginal error: {e}", exc_info=True)
 
         import tempfile
 
@@ -357,3 +336,80 @@ def suppress_llama_output():
             devnull.close()
         except Exception:
             pass
+
+
+# AIDEV-NOTE: Centralized cache key generation to ensure consistency
+# across all caching operations and prevent duplicate logic
+def generate_cache_key(prompt: str, eos_string: str = "[EOS]") -> str:
+    """Generate a consistent cache key for generation requests.
+    
+    Args:
+        prompt: The input prompt text
+        eos_string: The end-of-sequence string, defaults to "[EOS]"
+        
+    Returns:
+        A cache key string that includes eos_string if it's not the default
+        
+    AIDEV-NOTE: This centralizes cache key generation logic that was previously
+    duplicated across multiple files. The key format ensures that different
+    eos_string values don't collide in the cache.
+    """
+    prompt_str = prompt if isinstance(prompt, str) else str(prompt)
+    return (
+        prompt_str
+        if eos_string == "[EOS]"
+        else f"{prompt_str}::EOS::{eos_string}"
+    )
+
+
+def should_use_cache_for_generation(
+    return_logprobs: bool,
+    repo_id: Optional[str],
+    filename: Optional[str]
+) -> bool:
+    """Determine if generation result should be cached.
+    
+    Args:
+        return_logprobs: Whether logprobs were requested
+        repo_id: Custom repository ID (None for default model)
+        filename: Custom filename (None for default model)
+        
+    Returns:
+        True if the result should be cached, False otherwise
+        
+    AIDEV-NOTE: Centralized caching decision logic. Only cache non-logprobs
+    requests using the default model to avoid cache pollution and ensure
+    deterministic behavior.
+    """
+    return not return_logprobs and repo_id is None and filename is None
+
+
+def should_use_cache_for_streaming(
+    include_logprobs: bool,
+    model: Optional[str],
+    model_repo: Optional[str],
+    model_filename: Optional[str],
+    size: Optional[str]
+) -> bool:
+    """Determine if streaming generation result should be cached.
+    
+    Args:
+        include_logprobs: Whether logprobs were requested
+        model: Model name parameter
+        model_repo: Custom repository parameter
+        model_filename: Custom filename parameter
+        size: Size parameter
+        
+    Returns:
+        True if the result should be cached, False otherwise
+        
+    AIDEV-NOTE: Specialized caching logic for streaming generation that checks
+    all the model selection parameters to ensure we only cache default model results.
+    """
+    return (
+        not include_logprobs
+        and model is None
+        and model_repo is None
+        and model_filename is None
+        and size is None
+    )

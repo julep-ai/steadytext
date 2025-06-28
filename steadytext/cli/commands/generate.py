@@ -61,11 +61,6 @@ from .index import search_index_for_context, get_default_index_path
     default=None,
     help="Model size (small=0.6B, medium=1.7B, large=4B)",
 )
-@click.option(
-    "--think",
-    is_flag=True,
-    help="Enable Qwen3 thinking mode (shows reasoning process)",
-)
 @click.pass_context
 def generate(
     ctx,
@@ -83,7 +78,6 @@ def generate(
     model_repo: str,
     model_filename: str,
     size: str,
-    think: bool,
 ):
     """Generate text from a prompt (streams by default).
 
@@ -156,7 +150,6 @@ def generate(
             model_repo=model_repo,
             model_filename=model_filename,
             size=size,
-            thinking_mode=think,
         ):
             if logprobs and isinstance(token, dict):
                 click.echo(json.dumps(token), nl=True)
@@ -239,7 +232,6 @@ def generate(
                 model_repo=model_repo,
                 model_filename=model_filename,
                 size=size,
-                thinking_mode=think,
             )
             # Unpack the tuple result
             text, logprobs_data = result
@@ -269,7 +261,6 @@ def generate(
                 model_repo=model_repo,
                 model_filename=model_filename,
                 size=size,
-                thinking_mode=think,
             )
 
             if output_format == "json":

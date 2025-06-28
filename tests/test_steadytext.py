@@ -625,8 +625,8 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
                 call_kwargs,
                 "Messages parameter should be passed to create_chat_completion",
             )
-            # AIDEV-NOTE: With thinking_mode=False (default), /no_think is appended to prompts
-            expected_content = test_prompt_for_stop_sequence + " /no_think"
+            # AIDEV-NOTE: In v2.0.0, thinking mode was removed, so prompts are passed as-is
+            expected_content = test_prompt_for_stop_sequence
             self.assertEqual(
                 call_kwargs["messages"],
                 [{"role": "user", "content": expected_content}],
@@ -676,8 +676,8 @@ class TestSteadyTextUtilities(unittest.TestCase):
         package."""
         self.assertEqual(steadytext.DEFAULT_SEED, 42)
         self.assertEqual(
-            steadytext.GENERATION_MAX_NEW_TOKENS, 1024
-        )  # Updated to 1024 for Qwen3 thinking mode
+            steadytext.GENERATION_MAX_NEW_TOKENS, 512
+        )  # Reduced back to 512 in v2.0.0
         self.assertEqual(steadytext.EMBEDDING_DIMENSION, 1024)
         self.assertIsInstance(steadytext.__version__, str)
         self.assertTrue(
