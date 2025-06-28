@@ -1,10 +1,17 @@
 """Test that streaming generation populates cache correctly."""
 
 import os
+import pytest
 from steadytext import generate, generate_iter
 from steadytext.daemon.client import DaemonClient
 from steadytext.cache_manager import get_generation_cache, get_cache_manager
 from tests.test_daemon_cache_integration import daemon_server_context
+
+
+@pytest.fixture(autouse=True)
+def enable_cache_for_tests(monkeypatch):
+    """Temporarily enable cache initialization for these tests."""
+    monkeypatch.delenv("STEADYTEXT_SKIP_CACHE_INIT", raising=False)
 
 
 class TestStreamingCachePopulation:

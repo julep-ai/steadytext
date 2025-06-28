@@ -23,7 +23,6 @@ from .protocol import (
     Response,
     DEFAULT_DAEMON_HOST,
     DEFAULT_DAEMON_PORT,
-    REQUEST_TIMEOUT_MS,
     STREAM_END_MARKER,
 )
 
@@ -41,7 +40,7 @@ class DaemonClient:
         self,
         host: Optional[str] = None,
         port: Optional[int] = None,
-        timeout_ms: int = REQUEST_TIMEOUT_MS,
+        timeout_ms: Optional[int] = None,
     ):
         if zmq is None:
             logger.warning("pyzmq not available, daemon client disabled")
@@ -53,13 +52,19 @@ class DaemonClient:
         self.port = port or int(
             os.environ.get("STEADYTEXT_DAEMON_PORT", str(DEFAULT_DAEMON_PORT))
         )
+        # AIDEV-NOTE: Read timeout from environment at runtime, not import time
+        # This allows tests to set shorter timeouts before imports happen
+        if timeout_ms is None:
+            timeout_ms = int(os.environ.get("STEADYTEXT_DAEMON_TIMEOUT_MS", "30000"))
         self.timeout_ms = timeout_ms
         self.context: Optional[Any] = None  # zmq.Context when connected
         self.socket: Optional[Any] = None  # zmq.Socket when connected
         self.available = True
         self._connected = False
 
-        # AIDEV-NOTE: Connection failure caching to avoid repeated attempts
+        # AIDEV-NOTE: Caching connection failures prevents the client from repeatedly
+        # trying to connect to a downed daemon in a tight loop, which is crucial for
+        # performance in fallback scenarios and avoids log spam.
         self._last_failed_time: Optional[float] = None
         self._failure_cache_duration = float(
             os.environ.get("STEADYTEXT_DAEMON_FAILURE_CACHE_SECONDS", "60")
@@ -143,7 +148,6 @@ class DaemonClient:
         model_repo: Optional[str] = None,
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
-        thinking_mode: bool = False,
     ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
         """Generate text via daemon."""
         if not self.connect():
@@ -160,7 +164,6 @@ class DaemonClient:
                 "model_repo": model_repo,
                 "model_filename": model_filename,
                 "size": size,
-                "thinking_mode": thinking_mode,
             }
 
             request = Request(method="generate", params=params)
@@ -198,7 +201,6 @@ class DaemonClient:
         model_repo: Optional[str] = None,
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
-        thinking_mode: bool = False,
     ) -> Iterator[Union[str, Dict[str, Any]]]:
         """Generate text iteratively via daemon.
 
@@ -218,7 +220,6 @@ class DaemonClient:
                 "model_repo": model_repo,
                 "model_filename": model_filename,
                 "size": size,
-                "thinking_mode": thinking_mode,
             }
 
             request = Request(method="generate_iter", params=params)

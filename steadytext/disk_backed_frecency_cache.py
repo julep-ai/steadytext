@@ -53,8 +53,14 @@ class DiskBackedFrecencyCache:
             max_size_mb: Maximum cache file size in megabytes
             cache_dir: Directory for cache file (defaults to steadytext cache dir)
         """
+        # AIDEV-NOTE: Check if we should skip cache initialization (for pytest collection)
+        import os
+
+        if os.environ.get("STEADYTEXT_SKIP_CACHE_INIT") == "1":
+            self._backend = None
+            self._memory_cache = {}
         # AIDEV-NOTE: Use SQLite backend for all operations if available
-        if SQLiteDiskBackedFrecencyCache is not None:
+        elif SQLiteDiskBackedFrecencyCache is not None:
             self._backend = SQLiteDiskBackedFrecencyCache(
                 capacity=capacity,
                 cache_name=cache_name,

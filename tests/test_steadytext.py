@@ -625,8 +625,8 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
                 call_kwargs,
                 "Messages parameter should be passed to create_chat_completion",
             )
-            # AIDEV-NOTE: With thinking_mode=False (default), /no_think is appended to prompts
-            expected_content = test_prompt_for_stop_sequence + " /no_think"
+            # AIDEV-NOTE: In v2.0.0, thinking mode was removed, so prompts are passed as-is
+            expected_content = test_prompt_for_stop_sequence
             self.assertEqual(
                 call_kwargs["messages"],
                 [{"role": "user", "content": expected_content}],
@@ -676,8 +676,8 @@ class TestSteadyTextUtilities(unittest.TestCase):
         package."""
         self.assertEqual(steadytext.DEFAULT_SEED, 42)
         self.assertEqual(
-            steadytext.GENERATION_MAX_NEW_TOKENS, 1024
-        )  # Updated to 1024 for Qwen3 thinking mode
+            steadytext.GENERATION_MAX_NEW_TOKENS, 512
+        )  # Reduced back to 512 in v2.0.0
         self.assertEqual(steadytext.EMBEDDING_DIMENSION, 1024)
         self.assertIsInstance(steadytext.__version__, str)
         self.assertTrue(
@@ -819,7 +819,7 @@ class TestSizeParameter(unittest.TestCase):
         # It doesn't verify model switching (which requires models)
         try:
             # Test all valid size values
-            for size in ["small", "medium", "large"]:
+            for size in ["small", "large"]:
                 output = steadytext.generate("Test prompt", size=size)
                 self.assertIsInstance(output, str)
                 self.assertTrue(
@@ -844,6 +844,29 @@ class TestSizeParameter(unittest.TestCase):
             # If models aren't available, it should still work with fallback
             if "model" not in str(e).lower():
                 raise
+
+    def test_generate_with_invalid_model_name(self):
+        """Test that generate() with an invalid model name falls back gracefully."""
+        with self.assertLogs("steadytext", level="WARNING") as cm:
+            output = steadytext.generate("Test prompt", model="non_existent_model")
+            self.assertIsInstance(output, str)
+            # Verify that a warning was logged
+            self.assertTrue(
+                any(
+                    "Invalid model name 'non_existent_model'" in log
+                    for log in cm.output
+                )
+            )
+
+    def test_generate_with_invalid_size(self):
+        """Test that generate() with an invalid size falls back gracefully."""
+        with self.assertLogs("steadytext", level="WARNING") as cm:
+            output = steadytext.generate("Test prompt", size="extra_large")
+            self.assertIsInstance(output, str)
+            # Verify that a warning was logged
+            self.assertTrue(
+                any("Invalid size 'extra_large'" in log for log in cm.output)
+            )
 
 
 if __name__ == "__main__":

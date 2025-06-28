@@ -46,14 +46,13 @@ with use_daemon():
     code = steadytext.generate("implement quicksort")
     embedding = steadytext.embed("machine learning")
 
-# Model switching (v1.0.0+)
-fast_response = steadytext.generate("Quick task", model="qwen2.5-0.5b")
-quality_response = steadytext.generate("Complex analysis", model="qwen2.5-7b")
+# Model switching (v2.0.0+)
+fast_response = steadytext.generate("Quick task", model="gemma-3n-2b")
+quality_response = steadytext.generate("Complex analysis", model="gemma-3n-4b")
 
-# Size-based selection (v1.0.0+)
-small = steadytext.generate("Quick response", size="small")    # Qwen3-0.6B
-medium = steadytext.generate("Standard task", size="medium")   # Qwen3-1.7B (default)
-large = steadytext.generate("Complex analysis", size="large")  # Qwen3-4B
+# Size-based selection (v2.0.0+)
+small = steadytext.generate("Simple task", size="small")      # Gemma-3n-2B
+large = steadytext.generate("Complex task", size="large")    # Gemma-3n-4B (default)
 ```
 
 _Or,_
@@ -103,29 +102,6 @@ os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 text = steadytext.generate("Hello world")  # Direct model loading
 ```
 
-### 🧠 Qwen3 Thinking Mode Control
-
-Qwen3 models have a built-in "thinking mode" that shows internal reasoning. By default, SteadyText disables this for efficiency by appending `/no_think` to prompts.
-
-```python
-# Default: thinking disabled (efficient)
-text = steadytext.generate("Quick task")
-
-# Enable thinking mode (shows reasoning process)
-text = steadytext.generate("Complex problem", thinking_mode=True)
-```
-
-CLI usage:
-```bash
-# Default: thinking disabled
-echo "solve problem" | st
-
-# Enable thinking mode
-echo "solve problem" | st --think
-```
-
-**Note:** The default context window has been increased to 3072 tokens and max output to 1024 tokens to support thinking mode when enabled.
-
 ---
 
 ## 📦 Installation & Models
@@ -138,10 +114,10 @@ pip install steadytext
 
 #### Models
 
-**Default models (v1.3.3)**:
+**Default models (v2.0.0)**:
 
-* Generation: `Qwen3-1.7B-Q8_0` (1.83GB)
-* Embeddings: `Qwen3-0.6B-Q8_0` (610MB)
+* Generation: `Gemma-3n-E2B-it-Q8_0` (2.0GB) - State-of-the-art 2B model
+* Embeddings: `Qwen3-Embedding-0.6B-Q8_0` (610MB) - 1024-dimensional embeddings
 
 **Dynamic model switching (v1.0.0+):**
 
@@ -149,26 +125,34 @@ Switch between different models at runtime:
 
 ```python
 # Use built-in model registry
-text = steadytext.generate("Hello", model="qwen2.5-3b")
+text = steadytext.generate("Hello", model="gemma-3n-4b")
 
-# Use size parameter for Qwen3 models
-text = steadytext.generate("Hello", size="large")  # Uses Qwen3-4B
+# Use size parameter for Gemma-3n models
+text = steadytext.generate("Hello", size="large")  # Uses Gemma-3n-4B
 
 # Or specify custom models
 text = steadytext.generate(
     "Hello",
-    model_repo="Qwen/Qwen2.5-7B-Instruct-GGUF",
-    model_filename="qwen2.5-7b-instruct-q8_0.gguf"
+    model_repo="unsloth/gemma-3n-E4B-it-GGUF",
+    model_filename="gemma-3n-E4B-it-Q8_0.gguf"
 )
 ```
 
-Available models: `qwen3-0.6b`, `qwen3-1.7b`, `qwen3-4b`, `qwen3-8b`, `qwen2.5-0.5b`, `qwen2.5-1.5b`, `qwen2.5-3b`, `qwen2.5-7b`
+Available models: `gemma-3n-2b`, `gemma-3n-4b`
 
-Size shortcuts: `small` (0.6B), `medium` (1.7B, default), `large` (4B)
+Size shortcuts: `small` (2B), `large` (4B, default)
 
 > Each model produces deterministic outputs. The default model remains fixed per major version.
 
-### Breaking Changes in v1.3.0+
+### Breaking Changes in v2.0.0+
+
+* **Gemma-3n models:** Switched from Qwen3 to Gemma-3n for state-of-the-art performance
+* **Thinking mode removed:** `thinking_mode` parameter and `--think` flag have been deprecated
+* **Model registry updated:** Focus on Gemma-3n models (2B and 4B variants)
+* **Reduced context:** Default context window reduced from 3072 to 2048 tokens
+* **Reduced output:** Default max tokens reduced from 1024 to 512
+
+### Previous Changes in v1.3.0+
 
 * **Daemon enabled by default:** Use `STEADYTEXT_DISABLE_DAEMON=1` to opt-out
 * **Streaming by default:** CLI streams output by default, use `--wait` to disable
@@ -308,7 +292,7 @@ st models --preload
 # Text generation (uses daemon by default)
 steadytext.generate(prompt: str) -> str
 steadytext.generate(prompt, return_logprobs=True)
-steadytext.generate(prompt, thinking_mode=True)  # Enable Qwen3 thinking
+
 
 # Streaming generation
 steadytext.generate_iter(prompt: str)

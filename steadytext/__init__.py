@@ -5,12 +5,12 @@ AIDEV-NOTE: Fixed "Never Fails" - embed() now catches TypeErrors & returns zero 
 """
 
 # Version of the steadytext package - should match pyproject.toml
-__version__ = "1.3.5"
+__version__ = "2.0.2"
 
 # Import core functions and classes for public API
 import os
 import numpy as np
-from typing import Optional, Any, Union, Tuple, Dict, Iterator
+from typing import Optional, Any, Union, Tuple, Dict, Iterator, List
 from .core.generator import generate as _generate, generate_iter as _generate_iter
 from .core.embedder import create_embedding
 from .utils import (
@@ -33,7 +33,6 @@ def generate(
     model_repo: Optional[str] = None,
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
-    thinking_mode: bool = False,
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
     """Generate text deterministically from a prompt.
 
@@ -42,11 +41,10 @@ def generate(
         return_logprobs: If True, a tuple (text, logprobs) is returned
         eos_string: Custom end-of-sequence string. "[EOS]" means use model's default.
                    Otherwise, generation stops when this string is encountered.
-        model: Model name from registry (e.g., "qwen2.5-3b", "qwen3-8b")
+        model: Model name from registry (e.g., "gemma-3n-2b")
         model_repo: Custom Hugging Face repository ID
         model_filename: Custom model filename
-        size: Size identifier ("small", "medium", "large") - maps to Qwen3 0.6B/1.7B/4B models
-        thinking_mode: Enable Qwen3 thinking mode (default: False appends /no_think)
+        size: Size identifier ("small", "large")
 
     Returns:
         Generated text string, or tuple (text, logprobs) if return_logprobs=True
@@ -59,16 +57,18 @@ def generate(
         text = generate("Quick response", size="small")
 
         # Use a model from the registry
-        text = generate("Explain quantum computing", model="qwen2.5-3b")
+        text = generate("Explain quantum computing", model="gemma-3n-4b")
 
         # Use a custom model
         text = generate(
             "Write a poem",
-            model_repo="Qwen/Qwen2.5-7B-Instruct-GGUF",
-            model_filename="qwen2.5-7b-instruct-q8_0.gguf"
+            model_repo="unsloth/gemma-3n-E4B-it-GGUF",
+            model_filename="gemma-3n-E4B-it-Q8_0.gguf"
         )
     """
-    # AIDEV-NOTE: Use daemon by default unless explicitly disabled
+    # AIDEV-NOTE: This is the primary public API. It orchestrates the daemon-first logic.
+    # If the daemon is enabled (default), it attempts to use the client.
+    # On any ConnectionError, it transparently falls back to direct, in-process generation.
     if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
         client = get_daemon_client()
         if client is not None:
@@ -81,7 +81,6 @@ def generate(
                     model_repo=model_repo,
                     model_filename=model_filename,
                     size=size,
-                    thinking_mode=thinking_mode,
                 )
             except ConnectionError:
                 # Fall back to direct generation
@@ -95,7 +94,6 @@ def generate(
         model_repo=model_repo,
         model_filename=model_filename,
         size=size,
-        thinking_mode=thinking_mode,
     )
 
 
@@ -107,7 +105,6 @@ def generate_iter(
     model_repo: Optional[str] = None,
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
-    thinking_mode: bool = False,
 ) -> Iterator[Union[str, Dict[str, Any]]]:
     """Generate text iteratively, yielding tokens as they are produced.
 
@@ -120,11 +117,10 @@ def generate_iter(
         eos_string: Custom end-of-sequence string. "[EOS]" means use model's default.
                    Otherwise, generation stops when this string is encountered.
         include_logprobs: If True, yield dicts with token and logprob info
-        model: Model name from registry (e.g., "qwen2.5-3b")
+        model: Model name from registry (e.g., "gemma-3n-2b")
         model_repo: Custom Hugging Face repository ID
         model_filename: Custom model filename
-        size: Size identifier ("small", "medium", "large") - maps to Qwen3 0.6B/1.7B/4B models
-        thinking_mode: Enable Qwen3 thinking mode (default: False appends /no_think)
+        size: Size identifier ("small", "large")
 
     Yields:
         str: Generated tokens/words as they are produced (if include_logprobs=False)
@@ -143,7 +139,6 @@ def generate_iter(
                     model_repo=model_repo,
                     model_filename=model_filename,
                     size=size,
-                    thinking_mode=thinking_mode,
                 )
                 return
             except ConnectionError:
@@ -160,11 +155,10 @@ def generate_iter(
         model_repo=model_repo,
         model_filename=model_filename,
         size=size,
-        thinking_mode=thinking_mode,
     )
 
 
-def embed(text_input) -> np.ndarray:
+def embed(text_input: Union[str, List[str]]) -> np.ndarray:
     """Create embeddings for text input."""
     # AIDEV-NOTE: Use daemon by default for embeddings unless explicitly disabled
     if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
@@ -190,6 +184,13 @@ def preload_models(verbose: bool = False, size: Optional[str] = None):
         verbose: Whether to log progress messages
         size: Model size to preload ("small", "medium", "large")
     """
+    # AIDEV-NOTE: Skip model loading if STEADYTEXT_SKIP_MODEL_LOAD is set
+    # This prevents hanging during tests when models aren't available
+    if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
+        if verbose:
+            logger.info("Model preloading skipped (STEADYTEXT_SKIP_MODEL_LOAD=1)")
+        return
+
     if verbose:
         if size:
             logger.info(f"Preloading {size} generator model...")

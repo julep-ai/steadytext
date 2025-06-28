@@ -29,7 +29,7 @@ Generate deterministic text from a prompt.
 - `model` (str, optional): Model name from built-in registry (e.g., "qwen2.5-3b", "qwen3-8b")
 - `model_repo` (str, optional): Custom Hugging Face repository ID (e.g., "Qwen/Qwen2.5-3B-Instruct-GGUF")
 - `model_filename` (str, optional): Custom model filename (e.g., "qwen2.5-3b-instruct-q8_0.gguf")
-- `size` (str, optional): Size shortcut for Qwen3 models: "small" (0.6B), "medium" (1.7B, default), or "large" (4B)
+- `size` (str, optional): Size shortcut for Gemma-3n models: "small" (2B), or "large" (4B, default)
 
 **Returns:**
 - If `return_logprobs=False`: A string containing the generated text
@@ -84,7 +84,7 @@ Generate text iteratively, yielding tokens as they are produced.
 - `model` (str, optional): Model name from built-in registry (e.g., "qwen2.5-3b")
 - `model_repo` (str, optional): Custom Hugging Face repository ID
 - `model_filename` (str, optional): Custom model filename
-- `size` (str, optional): Size shortcut for Qwen3 models: "small" (0.6B), "medium" (1.7B, default), or "large" (4B)
+- `size` (str, optional): Size shortcut for Gemma-3n models: "small" (2B), or "large" (4B, default)
 
 **Yields:**
 - str: Text tokens/words as they are generated (if `include_logprobs=False`)

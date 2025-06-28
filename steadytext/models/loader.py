@@ -24,9 +24,10 @@ from ..utils import (
 from .cache import get_generation_model_path, get_embedding_model_path
 
 
-# AIDEV-NOTE: Critical singleton pattern implementation for model caching
-# Thread-safe with proper resource management and dimension validation
-# AIDEV-NOTE: Extended to support multiple model instances for dynamic switching
+# AIDEV-NOTE: This singleton cache is the core of resource management. It ensures that
+# a model, once loaded into memory, is reused across the entire application,
+# preventing massive memory overhead from multiple instantiations. The thread-lock
+# is critical for safe initialization in multi-threaded contexts.
 class _ModelInstanceCache:
     _instance = None
     _lock = threading.Lock()
@@ -41,16 +42,25 @@ class _ModelInstanceCache:
     _generator_paths_cache: Dict[str, Optional[Path]] = {}
 
     @classmethod
-    def __getInstance(cls):
+    def __getInstance(cls) -> "_ModelInstanceCache":
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = cls.__new__(cls)
-                    set_deterministic_environment()
+                    # AIDEV-NOTE: Defer deterministic environment setup until first use
+                    # set_deterministic_environment()
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         raise RuntimeError("Call __getInstance() instead")
+
+    @classmethod
+    def _ensure_init(cls):
+        """Ensure the singleton instance and deterministic environment are set up."""
+        if cls._instance is None:
+            cls.__getInstance()
+            # AIDEV-NOTE: Now we set the environment, only on the first real use.
+            set_deterministic_environment()
 
     # AIDEV-NOTE: Generator model loading with parameter configuration and
     # error handling
@@ -63,6 +73,7 @@ class _ModelInstanceCache:
         repo_id: Optional[str] = None,
         filename: Optional[str] = None,
     ) -> Optional[Llama]:
+        cls._ensure_init()  # AIDEV-NOTE: Lazy initialization
         if Llama is None:
             logger.error(
                 "llama_cpp.Llama not available; generator model cannot be loaded"
@@ -109,8 +120,12 @@ class _ModelInstanceCache:
                 if cache_key in inst._generator_models_cache:
                     old_model = inst._generator_models_cache[cache_key]
                     if old_model is not None:
+                        # AIDEV-NOTE: Explicit cleanup to prevent memory leaks
+                        if hasattr(old_model, "close"):
+                            old_model.close()
                         del old_model
                     inst._generator_models_cache[cache_key] = None
+                    inst._generator_paths_cache[cache_key] = None
 
                 # Only log if logger level allows INFO messages
                 if logger.isEnabledFor(logging.INFO):
@@ -160,6 +175,7 @@ class _ModelInstanceCache:
     # for consistency
     @classmethod
     def get_embedder(cls, force_reload: bool = False) -> Optional[Llama]:
+        cls._ensure_init()  # AIDEV-NOTE: Lazy initialization
         if Llama is None:
             logger.error(
                 "llama_cpp.Llama not available; embedder model cannot be loaded"
@@ -179,6 +195,9 @@ class _ModelInstanceCache:
                 or force_reload
             ):
                 if inst._embedder_model is not None:
+                    # AIDEV-NOTE: Explicit cleanup to prevent memory leaks
+                    if hasattr(inst._embedder_model, "close"):
+                        inst._embedder_model.close()
                     del inst._embedder_model
                     inst._embedder_model = None
 
@@ -199,8 +218,10 @@ class _ModelInstanceCache:
                         if hasattr(inst._embedder_model, "n_embd")
                         else 0
                     )
-                    # Restoring original dimension check logic
-                    # AIDEV-NOTE: This is an important validation step for the embedding model's dimensions.
+                    # AIDEV-NOTE: This dimension check is a critical validation step. It ensures
+                    # that the loaded embedding model produces vectors of the exact dimension
+                    # the rest of the system expects. A mismatch here would lead to subtle
+                    # and hard-to-debug errors in all downstream vector operations.
                     if model_n_embd != EMBEDDING_DIMENSION:
                         logger.error(
                             f"Embedder model n_embd ({model_n_embd}) does not "
@@ -208,6 +229,9 @@ class _ModelInstanceCache:
                             f"({EMBEDDING_DIMENSION})."
                         )
                         if inst._embedder_model is not None:  # Safety check
+                            # AIDEV-NOTE: Explicit cleanup to prevent memory leaks
+                            if hasattr(inst._embedder_model, "close"):
+                                inst._embedder_model.close()
                             del inst._embedder_model
                             inst._embedder_model = None
                         inst._embedder_path = None  # Also clear path
@@ -244,7 +268,7 @@ def get_embedding_model_instance(force_reload: bool = False) -> Optional[Llama]:
 
 
 # AIDEV-NOTE: Cache clearing utility for testing - ensures clean state for mock patching
-def clear_model_cache():
+def clear_model_cache() -> None:
     """Clear all cached model instances and paths.
 
     This function is primarily intended for testing to ensure clean state
@@ -258,6 +282,9 @@ def clear_model_cache():
     with inst._lock:
         # Clear generator model and state
         if inst._generator_model is not None:
+            # AIDEV-NOTE: Explicit cleanup to prevent memory leaks
+            if hasattr(inst._generator_model, "close"):
+                inst._generator_model.close()
             del inst._generator_model
             inst._generator_model = None
         inst._generator_path = None
@@ -266,12 +293,18 @@ def clear_model_cache():
         # Clear all cached generator models
         for key, model in inst._generator_models_cache.items():
             if model is not None:
+                # AIDEV-NOTE: Explicit cleanup to prevent memory leaks
+                if hasattr(model, "close"):
+                    model.close()
                 del model
         inst._generator_models_cache.clear()
         inst._generator_paths_cache.clear()
 
         # Clear embedder model and state
         if inst._embedder_model is not None:
+            # AIDEV-NOTE: Explicit cleanup to prevent memory leaks
+            if hasattr(inst._embedder_model, "close"):
+                inst._embedder_model.close()
             del inst._embedder_model
             inst._embedder_model = None
         inst._embedder_path = None

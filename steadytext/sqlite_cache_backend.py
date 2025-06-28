@@ -86,7 +86,10 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
                     self._init_database()
                     self._migrate_from_pickle()
                 except Exception as rename_error:
-                    logger.error(f"Failed to handle corrupted database: {rename_error}")
+                    logger.error(
+                        f"Failed to handle corrupted database: {rename_error}",
+                        exc_info=True,
+                    )
                     raise
             else:
                 raise
@@ -104,7 +107,10 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
                         isolation_level="DEFERRED",  # Use explicit transactions for control
                     )
 
-                    # AIDEV-NOTE: Configure SQLite for robust concurrent multi-process access
+                    # AIDEV-NOTE: WAL (Write-Ahead Logging) mode is crucial for concurrent performance.
+                    # It allows readers to continue reading while a writer is modifying the database,
+                    # which is essential for the daemon/client architecture where multiple processes
+                    # might access the cache simultaneously.
                     conn.execute("PRAGMA journal_mode=WAL")
                     # Use NORMAL synchronous mode for better performance in multi-thread scenarios
                     conn.execute("PRAGMA synchronous=NORMAL")
@@ -206,7 +212,8 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
                     self._local.connection = None
 
                 logger.error(
-                    f"Database transaction failed after {attempt + 1} attempts: {e}"
+                    f"Database transaction failed after {attempt + 1} attempts: {e}",
+                    exc_info=True,
                 )
                 raise
 
@@ -315,7 +322,10 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
 
     def _serialize_key(self, key: Any) -> str:
         """Serialize cache key to string, handling special characters and complex types."""
-        # AIDEV-NOTE: Handle various key types robustly for cache storage
+        # AIDEV-NOTE: Robust key serialization is necessary because cache keys can be
+        # complex (e.g., tuples of strings), and SQLite requires a simple string
+        # as a primary key. Base64 encoding provides a safe, reversible way to
+        # represent any key as a filesystem- and database-friendly string.
         if isinstance(key, str):
             # For string keys, use base64 encoding to handle special characters safely
             import base64

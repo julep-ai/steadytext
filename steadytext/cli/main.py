@@ -20,9 +20,8 @@ from .commands.daemon import daemon
 @click.option("--verbose", "-v", is_flag=True, help="Enable informational output")
 @click.option(
     "--size",
-    type=click.Choice(["small", "medium", "large"]),
-    default=None,
-    help="Model size (small=0.6B, medium=1.7B, large=4B)",
+    type=click.Choice(["small", "large"]),
+    help="Model size (small=2B, large=4B)",
 )
 def cli(ctx, version, quiet, verbose, size):
     """SteadyText: Deterministic text generation and embedding CLI."""

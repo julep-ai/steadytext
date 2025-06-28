@@ -39,6 +39,7 @@ theme:
 nav:
   - Home: index.md
   - Quick Start: quick-start.md
+  - Version History: version_history.md
   - Model Switching: model-switching.md
   - API Reference:
     - Overview: api/index.md
