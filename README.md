@@ -145,7 +145,15 @@ Size shortcuts: `small` (2B), `medium` (2B, default), `large` (4B)
 
 > Each model produces deterministic outputs. The default model remains fixed per major version.
 
-### Breaking Changes in v1.3.0+
+### Breaking Changes in v2.0.0+
+
+* **Gemma-3n models:** Switched from Qwen3 to Gemma-3n for state-of-the-art performance
+* **Thinking mode removed:** `thinking_mode` parameter and `--think` flag have been deprecated
+* **Model registry updated:** Focus on Gemma-3n models (2B and 4B variants)
+* **Reduced context:** Default context window reduced from 3072 to 2048 tokens
+* **Reduced output:** Default max tokens reduced from 1024 to 512
+
+### Previous Changes in v1.3.0+
 
 * **Daemon enabled by default:** Use `STEADYTEXT_DISABLE_DAEMON=1` to opt-out
 * **Streaming by default:** CLI streams output by default, use `--wait` to disable
