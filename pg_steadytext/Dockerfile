@@ -5,9 +5,9 @@ FROM postgres:17
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
-    postgresql-server-dev-16 \
-    postgresql-plpython3-16 \
-    postgresql-16-pgvector \
+    postgresql-server-dev-17 \
+    postgresql-plpython3-17 \
+    postgresql-17-pgvector \
     python3-pip \
     python3-dev \
     make \
@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y \
 
 # Install Python dependencies
 RUN pip3 install --break-system-packages \
-    steadytext>=1.3.0 \
+    steadytext>=2.0.4 \
     pyzmq>=22.0.0 \
     numpy>=1.20.0
 

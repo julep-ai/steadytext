@@ -10,29 +10,35 @@ and provides PostgreSQL-specific cache management features.
 import hashlib
 import json
 import logging
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Dict, Any
 import numpy as np
-from datetime import datetime
 
 # AIDEV-NOTE: We'll use plpy for PostgreSQL interaction when running inside PostgreSQL
 # For testing outside PostgreSQL, we'll use a mock
 try:
     import plpy
+
     IN_POSTGRES = True
 except ImportError:
     IN_POSTGRES = False
+
     # Mock plpy for testing
     class MockPlpy:
         def execute(self, query, args=None):
             return []
+
         def prepare(self, query, types=None):
             return lambda *args: []
+
         def notice(self, msg):
             logging.info(msg)
+
         def warning(self, msg):
             logging.warning(msg)
+
         def error(self, msg):
             raise Exception(msg)
+
     plpy = MockPlpy()
 
 # Configure logging
@@ -42,7 +48,7 @@ logger = logging.getLogger(__name__)
 class CacheManager:
     """
     Manages cache synchronization between SteadyText and PostgreSQL.
-    
+
     AIDEV-NOTE: This class provides methods to:
     1. Generate cache keys compatible with SteadyText
     2. Read from PostgreSQL cache with frecency updates
@@ -50,32 +56,36 @@ class CacheManager:
     4. Sync with SteadyText's SQLite cache (future feature)
     5. Implement frecency-based eviction
     """
-    
-    def __init__(self, table_name: str = 'steadytext_cache'):
+
+    def __init__(self, table_name: str = "steadytext_cache"):
         """
         Initialize the cache manager.
-        
+
         Args:
             table_name: Name of the PostgreSQL cache table
         """
         self.table_name = table_name
-        
+
         # AIDEV-NOTE: Prepare commonly used queries for better performance
         if IN_POSTGRES:
             self._prepare_statements()
-    
+
     def _prepare_statements(self):
         """Prepare PostgreSQL statements for repeated use."""
         # AIDEV-NOTE: Prepared statements improve performance for repeated queries
-        self.get_plan = plpy.prepare(f"""
+        self.get_plan = plpy.prepare(
+            f"""
             UPDATE {self.table_name}
             SET access_count = access_count + 1,
                 last_accessed = NOW()
             WHERE cache_key = $1
             RETURNING response, embedding
-        """, ["text"])
-        
-        self.insert_plan = plpy.prepare(f"""
+        """,
+            ["text"],
+        )
+
+        self.insert_plan = plpy.prepare(
+            f"""
             INSERT INTO {self.table_name}
             (cache_key, prompt, response, embedding, model_name, thinking_mode, generation_params)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -85,9 +95,12 @@ class CacheManager:
                 embedding = EXCLUDED.embedding,
                 access_count = {self.table_name}.access_count + 1,
                 last_accessed = NOW()
-        """, ["text", "text", "text", "text", "text", "bool", "jsonb"])
-        
-        self.evict_plan = plpy.prepare(f"""
+        """,
+            ["text", "text", "text", "text", "text", "bool", "jsonb"],
+        )
+
+        self.evict_plan = plpy.prepare(
+            f"""
             DELETE FROM {self.table_name}
             WHERE id IN (
                 SELECT id FROM {self.table_name}
@@ -95,111 +108,111 @@ class CacheManager:
                 LIMIT $1
             )
             RETURNING id
-        """, ["int"])
-    
-    def generate_cache_key(self, 
-                          prompt: str, 
-                          params: Optional[Dict[str, Any]] = None,
-                          key_prefix: str = "") -> str:
+        """,
+            ["int"],
+        )
+
+    def generate_cache_key(
+        self, prompt: str, params: Optional[Dict[str, Any]] = None, key_prefix: str = ""
+    ) -> str:
         """
         Generate a cache key compatible with SteadyText's cache key format.
-        
+
         AIDEV-NOTE: This must match SteadyText's cache key generation to ensure
         cache hits when querying either system. Uses SHA256 to match SteadyText.
-        
+
         Args:
             prompt: The input prompt
             params: Generation parameters (max_tokens, thinking_mode, etc.)
             key_prefix: Optional prefix for the key (e.g., "embed:" for embeddings)
-            
+
         Returns:
             SHA256 hash as hex string
         """
         # Normalize parameters to match SteadyText format
         if params is None:
             params = {}
-        
+
         # AIDEV-NOTE: Normalize parameter names to match SteadyText exactly
         normalized_params = {}
         for key, value in params.items():
             # Map PostgreSQL parameter names to SteadyText parameter names
-            if key == 'max_tokens':
-                normalized_params['max_new_tokens'] = value
-            elif key == 'thinking_mode':
-                normalized_params['thinking_mode'] = value
-            elif key == 'seed':
-                normalized_params['seed'] = value
-            elif key == 'temperature':
-                normalized_params['temperature'] = value
+            if key == "max_tokens":
+                normalized_params["max_new_tokens"] = value
+            elif key == "thinking_mode":
+                normalized_params["thinking_mode"] = value
+            elif key == "seed":
+                normalized_params["seed"] = value
+            elif key == "temperature":
+                normalized_params["temperature"] = value
             else:
                 normalized_params[key] = value
-        
+
         # Sort params for deterministic key generation
         sorted_params = sorted(normalized_params.items())
-        
+
         # Create key string that matches SteadyText's format
         if key_prefix:
             key_string = f"{key_prefix}{prompt}|{json.dumps(dict(sorted_params), sort_keys=True)}"
         else:
             key_string = f"{prompt}|{json.dumps(dict(sorted_params), sort_keys=True)}"
-        
+
         # Generate SHA256 hash to match SteadyText
         return hashlib.sha256(key_string.encode()).hexdigest()
-    
-    def get_cached_generation(self, 
-                             prompt: str,
-                             params: Optional[Dict[str, Any]] = None) -> Optional[str]:
+
+    def get_cached_generation(
+        self, prompt: str, params: Optional[Dict[str, Any]] = None
+    ) -> Optional[str]:
         """
         Retrieve cached text generation from PostgreSQL.
-        
+
         AIDEV-NOTE: Updates access count and last_accessed timestamp atomically
         to maintain accurate frecency scores.
-        
+
         Args:
             prompt: The input prompt
             params: Generation parameters
-            
+
         Returns:
             Cached response text or None if not found
         """
         if not IN_POSTGRES:
             return None
-        
+
         cache_key = self.generate_cache_key(prompt, params)
-        
+
         try:
             result = plpy.execute(self.get_plan, [cache_key])
-            
+
             if result and len(result) > 0 and result[0]["response"]:
                 return result[0]["response"]
-            
+
         except Exception as e:
             plpy.warning(f"Cache retrieval error: {e}")
-        
+
         return None
-    
-    def get_cached_embedding(self, 
-                            text: str) -> Optional[np.ndarray]:
+
+    def get_cached_embedding(self, text: str) -> Optional[np.ndarray]:
         """
         Retrieve cached embedding from PostgreSQL.
-        
+
         AIDEV-NOTE: Embeddings use "embed:" prefix in cache key to separate
         from text generation cache entries.
-        
+
         Args:
             text: The input text
-            
+
         Returns:
             Cached embedding as numpy array or None if not found
         """
         if not IN_POSTGRES:
             return None
-        
+
         cache_key = self.generate_cache_key(text, key_prefix="embed:")
-        
+
         try:
             result = plpy.execute(self.get_plan, [cache_key])
-            
+
             if result and len(result) > 0 and result[0]["embedding"]:
                 # AIDEV-NOTE: pgvector returns embeddings as strings like "[1,2,3]"
                 embedding_str = result[0]["embedding"]
@@ -210,136 +223,143 @@ class CacheManager:
                 else:
                     # Already a list
                     return np.array(embedding_str, dtype=np.float32)
-            
+
         except Exception as e:
             plpy.warning(f"Embedding cache retrieval error: {e}")
-        
+
         return None
-    
-    def cache_generation(self,
-                        prompt: str,
-                        response: str,
-                        params: Optional[Dict[str, Any]] = None,
-                        model_name: str = "qwen3-1.7b",
-                        thinking_mode: bool = False) -> bool:
+
+    def cache_generation(
+        self,
+        prompt: str,
+        response: str,
+        params: Optional[Dict[str, Any]] = None,
+        model_name: str = "qwen3-1.7b",
+        thinking_mode: bool = False,
+    ) -> bool:
         """
         Store text generation in PostgreSQL cache.
-        
+
         AIDEV-NOTE: Uses INSERT ... ON CONFLICT to handle concurrent inserts
         gracefully. Updates access count if key already exists.
-        
+
         Args:
             prompt: The input prompt
             response: Generated text
             params: Generation parameters
             model_name: Model used for generation
             thinking_mode: Whether thinking mode was enabled
-            
+
         Returns:
             True if cached successfully, False otherwise
         """
         if not IN_POSTGRES:
             return False
-        
+
         cache_key = self.generate_cache_key(prompt, params)
-        
+
         try:
-            plpy.execute(self.insert_plan, [
-                cache_key,
-                prompt,
-                response,
-                None,  # No embedding for text generation
-                model_name,
-                thinking_mode,
-                json.dumps(params or {})
-            ])
-            
+            plpy.execute(
+                self.insert_plan,
+                [
+                    cache_key,
+                    prompt,
+                    response,
+                    None,  # No embedding for text generation
+                    model_name,
+                    thinking_mode,
+                    json.dumps(params or {}),
+                ],
+            )
+
             return True
-            
+
         except Exception as e:
             plpy.warning(f"Cache storage error: {e}")
             return False
-    
-    def cache_embedding(self,
-                       text: str,
-                       embedding: np.ndarray,
-                       model_name: str = "qwen3-embedding") -> bool:
+
+    def cache_embedding(
+        self, text: str, embedding: np.ndarray, model_name: str = "qwen3-embedding"
+    ) -> bool:
         """
         Store embedding in PostgreSQL cache.
-        
+
         AIDEV-NOTE: Converts numpy array to PostgreSQL vector format.
         Uses "embed:" prefix for cache key.
-        
+
         Args:
             text: The input text
             embedding: Embedding vector as numpy array
             model_name: Model used for embedding
-            
+
         Returns:
             True if cached successfully, False otherwise
         """
         if not IN_POSTGRES:
             return False
-        
+
         cache_key = self.generate_cache_key(text, key_prefix="embed:")
-        
+
         try:
             # Convert numpy array to PostgreSQL vector format
             embedding_list = embedding.tolist()
-            vector_str = '[' + ','.join(map(str, embedding_list)) + ']'
-            
-            plpy.execute(self.insert_plan, [
-                cache_key,
-                text,
-                None,  # No text response for embeddings
-                vector_str,
-                model_name,
-                False,  # thinking_mode not applicable for embeddings
-                json.dumps({})
-            ])
-            
+            vector_str = "[" + ",".join(map(str, embedding_list)) + "]"
+
+            plpy.execute(
+                self.insert_plan,
+                [
+                    cache_key,
+                    text,
+                    None,  # No text response for embeddings
+                    vector_str,
+                    model_name,
+                    False,  # thinking_mode not applicable for embeddings
+                    json.dumps({}),
+                ],
+            )
+
             return True
-            
+
         except Exception as e:
             plpy.warning(f"Embedding cache storage error: {e}")
             return False
-    
+
     def evict_least_frecent(self, count: int = 1) -> int:
         """
         Evict least frecent cache entries.
-        
+
         AIDEV-NOTE: Uses the computed frecency_score column for efficient
         eviction. This matches SteadyText's frecency cache behavior.
-        
+
         Args:
             count: Number of entries to evict
-            
+
         Returns:
             Number of entries actually evicted
         """
         if not IN_POSTGRES:
             return 0
-        
+
         try:
             result = plpy.execute(self.evict_plan, [count])
             return len(result)
-            
+
         except Exception as e:
             plpy.warning(f"Cache eviction error: {e}")
             return 0
-    
+
     def get_cache_stats(self) -> Dict[str, Any]:
         """
         Get cache statistics.
-        
+
         AIDEV-NOTE: Provides insights into cache performance and usage.
-        
+
         Returns:
             Dictionary with cache statistics
         """
         if not IN_POSTGRES:
             return {"error": "Not running in PostgreSQL"}
-        
+
         try:
             stats_query = f"""
                 SELECT 
@@ -358,31 +378,31 @@ class CacheManager:
                     AVG(frecency_score) as avg_frecency_score
                 FROM {self.table_name}
             """
-            
+
             result = plpy.execute(stats_query)
-            
+
             if result and len(result) > 0:
                 stats = dict(result[0])
                 # Convert timestamps to strings for JSON serialization
-                if stats.get('oldest_entry'):
-                    stats['oldest_entry'] = str(stats['oldest_entry'])
-                if stats.get('newest_entry'):
-                    stats['newest_entry'] = str(stats['newest_entry'])
+                if stats.get("oldest_entry"):
+                    stats["oldest_entry"] = str(stats["oldest_entry"])
+                if stats.get("newest_entry"):
+                    stats["newest_entry"] = str(stats["newest_entry"])
                 return stats
-            
+
         except Exception as e:
             plpy.warning(f"Error getting cache stats: {e}")
-        
+
         return {"error": "Failed to get cache stats"}
-    
+
     def sync_with_steadytext(self):
         """
         Sync PostgreSQL cache with SteadyText's SQLite cache.
-        
+
         AIDEV-NOTE: This is a placeholder for future implementation.
         It would read from SteadyText's SQLite cache and import
         entries into PostgreSQL for unified querying.
-        
+
         AIDEV-SECTION: CACHE_SYNC_STRATEGY
         The cache synchronization strategy should:
         1. Connect to SteadyText's SQLite cache database
@@ -391,7 +411,7 @@ class CacheManager:
         4. Preserve frecency statistics (access_count, last_accessed)
         5. Handle cache eviction consistently between systems
         6. Optionally bidirectional sync (PostgreSQL -> SQLite)
-        
+
         Future implementation would:
         1. Connect to SteadyText's SQLite cache
         2. Read entries not in PostgreSQL
@@ -405,6 +425,7 @@ class CacheManager:
 
 # AIDEV-NOTE: Module-level convenience functions for PostgreSQL integration
 _default_cache_manager = None
+
 
 def get_default_cache_manager() -> CacheManager:
     """Get or create the default cache manager instance."""

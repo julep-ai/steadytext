@@ -240,16 +240,17 @@ import hashlib
 # Get configuration
 plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
 
-# Get default max_tokens if not provided
-if max_tokens is None:
+# Resolve max_tokens, using the provided value or fetching the default
+resolved_max_tokens = max_tokens
+if resolved_max_tokens is None:
     rv = plpy.execute(plan, ["default_max_tokens"])
-    max_tokens = json.loads(rv[0]["value"]) if rv else 512
+    resolved_max_tokens = json.loads(rv[0]["value"]) if rv else 512
 
 # Check if we should use cache
 if use_cache:
     # Generate cache key consistent with SteadyText format
     # AIDEV-NOTE: Use SHA256 to match SteadyText's cache key format
-    params = {"max_new_tokens": max_tokens, "thinking_mode": thinking_mode}
+    params = {"max_new_tokens": resolved_max_tokens, "thinking_mode": thinking_mode}
     cache_key_input = f"{prompt}|{json.dumps(params, sort_keys=True)}"
     cache_key = hashlib.sha256(cache_key_input.encode()).hexdigest()
     
@@ -280,7 +281,7 @@ try:
     
     # Connect to daemon and generate
     connector = SteadyTextConnector(host, port)
-    response = connector.generate(prompt, max_tokens=max_tokens, thinking_mode=thinking_mode)
+    response = connector.generate(prompt, max_tokens=resolved_max_tokens, thinking_mode=thinking_mode)
     
     # Store in cache if enabled
     if use_cache and response:
@@ -294,7 +295,7 @@ try:
                 last_accessed = NOW()
         """, ["text", "text", "text", "jsonb", "bool"])
         
-        params = {"max_tokens": max_tokens}
+        params = {"max_tokens": resolved_max_tokens}
         plpy.execute(insert_plan, [cache_key, prompt, response, json.dumps(params), thinking_mode])
     
     return response

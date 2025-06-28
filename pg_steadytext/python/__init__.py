@@ -8,14 +8,14 @@ from .cache_manager import CacheManager, FrecencyCache
 from .security import InputValidator, RateLimiter
 from .config import ConfigManager
 
-__version__ = '1.0.0'
+__version__ = "1.0.0"
 __all__ = [
-    'SteadyTextDaemonClient',
-    'CacheManager',
-    'FrecencyCache', 
-    'InputValidator',
-    'RateLimiter',
-    'ConfigManager'
+    "SteadyTextDaemonClient",
+    "CacheManager",
+    "FrecencyCache",
+    "InputValidator",
+    "RateLimiter",
+    "ConfigManager",
 ]
 
 # AIDEV-NOTE: Ensure all modules can be imported from PostgreSQL's plpython3u environment
