@@ -16,7 +16,7 @@ try:
 except ImportError:
     zmq = None  # type: ignore[assignment]
 
-from ..utils import logger
+from ..utils import logger, DEFAULT_SEED
 from .protocol import (
     Request,
     Response,
@@ -156,7 +156,7 @@ class DaemonClient:
         model_repo: Optional[str] = None,
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
-        seed: int = 42,
+        seed: int = DEFAULT_SEED,
         max_new_tokens: Optional[int] = None,
     ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
         """Generate text via daemon."""
@@ -213,7 +213,7 @@ class DaemonClient:
         model_repo: Optional[str] = None,
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
-        seed: int = 42,
+        seed: int = DEFAULT_SEED,
         max_new_tokens: Optional[int] = None,
     ) -> Iterator[Union[str, Dict[str, Any]]]:
         """Generate text iteratively via daemon.
@@ -280,7 +280,7 @@ class DaemonClient:
                 logger.error(f"Daemon generate_iter error: {e}")
                 raise
 
-    def embed(self, text_input: Any, seed: int = 42) -> np.ndarray:
+    def embed(self, text_input: Any, seed: int = DEFAULT_SEED) -> np.ndarray:
         """Generate embeddings via daemon."""
         if not self.connect():
             raise ConnectionError("Daemon not available")

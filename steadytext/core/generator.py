@@ -25,6 +25,7 @@ from ..utils import (
     generate_cache_key,
     should_use_cache_for_generation,
     should_use_cache_for_streaming,
+    validate_seed,
 )
 
 # AIDEV-NOTE: Removed module-level set_deterministic_environment call to prevent
@@ -105,6 +106,7 @@ class DeterministicGenerator:
 
         AIDEV-NOTE: Model switching parameters allow using different models without restarting.
         """
+        validate_seed(seed)
         set_deterministic_environment(seed)
         # Resolve model parameters
         repo_id: Optional[str] = None
@@ -283,6 +285,7 @@ class DeterministicGenerator:
 
 
         """
+        validate_seed(seed)
         set_deterministic_environment(seed)
         if not isinstance(prompt, str):
             logger.error(

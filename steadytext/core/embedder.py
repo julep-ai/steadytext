@@ -27,6 +27,7 @@ from ..utils import (
     logger,
     validate_normalized_embedding,
     DEFAULT_SEED,
+    validate_seed,
 )
 
 # AIDEV-NOTE: Use centralized cache manager for consistent caching.
@@ -68,11 +69,12 @@ def _deterministic_fallback_embed(text: str, seed: int) -> np.ndarray:
     # Each float32 is 4 bytes, so we need num_floats * 4 bytes
     # Each hex char is 0.5 bytes, so we need num_floats * 8 hex chars
     required_hex_len = num_floats * 8
-    if len(hex_digest) * (64 // required_hex_len + 1) < required_hex_len:
-        # In case the hash is not long enough, repeat it
-        hex_digest = (hex_digest * (required_hex_len // len(hex_digest) + 1))[
-            :required_hex_len
-        ]
+    
+    # SHA-256 produces 64 hex chars, but we need more for 1024 dimensions
+    # Repeat the hash until we have enough characters
+    while len(hex_digest) < required_hex_len:
+        hex_digest += hex_digest
+    hex_digest = hex_digest[:required_hex_len]
 
     # Convert hex string to a sequence of floats
     embedding = np.array(
@@ -116,6 +118,8 @@ def core_embed(
         TypeError: If input is not a string or list of strings (intended to be caught
                    by the public API layer for a "Never Fails" zero vector response).
     """
+    validate_seed(seed)
+    
     if not isinstance(text_input, (str, list)):
         logger.error(
             f"Core.embedder: Input must be str or list, got {type(text_input)}."

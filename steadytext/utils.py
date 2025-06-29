@@ -4,7 +4,7 @@ import numpy as np
 from pathlib import Path
 import logging
 import platform  # For get_cache_dir
-from typing import Dict, Any, List, Optional  # For type hints
+from typing import Dict, Any, List, Optional, Final  # For type hints
 import sys
 from contextlib import contextmanager
 
@@ -64,7 +64,20 @@ EMBEDDING_MODEL_FILENAME = os.environ.get(
 )
 
 # --- Determinism & Seeds ---
-DEFAULT_SEED = 42
+DEFAULT_SEED: Final[int] = 42
+
+
+def validate_seed(seed: int) -> None:
+    """Validate that seed is a non-negative integer.
+    
+    Args:
+        seed: The seed value to validate
+        
+    Raises:
+        ValueError: If seed is not a non-negative integer
+    """
+    if not isinstance(seed, int) or seed < 0:
+        raise ValueError(f"Seed must be a non-negative integer, got {seed}")
 
 
 # AIDEV-NOTE: Critical function for ensuring deterministic behavior

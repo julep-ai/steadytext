@@ -37,7 +37,7 @@ def generate(
     model_repo: Optional[str] = None,
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
-    seed: int = 42,
+    seed: int = DEFAULT_SEED,
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
     """Generate text deterministically from a prompt.
 
@@ -119,7 +119,7 @@ def generate_iter(
     model_repo: Optional[str] = None,
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
-    seed: int = 42,
+    seed: int = DEFAULT_SEED,
 ) -> Iterator[Union[str, Dict[str, Any]]]:
     """Generate text iteratively, yielding tokens as they are produced.
 
@@ -179,7 +179,7 @@ def generate_iter(
     )
 
 
-def embed(text_input: Union[str, List[str]], seed: int = 42) -> np.ndarray:
+def embed(text_input: Union[str, List[str]], seed: int = DEFAULT_SEED) -> np.ndarray:
     """Create embeddings for text input."""
     # AIDEV-NOTE: Use daemon by default for embeddings unless explicitly disabled
     if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
