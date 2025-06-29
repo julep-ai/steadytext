@@ -23,7 +23,7 @@ except ImportError:
         zmq = None  # type: ignore[assignment,unreachable]
 
 from ..core.generator import DeterministicGenerator
-from ..core.embedder import create_embedding
+from ..core.embedder import core_embed
 from ..cache_manager import get_generation_cache
 from ..utils import (
     logger,
@@ -101,6 +101,7 @@ class DaemonServer:
         model_repo = params.get("model_repo")
         model_filename = params.get("model_filename")
         size = params.get("size")
+        seed = params.get("seed", DEFAULT_SEED)
         max_new_tokens = params.get("max_new_tokens")
 
         # AIDEV-NOTE: Check cache first for non-logprobs requests using default model
@@ -120,6 +121,7 @@ class DaemonServer:
             model_repo=model_repo,
             model_filename=model_filename,
             size=size,
+            seed=seed,
             max_new_tokens=max_new_tokens,
         )
 
@@ -152,6 +154,7 @@ class DaemonServer:
         model_repo = params.get("model_repo")
         model_filename = params.get("model_filename")
         size = params.get("size")
+        seed = params.get("seed", DEFAULT_SEED)
         max_new_tokens = params.get("max_new_tokens")
 
         # AIDEV-NOTE: Check cache for non-logprobs streaming requests using default model
@@ -195,6 +198,7 @@ class DaemonServer:
             model_repo=model_repo,
             model_filename=model_filename,
             size=size,
+            seed=seed,
             max_new_tokens=max_new_tokens,
         ):
             # For consistency, always yield just the token - main loop will wrap it
@@ -228,7 +232,8 @@ class DaemonServer:
     def _handle_embed(self, params: Dict[str, Any]) -> Any:
         """Handle embedding generation request."""
         text_input = params.get("text_input", "")
-        embedding = create_embedding(text_input)
+        seed = params.get("seed", DEFAULT_SEED)
+        embedding = core_embed(text_input, seed=seed)
 
         # AIDEV-NOTE: Convert numpy array to list for JSON serialization
         return embedding.tolist()

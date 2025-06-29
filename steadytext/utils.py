@@ -4,7 +4,7 @@ import numpy as np
 from pathlib import Path
 import logging
 import platform  # For get_cache_dir
-from typing import Dict, Any, List, Optional  # For type hints
+from typing import Dict, Any, List, Optional, Final  # For type hints
 import sys
 from contextlib import contextmanager
 
@@ -64,12 +64,25 @@ EMBEDDING_MODEL_FILENAME = os.environ.get(
 )
 
 # --- Determinism & Seeds ---
-DEFAULT_SEED = 42
+DEFAULT_SEED: Final[int] = 42
+
+
+def validate_seed(seed: int) -> None:
+    """Validate that seed is a non-negative integer.
+
+    Args:
+        seed: The seed value to validate
+
+    Raises:
+        ValueError: If seed is not a non-negative integer
+    """
+    if not isinstance(seed, int) or seed < 0:
+        raise ValueError(f"Seed must be a non-negative integer, got {seed}")
 
 
 # AIDEV-NOTE: Critical function for ensuring deterministic behavior
 # across all operations
-def set_deterministic_environment(seed: int = DEFAULT_SEED):
+def set_deterministic_environment(seed: int):
     """Sets various seeds for deterministic operations."""
     os.environ["PYTHONHASHSEED"] = str(seed)
     random.seed(seed)
@@ -90,7 +103,6 @@ def set_deterministic_environment(seed: int = DEFAULT_SEED):
 LLAMA_CPP_BASE_PARAMS: Dict[str, Any] = {
     "n_ctx": 2048,
     "n_gpu_layers": 0,  # CPU-only for zero-config
-    "seed": DEFAULT_SEED,
     "verbose": False,
 }
 

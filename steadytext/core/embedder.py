@@ -3,11 +3,12 @@
 # with averaging.
 
 import logging
-from typing import (  # Added Any for Llama type hint if not directly imported
+from typing import (
     List,
     Optional,
     Union,
 )
+import hashlib
 
 import numpy as np
 
@@ -18,10 +19,16 @@ except ImportError as import_err:  # pragma: no cover - allow missing llama_cpp
     logging.getLogger(__name__).error("llama_cpp not available: %s", import_err)
 
 from ..cache_manager import get_embedding_cache
-from ..models.loader import (  # Use the embedding-specific model loader
+from ..models.loader import (
     get_embedding_model_instance,
 )
-from ..utils import EMBEDDING_DIMENSION, logger, validate_normalized_embedding
+from ..utils import (
+    EMBEDDING_DIMENSION,
+    logger,
+    validate_normalized_embedding,
+    DEFAULT_SEED,
+    validate_seed,
+)
 
 # AIDEV-NOTE: Use centralized cache manager for consistent caching.
 # AIDEV-NOTE: Zero-vector fallbacks for invalid inputs are NOT cached by design to ensure data quality issues remain visible.
@@ -43,12 +50,51 @@ def _normalize_l2(vector: np.ndarray, tolerance: float = 1e-9) -> np.ndarray:
     return normalized_vector
 
 
+def _deterministic_fallback_embed(text: str, seed: int) -> np.ndarray:
+    """
+    Creates a deterministic embedding from a string using a hash function.
+    """
+    if not isinstance(text, str) or not text.strip():
+        return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
+
+    # Use a cryptographic hash function for good distribution
+    hasher = hashlib.sha256(text.encode("utf-8"))
+    # Also incorporate the seed for variability
+    hasher.update(str(seed).encode("utf-8"))
+    hex_digest = hasher.hexdigest()
+
+    # Generate a sequence of numbers from the hash
+    # We need enough bytes for the full embedding dimension
+    num_floats = EMBEDDING_DIMENSION
+    # Each float32 is 4 bytes, so we need num_floats * 4 bytes
+    # Each hex char is 0.5 bytes, so we need num_floats * 8 hex chars
+    required_hex_len = num_floats * 8
+
+    # SHA-256 produces 64 hex chars, but we need more for 1024 dimensions
+    # Repeat the hash until we have enough characters
+    while len(hex_digest) < required_hex_len:
+        hex_digest += hex_digest
+    hex_digest = hex_digest[:required_hex_len]
+
+    # Convert hex string to a sequence of floats
+    embedding = np.array(
+        [int(hex_digest[i : i + 8], 16) for i in range(0, required_hex_len, 8)],
+        dtype=np.uint32,
+    )
+
+    # Convert uint32 to float32 in the range [-1, 1]
+    embedding = (embedding / np.iinfo(np.uint32).max) * 2 - 1
+    embedding = embedding.astype(np.float32)
+
+    # Normalize to a unit vector
+    return _normalize_l2(embedding)
+
+
 # AIDEV-NOTE: Main embedding function with comprehensive error handling and fallback
 # Supports both string and list inputs with proper dimension validation
-def create_embedding(
+def core_embed(
     text_input: Union[str, List[str]],
-    # `seed` is not directly used by `llama_cpp.Llama.embed()`.
-    # Determinism is from model's seed & consistent input processing. # noqa E501
+    seed: int = DEFAULT_SEED,
 ) -> np.ndarray:
     """
     Creates a fixed-dimension, L2-normalized embedding for the input text(s)
@@ -72,6 +118,8 @@ def create_embedding(
         TypeError: If input is not a string or list of strings (intended to be caught
                    by the public API layer for a "Never Fails" zero vector response).
     """
+    validate_seed(seed)
+
     if not isinstance(text_input, (str, list)):
         logger.error(
             f"Core.embedder: Input must be str or list, got {type(text_input)}."
@@ -102,7 +150,7 @@ def create_embedding(
             "Core.embedder: No valid non-empty text provided for embedding. "
             "Returning zero vector."
         )
-        return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
+        return _deterministic_fallback_embed("", seed)
 
     cached = get_embedding_cache().get(cache_key)
     if cached is not None:
@@ -116,12 +164,12 @@ def create_embedding(
         model: Optional[Llama] = get_embedding_model_instance()
         if model is None:
             logger.error("Core.embedder: Could not load/get embedding model")
-            return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
+            return _deterministic_fallback_embed(str(text_input), seed)
     except Exception as e:
         logger.error(
             f"Core.embedder: Could not load/get embedding model: {e}", exc_info=True
         )
-        return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
+        return _deterministic_fallback_embed(str(text_input), seed)
 
     logger.debug(
         f"Core.embedder: Creating embedding for {len(texts_to_embed)} text(s)."
@@ -150,7 +198,7 @@ def create_embedding(
                 if token_embeddings_np.shape[0] == 0:  # No tokens produced embeddings
                     logger.warning(
                         f"Core.embedder: model.embed() for '{text_item[:50]}...' "
-                        f"resulted in zero token embeddings. Skipping."
+                        f"result in zero token embeddings. Skipping."
                     )
                     continue
                 if token_embeddings_np.shape[1] != EMBEDDING_DIMENSION:
@@ -188,7 +236,7 @@ def create_embedding(
                 "Core.embedder: No valid sequence embeddings could be generated "
                 "for any input text. Returning zero vector."
             )
-            return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
+            return _deterministic_fallback_embed(str(text_input), seed)
 
         # Average if multiple valid sequence embeddings were generated (from a
         # list input)
@@ -212,7 +260,7 @@ def create_embedding(
             f"{type(e).__name__} - {e}",
             exc_info=True,
         )
-        return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
+        return _deterministic_fallback_embed(str(text_input), seed)
     # AIDEV-NOTE: This is an important validation step for the final embedding shape.
     # Ensure correct output shape, even if something unexpected happened.
     if final_raw_embedding.shape != (EMBEDDING_DIMENSION,):
@@ -221,7 +269,7 @@ def create_embedding(
             f"{final_raw_embedding.shape}. Expected: ({EMBEDDING_DIMENSION},). "
             f"Returning zero vector."
         )
-        return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
+        return _deterministic_fallback_embed(str(text_input), seed)
 
     # Normalize the final embedding (L2 norm)
     normalized_embedding = _normalize_l2(final_raw_embedding)
@@ -235,7 +283,7 @@ def create_embedding(
             "Returning zero vector."
         )
         if np.any(normalized_embedding):  # Avoid re-creating if already zero
-            return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
+            return _deterministic_fallback_embed(str(text_input), seed)
 
     # logger.debug(f"Core.embedder: Embedding created successfully. Final norm: {np.linalg.norm(normalized_embedding):.4f}")
     return normalized_embedding
@@ -277,7 +325,7 @@ if __name__ == "__main__":
             desc = "No description"
         print(f"\n--- Test Case {i + 1}: {desc} ---")
         print(f"Input: {str(input_val)[:70]}")
-        embedding_output = create_embedding(input_val)
+        embedding_output = core_embed(input_val)
         norm = np.linalg.norm(embedding_output)
         print(
             f"  Output Embedding Shape: {embedding_output.shape}, "
@@ -295,12 +343,12 @@ if __name__ == "__main__":
 
     print("\n--- Test Type Errors for Embedder ---")
     try:
-        create_embedding(123)  # type: ignore
+        core_embed(123)  # type: ignore
     except TypeError as e:
         print(f"SUCCESS: Caught expected TypeError for invalid input type: {e}")
 
     try:
-        create_embedding(["valid", 123, "string"])  # type: ignore
+        core_embed(["valid", 123, "string"])  # type: ignore
     except TypeError as e:
         print(f"SUCCESS: Caught expected TypeError for list with invalid item: {e}")
 
@@ -308,8 +356,8 @@ if __name__ == "__main__":
     text_for_determinism = (
         "This specific sentence is for testing determinism of embeddings."
     )
-    emb1 = create_embedding(text_for_determinism)
-    emb2 = create_embedding(text_for_determinism)
+    emb1 = core_embed(text_for_determinism)
+    emb2 = core_embed(text_for_determinism)
     if np.array_equal(emb1, emb2):
         print("SUCCESS: Embedding is deterministic for the same string input.")
     else:

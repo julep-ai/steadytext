@@ -23,7 +23,14 @@ from .commands.daemon import daemon
     type=click.Choice(["small", "large"]),
     help="Model size (small=2B, large=4B)",
 )
-def cli(ctx, version, quiet, verbose, size):
+@click.option(
+    "--seed",
+    type=int,
+    default=42,
+    help="Seed for deterministic generation.",
+    show_default=True,
+)
+def cli(ctx, version, quiet, verbose, size, seed):
     """SteadyText: Deterministic text generation and embedding CLI."""
     # Handle verbosity - verbose overrides quiet
     if verbose:
@@ -50,7 +57,7 @@ def cli(ctx, version, quiet, verbose, size):
 
     if ctx.invoked_subcommand is None and not sys.stdin.isatty():
         # If no subcommand and input is from pipe, assume generate
-        ctx.invoke(generate, prompt="-", size=size)
+        ctx.invoke(generate, prompt="-", size=size, seed=seed)
     elif ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
 

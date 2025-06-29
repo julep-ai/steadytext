@@ -62,6 +62,13 @@ from .index import search_index_for_context, get_default_index_path
     help="Model size (small=2B, large=4B)",
 )
 @click.option(
+    "--seed",
+    type=int,
+    default=42,
+    help="Seed for deterministic generation.",
+    show_default=True,
+)
+@click.option(
     "--max-new-tokens",
     type=int,
     default=None,
@@ -84,6 +91,7 @@ def generate(
     model_repo: str,
     model_filename: str,
     size: str,
+    seed: int,
     max_new_tokens: int,
 ):
     """Generate text from a prompt (streams by default).
@@ -124,7 +132,9 @@ def generate(
     if not no_index:
         index_path = Path(index_file) if index_file else get_default_index_path()
         if index_path:
-            context_chunks = search_index_for_context(prompt, index_path, top_k)
+            context_chunks = search_index_for_context(
+                prompt, index_path, top_k, seed=seed
+            )
 
     # AIDEV-NOTE: Prepare prompt with context if available
     final_prompt = prompt
@@ -134,6 +144,7 @@ def generate(
             [f"Context {i + 1}:\n{chunk}" for i, chunk in enumerate(context_chunks)]
         )
         final_prompt = f"Based on the following context, answer the question.\n\n{context_text}\n\nQuestion: {prompt}\n\nAnswer:"
+        click.echo(f"Final prompt: {final_prompt}", err=True)
 
     # AIDEV-NOTE: Model switching support - pass model parameters to core functions
 
@@ -156,6 +167,7 @@ def generate(
             model_repo=model_repo,
             model_filename=model_filename,
             size=size,
+            seed=seed,
         ):
             if logprobs and isinstance(token, dict):
                 # Handle logprobs output
@@ -209,16 +221,33 @@ def generate(
         if logprobs:
             result = steady_generate(
                 final_prompt,
+                max_new_tokens=max_new_tokens,
                 return_logprobs=True,
                 eos_string=eos_string,
                 model=model,
                 model_repo=model_repo,
                 model_filename=model_filename,
                 size=size,
+                seed=seed,
             )
             # Unpack the tuple result
             text, logprobs_data = result
             if output_format == "json":
+                for token in steady_generate_iter(
+                    final_prompt,
+                    eos_string=eos_string,
+                    include_logprobs=logprobs,
+                    model=model,
+                    model_repo=model_repo,
+                    model_filename=model_filename,
+                    size=size,
+                    seed=seed,
+                ):
+                    generated_text += str(
+                        token.get("token", "") if isinstance(token, dict) else token
+                    )
+
+                # After collecting all text, format the final JSON output
                 metadata = {
                     "text": text,
                     "model": model or "gemma-3n-E2B-it-GGUF",
@@ -235,24 +264,22 @@ def generate(
                     "used_index": len(context_chunks) > 0,
                     "context_chunks": len(context_chunks),
                 }
-                click.echo(json.dumps(metadata, indent=2))
+                click.echo(json.dumps(metadata))
+
             else:
-                # Raw format with logprobs - output as dict
-                result_dict = {
-                    "text": text,
-                    "logprobs": logprobs_data if logprobs_data is not None else [],
-                }
-                click.echo(json.dumps(result_dict, indent=2))
+                click.echo(json.dumps({"text": text, "logprobs": logprobs_data}))
         else:
+            # Non-logprobs mode
             generated = steady_generate(
                 final_prompt,
+                max_new_tokens=max_new_tokens,
                 eos_string=eos_string,
                 model=model,
                 model_repo=model_repo,
                 model_filename=model_filename,
                 size=size,
+                seed=seed,
             )
-
             if output_format == "json":
                 metadata = {
                     "text": generated,
@@ -271,5 +298,4 @@ def generate(
                 }
                 click.echo(json.dumps(metadata, indent=2))
             else:
-                # Raw format
                 click.echo(generated)

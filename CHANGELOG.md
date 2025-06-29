@@ -1,5 +1,29 @@
 # Changelog
 
+## Version 2.1.0 (2025-06-29)
+
+### New Features
+- **Custom Seed Support:** Added support for custom seed parameter in generation and embedding functions for enhanced deterministic control.
+
+### Bug Fixes
+- Various stability improvements and minor fixes.
+
+## Version 2.0.4 (2025-06-28)
+
+### Bug Fixes
+- Documentation updates and code formatting improvements.
+- Fixed various linting and type checking issues.
+
+## Version 2.0.3 (2025-06-28)
+
+### Bug Fixes
+- Minor bug fixes and performance improvements.
+
+## Version 2.0.2 (2025-06-28)
+
+### Bug Fixes
+- Fixed model loading and caching issues.
+
 ## Version 2.0.1 (2025-06-28)
 
 ### Bug Fixes
