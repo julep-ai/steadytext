@@ -67,7 +67,7 @@ echo "hello" | uvx steadytext
 
 SteadyText achieves determinism via:
 
-* **Fixed seeds:** Constant randomness seed (`42`)
+* **Customizable seeds:** Control determinism with a `seed` parameter, while still defaulting to `42`.
 * **Greedy decoding:** Always chooses highest-probability token
 * **Frecency cache:** LRU cache with frequency counting—popular prompts stay cached longer
 * **Quantized models:** 8-bit quantization ensures identical results across platforms
@@ -315,15 +315,15 @@ st models --preload
 
 ```python
 # Text generation (uses daemon by default)
-steadytext.generate(prompt: str) -> str
-steadytext.generate(prompt, return_logprobs=True)
+steadytext.generate(prompt: str, seed: int = 42) -> str
+steadytext.generate(prompt, return_logprobs=True, seed: int = 42)
 
 
 # Streaming generation
-steadytext.generate_iter(prompt: str)
+steadytext.generate_iter(prompt: str, seed: int = 42)
 
 # Embeddings (uses daemon by default)
-steadytext.embed(text: str | List[str]) -> np.ndarray
+steadytext.embed(text: str | List[str], seed: int = 42) -> np.ndarray
 
 # Daemon management
 from steadytext.daemon import use_daemon

@@ -64,6 +64,12 @@ SELECT steadytext_generate(
     use_cache := true
 );
 
+-- Using a custom seed for reproducible results
+SELECT steadytext_generate(
+    'Create a short story',
+    seed := 12345
+);
+
 -- Check cache statistics
 SELECT * FROM steadytext_cache_stats();
 ```
@@ -136,7 +142,7 @@ PostgreSQL Client
 ## Functions
 
 ### Core Functions
-- `steadytext_generate(prompt, max_tokens, use_cache)` - Generate text
+- `steadytext_generate(prompt, max_tokens, use_cache, seed)` - Generate text
 - `steadytext_embed(text, use_cache)` - Generate embedding
 - `steadytext_generate_stream(prompt, max_tokens)` - Stream text generation
 

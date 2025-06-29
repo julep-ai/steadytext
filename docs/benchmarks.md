@@ -144,7 +144,7 @@ SteadyText's core guarantee is 100% deterministic outputs:
 ### Determinism Guarantees
 
 1. **Same Input → Same Output**: Every time, on every machine
-2. **Fixed Seeds**: Always uses `DEFAULT_SEED=42`
+2. **Customizable Seeds**: Always uses `DEFAULT_SEED=42` by default, but can be overridden.
 3. **Greedy Decoding**: No randomness in token selection
 4. **Quantized Models**: 8-bit precision ensures consistency
 5. **Fallback Support**: Deterministic even without models
