@@ -21,7 +21,10 @@ try:
 except ImportError as e:
     STEADYTEXT_AVAILABLE = False
     import sys
-    logging.warning(f"SteadyText not available - extension will use fallback mode. Error: {e}")
+
+    logging.warning(
+        f"SteadyText not available - extension will use fallback mode. Error: {e}"
+    )
     logging.warning(f"Python path: {sys.path}")
     logging.warning("Install SteadyText with: pip3 install steadytext")
 
@@ -193,9 +196,7 @@ class SteadyTextConnector:
                 logger.error(f"Direct generation also failed: {e2}")
                 return self._fallback_generate(prompt, max_new_tokens)
 
-    def generate_stream(
-        self, prompt: str, max_tokens: int = 512, **kwargs
-    ):
+    def generate_stream(self, prompt: str, max_tokens: int = 512, **kwargs):
         """
         Generate text in streaming mode.
 

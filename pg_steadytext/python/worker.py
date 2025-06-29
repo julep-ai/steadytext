@@ -53,9 +53,7 @@ class QueueWorker:
 
         # Generate text
         if self.daemon_client.is_daemon_running():
-            return self.daemon_client.generate(
-                prompt, max_tokens=max_tokens
-            )
+            return self.daemon_client.generate(prompt, max_tokens=max_tokens)
         else:
             # Fallback to direct generation
             from steadytext import generate

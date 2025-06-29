@@ -22,8 +22,30 @@ Ever had an AI test fail randomly? Or a CLI tool give different answers each run
 
 ## 🚀 Quick Start
 
+### Installing from PyPI
+
 ```bash
 pip install steadytext
+```
+
+### Installing from Source (Required for proper llama-cpp-python build)
+
+Due to the specific build requirements for the inference-sh fork of llama-cpp-python, you may need to install from source:
+
+```bash
+# Clone the repository
+git clone https://github.com/julep-ai/steadytext.git
+cd steadytext
+
+# Set required environment variables
+export FORCE_CMAKE=1
+export CMAKE_ARGS="-DLLAVA_BUILD=OFF -DGGML_ACCELERATE=OFF -DGGML_BLAS=OFF -DGGML_CUDA=OFF -DGGML_BUILD_TESTS=OFF -DGGML_BUILD_EXAMPLES=OFF"
+
+# Install with UV (recommended)
+uv sync
+
+# Or install with pip
+pip install -e .
 ```
 
 ```python
@@ -528,6 +550,44 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 - **New pipe syntax** - `echo "prompt" | st` for better unix integration
 - **Daemon management** - built-in commands for daemon lifecycle
 
+
+---
+
+## 🔧 Troubleshooting
+
+### Installation Issues
+
+#### llama-cpp-python Build Errors
+
+If you encounter build errors related to llama-cpp-python, especially with the error "Failed to load model", this is likely due to the package requiring the inference-sh fork with specific CMAKE flags:
+
+```bash
+# Set required environment variables before installation
+export FORCE_CMAKE=1
+export CMAKE_ARGS="-DLLAVA_BUILD=OFF -DGGML_ACCELERATE=OFF -DGGML_BLAS=OFF -DGGML_CUDA=OFF -DGGML_BUILD_TESTS=OFF -DGGML_BUILD_EXAMPLES=OFF"
+
+# Then install
+pip install steadytext
+
+# Or install from source
+git clone https://github.com/julep-ai/steadytext.git
+cd steadytext
+uv sync  # or pip install -e .
+```
+
+#### Model Loading Issues
+
+If you see "Failed to load model from file" errors:
+
+1. **Try fallback models**: Set `STEADYTEXT_USE_FALLBACK_MODEL=true`
+2. **Clear model cache**: `rm -rf ~/.cache/steadytext/models/`
+3. **Check disk space**: Models require ~2-4GB per model
+
+### Common Issues
+
+- **"No module named 'llama_cpp'"**: Reinstall with the CMAKE flags above
+- **Daemon connection refused**: Check if daemon is running with `st daemon status`
+- **Slow first run**: Models download on first use (~2-4GB)
 
 ---
 
