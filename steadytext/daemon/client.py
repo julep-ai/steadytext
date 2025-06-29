@@ -1,8 +1,7 @@
 """
 ZeroMQ client implementation for SteadyText daemon.
 
-AIDEV-NOTE: This client provides transparent access to the daemon server,
-falling back to direct model loading if the daemon is unavailable.
+AIDEV-NOTE: This client provides transparent access to the daemon server, falling back to direct model loading if the daemon is unavailable.
 """
 
 import os
@@ -30,10 +29,7 @@ from .protocol import (
 class DaemonClient:
     """Client for communicating with SteadyText daemon server.
 
-    AIDEV-NOTE: Implements automatic fallback to direct model loading when daemon
-    is unavailable. All methods match the signature of the main API functions.
-    AIDEV-NOTE: Connection failure caching added to prevent repeated connection attempts
-    in test suites and batch operations.
+    AIDEV-NOTE: Implements automatic fallback to direct model loading when the daemon is unavailable and caches connection failures.
     """
 
     def __init__(
@@ -62,12 +58,14 @@ class DaemonClient:
         self.available = True
         self._connected = False
 
-        # AIDEV-NOTE: Caching connection failures prevents the client from repeatedly
-        # trying to connect to a downed daemon in a tight loop, which is crucial for
-        # performance in fallback scenarios and avoids log spam.
+        # AIDEV-NOTE: Caching connection failures prevents the client from repeatedly trying to connect to a downed daemon in a tight loop.
         self._last_failed_time: Optional[float] = None
         self._failure_cache_duration = float(
-            os.environ.get("STEADYTEXT_DAEMON_FAILURE_CACHE_SECONDS", "60")
+            os.environ.get("STEADYTEXT_DAEMON_FAILURE_CACHE_SECONDS", "5")
+        )
+        # AIDEV-NOTE: Allow disabling failure cache for development/debugging
+        self._disable_failure_cache = (
+            os.environ.get("STEADYTEXT_DISABLE_FAILURE_CACHE") == "1"
         )
 
     def connect(self) -> bool:
@@ -82,11 +80,14 @@ class DaemonClient:
         if self._connected:
             return True
 
-        # AIDEV-NOTE: Check if we recently failed to connect
-        if self._last_failed_time is not None:
+        # AIDEV-NOTE: Check if we recently failed to connect (unless cache is disabled)
+        if not self._disable_failure_cache and self._last_failed_time is not None:
             time_since_failure = time.time() - self._last_failed_time
             if time_since_failure < self._failure_cache_duration:
                 # Still within failure cache window, don't try again
+                logger.debug(
+                    f"Daemon connection cached as failed, retrying in {self._failure_cache_duration - time_since_failure:.1f}s"
+                )
                 return False
 
         try:
@@ -100,6 +101,7 @@ class DaemonClient:
             self.socket.connect(connect_address)
 
             # Test connection with ping
+            logger.debug(f"Testing connection to daemon at {connect_address}")
             if self.ping():
                 self._connected = True
                 self._last_failed_time = None  # Clear failure cache on success
@@ -107,6 +109,7 @@ class DaemonClient:
                 return True
             else:
                 self._last_failed_time = time.time()  # Cache failure time
+                logger.debug(f"Daemon ping failed at {connect_address}")
                 self.disconnect()
                 return False
 
@@ -125,6 +128,11 @@ class DaemonClient:
             self.context.term()
             self.context = None
         self._connected = False
+
+    def clear_failure_cache(self):
+        """Clear the connection failure cache to force immediate retry."""
+        self._last_failed_time = None
+        logger.debug("Daemon connection failure cache cleared")
 
     def ping(self) -> bool:
         """Check if daemon is responsive."""
@@ -149,6 +157,7 @@ class DaemonClient:
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
         seed: int = 42,
+        max_new_tokens: Optional[int] = None,
     ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
         """Generate text via daemon."""
         if not self.connect():
@@ -166,6 +175,7 @@ class DaemonClient:
                 "model_filename": model_filename,
                 "size": size,
                 "seed": seed,
+                "max_new_tokens": max_new_tokens,
             }
 
             request = Request(method="generate", params=params)
@@ -204,11 +214,11 @@ class DaemonClient:
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
         seed: int = 42,
+        max_new_tokens: Optional[int] = None,
     ) -> Iterator[Union[str, Dict[str, Any]]]:
         """Generate text iteratively via daemon.
 
-        AIDEV-NOTE: Streaming implementation receives multiple responses from server
-        and yields tokens as they arrive.
+        AIDEV-NOTE: The streaming implementation receives multiple responses from the server and yields tokens as they arrive.
         """
         if not self.connect():
             raise ConnectionError("Daemon not available")
@@ -224,6 +234,7 @@ class DaemonClient:
                 "model_filename": model_filename,
                 "size": size,
                 "seed": seed,
+                "max_new_tokens": max_new_tokens,
             }
 
             request = Request(method="generate_iter", params=params)

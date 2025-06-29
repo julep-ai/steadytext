@@ -3,16 +3,21 @@
 ## Version 2.0.1 (2025-06-28)
 
 ### Bug Fixes
-- **Fixed Model Repository:** Updated Gemma-3n model repository from `ggml-org` to `unsloth` which hosts the latest GGUF versions
-  - E2B model: Now uses `unsloth/gemma-3n-E2B-it-GGUF` with filename `gemma-3n-E2B-it-Q8_0.gguf`
-  - E4B model: Now uses `unsloth/gemma-3n-E4B-it-GGUF` with filename `gemma-3n-E4B-it-Q8_0.gguf`
+- **Fixed Model Repository:** Updated Gemma-3n model repository from `ggml-org` to `ggml-org` which hosts the latest GGUF versions
+  - E2B model: Now uses `ggml-org/gemma-3n-E2B-it-GGUF` with filename `gemma-3n-E2B-it-Q8_0.gguf`
+  - E4B model: Now uses `ggml-org/gemma-3n-E4B-it-GGUF` with filename `gemma-3n-E4B-it-Q8_0.gguf`
 
 ## Version 2.0.0 (2025-06-28)
 
 ### Major Changes
-- **Switched to Gemma-3n:** The default generation model is now `gemma-3n-E2B-it-GGUF` (unsloth/gemma-3n-E2B-it-GGUF).
+- **Switched to Gemma-3n:** The default generation model is now `gemma-3n-E2B-it-GGUF` (ggml-org/gemma-3n-E2B-it-GGUF).
+- **Changed Default Model Size:** Default model changed from Gemma-3n-4B to Gemma-3n-2B for faster generation while maintaining quality.
 - **Deprecated Thinking Mode:** The `thinking_mode` parameter has been removed from all functions and the CLI. Temperature=0 deterministic generation works better without thinking mode.
 - **Model Registry Update:** Updated to focus on Gemma-3n models (2B and 4B variants).
+
+### New Features
+- **Configurable Generation Length:** Added `max_new_tokens` parameter to `generate()` and `generate_iter()` functions to control output length.
+- **CLI Support:** Added `--max-new-tokens` flag to CLI for controlling generation length.
 
 ### Configuration Changes
 - Reduced default context window from 3072 to 2048 tokens.
@@ -23,6 +28,7 @@
 - Removed `thinking_mode` parameter from `generate()`, `generate_iter()`, and CLI
 - Removed `--think` flag from CLI
 - Changed default generation model from Qwen3-1.7B to Gemma-3n-E2B
+- Changed default model size from "large" (4B) to "small" (2B)
 
 ## Version 1.3.5 (2025-06-23)
 

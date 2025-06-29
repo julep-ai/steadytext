@@ -1,11 +1,7 @@
 """
 Daemon management CLI commands.
 
-AIDEV-NOTE: Provides commands to start, stop, and check status of the SteadyText
-daemon server for persistent model serving.
-
-AIDEV-NOTE: Added --size parameter (v1.3.4+) to allow preloading specific model sizes
-when starting the daemon. Supports small (2B) and large (4B default).
+AIDEV-NOTE: Provides commands to start, stop, and check the status of the SteadyText daemon server. It also allows preloading specific model sizes.
 """
 
 import os
@@ -122,8 +118,7 @@ def start(
         if size:
             cmd.extend(["--size", size])
 
-        # AIDEV-NOTE: Start daemon as background process
-        # On Unix, we could use fork() but subprocess works cross-platform
+        # AIDEV-NOTE: Start the daemon as a background process. On Unix, this could use fork(), but subprocess is cross-platform.
         try:
             process = subprocess.Popen(
                 cmd,

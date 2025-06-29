@@ -1,21 +1,15 @@
-# AIDEV-NOTE: Core text generation module with deterministic fallback mechanism
-# Implements both model-based generation and hash-based deterministic fallback
-# AIDEV-NOTE: Fixed fallback behavior - generator now calls
-# _deterministic_fallback_generate() when model is None
-# AIDEV-NOTE: Added stop sequences integration - DEFAULT_STOP_SEQUENCES
-# are now passed to model calls
-# AIDEV-NOTE: Fixed determinism issue - now always uses DEFAULT_SEED when
-# no explicit seed is provided to ensure consistent outputs
-# AIDEV-NOTE: Added generate_iter() method for streaming token generation
-# with graceful fallback to word-by-word yielding when model unavailable
-# AIDEV-NOTE: Added dynamic model switching (v1.0.0) - generate() and generate_iter()
-# now accept model parameters to switch between different models at runtime while
-# maintaining deterministic outputs for each model
+# AIDEV-NOTE: Core text generation module with deterministic fallback.
+# Features:
+# - Implements both model-based generation and a hash-based deterministic fallback.
+# - Integrates stop sequences (DEFAULT_STOP_SEQUENCES).
+# - Ensures determinism using DEFAULT_SEED.
+# - Supports streaming token generation via generate_iter().
+# - Allows dynamic model switching at runtime.
+# - Defers environment setup to prevent pytest collection hangs.
 
 import hashlib
 import logging
 import os
-import re
 from typing import Any, Dict, List, Optional, Union, Tuple, Iterator, cast
 
 from ..cache_manager import get_generation_cache
@@ -37,19 +31,13 @@ from ..utils import (
 # hanging during pytest collection. This is now called lazily when needed.
 
 
-# AIDEV-NOTE: Use centralized cache manager for consistent caching across daemon and direct access
-# AIDEV-NOTE: Cache is now shared between all components and properly centralized
-# AIDEV-NOTE: Fallback results ARE cached by design for consistency and performance.
-# This ensures identical behavior between model and fallback modes, and provides
-# deterministic results for tests running with STEADYTEXT_SKIP_MODEL_LOAD=1.
+# AIDEV-NOTE: Uses centralized cache manager for consistency. Fallback results are cached.
 
 
-# AIDEV-NOTE: Main generator class with model instance caching and error handling
-# AIDEV-NOTE: Extended to support dynamic model switching via generate() parameters
+# AIDEV-NOTE: Main generator class with model caching, error handling, and dynamic model switching.
 class DeterministicGenerator:
     def __init__(self) -> None:
-        # AIDEV-NOTE: Set deterministic environment when generator is created
-        # This was moved from module-level to prevent pytest collection hanging
+        # AIDEV-NOTE: Deterministic environment is set when the generator is created to prevent pytest collection hangs.
         set_deterministic_environment(DEFAULT_SEED)
 
         self.model = None
@@ -69,8 +57,7 @@ class DeterministicGenerator:
     ):
         """Load or reload the model with specific logits configuration.
 
-        AIDEV-NOTE: Now supports loading custom models via repo_id and filename.
-        AIDEV-NOTE: Respects STEADYTEXT_SKIP_MODEL_LOAD for test environments.
+        AIDEV-NOTE: Supports loading custom models and respects STEADYTEXT_SKIP_MODEL_LOAD.
         """
         if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
             logger.debug(
@@ -95,6 +82,7 @@ class DeterministicGenerator:
     def generate(
         self,
         prompt: str,
+        max_new_tokens: Optional[int] = None,
         return_logprobs: bool = False,
         eos_string: str = "[EOS]",
         model: Optional[str] = None,
@@ -115,8 +103,7 @@ class DeterministicGenerator:
             size: Size identifier ("small", "large")
             seed: Seed for deterministic generation
 
-        AIDEV-NOTE: Model switching parameters allow using different models without
-        restarting. Precedence: model_repo/model_filename > model > size > env vars > defaults.
+        AIDEV-NOTE: Model switching parameters allow using different models without restarting.
         """
         set_deterministic_environment(seed)
         # Resolve model parameters
@@ -162,9 +149,7 @@ class DeterministicGenerator:
                 force_reload=False,  # Use cache if available
             )
 
-        # AIDEV-NOTE: This is the critical fallback point. If the model instance is None
-        # (due to loading failure, or being disabled for tests), the code defaults
-        # to a hash-based deterministic string generator, ensuring the "never fails" principle.
+        # AIDEV-NOTE: This is the critical fallback point. If the model fails to load, it uses a hash-based generator.
         skip_model_load = os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1"
         if self.model is None or skip_model_load:
             if skip_model_load:
@@ -210,8 +195,7 @@ class DeterministicGenerator:
             final_prompt = prompt
 
             sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
-            # AIDEV-NOTE: Handle custom eos_string - if it's "[EOS]", use default stop sequences
-            # Otherwise, add the custom eos_string to stop sequences
+            # AIDEV-NOTE: Handle custom eos_string by adding it to the stop sequences.
             if eos_string == "[EOS]":
                 sampling_params["stop"] = DEFAULT_STOP_SEQUENCES
             else:
@@ -224,6 +208,9 @@ class DeterministicGenerator:
                 # Request logprobs for each generated token
                 sampling_params["logprobs"] = GENERATION_MAX_NEW_TOKENS
 
+            if max_new_tokens is not None:
+                sampling_params["max_tokens"] = max_new_tokens
+
             # AIDEV-NOTE: Use create_chat_completion for model interaction.
             output: Dict[str, Any] = self.model.create_chat_completion(
                 messages=[{"role": "user", "content": final_prompt}], **sampling_params
@@ -233,7 +220,7 @@ class DeterministicGenerator:
             logprobs = None
             if output and "choices" in output and len(output["choices"]) > 0:
                 choice = output["choices"][0]
-                # AIDEV-NOTE: Model response structure for chat completion may vary.
+                # AIDEV-NOTE: The model response structure for chat completion may vary.
                 # Check for 'text' or 'message.content'.
                 if "text" in choice and choice["text"] is not None:  # noqa E501
                     generated_text = choice["text"].strip()  # noqa E501
@@ -251,15 +238,6 @@ class DeterministicGenerator:
                     f"DeterministicGenerator.generate: Model returned empty or "
                     f"whitespace-only text for prompt: '{prompt[:50]}...'"
                 )
-
-            # AIDEV-NOTE: Strip empty or whitespace-only <think></think> tags from output
-            # This handles cases where think tags contain only whitespace/newlines
-            generated_text = re.sub(
-                r"<think>\s*</think>\s*",
-                "",
-                generated_text,
-                flags=re.MULTILINE | re.DOTALL,
-            )
 
             # Only cache non-logprobs results for default model
             if should_use_cache_for_generation(return_logprobs, repo_id, filename):
@@ -280,6 +258,7 @@ class DeterministicGenerator:
     def generate_iter(
         self,
         prompt: str,
+        max_new_tokens: Optional[int] = None,
         eos_string: str = "[EOS]",
         include_logprobs: bool = False,
         model: Optional[str] = None,
@@ -290,8 +269,7 @@ class DeterministicGenerator:
     ) -> Iterator[Union[str, Dict[str, Any]]]:
         """Generate text iteratively, yielding tokens as they are produced.
 
-        AIDEV-NOTE: Streaming generation for real-time output. Falls back to
-        yielding words from deterministic fallback when model unavailable.
+        AIDEV-NOTE: Streaming generation that falls back to word-by-word yielding from the deterministic fallback.
 
         Args:
             prompt: The input prompt to generate from
@@ -303,9 +281,7 @@ class DeterministicGenerator:
             size: Size identifier ("small", "large")
             seed: Seed for deterministic generation
 
-        AIDEV-NOTE: When running in pytest, collecting many tokens (>400) can cause
-        hanging due to interaction between streaming API and pytest's output capture.
-        Tests should limit token collection to avoid this issue. Works fine outside pytest.
+
         """
         set_deterministic_environment(seed)
         if not isinstance(prompt, str):
@@ -346,7 +322,7 @@ class DeterministicGenerator:
                         f"DeterministicGenerator.generate_iter: Cache hit for prompt: {str(prompt)[:50]}..."
                     )
                 # Simulate streaming by yielding cached text in chunks
-                # AIDEV-NOTE: Use same chunking logic as live streaming to ensure consistency
+                # AIDEV-NOTE: Simulate streaming from cache using the same chunking logic as live streaming for consistency.
                 words = cached.split()
                 char_index = 0
                 for i, word in enumerate(words):
@@ -489,13 +465,15 @@ class DeterministicGenerator:
                 # Request logprobs for streaming
                 sampling_params["logprobs"] = GENERATION_MAX_NEW_TOKENS
 
+            if max_new_tokens is not None:
+                sampling_params["max_tokens"] = max_new_tokens
+
             # AIDEV-NOTE: Streaming API returns an iterator of partial outputs
             stream = self.model.create_chat_completion(
                 messages=[{"role": "user", "content": final_prompt}], **sampling_params
             )
 
             # AIDEV-NOTE: Collect tokens for processing and caching
-            collected_tokens = []
             should_cache = (
                 not include_logprobs
                 and model is None
@@ -504,56 +482,33 @@ class DeterministicGenerator:
                 and size is None
             )
 
-            # AIDEV-NOTE: For non-logprobs requests, collect all tokens first to enable cleaning
-            # This ensures consistency with non-streaming generate() function
+            # AIDEV-NOTE: For non-logprobs requests, yield tokens immediately and handle caching after.
             if not include_logprobs:
+                # AIDEV-NOTE: The `stream` iterator is consumed here. We need to handle caching
+                # of the complete text after the loop.
+                full_text_list = []
                 for chunk in stream:
+                    token = None
                     if chunk and "choices" in chunk and len(chunk["choices"]) > 0:
                         choice = chunk["choices"][0]
                         delta = choice.get("delta", {})
 
-                        # Normal string token collection
-                        token = None
                         if "content" in delta and delta["content"]:
                             token = delta["content"]
                         elif "text" in choice and choice["text"]:
                             token = choice["text"]
 
                         if token is not None:
-                            collected_tokens.append(token)
+                            full_text_list.append(token)
+                            yield token
 
-                # Apply same think tag cleaning as non-streaming generate()
-                complete_text = "".join(collected_tokens)
-                cleaned_text = re.sub(
-                    r"<think>\s*</think>\s*",
-                    "",
-                    complete_text,
-                    flags=re.MULTILINE | re.DOTALL,
-                )
+                # Join the collected tokens to form the complete text for caching
+                complete_text = "".join(full_text_list)
 
-                # Re-yield cleaned text in chunks to preserve exact content
-                if cleaned_text:
-                    # Yield in word-sized chunks to simulate token streaming
-                    words = cleaned_text.split()
-                    char_index = 0
-                    for i, word in enumerate(words):
-                        # Find the word in the original text to preserve exact spacing
-                        word_start = cleaned_text.find(word, char_index)
-                        if word_start > char_index:
-                            # Yield any whitespace before the word
-                            yield cleaned_text[char_index:word_start]
-                        # Yield the word
-                        yield word
-                        char_index = word_start + len(word)
-
-                    # Yield any remaining content (trailing whitespace)
-                    if char_index < len(cleaned_text):
-                        yield cleaned_text[char_index:]
-
-                # Cache the cleaned text if eligible
-                if should_cache and cleaned_text:
+                # Cache the full response if eligible
+                if should_cache and complete_text:
                     cache_key = generate_cache_key(prompt, eos_string)
-                    get_generation_cache().set(cache_key, cleaned_text)
+                    get_generation_cache().set(cache_key, complete_text)
                     if logger.isEnabledFor(logging.DEBUG):
                         logger.debug(
                             f"DeterministicGenerator.generate_iter: Cached result for prompt: {str(prompt)[:50]}..."
@@ -717,24 +672,21 @@ def _deterministic_fallback_generate_iter(
 ) -> Iterator[str]:
     """Iterative version of deterministic fallback that yields words one by one.
 
-    AIDEV-NOTE: Used by generate_iter when model is unavailable. Yields the same
-    deterministic output as _deterministic_fallback_generate but word by word.
+    AIDEV-NOTE: Used by generate_iter when the model is unavailable. Yields the same output as _deterministic_fallback_generate but word by word.
     """
     fallback_text = _deterministic_fallback_generate(prompt, seed)
     for word in fallback_text.split():
         yield word + " "
 
 
-# AIDEV-NOTE: Module-level singleton generator instance for backward compatibility
-# AIDEV-NOTE: Made lazy to prevent model loading during import (fixes pytest hang)
+# AIDEV-NOTE: A module-level singleton generator instance for backward compatibility, made lazy to prevent model loading during import.
 _generator_instance: Optional[DeterministicGenerator] = None
 
 
 def _get_generator_instance() -> DeterministicGenerator:
     """Get or create the singleton generator instance.
 
-    AIDEV-NOTE: Lazy initialization to prevent model loading at import time.
-    This fixes pytest collection hanging when models aren't available.
+    AIDEV-NOTE: Lazy initialization prevents model loading at import time, fixing pytest collection hangs.
     """
     global _generator_instance
     if _generator_instance is None:
@@ -745,6 +697,7 @@ def _get_generator_instance() -> DeterministicGenerator:
 
 def core_generate(
     prompt: str,
+    max_new_tokens: Optional[int] = None,
     return_logprobs: bool = False,
     eos_string: str = "[EOS]",
     model: Optional[str] = None,
@@ -760,6 +713,7 @@ def core_generate(
 
     Args:
         prompt: Input text prompt
+        max_new_tokens: The maximum number of new tokens to generate.
         return_logprobs: Whether to return token log probabilities
         eos_string: End-of-sequence string ("[EOS]" uses model defaults)
         model: Model name from registry (e.g., "gemma-3n-2b", "gemma-3n-4b")
@@ -780,21 +734,20 @@ def core_generate(
         text = generate("Complex task", size="large")    # Uses Gemma-3n-4B
 
         # Use a model from the registry
-        text = generate("Explain quantum computing", model="gemma-3n-4b")
+        text = generate("Explain quantum computing", model="gemma-3n-2b")
 
         # Use a custom model
         text = generate(
             "Write a poem",
-            model_repo="unsloth/gemma-3n-E4B-it-GGUF",
+            model_repo="ggml-org/gemma-3n-E4B-it-GGUF",
             model_filename="gemma-3n-E4B-it-Q8_0.gguf"
         )
 
-    AIDEV-NOTE: Model switching allows using different models without changing
-    environment variables. Models are cached after first load for efficiency.
-    The size parameter provides convenient access to Gemma-3n models of different sizes.
+    AIDEV-NOTE: Model switching allows using different models without changing environment variables. Models are cached after the first load.
     """
     return _get_generator_instance().generate(
         prompt=prompt,
+        max_new_tokens=max_new_tokens,
         return_logprobs=return_logprobs,
         eos_string=eos_string,
         model=model,
@@ -807,6 +760,7 @@ def core_generate(
 
 def core_generate_iter(
     prompt: str,
+    max_new_tokens: Optional[int] = None,
     eos_string: str = "[EOS]",
     include_logprobs: bool = False,
     model: Optional[str] = None,
@@ -821,6 +775,7 @@ def core_generate_iter(
 
     Args:
         prompt: Input text prompt
+        max_new_tokens: The maximum number of new tokens to generate.
         eos_string: End-of-sequence string ("[EOS]" uses model defaults)
         include_logprobs: Whether to include log probabilities in output
         model: Model name from registry (e.g., "gemma-3n-2b")
@@ -832,11 +787,11 @@ def core_generate_iter(
     Yields:
         String tokens, or dicts with 'token' and 'logprobs' if include_logprobs=True
 
-    AIDEV-NOTE: Streaming generation with model switching support. Falls back
-    to word-by-word yielding from deterministic fallback when model unavailable.
+    AIDEV-NOTE: Streaming generation with model switching support. Falls back to word-by-word yielding from the deterministic fallback.
     """
     return _get_generator_instance().generate_iter(
         prompt=prompt,
+        max_new_tokens=max_new_tokens,
         eos_string=eos_string,
         include_logprobs=include_logprobs,
         model=model,

@@ -74,21 +74,21 @@ os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 
 ### AIDEV Considerations
 
-- AIDEV-NOTE: The daemon maintains singleton model instances to avoid memory duplication
-- AIDEV-NOTE: Streaming uses a special acknowledgment protocol for flow control  
-- AIDEV-NOTE: All operations gracefully fall back to direct model loading on connection failure
-- AIDEV-NOTE: Centralized cache system ensures consistent caching between daemon and direct access
-- AIDEV-NOTE: Cache is shared via SQLite backend for thread/process safety
-- AIDEV-NOTE: Daemon server now fully integrated with centralized cache manager (v1.3.3+)
-- AIDEV-NOTE: Cache hits in daemon mode return identical results to direct access mode
-- AIDEV-NOTE: Streaming generation simulates streaming from cached results for consistency
-- AIDEV-NOTE: Streaming now populates cache after completion in both daemon and direct modes (v1.3.3+)
-- AIDEV-NOTE: Cached streaming results may have normalized whitespace when simulated from cache
-- AIDEV-NOTE: Logprobs requests bypass cache in both daemon and direct modes
-- AIDEV-NOTE: Custom eos_string parameters are included in cache keys to prevent collisions
-- AIDEV-NOTE: CLI cache fix (v1.3.3+): CLI generate command now uses main API layer (generate, generate_iter) instead of core functions (core_generate, core_generate_iter), enabling full cache functionality in both streaming and wait modes
-- AIDEV-TODO: Consider adding connection pooling for high-concurrency scenarios
-- AIDEV-TODO: Add metrics/monitoring endpoints for production deployments
+- AIDEV-NOTE: The daemon maintains singleton model instances to avoid memory duplication.
+- AIDEV-NOTE: Streaming uses a special acknowledgment protocol for flow control.
+- AIDEV-NOTE: All operations gracefully fall back to direct model loading on connection failure.
+- AIDEV-NOTE: The centralized cache system ensures consistent caching between the daemon and direct access.
+- AIDEV-NOTE: The cache is shared via an SQLite backend for thread/process safety.
+- AIDEV-NOTE: The daemon server is now fully integrated with the centralized cache manager (v1.3.3+).
+- AIDEV-NOTE: Cache hits in daemon mode return identical results to direct access mode.
+- AIDEV-NOTE: Streaming generation simulates streaming from cached results for consistency.
+- AIDEV-NOTE: Streaming now populates the cache after completion in both daemon and direct modes (v1.3.3+).
+- AIDEV-NOTE: Cached streaming results may have normalized whitespace when simulated from the cache.
+- AIDEV-NOTE: Logprobs requests bypass the cache in both daemon and direct modes.
+- AIDEV-NOTE: Custom eos_string parameters are included in cache keys to prevent collisions.
+- AIDEV-NOTE: The CLI cache fix (v1.3.3+) uses the main API layer (generate, generate_iter) to enable full cache functionality.
+- AIDEV-TODO: Consider adding connection pooling for high-concurrency scenarios.
+- AIDEV-TODO: Add metrics/monitoring endpoints for production deployments.
 - AIDEV-QUESTION: Should we support multiple daemon instances for load balancing?
 
 ## Gemma-3n Models
@@ -99,7 +99,6 @@ SteadyText v2.0+ uses Gemma-3n models for generation and Qwen3 for embeddings.
 
 - AIDEV-NOTE: The default generation model is `gemma-3n-E2B-it-GGUF`.
 - AIDEV-NOTE: The default embedding model is `Qwen3-Embedding-0.6B-GGUF`.
-- AIDEV-NOTE: The "thinking mode" feature has been deprecated and removed.
 
 ## Cache Management
 
@@ -162,14 +161,7 @@ When responding to user instructions, the AI assistant (Claude, Cursor, GPT, etc
 
 ## pytest Collection Hanging Fix
 
-AIDEV-NOTE: Fixed in v2.0.1+ - pytest collection was hanging due to module-level code execution. The fixes include:
-
-1. **Removed module-level execution**: `set_deterministic_environment()` was being called at module level in `core/generator.py`
-2. **Added environment checks**: Model downloads check `STEADYTEXT_ALLOW_MODEL_DOWNLOADS` before attempting downloads
-3. **Lazy cache initialization**: Cache manager returns dummy caches when `STEADYTEXT_SKIP_CACHE_INIT=1` is set
-4. **Early environment setup**: `conftest.py` uses `pytest_addoption` hook to set environment variables BEFORE any imports
-
-These changes ensure pytest collection phase doesn't trigger blocking I/O operations or network requests.
+AIDEV-NOTE: Fixed in v2.0.1+ - pytest collection was hanging due to module-level code execution. The fixes include removing module-level execution, adding environment checks for model downloads, lazy cache initialization, and early environment setup in conftest.py.
 
 ## Development Commands
 
@@ -259,11 +251,7 @@ echo "What is Python?" | st --index-file my_index.faiss
 echo "explain this error" | st --no-index  # Disable index search
 ```
 
-AIDEV-NOTE: The index functionality uses:
-- chonkie for deterministic text chunking (512 token default)
-- faiss-cpu for vector storage (IndexFlatL2 for exact search)
-- Automatic context retrieval when default.faiss exists
-- Aggressive caching of search results for determinism
+AIDEV-NOTE: The index functionality uses chonkie for deterministic text chunking, faiss-cpu for vector storage, automatic context retrieval when default.faiss exists, and aggressive caching of search results for determinism.
 
 ### Installation
 

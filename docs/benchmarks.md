@@ -25,7 +25,7 @@ SteadyText delivers **100% deterministic** text generation and embeddings with c
 
 ### Text Generation Performance
 
-SteadyText uses the Qwen3-1.7B-Q8_0.gguf model for deterministic text generation:
+SteadyText v2.0.0+ uses the Gemma-3n-E2B-it-Q8_0.gguf model (Gemma-3n-2B) for deterministic text generation:
 
 | Metric | Value | Notes |
 |--------|-------|-------|
@@ -48,7 +48,7 @@ Streaming provides similar performance with slightly higher memory usage:
 
 ### Embedding Performance
 
-SteadyText uses the Qwen3-Embedding-0.6B-Q8_0.gguf model for deterministic embeddings:
+SteadyText uses the Qwen3-Embedding-0.6B-Q8_0.gguf model for deterministic embeddings (unchanged in v2.0.0+):
 
 | Batch Size | Throughput | Mean Latency | Use Case |
 |------------|------------|--------------|----------|
@@ -157,7 +157,7 @@ SteadyText's core guarantee is 100% deterministic outputs:
 - **RAM**: 32GB DDR4
 - **OS**: Linux 6.14.11 (Fedora 42)
 - **Python**: 3.13.2
-- **Models**: Qwen3-1.7B-Q8_0.gguf, Qwen3-Embedding-0.6B-Q8_0.gguf
+- **Models**: Gemma-3n-E2B-it-Q8_0.gguf (v2.0.0+), Qwen3-Embedding-0.6B-Q8_0.gguf
 
 ### Benchmark Methodology
 

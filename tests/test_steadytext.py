@@ -512,10 +512,7 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
             "Different prompts should produce different fallback text",
         )
 
-        # AIDEV-NOTE: Clear any cached models and generation cache before testing to ensure clean state
-        # AIDEV-NOTE: Critical fix - the singleton _ModelInstanceCache persists real models
-        # across test runs, so mock patches don't work unless we clear the cache first.
-        # Also need to clear generation cache to prevent cached results from interfering.
+        # AIDEV-NOTE: Clear any cached models and the generation cache before testing to ensure a clean state. The singleton _ModelInstanceCache persists real models across test runs, so mock patches will not work unless the cache is cleared first.
         clear_model_cache()
         from steadytext.cache_manager import get_generation_cache
 
@@ -581,10 +578,7 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
             "choices": [{"message": {"content": "Generated text"}}]
         }
 
-        # AIDEV-NOTE: Clear any cached models and generation cache before testing to ensure clean state
-        # AIDEV-NOTE: Critical fix - the singleton _ModelInstanceCache persists real models
-        # across test runs, so mock patches don't work unless we clear the cache first.
-        # Also need to clear generation cache to prevent cached results from interfering.
+        # AIDEV-NOTE: Clear any cached models and the generation cache before testing to ensure a clean state. The singleton _ModelInstanceCache persists real models across test runs, so mock patches will not work unless the cache is cleared first.
         clear_model_cache()
         from steadytext.cache_manager import get_generation_cache
 

@@ -15,8 +15,7 @@ from ..utils import (
 from typing import Optional
 
 
-# AIDEV-NOTE: Core download function with path validation and error handling
-# AIDEV-NOTE: Extended to support dynamic model loading for model switching
+# AIDEV-NOTE: Core download function with path validation, error handling, and dynamic model loading.
 def _download_model_if_needed(
     repo_id: str, filename: str, cache_dir: Path
 ) -> Optional[Path]:

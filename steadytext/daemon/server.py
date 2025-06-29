@@ -1,8 +1,7 @@
 """
 ZeroMQ server implementation for SteadyText daemon.
 
-AIDEV-NOTE: This server keeps models loaded in memory and serves generation/embedding
-requests via ZeroMQ REP socket. Implements graceful shutdown and error handling.
+AIDEV-NOTE: This server keeps models loaded in memory and serves generation/embedding requests via a ZeroMQ REP socket. It implements graceful shutdown and error handling.
 """
 
 import sys
@@ -43,10 +42,7 @@ from .protocol import (
 )
 
 
-# AIDEV-NOTE: Server maintains singleton instances of generator and embedder
-# to avoid repeated model loading overhead
-# AIDEV-NOTE: v1.3.1+ Server now fully integrated with centralized cache system
-# ensuring consistent cache behavior between daemon and direct access modes
+# AIDEV-NOTE: The server maintains singleton instances of the generator and embedder and is integrated with the centralized cache system.
 class DaemonServer:
     def __init__(
         self,
@@ -106,6 +102,7 @@ class DaemonServer:
         model_filename = params.get("model_filename")
         size = params.get("size")
         seed = params.get("seed", DEFAULT_SEED)
+        max_new_tokens = params.get("max_new_tokens")
 
         # AIDEV-NOTE: Check cache first for non-logprobs requests using default model
         # This mirrors the caching logic in core/generator.py
@@ -125,6 +122,7 @@ class DaemonServer:
             model_filename=model_filename,
             size=size,
             seed=seed,
+            max_new_tokens=max_new_tokens,
         )
 
         # AIDEV-NOTE: Cache the result for non-logprobs requests using default model
@@ -144,12 +142,7 @@ class DaemonServer:
     def _handle_generate_iter(self, params: Dict[str, Any]) -> Iterator[Dict[str, Any]]:
         """Handle streaming text generation request.
 
-        AIDEV-NOTE: Streaming is handled by yielding multiple responses with the same ID.
-        The client will accumulate these until it receives STREAM_END_MARKER.
-
-        AIDEV-NOTE: For streaming, we check cache first. If cached, we simulate streaming
-        by yielding words from the cached result. This ensures cache consistency while
-        maintaining the streaming API.
+        AIDEV-NOTE: Streaming is handled by yielding multiple responses with the same ID. If a result is cached, streaming is simulated by yielding words from the cached result.
         """
         if self.generator is None:
             self.generator = DeterministicGenerator()
@@ -162,6 +155,7 @@ class DaemonServer:
         model_filename = params.get("model_filename")
         size = params.get("size")
         seed = params.get("seed", DEFAULT_SEED)
+        max_new_tokens = params.get("max_new_tokens")
 
         # AIDEV-NOTE: Check cache for non-logprobs streaming requests using default model
         # If cached, simulate streaming by yielding words from cached result
@@ -205,6 +199,7 @@ class DaemonServer:
             model_filename=model_filename,
             size=size,
             seed=seed,
+            max_new_tokens=max_new_tokens,
         ):
             # For consistency, always yield just the token - main loop will wrap it
             # Token is already a dict if include_logprobs=True, otherwise it's a string
@@ -227,17 +222,6 @@ class DaemonServer:
         ):
             # Join collected tokens to form complete text
             complete_text = "".join(collected_tokens)
-
-            # AIDEV-NOTE: Apply same think tag cleaning as non-streaming generate()
-            # to ensure consistency between streaming and non-streaming results
-            import re
-
-            complete_text = re.sub(
-                r"<think>\s*</think>\s*",
-                "",
-                complete_text,
-                flags=re.MULTILINE | re.DOTALL,
-            )
 
             cache_key = generate_cache_key(prompt, eos_string)
             get_generation_cache().set(cache_key, complete_text)
@@ -332,9 +316,7 @@ class DaemonServer:
                             f"Received request: {request.method} (id: {request.id})"
                         )
 
-                    # AIDEV-NOTE: Streaming is implemented via a request-response loop. The client sends
-                    # an ACK for each token received, preventing buffer overflows and providing flow control.
-                    # The loop is terminated by a special STREAM_END_MARKER.
+                    # AIDEV-NOTE: Streaming is implemented via a request-response loop. The client sends an ACK for each token received.
                     if request.method == "generate_iter":
                         try:
                             for token in self._handle_generate_iter(request.params):

@@ -1,7 +1,4 @@
-# AIDEV-NOTE: Centralized cache management for SteadyText
-# Provides singleton cache instances shared between daemon and direct access
-# Ensures consistent caching behavior across all components
-# AIDEV-NOTE: Fixed in v1.3.1 - Added proper __len__ method support and improved error handling
+# AIDEV-NOTE: Centralized cache management for SteadyText, providing singleton cache instances shared between the daemon and direct access. It has proper __len__ method support and improved error handling.
 
 import os as _os
 from typing import Optional, cast
@@ -44,10 +41,7 @@ class _DummyCache(DiskBackedFrecencyCache):
 class CacheManager:
     """Centralized cache manager for SteadyText.
 
-    AIDEV-NOTE: This singleton is the linchpin for cache consistency. By ensuring
-    that both the daemon and direct API calls access the exact same cache objects,
-    it prevents a split-brain scenario where the two modes could have different
-    cached data, which would violate the determinism guarantee.
+    AIDEV-NOTE: This singleton ensures cache consistency by providing the same cache objects to both the daemon and direct API calls.
     """
 
     _instance: Optional["CacheManager"] = None
@@ -139,9 +133,7 @@ class CacheManager:
         return stats
 
 
-# AIDEV-NOTE: The cache manager singleton is now initialized lazily on first use
-# by the component that needs it (e.g., generate, embed, daemon),
-# avoiding initialization at import time.
+# AIDEV-NOTE: The cache manager singleton is initialized lazily on first use.
 
 # AIDEV-NOTE: Module-level cache manager instance, initialized lazily
 _cache_manager: Optional[CacheManager] = None

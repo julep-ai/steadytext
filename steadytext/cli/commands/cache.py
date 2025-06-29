@@ -17,17 +17,39 @@ def cache():
 
 @cache.command()
 def path():
-    """Show cache directory."""
-    click.echo(str(get_cache_dir() / "caches"))
+    """Show the cache directory path."""
+    cache_dir = get_cache_dir() / "caches"
+    click.echo(str(cache_dir))
 
 
 @cache.command()
 def status():
+    """Show cache status."""
+    cache_manager = get_cache_manager()
+
+    # Force cache initialization to get proper stats
+    cache_manager.get_generation_cache()
+    cache_manager.get_embedding_cache()
+
+    stats_data = cache_manager.get_cache_stats()
+
+    click.echo("Generation Cache:")
+    gen_stats = stats_data.get("generation", {})
+    click.echo(f"  {gen_stats.get('size', 0)} entries")
+    click.echo(f"  Capacity: {gen_stats.get('capacity', 0)}")
+
+    click.echo("\nEmbedding Cache:")
+    embed_stats = stats_data.get("embedding", {})
+    click.echo(f"  {embed_stats.get('size', 0)} entries")
+    click.echo(f"  Capacity: {embed_stats.get('capacity', 0)}")
+
+
+@cache.command()
+def stats():
     """Show cache statistics."""
     cache_dir = get_cache_dir() / "caches"
 
-    # AIDEV-NOTE: Use centralized cache manager for consistent stats
-    # AIDEV-NOTE: Fixed in v1.3.1 - Now uses SQLite backend instead of pickle files
+    # AIDEV-NOTE: Use the centralized cache manager for consistent stats. Now uses the SQLite backend.
     cache_manager = get_cache_manager()
 
     # Force cache initialization to get proper stats
@@ -156,9 +178,7 @@ def export(output_file: str):
 )
 def import_cache(input_file: str, merge: bool):
     """Import cache from file."""
-    # AIDEV-NOTE: Basic cache import implementation
-    # Currently supports importing cache structure but not actual entries
-    # due to SQLite backend not exposing iteration API
+    # AIDEV-NOTE: A basic cache import implementation. Currently supports importing cache structure but not entries.
 
     import numpy as np
 

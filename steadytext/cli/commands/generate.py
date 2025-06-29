@@ -68,6 +68,12 @@ from .index import search_index_for_context, get_default_index_path
     help="Seed for deterministic generation.",
     show_default=True,
 )
+@click.option(
+    "--max-new-tokens",
+    type=int,
+    default=None,
+    help="Maximum number of new tokens to generate.",
+)
 @click.pass_context
 def generate(
     ctx,
@@ -86,6 +92,7 @@ def generate(
     model_filename: str,
     size: str,
     seed: int,
+    max_new_tokens: int,
 ):
     """Generate text from a prompt (streams by default).
 
@@ -94,7 +101,7 @@ def generate(
         echo "quick task" | st --wait            # Waits for full output
         echo "quick task" | st generate --size small    # Uses Gemma-3n-2B
         echo "complex task" | st generate --size large  # Uses Gemma-3n-4B
-        echo "explain quantum computing" | st generate --model gemma-3n-4b
+        echo "explain quantum computing" | st generate --model gemma-3n-2b
         st -  # Read from stdin
         echo "explain this" | st
         echo "complex task" | st generate --model-repo Qwen/Qwen2.5-7B-Instruct-GGUF --model-filename qwen2.5-7b-instruct-q8_0.gguf
@@ -142,11 +149,89 @@ def generate(
     # AIDEV-NOTE: Model switching support - pass model parameters to core functions
 
     start_time = time.time()
-    try:
-        # Streaming mode (--wait is False)
-        if not wait:
-            generated_text = ""
-            # In JSON mode, we buffer output. In raw mode, we stream to stdout.
+
+    # Streaming is now the default - wait flag disables it
+    stream = not wait
+
+    if stream:
+        # Streaming mode
+        generated_text = ""
+        logprobs_tokens = []
+
+        for token in steady_generate_iter(
+            final_prompt,
+            max_new_tokens=max_new_tokens,
+            eos_string=eos_string,
+            include_logprobs=logprobs,
+            model=model,
+            model_repo=model_repo,
+            model_filename=model_filename,
+            size=size,
+            seed=seed,
+        ):
+            if logprobs and isinstance(token, dict):
+                # Handle logprobs output
+                if output_format == "json":
+                    logprobs_tokens.append(token)
+                    # Also accumulate the text part of the token
+                    generated_text += token.get("token", "")
+                else:
+                    # For raw output with logprobs, print each token's JSON
+                    click.echo(json.dumps(token), nl=True)
+            else:
+                # Handle raw text output
+                token_str = str(token)
+                if output_format != "json":
+                    click.echo(token_str, nl=False)
+                generated_text += token_str
+
+        if output_format == "json":
+            # For JSON format in streaming mode, output only the JSON
+            metadata = {
+                "text": generated_text,
+                "model": model or "gemma-3n-E2B-it-GGUF",
+                "usage": {
+                    "prompt_tokens": len(prompt.split()),
+                    "completion_tokens": len(generated_text.split()),
+                    "total_tokens": len(prompt.split()) + len(generated_text.split()),
+                },
+                "prompt": prompt,
+                "generated": generated_text,
+                "time_taken": time.time() - start_time,
+                "stream": True,
+                "used_index": len(context_chunks) > 0,
+                "context_chunks": len(context_chunks),
+            }
+            if logprobs:
+                # In fallback mode, logprobs will be None
+                # Extract just the logprobs values from token objects
+                if logprobs_tokens and all(
+                    token.get("logprobs") is None for token in logprobs_tokens
+                ):
+                    metadata["logprobs"] = None
+                else:
+                    metadata["logprobs"] = (
+                        [token.get("logprobs") for token in logprobs_tokens]
+                        if logprobs_tokens
+                        else None
+                    )
+            click.echo(json.dumps(metadata, indent=2))
+    else:
+        # Non-streaming mode
+        if logprobs:
+            result = steady_generate(
+                final_prompt,
+                max_new_tokens=max_new_tokens,
+                return_logprobs=True,
+                eos_string=eos_string,
+                model=model,
+                model_repo=model_repo,
+                model_filename=model_filename,
+                size=size,
+                seed=seed,
+            )
+            # Unpack the tuple result
+            text, logprobs_data = result
             if output_format == "json":
                 for token in steady_generate_iter(
                     final_prompt,
@@ -164,79 +249,53 @@ def generate(
 
                 # After collecting all text, format the final JSON output
                 metadata = {
-                    "text": generated_text,
-                    "model": "mock_model",  # Placeholder for tests
-                    "usage": {"prompt_tokens": 0, "total_tokens": 0},  # Placeholder
-                    "logprobs": None,  # Logprobs not supported in streaming JSON yet
+                    "text": text,
+                    "model": model or "gemma-3n-E2B-it-GGUF",
+                    "usage": {
+                        "prompt_tokens": len(prompt.split()),
+                        "completion_tokens": len(text.split()),
+                        "total_tokens": len(prompt.split()) + len(text.split()),
+                    },
+                    "logprobs": logprobs_data,
+                    "prompt": prompt,
+                    "generated": text,
+                    "time_taken": time.time() - start_time,
+                    "stream": False,
+                    "used_index": len(context_chunks) > 0,
+                    "context_chunks": len(context_chunks),
                 }
                 click.echo(json.dumps(metadata))
 
-            else:  # Raw streaming
-                for token in steady_generate_iter(
-                    final_prompt,
-                    eos_string=eos_string,
-                    model=model,
-                    model_repo=model_repo,
-                    model_filename=model_filename,
-                    size=size,
-                    seed=seed,
-                ):
-                    click.echo(str(token), nl=False)
-                click.echo()  # Final newline
-            return
-
-        # Non-streaming (blocking) mode (--wait is True)
-        else:
-            if logprobs:
-                text, logprobs_data = steady_generate(
-                    final_prompt,
-                    return_logprobs=True,
-                    eos_string=eos_string,
-                    model=model,
-                    model_repo=model_repo,
-                    model_filename=model_filename,
-                    size=size,
-                    seed=seed,
-                )
-                if output_format == "json":
-                    metadata = {
-                        "text": text,
-                        "model": "mock_model",
-                        "usage": {"prompt_tokens": 0, "total_tokens": 0},
-                        "logprobs": logprobs_data,
-                    }
-                    click.echo(json.dumps(metadata))
-                else:
-                    click.echo(json.dumps({"text": text, "logprobs": logprobs_data}))
-
             else:
-                generated_text = steady_generate(
-                    final_prompt,
-                    eos_string=eos_string,
-                    model=model,
-                    model_repo=model_repo,
-                    model_filename=model_filename,
-                    size=size,
-                    seed=seed,
-                )
-                if output_format == "json":
-                    metadata = {
-                        "text": generated_text,
-                        "model": "mock_model",
-                        "usage": {"prompt_tokens": 0, "total_tokens": 0},
-                    }
-                    click.echo(json.dumps(metadata))
-                else:
-                    click.echo(generated_text)
-
-    except Exception as e:
-        if output_format == "json":
-            error_output = {
-                "error": str(e),
-                "prompt": prompt,
-                "time_taken": time.time() - start_time,
-            }
-            click.echo(json.dumps(error_output, indent=2))
+                click.echo(json.dumps({"text": text, "logprobs": logprobs_data}))
         else:
-            click.echo(f"Error: {e}", err=True)
-        sys.exit(1)
+            # Non-logprobs mode
+            generated = steady_generate(
+                final_prompt,
+                max_new_tokens=max_new_tokens,
+                eos_string=eos_string,
+                model=model,
+                model_repo=model_repo,
+                model_filename=model_filename,
+                size=size,
+                seed=seed,
+            )
+            if output_format == "json":
+                metadata = {
+                    "text": generated,
+                    "model": model or "gemma-3n-E2B-it-GGUF",
+                    "usage": {
+                        "prompt_tokens": len(prompt.split()),
+                        "completion_tokens": len(generated.split()),
+                        "total_tokens": len(prompt.split()) + len(generated.split()),
+                    },
+                    "prompt": prompt,
+                    "generated": generated,
+                    "time_taken": time.time() - start_time,
+                    "stream": False,
+                    "used_index": len(context_chunks) > 0,
+                    "context_chunks": len(context_chunks),
+                }
+                click.echo(json.dumps(metadata, indent=2))
+            else:
+                click.echo(generated)

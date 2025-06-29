@@ -25,10 +25,7 @@ from ..utils import (
 from .cache import get_generation_model_path, get_embedding_model_path
 
 
-# AIDEV-NOTE: This singleton cache is the core of resource management. It ensures that
-# a model, once loaded into memory, is reused across the entire application,
-# preventing massive memory overhead from multiple instantiations. The thread-lock
-# is critical for safe initialization in multi-threaded contexts.
+# AIDEV-NOTE: This singleton cache is the core of resource management, ensuring that a model is loaded only once. The thread-lock is critical for safe initialization in multi-threaded contexts.
 class _ModelInstanceCache:
     _instance = None
     _lock = threading.Lock()
@@ -48,7 +45,7 @@ class _ModelInstanceCache:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = cls.__new__(cls)
-                    # AIDEV-NOTE: Defer deterministic environment setup until first use
+                    # AIDEV-NOTE: Defer deterministic environment setup until the first use.
                     # set_deterministic_environment()
         return cls._instance
 
@@ -63,9 +60,7 @@ class _ModelInstanceCache:
             # AIDEV-NOTE: Now we set the environment, only on the first real use.
             set_deterministic_environment(DEFAULT_SEED)
 
-    # AIDEV-NOTE: Generator model loading with parameter configuration and
-    # error handling
-    # AIDEV-NOTE: Extended to support loading different models via repo/filename params
+    # AIDEV-NOTE: Generator model loading with parameter configuration, error handling, and support for different models.
     @classmethod
     def get_generator(
         cls,
@@ -219,10 +214,7 @@ class _ModelInstanceCache:
                         if hasattr(inst._embedder_model, "n_embd")
                         else 0
                     )
-                    # AIDEV-NOTE: This dimension check is a critical validation step. It ensures
-                    # that the loaded embedding model produces vectors of the exact dimension
-                    # the rest of the system expects. A mismatch here would lead to subtle
-                    # and hard-to-debug errors in all downstream vector operations.
+                    # AIDEV-NOTE: This dimension check is a critical validation step to ensure the loaded embedding model produces vectors of the expected dimension.
                     if model_n_embd != EMBEDDING_DIMENSION:
                         logger.error(
                             f"Embedder model n_embd ({model_n_embd}) does not "
@@ -256,8 +248,7 @@ def get_generator_model_instance(
 ) -> Optional[Llama]:
     """Get a generator model instance with optional custom model specification.
 
-    AIDEV-NOTE: Extended to support dynamic model loading. Maintains backward
-    compatibility when repo_id and filename are not specified.
+    AIDEV-NOTE: Extended to support dynamic model loading while maintaining backward compatibility.
     """
     return _ModelInstanceCache.get_generator(
         force_reload, enable_logits, repo_id, filename
@@ -275,9 +266,7 @@ def clear_model_cache() -> None:
     This function is primarily intended for testing to ensure clean state
     when using mock models. It clears both generator and embedder caches.
 
-    AIDEV-NOTE: This is essential for proper mock testing because the singleton
-    pattern caches real model instances across test runs. Without clearing,
-    patches may not take effect when cached models exist.
+    AIDEV-NOTE: This is essential for proper mock testing, as the singleton pattern caches real model instances across test runs.
     """
     inst = _ModelInstanceCache._ModelInstanceCache__getInstance()  # type: ignore[attr-defined]
     with inst._lock:

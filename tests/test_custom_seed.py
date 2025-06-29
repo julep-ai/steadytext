@@ -65,8 +65,8 @@ def test_cli_generate_different_seeds():
 
 def test_cli_embed_default_seed():
     runner = CliRunner()
-    result1 = runner.invoke(cli, ["embed", "test"])
-    result2 = runner.invoke(cli, ["embed", "test", "--seed", "42"])
+    result1 = runner.invoke(cli, ["embed", "test", "--json"])
+    result2 = runner.invoke(cli, ["embed", "test", "--json", "--seed", "42"])
     # Parse JSON and compare without time_taken
     json1 = json.loads(result1.stdout)
     json2 = json.loads(result2.stdout)
@@ -77,8 +77,8 @@ def test_cli_embed_default_seed():
 
 def test_cli_embed_custom_seed():
     runner = CliRunner()
-    result1 = runner.invoke(cli, ["embed", "test", "--seed", "123"])
-    result2 = runner.invoke(cli, ["embed", "test", "--seed", "123"])
+    result1 = runner.invoke(cli, ["embed", "test", "--json", "--seed", "123"])
+    result2 = runner.invoke(cli, ["embed", "test", "--json", "--seed", "123"])
     # Parse JSON and compare without time_taken
     json1 = json.loads(result1.stdout)
     json2 = json.loads(result2.stdout)
@@ -89,8 +89,8 @@ def test_cli_embed_custom_seed():
 
 def test_cli_embed_different_seeds():
     runner = CliRunner()
-    result1 = runner.invoke(cli, ["embed", "test", "--seed", "123"])
-    result2 = runner.invoke(cli, ["embed", "test", "--seed", "456"])
+    result1 = runner.invoke(cli, ["embed", "test", "--json", "--seed", "123"])
+    result2 = runner.invoke(cli, ["embed", "test", "--json", "--seed", "456"])
     # Parse JSON and compare embeddings
     json1 = json.loads(result1.stdout)
     json2 = json.loads(result2.stdout)

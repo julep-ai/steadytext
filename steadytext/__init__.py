@@ -5,7 +5,7 @@ AIDEV-NOTE: Fixed "Never Fails" - embed() now catches TypeErrors & returns zero 
 """
 
 # Version of the steadytext package - should match pyproject.toml
-__version__ = "2.0.2"
+__version__ = "2.0.4"
 
 # Import core functions and classes for public API
 import os
@@ -30,6 +30,7 @@ from .cache_manager import get_cache_manager
 
 def generate(
     prompt: str,
+    max_new_tokens: Optional[int] = None,
     return_logprobs: bool = False,
     eos_string: str = "[EOS]",
     model: Optional[str] = None,
@@ -42,6 +43,7 @@ def generate(
 
     Args:
         prompt: The input prompt to generate from
+        max_new_tokens: The maximum number of new tokens to generate.
         return_logprobs: If True, a tuple (text, logprobs) is returned
         eos_string: Custom end-of-sequence string. "[EOS]" means use model's default.
                    Otherwise, generation stops when this string is encountered.
@@ -61,12 +63,12 @@ def generate(
         text = generate("Quick response", size="small")
 
         # Use a model from the registry
-        text = generate("Explain quantum computing", model="gemma-3n-4b")
+        text = generate("Explain quantum computing", model="gemma-3n-2b")
 
         # Use a custom model
         text = generate(
             "Write a poem",
-            model_repo="unsloth/gemma-3n-E4B-it-GGUF",
+            model_repo="ggml-org/gemma-3n-E4B-it-GGUF",
             model_filename="gemma-3n-E4B-it-Q8_0.gguf"
         )
     """
@@ -77,8 +79,10 @@ def generate(
         client = get_daemon_client()
         if client is not None:
             try:
+                logger.debug("Attempting to use daemon for text generation")
                 return client.generate(
                     prompt=prompt,
+                    max_new_tokens=max_new_tokens,
                     return_logprobs=return_logprobs,
                     eos_string=eos_string,
                     model=model,
@@ -87,12 +91,15 @@ def generate(
                     size=size,
                     seed=seed,
                 )
-            except ConnectionError:
+            except ConnectionError as e:
                 # Fall back to direct generation
-                logger.debug("Daemon not available, falling back to direct generation")
+                logger.debug(
+                    f"Daemon not available ({e}), falling back to direct generation"
+                )
 
     return _generate(
         prompt,
+        max_new_tokens=max_new_tokens,
         return_logprobs=return_logprobs,
         eos_string=eos_string,
         model=model,
@@ -105,6 +112,7 @@ def generate(
 
 def generate_iter(
     prompt: str,
+    max_new_tokens: Optional[int] = None,
     eos_string: str = "[EOS]",
     include_logprobs: bool = False,
     model: Optional[str] = None,
@@ -121,6 +129,7 @@ def generate_iter(
 
     Args:
         prompt: The input prompt to generate from
+        max_new_tokens: The maximum number of new tokens to generate.
         eos_string: Custom end-of-sequence string. "[EOS]" means use model's default.
                    Otherwise, generation stops when this string is encountered.
         include_logprobs: If True, yield dicts with token and logprob info
@@ -138,8 +147,10 @@ def generate_iter(
         client = get_daemon_client()
         if client is not None:
             try:
+                logger.debug("Attempting to use daemon for streaming text generation")
                 yield from client.generate_iter(
                     prompt=prompt,
+                    max_new_tokens=max_new_tokens,
                     eos_string=eos_string,
                     include_logprobs=include_logprobs,
                     model=model,
@@ -149,14 +160,15 @@ def generate_iter(
                     seed=seed,
                 )
                 return
-            except ConnectionError:
+            except ConnectionError as e:
                 # Fall back to direct generation
                 logger.debug(
-                    "Daemon not available, falling back to direct streaming generation"
+                    f"Daemon not available ({e}), falling back to direct streaming generation"
                 )
 
     yield from _generate_iter(
         prompt,
+        max_new_tokens=max_new_tokens,
         eos_string=eos_string,
         include_logprobs=include_logprobs,
         model=model,
