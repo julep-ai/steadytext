@@ -1019,7 +1019,7 @@
 <h2 id="how-it-works">🔧 How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
 <p>SteadyText achieves determinism via:</p>
 <ul>
-<li><strong>Fixed seeds</strong>: Constant randomness seed (<code>42</code>)</li>
+<li><strong>Customizable seeds</strong>: Control determinism with a <code>seed</code> parameter, while still defaulting to <code>42</code>.</li>
 <li><strong>Greedy decoding</strong>: Always chooses highest-probability token</li>
 <li><strong>Frecency cache</strong>: LRU cache with frequency counting—popular prompts stay cached longer</li>
 <li><strong>Quantized models</strong>: 8-bit quantization ensures identical results across platforms</li>
