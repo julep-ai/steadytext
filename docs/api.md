@@ -16,7 +16,8 @@ def generate(
     model: Optional[str] = None,
     model_repo: Optional[str] = None,
     model_filename: Optional[str] = None,
-    size: Optional[str] = None
+    size: Optional[str] = None,
+    seed: int = 42
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]
 ```
 
@@ -30,6 +31,7 @@ Generate deterministic text from a prompt.
 - `model_repo` (str, optional): Custom Hugging Face repository ID (e.g., "ggml-org/gemma-3n-E2B-it-GGUF")
 - `model_filename` (str, optional): Custom model filename (e.g., "gemma-3n-E2B-it-Q8_0.gguf")
 - `size` (str, optional): Size shortcut for Gemma-3n models: "small" (2B, default), or "large" (4B) - **recommended approach**
+- `seed` (int): The seed for deterministic generation. Defaults to 42.
 
 **Returns:**
 - If `return_logprobs=False`: A string containing the generated text
@@ -68,7 +70,8 @@ def generate_iter(
     model: Optional[str] = None,
     model_repo: Optional[str] = None,
     model_filename: Optional[str] = None,
-    size: Optional[str] = None
+    size: Optional[str] = None,
+    seed: int = 42
 ) -> Iterator[Union[str, Tuple[str, Optional[Dict[str, Any]]]]]
 ```
 
@@ -82,6 +85,7 @@ Generate text iteratively, yielding tokens as they are produced.
 - `model_repo` (str, optional): Custom Hugging Face repository ID
 - `model_filename` (str, optional): Custom model filename
 - `size` (str, optional): Size shortcut for Gemma-3n models: "small" (2B, default), or "large" (4B) - **recommended approach**
+- `seed` (int): The seed for deterministic generation. Defaults to 42.
 
 **Yields:**
 - str: Text tokens/words as they are generated (if `include_logprobs=False`)
@@ -114,13 +118,14 @@ for token in steadytext.generate_iter("Complex task", size="large"):
 #### `steadytext.embed()`
 
 ```python
-def embed(text_input: Union[str, List[str]]) -> np.ndarray
+def embed(text_input: Union[str, List[str]], seed: int = 42) -> np.ndarray
 ```
 
 Create deterministic embeddings for text input.
 
 **Parameters:**
 - `text_input` (Union[str, List[str]]): A string or list of strings to embed
+- `seed` (int): The seed for deterministic embedding. Defaults to 42.
 
 **Returns:**
 - np.ndarray: A 1024-dimensional L2-normalized float32 numpy array
@@ -178,7 +183,7 @@ print(f"Models are stored in: {cache_dir}")
 ### `steadytext.DEFAULT_SEED`
 - **Type:** int
 - **Value:** 42
-- **Description:** The fixed random seed used for deterministic generation
+- **Description:** The default random seed used for deterministic generation. Can be overridden by the `seed` parameter in generation and embedding functions.
 
 ### `steadytext.GENERATION_MAX_NEW_TOKENS`
 - **Type:** int

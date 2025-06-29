@@ -1,0 +1,88 @@
+{
+  "name": "pg_steadytext",
+  "abstract": "Deterministic text generation and embeddings for PostgreSQL",
+  "description": "PostgreSQL extension that wraps the SteadyText library to provide deterministic AI text generation and embeddings with built-in caching, queue management, and integration with pgvector for semantic search.",
+  "version": "1.0.0",
+  "maintainer": [
+    "SteadyText Community <singh@diwank.name>"
+  ],
+  "license": {
+    "PostgreSQL": "https://www.postgresql.org/about/licence/"
+  },
+  "provides": {
+    "pg_steadytext": {
+      "abstract": "Deterministic text generation and embedding functions for PostgreSQL",
+      "file": "sql/pg_steadytext--1.0.0.sql",
+      "docfile": "README.md",
+      "version": "1.0.0"
+    }
+  },
+  "prereqs": {
+    "runtime": {
+      "requires": {
+        "PostgreSQL": "14.0.0",
+        "plpython3u": "0",
+        "pgvector": "0.5.0"
+      },
+      "recommends": {
+        "omni_python": "0",
+        "omni_worker": "0",
+        "pgmq": "0"
+      }
+    },
+    "develop": {
+      "requires": {
+        "PostgreSQL": "14.0.0"
+      },
+      "recommends": {
+        "pgTAP": "1.0.0"
+      }
+    }
+  },
+  "resources": {
+    "homepage": "https://github.com/julep-ai/steadytext",
+    "bugtracker": {
+      "web": "https://github.com/julep-ai/steadytext/issues",
+      "mailto": "singh@diwank.name"
+    },
+    "repository": {
+      "url": "git://github.com/julep-ai/steadytext.git",
+      "web": "https://github.com/julep-ai/steadytext",
+      "type": "git"
+    },
+    "documentation": {
+      "web": "https://github.com/julep-ai/steadytext/blob/main/pg_steadytext/README.md"
+    }
+  },
+  "meta-spec": {
+    "version": "1.0.0",
+    "url": "https://pgxn.org/spec/"
+  },
+  "generated_by": "pg_steadytext developers",
+  "tags": [
+    "ai",
+    "text generation",
+    "embeddings",
+    "nlp",
+    "machine learning",
+    "llm",
+    "deterministic",
+    "cache",
+    "pgvector",
+    "semantic search",
+    "qwen"
+  ],
+  "features": {
+    "deterministic_generation": "Always returns the same output for the same input",
+    "builtin_caching": "Frecency-based cache with PostgreSQL storage",
+    "daemon_integration": "Integrates with SteadyText's ZeroMQ daemon",
+    "vector_embeddings": "1024-dimensional embeddings with pgvector support",
+    "async_processing": "Queue-based async text generation",
+    "security": "Input validation and rate limiting",
+    "monitoring": "Built-in health checks and statistics"
+  },
+  "no_index": {
+    "directory": ["test", "expected"]
+  },
+  "release_status": "stable"
+}

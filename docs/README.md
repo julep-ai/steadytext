@@ -67,7 +67,7 @@ echo "hello" | uvx steadytext
 
 SteadyText achieves determinism via:
 
-* **Fixed seeds:** Constant randomness seed (`42`)
+* **Customizable seeds:** Control determinism with a `seed` parameter, while still defaulting to `42`.
 * **Greedy decoding:** Always chooses highest-probability token
 * **Frecency cache:** LRU cache with frequency counting—popular prompts stay cached longer
 * **Quantized models:** 8-bit quantization ensures identical results across platforms

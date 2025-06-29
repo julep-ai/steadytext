@@ -1,0 +1,14 @@
+# pg_steadytext extension
+comment = 'Deterministic text generation and embeddings for PostgreSQL with SteadyText'
+default_version = '1.0.0'
+module_pathname = '$libdir/pg_steadytext'
+relocatable = false
+schema = 'public'
+requires = 'plpython3u,vector'
+superuser = false
+
+# AIDEV-NOTE: This control file defines the PostgreSQL extension metadata
+# - plpython3u is required for Python integration
+# - vector is required for vector/embedding storage (from postgresql-XX-pgvector package)
+# - superuser=false allows non-superusers to use the extension
+# - relocatable=false means objects stay in their original schema

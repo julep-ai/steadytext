@@ -233,6 +233,7 @@ def generate(
             # Unpack the tuple result
             text, logprobs_data = result
             if output_format == "json":
+                generated_text = ""
                 for token in steady_generate_iter(
                     final_prompt,
                     eos_string=eos_string,

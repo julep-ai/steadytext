@@ -22,8 +22,30 @@ Ever had an AI test fail randomly? Or a CLI tool give different answers each run
 
 ## 🚀 Quick Start
 
+### Installing from PyPI
+
 ```bash
 pip install steadytext
+```
+
+### Installing from Source (Required for proper llama-cpp-python build)
+
+Due to the specific build requirements for the inference-sh fork of llama-cpp-python, you may need to install from source:
+
+```bash
+# Clone the repository
+git clone https://github.com/julep-ai/steadytext.git
+cd steadytext
+
+# Set required environment variables
+export FORCE_CMAKE=1
+export CMAKE_ARGS="-DLLAVA_BUILD=OFF -DGGML_ACCELERATE=OFF -DGGML_BLAS=OFF -DGGML_CUDA=OFF -DGGML_BUILD_TESTS=OFF -DGGML_BUILD_EXAMPLES=OFF"
+
+# Install with UV (recommended)
+uv sync
+
+# Or install with pip
+pip install -e .
 ```
 
 ```python
@@ -67,7 +89,7 @@ echo "hello" | uvx steadytext
 
 SteadyText achieves determinism via:
 
-* **Fixed seeds:** Constant randomness seed (`42`)
+* **Customizable seeds:** Control determinism with a `seed` parameter, while still defaulting to `42`.
 * **Greedy decoding:** Always chooses highest-probability token
 * **Frecency cache:** LRU cache with frequency counting—popular prompts stay cached longer
 * **Quantized models:** 8-bit quantization ensures identical results across platforms
@@ -315,15 +337,15 @@ st models --preload
 
 ```python
 # Text generation (uses daemon by default)
-steadytext.generate(prompt: str) -> str
-steadytext.generate(prompt, return_logprobs=True)
+steadytext.generate(prompt: str, seed: int = 42) -> str
+steadytext.generate(prompt, return_logprobs=True, seed: int = 42)
 
 
 # Streaming generation
-steadytext.generate_iter(prompt: str)
+steadytext.generate_iter(prompt: str, seed: int = 42)
 
 # Embeddings (uses daemon by default)
-steadytext.embed(text: str | List[str]) -> np.ndarray
+steadytext.embed(text: str | List[str], seed: int = 42) -> np.ndarray
 
 # Daemon management
 from steadytext.daemon import use_daemon
@@ -508,7 +530,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 * **Models:** MIT (Qwen3)
 
 ---
-
 ## 📈 What's New in v1.3.3
 
 ### Daemon Architecture (v1.2.0+)
@@ -529,6 +550,44 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 - **New pipe syntax** - `echo "prompt" | st` for better unix integration
 - **Daemon management** - built-in commands for daemon lifecycle
 
+
+---
+
+## 🔧 Troubleshooting
+
+### Installation Issues
+
+#### llama-cpp-python Build Errors
+
+If you encounter build errors related to llama-cpp-python, especially with the error "Failed to load model", this is likely due to the package requiring the inference-sh fork with specific CMAKE flags:
+
+```bash
+# Set required environment variables before installation
+export FORCE_CMAKE=1
+export CMAKE_ARGS="-DLLAVA_BUILD=OFF -DGGML_ACCELERATE=OFF -DGGML_BLAS=OFF -DGGML_CUDA=OFF -DGGML_BUILD_TESTS=OFF -DGGML_BUILD_EXAMPLES=OFF"
+
+# Then install
+pip install steadytext
+
+# Or install from source
+git clone https://github.com/julep-ai/steadytext.git
+cd steadytext
+uv sync  # or pip install -e .
+```
+
+#### Model Loading Issues
+
+If you see "Failed to load model from file" errors:
+
+1. **Try fallback models**: Set `STEADYTEXT_USE_FALLBACK_MODEL=true`
+2. **Clear model cache**: `rm -rf ~/.cache/steadytext/models/`
+3. **Check disk space**: Models require ~2-4GB per model
+
+### Common Issues
+
+- **"No module named 'llama_cpp'"**: Reinstall with the CMAKE flags above
+- **Daemon connection refused**: Check if daemon is running with `st daemon status`
+- **Slow first run**: Models download on first use (~2-4GB)
 
 ---
 

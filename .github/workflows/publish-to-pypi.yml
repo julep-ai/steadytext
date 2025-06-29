@@ -36,6 +36,9 @@ jobs:
         run: uv python install 3.12
 
       - name: Build package
+        env:
+          FORCE_CMAKE: "1"
+          CMAKE_ARGS: "-DLLAVA_BUILD=OFF -DGGML_ACCELERATE=OFF -DGGML_BLAS=OFF -DGGML_CUDA=OFF -DGGML_BUILD_TESTS=OFF -DGGML_BUILD_EXAMPLES=OFF"
         run: uv build
 
       - name: Publish to PyPI

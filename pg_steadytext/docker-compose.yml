@@ -1,0 +1,83 @@
+version: '3.8'
+
+# AIDEV-NOTE: Docker Compose setup for pg_steadytext development
+services:
+  postgres:
+    build: .
+    container_name: pg_steadytext_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: steadytext_dev
+      # SteadyText environment variables
+      STEADYTEXT_GENERATION_CACHE_CAPACITY: "512"
+      STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB: "100.0"
+      STEADYTEXT_EMBEDDING_CACHE_CAPACITY: "1024"
+      STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB: "200.0"
+    ports:
+      - "5432:5432"
+    volumes:
+      # Mount source code for development
+      - ./sql:/tmp/pg_steadytext/sql:ro
+      - ./python:/tmp/pg_steadytext/python:ro
+      - ./test:/tmp/pg_steadytext/test:ro
+      # Persist data
+      - postgres_data:/var/lib/postgresql/data
+      # Persist SteadyText cache
+      - steadytext_cache:/root/.cache/steadytext
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pg_steadytext_net
+
+  # Optional: pgAdmin for GUI access
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pg_steadytext_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - pg_steadytext_net
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+  # Optional: Omnigres for advanced features
+  omnigres:
+    image: ghcr.io/omnigres/omnigres-17:latest
+    container_name: pg_steadytext_omnigres
+    environment:
+      POSTGRES_USER: omnigres
+      POSTGRES_PASSWORD: omnigres
+      POSTGRES_DB: omnigres_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./sql:/tmp/pg_steadytext/sql:ro
+      - ./python:/tmp/pg_steadytext/python:ro
+      - omnigres_data:/var/lib/postgresql/data
+    networks:
+      - pg_steadytext_net
+
+volumes:
+  postgres_data:
+  steadytext_cache:
+  pgadmin_data:
+  omnigres_data:
+
+networks:
+  pg_steadytext_net:
+    driver: bridge
+
+# AIDEV-NOTE: Usage:
+# docker-compose up -d          # Start all services
+# docker-compose logs -f postgres  # View logs
+# docker-compose exec postgres psql -U postgres -d steadytext_dev  # Connect to DB
+# docker-compose down -v        # Stop and remove volumes
