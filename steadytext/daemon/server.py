@@ -219,7 +219,6 @@ class DaemonServer:
             # Join collected tokens to form complete text
             complete_text = "".join(collected_tokens)
 
-
             cache_key = generate_cache_key(prompt, eos_string)
             get_generation_cache().set(cache_key, complete_text)
             logger.debug(

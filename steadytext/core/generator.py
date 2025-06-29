@@ -10,7 +10,6 @@
 import hashlib
 import logging
 import os
-import re
 from typing import Any, Dict, List, Optional, Union, Tuple, Iterator, cast
 
 from ..cache_manager import get_generation_cache
@@ -236,7 +235,6 @@ class DeterministicGenerator:
                     f"DeterministicGenerator.generate: Model returned empty or "
                     f"whitespace-only text for prompt: '{prompt[:50]}...'"
                 )
-
 
             # Only cache non-logprobs results for default model
             if should_use_cache_for_generation(return_logprobs, repo_id, filename):
