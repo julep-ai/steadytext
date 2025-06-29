@@ -134,12 +134,12 @@ def test_seed_type_validation():
 
     # Test with float
     with pytest.raises(ValueError, match="Seed must be a non-negative integer"):
-        generate("test", seed=3.14)
+        generate("test", seed=3.14)  # type: ignore
 
     # Test with string
     with pytest.raises(ValueError, match="Seed must be a non-negative integer"):
-        embed("test", seed="42")
+        embed("test", seed="42")  # type: ignore
 
     # Test with None
     with pytest.raises(ValueError, match="Seed must be a non-negative integer"):
-        generate("test", seed=None)
+        generate("test", seed=None)  # type: ignore

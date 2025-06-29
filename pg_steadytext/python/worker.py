@@ -8,12 +8,12 @@ import logging
 import signal
 from typing import Optional, Dict, Any
 
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import psycopg2  # type: ignore
+from psycopg2.extras import RealDictCursor  # type: ignore
 
-from daemon_connector import SteadyTextDaemonClient
-from cache_manager import CacheManager
-from security import InputValidator
+from .daemon_connector import SteadyTextConnector
+from .cache_manager import CacheManager
+from .security import SecurityValidator
 
 # Configure logging
 logging.basicConfig(
@@ -32,9 +32,9 @@ class QueueWorker:
         self.db_config = db_config
         self.poll_interval = poll_interval
         self.running = False
-        self.daemon_client = SteadyTextDaemonClient()
+        self.daemon_client = SteadyTextConnector()
         self.cache_manager = CacheManager()
-        self.validator = InputValidator()
+        self.validator = SecurityValidator()
 
     def connect_db(self):
         """Create database connection"""
@@ -47,18 +47,12 @@ class QueueWorker:
         # thinking_mode removed - not supported by SteadyText
 
         # Validate input
-        is_valid, error_msg = self.validator.validate_prompt(prompt)
+        is_valid, error_msg = SecurityValidator.validate_prompt(prompt)
         if not is_valid:
             raise ValueError(error_msg)
 
-        # Generate text
-        if self.daemon_client.is_daemon_running():
-            return self.daemon_client.generate(prompt, max_tokens=max_tokens)
-        else:
-            # Fallback to direct generation
-            from steadytext import generate
-
-            return generate(prompt, max_tokens=max_tokens)
+        # Generate text using daemon connector (handles fallback automatically)
+        return self.daemon_client.generate(prompt, max_new_tokens=max_tokens)
 
     def process_embedding(self, request_data: Dict[str, Any]) -> list:
         """Process an embedding request"""

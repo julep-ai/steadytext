@@ -7,7 +7,7 @@ for the PostgreSQL extension, reading from the steadytext_config table.
 
 import json
 import logging
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, cast
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ DEFAULTS = {
 
 # PostgreSQL interaction
 try:
-    import plpy
+    import plpy  # type: ignore
 
     IN_POSTGRES = True
 except ImportError:
@@ -244,7 +244,7 @@ class ConfigManager:
 
 
 # AIDEV-NOTE: Global configuration instance
-_config_instance = None
+_config_instance: Optional[ConfigManager] = None
 
 
 def get_config() -> ConfigManager:
@@ -259,7 +259,8 @@ def get_config() -> ConfigManager:
     global _config_instance
     if _config_instance is None:
         _config_instance = ConfigManager()
-    return _config_instance
+    assert _config_instance is not None
+    return cast(ConfigManager, _config_instance)
 
 
 def get_setting(key: str, default: Any = None) -> Any:

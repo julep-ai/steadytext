@@ -9,7 +9,7 @@ It handles automatic daemon startup, connection management, and fallback to dire
 import time
 import subprocess
 import logging
-from typing import List
+from typing import List, Optional, Union, Tuple, Dict, Any, cast
 import numpy as np
 
 # AIDEV-NOTE: Import SteadyText components - these should be available if steadytext is installed
@@ -146,8 +146,8 @@ class SteadyTextConnector:
     def generate(
         self,
         prompt: str,
-        max_tokens: int = None,
-        max_new_tokens: int = None,
+        max_tokens: Optional[int] = None,
+        max_new_tokens: Optional[int] = None,
         **kwargs,
     ) -> str:
         """
@@ -177,21 +177,31 @@ class SteadyTextConnector:
         try:
             # Try using daemon first
             with use_daemon():
-                return generate(
+                result = generate(
                     prompt,
                     max_new_tokens=max_new_tokens,
                     **kwargs,
                 )
+                # Handle both str and tuple returns
+                if isinstance(result, tuple):
+                    return cast(str, result[0])  # First element is always the text
+                else:
+                    return cast(str, result)
         except Exception as e:
             logger.warning(f"Daemon generation failed: {e}, using direct generation")
 
             # Fall back to direct generation
             try:
-                return generate(
+                result = generate(
                     prompt,
                     max_new_tokens=max_new_tokens,
                     **kwargs,
                 )
+                # Handle both str and tuple returns
+                if isinstance(result, tuple):
+                    return cast(str, result[0])  # First element is always the text
+                else:
+                    return cast(str, result)
             except Exception as e2:
                 logger.error(f"Direct generation also failed: {e2}")
                 return self._fallback_generate(prompt, max_new_tokens)
@@ -344,7 +354,7 @@ class SteadyTextConnector:
 
 
 # AIDEV-NOTE: Module-level convenience functions for PostgreSQL integration
-_default_connector = None
+_default_connector: Optional[SteadyTextConnector] = None
 
 
 def get_default_connector() -> SteadyTextConnector:
@@ -352,7 +362,8 @@ def get_default_connector() -> SteadyTextConnector:
     global _default_connector
     if _default_connector is None:
         _default_connector = SteadyTextConnector()
-    return _default_connector
+    assert _default_connector is not None
+    return cast(SteadyTextConnector, _default_connector)
 
 
 def pg_generate(prompt: str, max_tokens: int = 512, **kwargs) -> str:

@@ -10,13 +10,13 @@ and provides PostgreSQL-specific cache management features.
 import hashlib
 import json
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, cast
 import numpy as np
 
 # AIDEV-NOTE: We'll use plpy for PostgreSQL interaction when running inside PostgreSQL
 # For testing outside PostgreSQL, we'll use a mock
 try:
-    import plpy
+    import plpy  # type: ignore
 
     IN_POSTGRES = True
 except ImportError:
@@ -423,7 +423,7 @@ class CacheManager:
 
 
 # AIDEV-NOTE: Module-level convenience functions for PostgreSQL integration
-_default_cache_manager = None
+_default_cache_manager: Optional[CacheManager] = None
 
 
 def get_default_cache_manager() -> CacheManager:
@@ -431,4 +431,5 @@ def get_default_cache_manager() -> CacheManager:
     global _default_cache_manager
     if _default_cache_manager is None:
         _default_cache_manager = CacheManager()
-    return _default_cache_manager
+    assert _default_cache_manager is not None
+    return cast(CacheManager, _default_cache_manager)
