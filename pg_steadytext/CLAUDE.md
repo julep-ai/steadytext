@@ -2,6 +2,85 @@
 
 This file contains important development notes and architectural decisions for AI assistants working on pg_steadytext.
 
+## Recent Security Fixes (v1.0.2)
+
+This document summarizes the critical fixes implemented in the pg_steadytext PostgreSQL extension.
+
+### Critical Issues Fixed
+
+#### 1. SQL Injection Vulnerability (HIGH SEVERITY) ✅
+**File**: `python/cache_manager.py`
+**Issue**: Table name was directly interpolated into SQL queries using f-strings
+**Fix**: Added validation in `__init__` to only allow alphanumeric characters and underscores
+**AIDEV-NOTE**: Added validation to prevent SQL injection by restricting table names
+
+#### 2. Missing Method (HIGH SEVERITY) ✅  
+**File**: `python/daemon_connector.py`
+**Issue**: `worker.py` called non-existent `is_daemon_running()` method
+**Fix**: Added `is_daemon_running()` and `check_health()` methods to SteadyTextConnector
+**AIDEV-NOTE**: These methods check daemon availability and health status
+
+#### 3. Cache Key Inconsistency (HIGH SEVERITY) ✅
+**Files**: `python/cache_manager.py`, `sql/pg_steadytext--1.0.0.sql`
+**Issue**: PostgreSQL used SHA256 hashing while SteadyText used simple string format
+**Fix**: Updated to match SteadyText's format:
+  - Generation: `"{prompt}"` or `"{prompt}::EOS::{eos_string}"`
+  - Embeddings: SHA256 hash of `"embed:{text}"`
+**AIDEV-NOTE**: Cache keys now match SteadyText for cross-system compatibility
+
+#### 4. Rate Limiting (MEDIUM SEVERITY) ✅
+**File**: `python/security.py`
+**Issue**: `check_rate_limit()` was a placeholder returning True
+**Fix**: Implemented sliding window rate limiting with minute/hour/day buckets
+**AIDEV-NOTE**: Uses atomic SQL operations to update counters and check limits
+
+#### 5. Input Validation (MEDIUM SEVERITY) ✅
+**File**: `python/daemon_connector.py`
+**Issue**: Host and port parameters weren't validated
+**Fix**: Added validation for:
+  - Host: alphanumeric, dots, hyphens, underscores only
+  - Port: integer between 1-65535
+**AIDEV-NOTE**: Prevents potential command injection attacks
+
+#### 6. Unused Code (LOW SEVERITY) ✅
+**File**: `python/security.py`
+**Issue**: `SAFE_TEXT_PATTERN` regex was defined but never used
+**Fix**: Removed the unused pattern with explanatory comment
+**AIDEV-NOTE**: The validate_prompt method uses a more nuanced approach
+
+### AIDEV-TODO Items for Future Work
+
+1. **Cache Synchronization** (`cache_manager.py`)
+   - Implement bidirectional sync between PostgreSQL and SteadyText SQLite cache
+   - Read from SteadyText's cache database and import entries
+
+2. **Connection Pooling** (`daemon_connector.py`)
+   - Implement ZeroMQ connection pooling for high-concurrency scenarios
+   - Reuse connections instead of creating new ones
+
+3. **Enhanced Security** (`security.py`)
+   - Consider making prompt validation stricter based on requirements
+   - Add more sophisticated prompt injection detection
+
+4. **Performance Optimizations**
+   - Implement prepared statement caching across requests
+   - Add batch operation improvements
+   - Create performance benchmarking suite
+
+### AIDEV-QUESTIONS for Review
+
+1. Should the prompt validation be more restrictive, or is logging sufficient?
+2. Should we support multiple daemon instances for load balancing?
+3. Is the current rate limiting granularity (minute/hour/day) sufficient?
+
+### Testing Recommendations
+
+1. Test SQL injection prevention with various malicious table names
+2. Verify cache key compatibility between PostgreSQL and SteadyText
+3. Test rate limiting with concurrent requests
+4. Validate daemon failover behavior
+5. Check input validation edge cases
+
 ## Recent Fixes (v1.0.1)
 
 ### 1. Removed thinking_mode Parameter

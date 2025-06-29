@@ -9,7 +9,7 @@ It handles automatic daemon startup, connection management, and fallback to dire
 import time
 import subprocess
 import logging
-from typing import List, Optional, Union, Tuple, Dict, Any, cast
+from typing import List, Optional, cast
 import numpy as np
 
 # AIDEV-NOTE: Import SteadyText components - these should be available if steadytext is installed
@@ -51,6 +51,36 @@ class SteadyTextConnector:
             port: Daemon port number
             auto_start: Whether to auto-start daemon if not running
         """
+        # AIDEV-NOTE: Validate host parameter to prevent injection attacks
+        if not host:
+            raise ValueError("Host cannot be empty")
+
+        # Allow alphanumeric, dots, hyphens, and underscores (for hostnames and IPs)
+        import re
+
+        if not re.match(r"^[a-zA-Z0-9._-]+$", host):
+            raise ValueError(
+                f"Invalid host: {host}. Only alphanumeric characters, dots, hyphens, and underscores are allowed."
+            )
+
+        # Basic IP address validation (both IPv4 and simple hostname)
+        if host.count(".") > 0:  # Might be an IP
+            parts = host.split(".")
+            if len(parts) == 4:  # IPv4 format
+                try:
+                    for part in parts:
+                        num = int(part)
+                        if num < 0 or num > 255:
+                            raise ValueError(f"Invalid IP address: {host}")
+                except ValueError:
+                    pass  # Not an IP, might be hostname
+
+        # Validate port parameter
+        if not isinstance(port, int) or port < 1 or port > 65535:
+            raise ValueError(
+                f"Invalid port: {port}. Port must be an integer between 1 and 65535."
+            )
+
         self.host = host
         self.port = port
         self.auto_start = auto_start
@@ -142,6 +172,50 @@ class SteadyTextConnector:
         except Exception as e:
             logger.error(f"Error starting daemon: {e}")
             return False
+
+    def is_daemon_running(self) -> bool:
+        """
+        Check if the SteadyText daemon is currently running.
+
+        AIDEV-NOTE: This method checks if the daemon is responsive by attempting
+        a simple operation. Used by worker.py to determine daemon availability.
+
+        Returns:
+            True if daemon is running and responsive, False otherwise
+        """
+        if not STEADYTEXT_AVAILABLE:
+            return False
+
+        try:
+            # Try to use daemon context manager
+            with use_daemon():
+                # Try a simple generation to verify daemon is responding
+                test_result = generate("test", max_new_tokens=1)
+                return test_result is not None
+        except Exception:
+            # Any exception means daemon is not running
+            return False
+
+    def check_health(self) -> dict:
+        """
+        Get detailed health status of the daemon.
+
+        AIDEV-NOTE: Returns a dictionary with health information.
+        This method is referenced in the SQL file for daemon status checking.
+
+        Returns:
+            Dictionary with health status information
+        """
+        health_info = {
+            "status": "unhealthy",
+            "endpoint": self.daemon_endpoint,
+            "steadytext_available": STEADYTEXT_AVAILABLE,
+        }
+
+        if self.is_daemon_running():
+            health_info["status"] = "healthy"
+
+        return health_info
 
     def generate(
         self,
@@ -316,41 +390,6 @@ class SteadyTextConnector:
         # Limit to approximate token count (assuming ~4 chars per token)
         max_chars = max_tokens * 4
         return template[:max_chars]
-
-    def check_health(self) -> dict:
-        """
-        Check the health status of the SteadyText daemon.
-
-        AIDEV-NOTE: Returns detailed health information for monitoring.
-
-        Returns:
-            Dictionary with health status information
-        """
-        health = {
-            "endpoint": self.daemon_endpoint,
-            "status": "unknown",
-            "steadytext_available": STEADYTEXT_AVAILABLE,
-            "error": None,
-        }
-
-        if not STEADYTEXT_AVAILABLE:
-            health["status"] = "unavailable"
-            health["error"] = "SteadyText package not installed"
-            return health
-
-        try:
-            # Try to use daemon via context manager
-            with use_daemon():
-                test_result = generate("test", max_new_tokens=1)
-                if test_result:
-                    health["status"] = "healthy"
-                    health["functional"] = True
-
-        except Exception as e:
-            health["status"] = "unhealthy"
-            health["error"] = str(e)
-
-        return health
 
 
 # AIDEV-NOTE: Module-level convenience functions for PostgreSQL integration

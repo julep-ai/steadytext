@@ -28,7 +28,7 @@ CREATE TABLE steadytext_cache (
     steadytext_cache_hit BOOLEAN DEFAULT FALSE,  -- Whether this came from ST's cache
     model_name TEXT NOT NULL DEFAULT 'qwen3-1.7b',  -- Model used (supports switching)
     model_size TEXT CHECK (model_size IN ('small', 'medium', 'large')),
-    thinking_mode BOOLEAN DEFAULT FALSE,  -- Whether thinking mode was enabled
+    seed INTEGER DEFAULT 42,  -- Seed used for generation
     eos_string TEXT,  -- Custom end-of-sequence string if used
     
     -- Generation parameters
@@ -54,7 +54,7 @@ CREATE TABLE steadytext_queue (
     -- Request data
     prompt TEXT,  -- For single requests
     prompts TEXT[],  -- For batch requests
-    params JSONB,  -- Model params, thinking_mode, etc.
+    params JSONB,  -- Model params, seed, etc.
     
     -- Priority and scheduling
     priority INT DEFAULT 5 CHECK (priority BETWEEN 1 AND 10),
@@ -103,6 +103,7 @@ INSERT INTO steadytext_config (key, value, description) VALUES
     ('max_cache_entries', '1000', 'Maximum cache entries'),
     ('max_cache_size_mb', '500', 'Maximum cache size in MB'),
     ('default_max_tokens', '512', 'Default max tokens for generation'),
+    ('default_seed', '42', 'Default seed for deterministic generation'),
     ('daemon_auto_start', 'true', 'Auto-start daemon if not running');
 
 -- Daemon health monitoring
@@ -272,10 +273,12 @@ $$;
 
 -- AIDEV-SECTION: CORE_FUNCTIONS
 -- Core function: Synchronous text generation
+-- Returns NULL if generation fails (no fallback text)
 CREATE OR REPLACE FUNCTION steadytext_generate(
     prompt TEXT,
     max_tokens INT DEFAULT NULL,
-    use_cache BOOLEAN DEFAULT TRUE
+    use_cache BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42
 )
 RETURNS TEXT
 LANGUAGE plpython3u
@@ -306,6 +309,12 @@ if resolved_max_tokens is None:
     rv = plpy.execute(plan, ["default_max_tokens"])
     resolved_max_tokens = json.loads(rv[0]["value"]) if rv else 512
 
+# Resolve seed, using the provided value or fetching the default
+resolved_seed = seed
+if resolved_seed is None:
+    rv = plpy.execute(plan, ["default_seed"])
+    resolved_seed = json.loads(rv[0]["value"]) if rv else 42
+
 # Validate inputs
 if not prompt or not prompt.strip():
     plpy.error("Prompt cannot be empty")
@@ -313,13 +322,15 @@ if not prompt or not prompt.strip():
 if resolved_max_tokens < 1 or resolved_max_tokens > 4096:
     plpy.error("max_tokens must be between 1 and 4096")
 
+if resolved_seed < 0:
+    plpy.error("seed must be non-negative")
+
 # Check if we should use cache
 if use_cache:
     # Generate cache key consistent with SteadyText format
-    # AIDEV-NOTE: Use SHA256 to match SteadyText's cache key format
-    params = {"max_new_tokens": resolved_max_tokens}
-    cache_key_input = f"{prompt}|{json.dumps(params, sort_keys=True)}"
-    cache_key = hashlib.sha256(cache_key_input.encode()).hexdigest()
+    # AIDEV-NOTE: Updated to match SteadyText's simple cache key format from utils.py
+    # For generation: just the prompt (no parameters in key)
+    cache_key = prompt
     
     # Try to get from cache first
     cache_plan = plpy.prepare("""
@@ -346,7 +357,7 @@ try:
     
     # Connect to daemon and generate using cached module
     connector = daemon_connector.SteadyTextConnector(host, port)
-    response = connector.generate(prompt, max_tokens=resolved_max_tokens)
+    response = connector.generate(prompt, max_tokens=resolved_max_tokens, seed=resolved_seed)
     
     # Store in cache if enabled
     if use_cache and response:
@@ -360,7 +371,7 @@ try:
                 last_accessed = NOW()
         """, ["text", "text", "text", "jsonb"])
         
-        params = {"max_tokens": resolved_max_tokens}
+        params = {"max_tokens": resolved_max_tokens, "seed": resolved_seed}
         plpy.execute(insert_plan, [cache_key, prompt, response, json.dumps(params)])
         plpy.notice(f"Cached response with key: {cache_key[:8]}...")
     
@@ -368,14 +379,16 @@ try:
     
 except Exception as e:
     plpy.warning(f"Failed to generate text: {e}")
-    # Return a deterministic fallback
-    return f"[SteadyText Error: {str(e)}]"
+    # Return NULL instead of fallback text
+    return None
 $$;
 
 -- Core function: Synchronous embedding generation
+-- Returns NULL if embedding generation fails (no fallback vector)
 CREATE OR REPLACE FUNCTION steadytext_embed(
     text_input TEXT,
-    use_cache BOOLEAN DEFAULT TRUE
+    use_cache BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42
 )
 RETURNS vector(1024)
 LANGUAGE plpython3u
@@ -398,16 +411,27 @@ daemon_connector = GD.get('module_daemon_connector')
 if not daemon_connector:
     plpy.error("daemon_connector module not loaded")
 
+# Resolve seed, using the provided value or fetching the default
+plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
+resolved_seed = seed
+if resolved_seed is None:
+    rv = plpy.execute(plan, ["default_seed"])
+    resolved_seed = json.loads(rv[0]["value"]) if rv else 42
+
 # Validate input
 if not text_input or not text_input.strip():
-    plpy.warning("Empty text input provided, returning zero vector")
-    return [0.0] * 1024
+    plpy.warning("Empty text input provided, returning NULL")
+    return None
+
+if resolved_seed < 0:
+    plpy.error("seed must be non-negative")
 
 # Check cache first if enabled
 if use_cache:
     # Generate cache key for embedding
-    # AIDEV-NOTE: Use SHA256 to match SteadyText's cache key format
-    cache_key_input = f"embed:{text_input}|{{}}"  # Empty params for embeddings
+    # AIDEV-NOTE: Use SHA256 for embeddings to match SteadyText's format
+    # Embeddings use SHA256 hash of "embed:{text}"
+    cache_key_input = f"embed:{text_input}"
     cache_key = hashlib.sha256(cache_key_input.encode()).hexdigest()
     
     cache_plan = plpy.prepare("""
@@ -435,7 +459,7 @@ try:
     
     # Connect and generate embedding using cached module
     connector = daemon_connector.SteadyTextConnector(host, port)
-    embedding = connector.embed(text_input)
+    embedding = connector.embed(text_input, seed=resolved_seed)
     
     # Convert numpy array to list for storage
     embedding_list = embedding.tolist()
@@ -461,8 +485,8 @@ try:
     
 except Exception as e:
     plpy.warning(f"Failed to generate embedding: {e}")
-    # Return zero vector as fallback
-    return [0.0] * 1024
+    # Return NULL instead of fallback vector
+    return None
 $$;
 
 -- AIDEV-SECTION: DAEMON_MANAGEMENT_FUNCTIONS

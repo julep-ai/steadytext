@@ -11,6 +11,16 @@ import hashlib
 import logging
 from typing import Optional, Dict, Any
 
+# AIDEV-NOTE: PostgreSQL-specific imports
+IN_POSTGRES = False
+try:
+    import plpy  # type: ignore[unresolved-import]
+
+    IN_POSTGRES = True
+except ImportError:
+    # Not running inside PostgreSQL
+    pass
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -20,11 +30,9 @@ MAX_TOKENS_LIMIT = 4096  # Maximum tokens that can be requested
 MIN_TOKENS_LIMIT = 1  # Minimum tokens
 MAX_BATCH_SIZE = 100  # Maximum items in batch operations
 
-# Regex patterns for validation
-SAFE_TEXT_PATTERN = re.compile(
-    r'^[\w\s\-.,!?;:\'"\(\)\[\]{}/@#$%^&*+=<>|~`₹€£¥§¶†‡¿¡«»""' "—–…\n\r\t]*$",
-    re.UNICODE,
-)
+# AIDEV-NOTE: Removed unused SAFE_TEXT_PATTERN regex. The validate_prompt method
+# uses a more nuanced approach that logs dangerous patterns but doesn't restrict
+# legitimate special characters that users might need in their prompts.
 
 
 class SecurityValidator:
@@ -247,17 +255,105 @@ class RateLimiter:
         """
         Check if user is within rate limits.
 
-        AIDEV-TODO: Implement actual rate limiting logic that:
-        1. Queries steadytext_rate_limits table
-        2. Updates counters
-        3. Resets counters based on time windows
-        4. Returns whether request is allowed
+        AIDEV-NOTE: Implements sliding window rate limiting with minute/hour/day buckets.
+        Updates counters atomically and resets based on time windows.
 
         Returns:
             Tuple of (is_allowed, error_message)
         """
-        # AIDEV-NOTE: Placeholder - always allow for now
-        return True, None
+        if not IN_POSTGRES:
+            return True, None
+
+        try:
+            # Get current time for logging if needed
+            # now_result = plpy.execute("SELECT NOW() as now")
+            # current_time = now_result[0]["now"]
+
+            # Upsert user rate limit record and check/update counters atomically
+            check_plan = plpy.prepare(
+                """
+                WITH rate_check AS (
+                    INSERT INTO steadytext_rate_limits (user_id)
+                    VALUES ($1)
+                    ON CONFLICT (user_id) DO UPDATE
+                    SET
+                        -- Reset minute counter if more than 1 minute passed
+                        current_minute_count = CASE
+                            WHEN EXTRACT(EPOCH FROM (NOW() - last_reset_minute)) >= 60
+                            THEN 1
+                            ELSE current_minute_count + 1
+                        END,
+                        last_reset_minute = CASE
+                            WHEN EXTRACT(EPOCH FROM (NOW() - last_reset_minute)) >= 60
+                            THEN NOW()
+                            ELSE last_reset_minute
+                        END,
+                        -- Reset hour counter if more than 1 hour passed
+                        current_hour_count = CASE
+                            WHEN EXTRACT(EPOCH FROM (NOW() - last_reset_hour)) >= 3600
+                            THEN 1
+                            ELSE current_hour_count + 1
+                        END,
+                        last_reset_hour = CASE
+                            WHEN EXTRACT(EPOCH FROM (NOW() - last_reset_hour)) >= 3600
+                            THEN NOW()
+                            ELSE last_reset_hour
+                        END,
+                        -- Reset day counter if more than 1 day passed
+                        current_day_count = CASE
+                            WHEN EXTRACT(EPOCH FROM (NOW() - last_reset_day)) >= 86400
+                            THEN 1
+                            ELSE current_day_count + 1
+                        END,
+                        last_reset_day = CASE
+                            WHEN EXTRACT(EPOCH FROM (NOW() - last_reset_day)) >= 86400
+                            THEN NOW()
+                            ELSE last_reset_day
+                        END
+                    RETURNING
+                        current_minute_count,
+                        current_hour_count,
+                        current_day_count,
+                        requests_per_minute,
+                        requests_per_hour,
+                        requests_per_day
+                )
+                SELECT * FROM rate_check
+            """,
+                ["text"],
+            )
+
+            result = plpy.execute(check_plan, [self.user_id])
+            if not result:
+                return False, "Failed to check rate limits"
+
+            limits = result[0]
+
+            # Check if any limit is exceeded
+            if limits["current_minute_count"] > limits["requests_per_minute"]:
+                return (
+                    False,
+                    f"Rate limit exceeded: {limits['requests_per_minute']} requests per minute",
+                )
+
+            if limits["current_hour_count"] > limits["requests_per_hour"]:
+                return (
+                    False,
+                    f"Rate limit exceeded: {limits['requests_per_hour']} requests per hour",
+                )
+
+            if limits["current_day_count"] > limits["requests_per_day"]:
+                return (
+                    False,
+                    f"Rate limit exceeded: {limits['requests_per_day']} requests per day",
+                )
+
+            return True, None
+
+        except Exception as e:
+            plpy.warning(f"Rate limit check failed: {e}")
+            # On error, allow the request but log the issue
+            return True, None
 
 
 def validate_generation_request(

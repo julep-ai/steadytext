@@ -64,6 +64,27 @@ class CacheManager:
         Args:
             table_name: Name of the PostgreSQL cache table
         """
+        # AIDEV-NOTE: Validate table name to prevent SQL injection
+        # Only allow alphanumeric characters and underscores
+        if not table_name or not table_name.replace("_", "").isalnum():
+            raise ValueError(
+                f"Invalid table name: {table_name}. Only alphanumeric characters and underscores are allowed."
+            )
+
+        # Additional security: ensure table name doesn't contain SQL keywords
+        sql_keywords = {
+            "drop",
+            "delete",
+            "insert",
+            "update",
+            "select",
+            "alter",
+            "create",
+            "truncate",
+        }
+        if table_name.lower() in sql_keywords:
+            raise ValueError(f"Table name cannot be a SQL keyword: {table_name}")
+
         self.table_name = table_name
 
         # AIDEV-NOTE: Prepare commonly used queries for better performance
@@ -73,6 +94,8 @@ class CacheManager:
     def _prepare_statements(self):
         """Prepare PostgreSQL statements for repeated use."""
         # AIDEV-NOTE: Prepared statements improve performance for repeated queries
+        # AIDEV-NOTE: SQL injection vulnerability fixed - table_name is now validated
+        # in __init__ to only allow alphanumeric characters and underscores
         self.get_plan = plpy.prepare(
             f"""
             UPDATE {self.table_name}
@@ -87,7 +110,7 @@ class CacheManager:
         self.insert_plan = plpy.prepare(
             f"""
             INSERT INTO {self.table_name}
-            (cache_key, prompt, response, embedding, model_name, thinking_mode, generation_params)
+            (cache_key, prompt, response, embedding, model_name, seed, generation_params)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT (cache_key)
             DO UPDATE SET
@@ -96,7 +119,7 @@ class CacheManager:
                 access_count = {self.table_name}.access_count + 1,
                 last_accessed = NOW()
         """,
-            ["text", "text", "text", "text", "text", "bool", "jsonb"],
+            ["text", "text", "text", "text", "text", "int", "jsonb"],
         )
 
         self.evict_plan = plpy.prepare(
@@ -118,48 +141,30 @@ class CacheManager:
         """
         Generate a cache key compatible with SteadyText's cache key format.
 
-        AIDEV-NOTE: This must match SteadyText's cache key generation to ensure
-        cache hits when querying either system. Uses SHA256 to match SteadyText.
+        AIDEV-NOTE: Updated to match SteadyText's simple format from utils.py:
+        - For generation: "{prompt}" or "{prompt}::EOS::{eos_string}"
+        - For embeddings: Uses SHA256 hash of "embed:{text}"
+        - No longer includes other parameters in the key
 
         Args:
             prompt: The input prompt
-            params: Generation parameters (max_tokens, etc.)
+            params: Generation parameters (only eos_string is used for generation)
             key_prefix: Optional prefix for the key (e.g., "embed:" for embeddings)
 
         Returns:
-            SHA256 hash as hex string
+            Cache key string (plain text for generation, SHA256 for embeddings)
         """
-        # Normalize parameters to match SteadyText format
-        if params is None:
-            params = {}
+        # For embeddings, use SHA256 hash
+        if key_prefix == "embed:":
+            # AIDEV-NOTE: Embeddings still use SHA256 for consistency
+            key_string = f"{key_prefix}{prompt}"
+            return hashlib.sha256(key_string.encode()).hexdigest()
 
-        # AIDEV-NOTE: Normalize parameter names to match SteadyText exactly
-        normalized_params = {}
-        for key, value in params.items():
-            # Map PostgreSQL parameter names to SteadyText parameter names
-            if key == "max_tokens":
-                normalized_params["max_new_tokens"] = value
-            elif key == "thinking_mode":
-                # Skip thinking_mode parameter as it's not supported
-                continue
-            elif key == "seed":
-                normalized_params["seed"] = value
-            elif key == "temperature":
-                normalized_params["temperature"] = value
-            else:
-                normalized_params[key] = value
-
-        # Sort params for deterministic key generation
-        sorted_params = sorted(normalized_params.items())
-
-        # Create key string that matches SteadyText's format
-        if key_prefix:
-            key_string = f"{key_prefix}{prompt}|{json.dumps(dict(sorted_params), sort_keys=True)}"
+        # For generation, match SteadyText's simple format
+        if params and "eos_string" in params and params["eos_string"] != "[EOS]":
+            return f"{prompt}::EOS::{params['eos_string']}"
         else:
-            key_string = f"{prompt}|{json.dumps(dict(sorted_params), sort_keys=True)}"
-
-        # Generate SHA256 hash to match SteadyText
-        return hashlib.sha256(key_string.encode()).hexdigest()
+            return prompt
 
     def get_cached_generation(
         self, prompt: str, params: Optional[Dict[str, Any]] = None
@@ -235,7 +240,7 @@ class CacheManager:
         prompt: str,
         response: str,
         params: Optional[Dict[str, Any]] = None,
-        model_name: str = "qwen3-1.7b",
+        model_name: str = "gemma-3n",
     ) -> bool:
         """
         Store text generation in PostgreSQL cache.
@@ -266,7 +271,7 @@ class CacheManager:
                     response,
                     None,  # No embedding for text generation
                     model_name,
-                    False,  # thinking_mode column still exists but not used
+                    params.get("seed", 42) if params else 42,  # seed value
                     json.dumps(params or {}),
                 ],
             )
@@ -278,7 +283,11 @@ class CacheManager:
             return False
 
     def cache_embedding(
-        self, text: str, embedding: np.ndarray, model_name: str = "qwen3-embedding"
+        self,
+        text: str,
+        embedding: np.ndarray,
+        params: Optional[Dict[str, Any]] = None,
+        model_name: str = "qwen3-embedding",
     ) -> bool:
         """
         Store embedding in PostgreSQL cache.
@@ -297,7 +306,7 @@ class CacheManager:
         if not IN_POSTGRES:
             return False
 
-        cache_key = self.generate_cache_key(text, key_prefix="embed:")
+        cache_key = self.generate_cache_key(text, params, key_prefix="embed:")
 
         try:
             # Convert numpy array to PostgreSQL vector format
@@ -312,8 +321,8 @@ class CacheManager:
                     None,  # No text response for embeddings
                     vector_str,
                     model_name,
-                    False,  # thinking_mode not applicable for embeddings
-                    json.dumps({}),
+                    params.get("seed", 42) if params else 42,  # seed value
+                    json.dumps(params or {}),
                 ],
             )
 
