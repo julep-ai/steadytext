@@ -21,7 +21,7 @@ except ImportError:
     click.echo("Error: chonkie not installed. Run: pip install chonkie", err=True)
     raise
 
-from ...core.embedder import create_embedding
+from ...core.embedder import core_embed as create_embedding
 from ...core.generator import DeterministicGenerator
 from ...utils import get_cache_dir, logger
 from ...disk_backed_frecency_cache import DiskBackedFrecencyCache
@@ -152,12 +152,20 @@ def index():
 @click.option("--chunk-size", default=512, help="Maximum tokens per chunk")
 @click.option("--chunk-overlap", default=50, help="Token overlap between chunks")
 @click.option("--force", is_flag=True, help="Overwrite existing index")
+@click.option(
+    "--seed",
+    type=int,
+    default=42,
+    help="Seed for deterministic embedding.",
+    show_default=True,
+)
 def create(
     input_files: Tuple[str, ...],
     output: str,
     chunk_size: int,
     chunk_overlap: int,
     force: bool,
+    seed: int,
 ):
     """Create a FAISS index from text files.
 
@@ -223,7 +231,7 @@ def create(
         if i % 10 == 0:
             click.echo(f"  Processing chunk {i + 1}/{len(all_chunks)}...", err=True)
 
-        embedding = create_embedding(chunk["text"])
+        embedding = create_embedding(chunk["text"], seed=seed)
         embeddings.append(embedding)
 
     embeddings_array = np.array(embeddings, dtype=np.float32)
@@ -309,7 +317,14 @@ def info(index_file: str):
 @click.argument("query")
 @click.option("--top-k", "-k", default=3, help="Number of results to return")
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
-def search(index_file: str, query: str, top_k: int, output_json: bool):
+@click.option(
+    "--seed",
+    type=int,
+    default=42,
+    help="Seed for deterministic embedding.",
+    show_default=True,
+)
+def search(index_file: str, query: str, top_k: int, output_json: bool, seed: int):
     """Search for similar chunks in a FAISS index.
 
     Examples:
@@ -349,7 +364,7 @@ def search(index_file: str, query: str, top_k: int, output_json: bool):
         metadata = pickle.load(f)
 
     # Generate query embedding
-    query_embedding = create_embedding(query)
+    query_embedding = create_embedding(query, seed=seed)
     query_embedding = np.array([query_embedding], dtype=np.float32)
 
     # Search
@@ -398,7 +413,7 @@ def get_default_index_path() -> Optional[Path]:
 
 # AIDEV-NOTE: Helper function to search index for context
 def search_index_for_context(
-    query: str, index_path: Optional[Path] = None, top_k: int = 3
+    query: str, index_path: Optional[Path] = None, top_k: int = 3, seed: int = 42
 ) -> List[str]:
     """
     Search FAISS index and return top chunks as context.
@@ -428,7 +443,7 @@ def search_index_for_context(
             metadata = pickle.load(f)
 
         # Generate query embedding
-        query_embedding = create_embedding(query)
+        query_embedding = create_embedding(query, seed=seed)
         query_embedding = np.array([query_embedding], dtype=np.float32)
 
         # Search

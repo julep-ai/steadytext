@@ -5,7 +5,7 @@ import json
 import numpy as np
 from typing import List, Tuple, Optional
 
-from ...core.embedder import create_embedding
+from ...core.embedder import core_embed as create_embedding
 
 
 @click.group()
@@ -14,9 +14,9 @@ def vector():
     pass
 
 
-def _get_embedding(text: str) -> np.ndarray:
+def _get_embedding(text: str, seed: int) -> np.ndarray:
     """Helper to get embedding for text."""
-    return create_embedding(text)
+    return create_embedding(text, seed=seed)
 
 
 def _cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
@@ -49,7 +49,14 @@ def _manhattan_distance(vec1: np.ndarray, vec2: np.ndarray) -> float:
     help="Similarity metric to use",
 )
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
-def similarity(text1: str, text2: str, metric: str, output_json: bool):
+@click.option(
+    "--seed",
+    type=int,
+    default=42,
+    help="Seed for deterministic embedding.",
+    show_default=True,
+)
+def similarity(text1: str, text2: str, metric: str, output_json: bool, seed: int):
     """Compute similarity between two text embeddings.
 
     Examples:
@@ -58,8 +65,8 @@ def similarity(text1: str, text2: str, metric: str, output_json: bool):
         st vector similarity "hello" "world" --json
     """
     # AIDEV-NOTE: Get embeddings for both texts
-    vec1 = _get_embedding(text1)
-    vec2 = _get_embedding(text2)
+    vec1 = _get_embedding(text1, seed)
+    vec2 = _get_embedding(text2, seed)
 
     if metric == "cosine":
         score = _cosine_similarity(vec1, vec2)
@@ -88,7 +95,14 @@ def similarity(text1: str, text2: str, metric: str, output_json: bool):
     help="Distance metric to use",
 )
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
-def distance(text1: str, text2: str, metric: str, output_json: bool):
+@click.option(
+    "--seed",
+    type=int,
+    default=42,
+    help="Seed for deterministic embedding.",
+    show_default=True,
+)
+def distance(text1: str, text2: str, metric: str, output_json: bool, seed: int):
     """Compute distance between two text embeddings.
 
     Examples:
@@ -96,8 +110,8 @@ def distance(text1: str, text2: str, metric: str, output_json: bool):
         st vector distance "cat" "dog" --metric manhattan
         st vector distance "hello" "world" --metric cosine --json
     """
-    vec1 = _get_embedding(text1)
-    vec2 = _get_embedding(text2)
+    vec1 = _get_embedding(text1, seed)
+    vec2 = _get_embedding(text2, seed)
 
     if metric == "euclidean":
         dist = _euclidean_distance(vec1, vec2)
@@ -134,6 +148,13 @@ def distance(text1: str, text2: str, metric: str, output_json: bool):
     help="Similarity/distance metric",
 )
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
+@click.option(
+    "--seed",
+    type=int,
+    default=42,
+    help="Seed for deterministic embedding.",
+    show_default=True,
+)
 def search(
     query: str,
     candidates: Optional[str],
@@ -141,6 +162,7 @@ def search(
     top: int,
     metric: str,
     output_json: bool,
+    seed: int,
 ):
     """Find most similar texts from a list of candidates.
 
@@ -168,12 +190,12 @@ def search(
         sys.exit(1)
 
     # Get query embedding
-    query_vec = _get_embedding(query)
+    query_vec = _get_embedding(query, seed)
 
     # Compute scores for all candidates
     scores: List[Tuple[str, float]] = []
     for candidate in candidate_texts:
-        candidate_vec = _get_embedding(candidate)
+        candidate_vec = _get_embedding(candidate, seed)
 
         if metric == "cosine":
             score = _cosine_similarity(query_vec, candidate_vec)
@@ -220,7 +242,14 @@ def search(
 @vector.command()
 @click.argument("texts", nargs=-1, required=True)
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
-def average(texts: Tuple[str, ...], output_json: bool):
+@click.option(
+    "--seed",
+    type=int,
+    default=42,
+    help="Seed for deterministic embedding.",
+    show_default=True,
+)
+def average(texts: Tuple[str, ...], output_json: bool, seed: int):
     """Compute average of multiple text embeddings.
 
     Examples:
@@ -232,7 +261,7 @@ def average(texts: Tuple[str, ...], output_json: bool):
         sys.exit(1)
 
     # AIDEV-NOTE: Get embeddings for all texts
-    embeddings = [_get_embedding(text) for text in texts]
+    embeddings = [_get_embedding(text, seed) for text in texts]
 
     # Average the embeddings
     avg_embedding = np.mean(embeddings, axis=0)
@@ -260,12 +289,20 @@ def average(texts: Tuple[str, ...], output_json: bool):
 @click.option("--subtract", multiple=True, help="Terms to subtract from the result")
 @click.option("--normalize", is_flag=True, default=True, help="L2 normalize the result")
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
+@click.option(
+    "--seed",
+    type=int,
+    default=42,
+    help="Seed for deterministic embedding.",
+    show_default=True,
+)
 def arithmetic(
     base: str,
     add_terms: Tuple[str, ...],
     subtract: Tuple[str, ...],
     normalize: bool,
     output_json: bool,
+    seed: int,
 ):
     """Perform vector arithmetic on embeddings.
 
@@ -275,15 +312,15 @@ def arithmetic(
         st vector arithmetic "good" "better" --json
     """
     # Start with base embedding
-    result = _get_embedding(base)
+    result = _get_embedding(base, seed)
 
     # Add terms
     for term in add_terms:
-        result = result + _get_embedding(term)
+        result = result + _get_embedding(term, seed)
 
     # Subtract terms
     for term in subtract:
-        result = result - _get_embedding(term)
+        result = result - _get_embedding(term, seed)
 
     # Normalize if requested
     if normalize:

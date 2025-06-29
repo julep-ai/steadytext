@@ -14,12 +14,13 @@ import threading
 import logging
 from typing import Optional, Dict
 from ..utils import (
-    logger,
-    LLAMA_CPP_MAIN_PARAMS_DETERMINISTIC,
     LLAMA_CPP_EMBEDDING_PARAMS_DETERMINISTIC,
+    LLAMA_CPP_MAIN_PARAMS_DETERMINISTIC,
     EMBEDDING_DIMENSION,
+    logger,
     set_deterministic_environment,
     suppress_llama_output,
+    DEFAULT_SEED,
 )
 from .cache import get_generation_model_path, get_embedding_model_path
 
@@ -56,8 +57,8 @@ class _ModelInstanceCache:
         """Ensure the singleton instance and deterministic environment are set up."""
         if cls._instance is None:
             cls.__getInstance()
-            # AIDEV-NOTE: The environment is now set only on the first real use.
-            set_deterministic_environment()
+            # AIDEV-NOTE: Now we set the environment, only on the first real use.
+            set_deterministic_environment(DEFAULT_SEED)
 
     # AIDEV-NOTE: Generator model loading with parameter configuration, error handling, and support for different models.
     @classmethod

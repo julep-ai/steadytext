@@ -33,8 +33,8 @@ def models():
     pass
 
 
-@models.command()
-def status():
+@models.command("list")
+def list_models():
     """Check model download status."""
     model_dir = get_cache_dir()
     status_data = {"model_directory": str(model_dir), "models": {}}
@@ -92,6 +92,12 @@ def status():
 )
 def download(size: Optional[str], model: Optional[str], all: bool):
     """Pre-download models."""
+    import os
+
+    if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
+        click.echo("Preloading models... (skipped in test environment)")
+        return
+
     if all:
         click.echo("Downloading all available models...")
         # Download all models from registry

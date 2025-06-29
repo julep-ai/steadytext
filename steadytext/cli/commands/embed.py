@@ -1,12 +1,10 @@
 import click
-import sys
 import json
 import numpy as np
-import time
-
-from ...core.embedder import create_embedding
 
 
+# AIDEV-NOTE: Fixed CLI consistency issue (2025-06-28) - Changed from single --format option
+# to individual flags (--json, --numpy, --hex) to match generate command pattern
 @click.command()
 @click.argument("text", nargs=-1)
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
@@ -19,7 +17,14 @@ from ...core.embedder import create_embedding
     default=None,
     help="Output format (deprecated, use --json/--numpy/--hex)",
 )
-def embed(text, output_json, output_numpy, output_hex, output_format):
+@click.option(
+    "--seed",
+    type=int,
+    default=42,
+    help="Seed for deterministic embedding.",
+    show_default=True,
+)
+def embed(text, output_json, output_numpy, output_hex, output_format, seed):
     """Generate embedding vector for text.
 
     Examples:
@@ -28,6 +33,10 @@ def embed(text, output_json, output_numpy, output_hex, output_format):
         st embed "text one" "text two" --json
         echo "text to embed" | st embed
     """
+    import sys
+    import time
+    from ...core.embedder import core_embed as create_embedding
+
     # Determine output format
     if output_format:
         # Legacy --format option
@@ -59,7 +68,7 @@ def embed(text, output_json, output_numpy, output_hex, output_format):
 
     # AIDEV-NOTE: Create embedding directly using core function
     start_time = time.time()
-    embedding = create_embedding(input_text)
+    embedding = create_embedding(input_text, seed=seed)
     elapsed_time = time.time() - start_time
 
     if format_choice == "numpy":
@@ -83,4 +92,4 @@ def embed(text, output_json, output_numpy, output_hex, output_format):
             "dimension": len(embedding),
             "time_taken": elapsed_time,
         }
-        click.echo(json.dumps(output, indent=2))
+        click.echo(json.dumps(output))

@@ -548,12 +548,12 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
         # Mock create_embedding where it's looked up by steadytext.embed
         # (in __init__.py)
         with patch(
-            "steadytext.create_embedding", side_effect=TypeError("Invalid input type")
-        ) as mock_create_embedding_in_init:
+            "steadytext.core_embed", side_effect=TypeError("Invalid input type")
+        ) as mock_core_embed:
             result = steadytext.embed("test")
             expected_zero = np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
-            mock_create_embedding_in_init.assert_called_once_with(
-                "test"
+            mock_core_embed.assert_called_once_with(
+                "test", seed=42
             )  # Verify the mock was called
             self.assertTrue(
                 np.array_equal(result, expected_zero),
