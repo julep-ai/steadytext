@@ -61,7 +61,7 @@ SELECT steadytext_generate('Write a haiku about PostgreSQL');
 SELECT steadytext_generate(
     'Explain quantum computing',
     max_tokens := 256,
-    thinking_mode := true
+    use_cache := true
 );
 
 -- Check cache statistics
@@ -136,7 +136,7 @@ PostgreSQL Client
 ## Functions
 
 ### Core Functions
-- `steadytext_generate(prompt, max_tokens, use_cache, thinking_mode)` - Generate text
+- `steadytext_generate(prompt, max_tokens, use_cache)` - Generate text
 - `steadytext_embed(text, use_cache)` - Generate embedding
 - `steadytext_generate_stream(prompt, max_tokens)` - Stream text generation
 
@@ -170,7 +170,84 @@ The extension uses several optimizations:
 
 ## Troubleshooting
 
-### Daemon not starting
+### Common Issues
+
+#### "No module named 'daemon_connector'" Error
+This is the most common issue, occurring when PostgreSQL's plpython3u cannot find the extension's Python modules.
+
+**Solution:**
+```sql
+-- 1. Initialize Python environment manually
+SELECT _steadytext_init_python();
+
+-- 2. Check Python path configuration
+SHOW plpython3.python_path;
+
+-- 3. Verify modules are installed in the correct location
+DO $$
+DECLARE
+    pg_lib_dir TEXT;
+BEGIN
+    SELECT setting INTO pg_lib_dir FROM pg_settings WHERE name = 'pkglibdir';
+    RAISE NOTICE 'Modules should be in: %/pg_steadytext/python/', pg_lib_dir;
+END;
+$$;
+```
+
+**If the error persists:**
+```bash
+# Reinstall the extension
+make clean && make install
+
+# Verify installation
+ls $(pg_config --pkglibdir)/pg_steadytext/python/
+```
+
+#### Docker-specific Issues
+When running in Docker, additional steps may be needed:
+
+```bash
+# Test Docker installation
+./test_docker.sh
+
+# Debug module loading in Docker
+docker exec <container> psql -U postgres -c "SELECT _steadytext_init_python();"
+
+# Check Python modules in container
+docker exec <container> ls -la $(pg_config --pkglibdir)/pg_steadytext/python/
+```
+
+#### Model Loading Errors: "Failed to load model from file"
+If you see errors like "Failed to load model from file: /path/to/gemma-3n-*.gguf", this is a known compatibility issue between gemma-3n models and the inference-sh fork of llama-cpp-python.
+
+**Quick Fix - Use Fallback Model:**
+```bash
+# For Docker build:
+docker build --build-arg STEADYTEXT_USE_FALLBACK_MODEL=true -t pg_steadytext .
+
+# For Docker run:
+docker run -e STEADYTEXT_USE_FALLBACK_MODEL=true -p 5432:5432 pg_steadytext
+
+# For direct usage:
+export STEADYTEXT_USE_FALLBACK_MODEL=true
+```
+
+**Alternative - Specify Compatible Model:**
+```bash
+export STEADYTEXT_GENERATION_MODEL_REPO=lmstudio-community/Qwen2.5-3B-Instruct-GGUF
+export STEADYTEXT_GENERATION_MODEL_FILENAME=Qwen2.5-3B-Instruct-Q8_0.gguf
+```
+
+**Diagnose the Issue:**
+```bash
+# Run diagnostic script in Docker
+docker exec -it <container> /usr/local/bin/diagnose_pg_model
+
+# Or run directly
+python3 -m steadytext.diagnose_model
+```
+
+#### Daemon not starting
 ```sql
 -- Check if SteadyText is installed
 SELECT steadytext_daemon_status();
@@ -179,24 +256,47 @@ SELECT steadytext_daemon_status();
 SELECT steadytext_config_set('daemon_host', 'localhost');
 SELECT steadytext_config_set('daemon_port', '5555');
 SELECT steadytext_daemon_start();
+
+-- Check daemon logs
+-- On host: st daemon status
 ```
 
-### Cache issues
+#### Cache issues
 ```sql
 -- View cache statistics
 SELECT * FROM steadytext_cache_stats();
 
 -- Clear cache if needed
 SELECT steadytext_cache_clear();
+
+-- Check cache eviction settings
+SELECT * FROM steadytext_config WHERE key LIKE '%cache%';
 ```
 
-### Python module errors
+#### Python module version mismatches
 ```bash
-# Verify Python modules are installed
-python3 -c "import steadytext"
+# Check Python version used by PostgreSQL
+psql -c "DO $$ import sys; plpy.notice(f'Python {sys.version}') $$ LANGUAGE plpython3u;"
 
-# Check PostgreSQL Python path
-psql -c "SHOW plpython3.python_path"
+# Ensure SteadyText is installed for the correct Python version
+python3 -m pip show steadytext
+
+# If using system packages, ensure they're accessible
+sudo python3 -m pip install --system steadytext
+```
+
+### Debug Mode
+Enable verbose logging to diagnose issues:
+
+```sql
+-- Enable notices for debugging
+SET client_min_messages TO NOTICE;
+
+-- Re-initialize to see debug output
+SELECT _steadytext_init_python();
+
+-- Test with verbose output
+SELECT steadytext_generate('test', 10);
 ```
 
 ## Contributing

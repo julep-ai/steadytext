@@ -13,7 +13,8 @@ PYTHON_MODULES = python/__init__.py \
                  python/daemon_connector.py \
                  python/cache_manager.py \
                  python/security.py \
-                 python/config.py
+                 python/config.py \
+                 python/worker.py
 
 # Regression tests
 REGRESS = basic cache queue daemon
@@ -25,6 +26,11 @@ MODULE_PATHNAME = $(libdir)/$(EXTENSION)
 # PostgreSQL extension build system
 PG_CONFIG ?= pg_config
 PGXS := $(shell $(PG_CONFIG) --pgxs)
+
+# AIDEV-NOTE: Override libdir to use PostgreSQL's pkglibdir for consistency
+# This ensures Python modules are installed where PostgreSQL expects them
+pkglibdir = $(shell $(PG_CONFIG) --pkglibdir)
+
 include $(PGXS)
 
 # AIDEV-NOTE: Custom targets for Python module installation
@@ -32,11 +38,15 @@ install: install-python check-deps
 
 install-python:
 	@echo "Installing Python modules for pg_steadytext..."
-	@mkdir -p '$(DESTDIR)$(libdir)/$(EXTENSION)/python'
+	@echo "pkglibdir: $(pkglibdir)"
+	@echo "DESTDIR: $(DESTDIR)"
+	@echo "Target directory: $(DESTDIR)$(pkglibdir)/$(EXTENSION)/python"
+	@mkdir -p '$(DESTDIR)$(pkglibdir)/$(EXTENSION)/python'
 	@for module in $(PYTHON_MODULES); do \
-		echo "  Installing $$module"; \
-		$(INSTALL_DATA) $$module '$(DESTDIR)$(libdir)/$(EXTENSION)/python/'; \
+		echo "  Installing $$module to $(DESTDIR)$(pkglibdir)/$(EXTENSION)/python/"; \
+		$(INSTALL_DATA) $$module '$(DESTDIR)$(pkglibdir)/$(EXTENSION)/python/'; \
 	done
+	@echo "Python modules installed to: $(DESTDIR)$(pkglibdir)/$(EXTENSION)/python/"
 
 # Check dependencies before installation
 check-deps:
@@ -119,7 +129,7 @@ dev-test: dev-install
 .PHONY: uninstall-complete
 uninstall-complete: uninstall
 	@echo "Removing Python modules..."
-	@rm -rf '$(DESTDIR)$(libdir)/$(EXTENSION)'
+	@rm -rf '$(DESTDIR)$(pkglibdir)/$(EXTENSION)'
 
 # Help target
 .PHONY: help

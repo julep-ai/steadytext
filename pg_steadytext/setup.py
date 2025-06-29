@@ -44,7 +44,7 @@ setup(
     package_dir={"pg_steadytext": "python"},
     # Dependencies
     install_requires=[
-        "steadytext>=2.0.4",
+        "steadytext>=2.1.0",
         "pyzmq>=22.0.0",
         "numpy>=1.20.0",
     ],

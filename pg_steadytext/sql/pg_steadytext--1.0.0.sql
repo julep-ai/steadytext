@@ -168,67 +168,114 @@ FROM steadytext_cache;
 
 -- AIDEV-SECTION: PYTHON_INTEGRATION
 -- AIDEV-NOTE: Python integration layer path setup
--- This allows PostgreSQL to find our Python modules
-DO $$
-DECLARE
-    current_path TEXT;
-    new_path TEXT;
-BEGIN
-    -- Get current Python path if it exists
-    BEGIN
-        current_path := current_setting('plpython3.python_path', true);
-    EXCEPTION
-        WHEN undefined_object THEN
-            current_path := NULL;
-        WHEN OTHERS THEN
-            current_path := NULL;
-    END;
-    
-    -- Build new path
-    IF current_path IS NOT NULL AND current_path != '' THEN
-        new_path := '$libdir/pg_steadytext/python:' || current_path;
-    ELSE
-        new_path := '$libdir/pg_steadytext/python';
-    END IF;
-    
-    -- Set the Python path
-    EXECUTE format('ALTER DATABASE %I SET plpython3.python_path TO %L',
-        current_database(),
-        new_path
-    );
-END;
-$$;
+-- This is now handled by the _steadytext_init_python function instead
 
 -- Create Python function container
 CREATE OR REPLACE FUNCTION _steadytext_init_python()
 RETURNS void
 LANGUAGE plpython3u
 AS $$
-# AIDEV-NOTE: Initialize Python environment for pg_steadytext
+# AIDEV-NOTE: Initialize Python environment for pg_steadytext with enhanced error handling
 import sys
 import os
+import site
 
-# Try to import our modules
+# Get PostgreSQL lib directory with fallback
 try:
+    result = plpy.execute("SELECT setting FROM pg_settings WHERE name = 'pkglibdir'")
+    if result and len(result) > 0 and result[0]['setting']:
+        pg_lib_dir = result[0]['setting']
+    else:
+        # Fallback for Docker/Debian PostgreSQL 17
+        pg_lib_dir = '/usr/lib/postgresql/17/lib'
+        plpy.notice(f"Using fallback pkglibdir: {pg_lib_dir}")
+except Exception as e:
+    # Fallback for Docker/Debian PostgreSQL 17
+    pg_lib_dir = '/usr/lib/postgresql/17/lib'
+    plpy.notice(f"Error getting pkglibdir, using fallback: {pg_lib_dir}")
+
+python_module_dir = os.path.join(pg_lib_dir, 'pg_steadytext', 'python')
+
+# Verify the directory exists
+if not os.path.exists(python_module_dir):
+    plpy.error(f"Python module directory not found: {python_module_dir}")
+
+# Add to Python path if not already there
+if python_module_dir not in sys.path:
+    sys.path.insert(0, python_module_dir)
+    site.addsitedir(python_module_dir)  # Process .pth files if any
+
+# Log Python path for debugging
+plpy.notice(f"Python path: {sys.path}")
+plpy.notice(f"Looking for modules in: {python_module_dir}")
+
+# Check if directory exists
+if not os.path.exists(python_module_dir):
+    plpy.error(f"Python module directory does not exist: {python_module_dir}")
+
+# List files in directory for debugging
+try:
+    files = os.listdir(python_module_dir)
+    plpy.notice(f"Files in module directory: {files}")
+except Exception as e:
+    plpy.warning(f"Could not list module directory: {e}")
+
+# Try to import required external packages first
+required_packages = {
+    'steadytext': 'SteadyText library',
+    'zmq': 'ZeroMQ for daemon communication',
+    'numpy': 'NumPy for embeddings'
+}
+
+missing_packages = []
+for package, description in required_packages.items():
+    try:
+        __import__(package)
+    except ImportError:
+        missing_packages.append(f"{package} ({description})")
+
+if missing_packages:
+    plpy.warning(f"Missing required packages: {', '.join(missing_packages)}. Run: pip3 install steadytext pyzmq numpy")
+
+# Try to import our modules and cache them in GD
+try:
+    # Clear any previous module cache
+    for key in list(GD.keys()):
+        if key.startswith('module_'):
+            del GD[key]
+    
+    # Import and cache modules
     import daemon_connector
     import cache_manager
+    import security
+    import config
+    
+    # Store modules in GD for reuse
+    GD['module_daemon_connector'] = daemon_connector
+    GD['module_cache_manager'] = cache_manager
+    GD['module_security'] = security
+    GD['module_config'] = config
     GD['steadytext_initialized'] = True
-    plpy.notice("pg_steadytext Python environment initialized successfully")
+    
+    plpy.notice(f"pg_steadytext Python environment initialized successfully from {python_module_dir}")
 except ImportError as e:
     GD['steadytext_initialized'] = False
-    plpy.warning(f"Failed to initialize pg_steadytext Python environment: {e}")
+    plpy.error(f"Failed to import pg_steadytext modules from {python_module_dir}: {e}")
+    plpy.error(f"Make sure the extension is properly installed with 'make install'")
+except Exception as e:
+    GD['steadytext_initialized'] = False
+    plpy.error(f"Unexpected error during initialization: {e}")
 $$;
 
--- Initialize Python environment
-SELECT _steadytext_init_python();
+-- AIDEV-NOTE: Initialization is now done on-demand in each function
+-- This ensures proper initialization even across session boundaries
 
 -- AIDEV-SECTION: CORE_FUNCTIONS
 -- Core function: Synchronous text generation
 CREATE OR REPLACE FUNCTION steadytext_generate(
     prompt TEXT,
     max_tokens INT DEFAULT NULL,
-    use_cache BOOLEAN DEFAULT TRUE,
-    thinking_mode BOOLEAN DEFAULT FALSE
+    use_cache BOOLEAN DEFAULT TRUE
 )
 RETURNS TEXT
 LANGUAGE plpython3u
@@ -236,6 +283,19 @@ AS $$
 # AIDEV-NOTE: Main text generation function that integrates with SteadyText daemon
 import json
 import hashlib
+
+# Check if initialized, if not, initialize now
+if not GD.get('steadytext_initialized', False):
+    # Initialize on demand
+    plpy.execute("SELECT _steadytext_init_python()")
+    # Check again after initialization
+    if not GD.get('steadytext_initialized', False):
+        plpy.error("Failed to initialize pg_steadytext Python environment")
+
+# Get cached modules from GD
+daemon_connector = GD.get('module_daemon_connector')
+if not daemon_connector:
+    plpy.error("daemon_connector module not loaded")
 
 # Get configuration
 plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
@@ -246,11 +306,18 @@ if resolved_max_tokens is None:
     rv = plpy.execute(plan, ["default_max_tokens"])
     resolved_max_tokens = json.loads(rv[0]["value"]) if rv else 512
 
+# Validate inputs
+if not prompt or not prompt.strip():
+    plpy.error("Prompt cannot be empty")
+
+if resolved_max_tokens < 1 or resolved_max_tokens > 4096:
+    plpy.error("max_tokens must be between 1 and 4096")
+
 # Check if we should use cache
 if use_cache:
     # Generate cache key consistent with SteadyText format
     # AIDEV-NOTE: Use SHA256 to match SteadyText's cache key format
-    params = {"max_new_tokens": resolved_max_tokens, "thinking_mode": thinking_mode}
+    params = {"max_new_tokens": resolved_max_tokens}
     cache_key_input = f"{prompt}|{json.dumps(params, sort_keys=True)}"
     cache_key = hashlib.sha256(cache_key_input.encode()).hexdigest()
     
@@ -265,13 +332,11 @@ if use_cache:
     
     cache_result = plpy.execute(cache_plan, [cache_key])
     if cache_result and cache_result[0]["response"]:
+        plpy.notice(f"Cache hit for key: {cache_key[:8]}...")
         return cache_result[0]["response"]
 
 # If not in cache or cache disabled, generate new response
 try:
-    # Import here to avoid issues if not initialized
-    from daemon_connector import SteadyTextConnector
-    
     # Get daemon configuration
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
@@ -279,24 +344,25 @@ try:
     host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
     port = json.loads(port_rv[0]["value"]) if port_rv else 5555
     
-    # Connect to daemon and generate
-    connector = SteadyTextConnector(host, port)
-    response = connector.generate(prompt, max_tokens=resolved_max_tokens, thinking_mode=thinking_mode)
+    # Connect to daemon and generate using cached module
+    connector = daemon_connector.SteadyTextConnector(host, port)
+    response = connector.generate(prompt, max_tokens=resolved_max_tokens)
     
     # Store in cache if enabled
     if use_cache and response:
         insert_plan = plpy.prepare("""
             INSERT INTO steadytext_cache 
-            (cache_key, prompt, response, generation_params, thinking_mode)
-            VALUES ($1, $2, $3, $4, $5)
+            (cache_key, prompt, response, generation_params)
+            VALUES ($1, $2, $3, $4)
             ON CONFLICT (cache_key) DO UPDATE
             SET response = EXCLUDED.response,
                 access_count = steadytext_cache.access_count + 1,
                 last_accessed = NOW()
-        """, ["text", "text", "text", "jsonb", "bool"])
+        """, ["text", "text", "text", "jsonb"])
         
         params = {"max_tokens": resolved_max_tokens}
-        plpy.execute(insert_plan, [cache_key, prompt, response, json.dumps(params), thinking_mode])
+        plpy.execute(insert_plan, [cache_key, prompt, response, json.dumps(params)])
+        plpy.notice(f"Cached response with key: {cache_key[:8]}...")
     
     return response
     
@@ -319,6 +385,24 @@ import json
 import numpy as np
 import hashlib
 
+# Check if initialized, if not, initialize now
+if not GD.get('steadytext_initialized', False):
+    # Initialize on demand
+    plpy.execute("SELECT _steadytext_init_python()")
+    # Check again after initialization
+    if not GD.get('steadytext_initialized', False):
+        plpy.error("Failed to initialize pg_steadytext Python environment")
+
+# Get cached modules from GD
+daemon_connector = GD.get('module_daemon_connector')
+if not daemon_connector:
+    plpy.error("daemon_connector module not loaded")
+
+# Validate input
+if not text_input or not text_input.strip():
+    plpy.warning("Empty text input provided, returning zero vector")
+    return [0.0] * 1024
+
 # Check cache first if enabled
 if use_cache:
     # Generate cache key for embedding
@@ -336,12 +420,11 @@ if use_cache:
     
     cache_result = plpy.execute(cache_plan, [cache_key])
     if cache_result and cache_result[0]["embedding"]:
+        plpy.notice(f"Embedding cache hit for key: {cache_key[:8]}...")
         return cache_result[0]["embedding"]
 
 # Generate new embedding
 try:
-    from daemon_connector import SteadyTextConnector
-    
     # Get daemon configuration
     plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
     host_rv = plpy.execute(plan, ["daemon_host"])
@@ -350,8 +433,8 @@ try:
     host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
     port = json.loads(port_rv[0]["value"]) if port_rv else 5555
     
-    # Connect and generate embedding
-    connector = SteadyTextConnector(host, port)
+    # Connect and generate embedding using cached module
+    connector = daemon_connector.SteadyTextConnector(host, port)
     embedding = connector.embed(text_input)
     
     # Convert numpy array to list for storage
@@ -372,6 +455,7 @@ try:
         # Convert to PostgreSQL vector format
         vector_str = '[' + ','.join(map(str, embedding_list)) + ']'
         plpy.execute(insert_plan, [cache_key, text_input, vector_str])
+        plpy.notice(f"Cached embedding with key: {cache_key[:8]}...")
     
     return embedding_list
     
@@ -441,9 +525,21 @@ RETURNS TABLE(
 LANGUAGE plpython3u
 AS $$
 # AIDEV-NOTE: Check SteadyText daemon health status
+import json
+
+# Check if initialized, if not, initialize now
+if not GD.get('steadytext_initialized', False):
+    # Initialize on demand
+    plpy.execute("SELECT _steadytext_init_python()")
+    # Check again after initialization
+    if not GD.get('steadytext_initialized', False):
+        plpy.error("Failed to initialize pg_steadytext Python environment")
+
 try:
-    from daemon_connector import SteadyTextConnector
-    import json
+    # Get cached modules from GD
+    daemon_connector = GD.get('module_daemon_connector')
+    if not daemon_connector:
+        plpy.error("daemon_connector module not loaded")
     
     # Get configuration
     plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
@@ -453,11 +549,16 @@ try:
     host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
     port = json.loads(port_rv[0]["value"]) if port_rv else 5555
     
-    # Try to connect
+    # Try to connect using cached module
     try:
-        connector = SteadyTextConnector(host, port)
-        # If we can create connector, daemon is healthy
-        status = 'healthy'
+        connector = daemon_connector.SteadyTextConnector(host, port)
+        # Use check_health method if available
+        if hasattr(connector, 'check_health'):
+            health_info = connector.check_health()
+            status = health_info.get('status', 'healthy')
+        else:
+            # If we can create connector, daemon is healthy
+            status = 'healthy'
     except:
         status = 'unhealthy'
     

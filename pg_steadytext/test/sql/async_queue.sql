@@ -12,7 +12,7 @@ SELECT
     q.status = 'pending' AS is_pending,
     q.request_type = 'generate' AS correct_type,
     (q.params->>'max_tokens')::int = 50 AS correct_max_tokens,
-    (q.params->>'thinking_mode')::boolean = true AS thinking_enabled
+    q.params->>'max_tokens' IS NOT NULL AS has_params
 FROM request r
 JOIN steadytext_queue q ON q.request_id = r.request_id;
 

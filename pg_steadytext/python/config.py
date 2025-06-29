@@ -23,7 +23,7 @@ DEFAULTS = {
     "daemon_auto_start": True,
     "model_name": "qwen3-1.7b",
     "embedding_model": "qwen3-embedding",
-    "thinking_mode_default": False,
+    # thinking_mode removed - not supported by SteadyText
     "request_timeout": 30,  # seconds
     "batch_timeout": 120,  # seconds for batch operations
 }

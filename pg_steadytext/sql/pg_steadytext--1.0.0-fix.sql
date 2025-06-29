@@ -89,8 +89,7 @@ $$;
 -- Add simple streaming generation function (fixed)
 CREATE OR REPLACE FUNCTION steadytext_generate_stream(
     prompt TEXT,
-    max_tokens INT DEFAULT 512,
-    thinking_mode BOOLEAN DEFAULT FALSE
+    max_tokens INT DEFAULT 512
 )
 RETURNS SETOF TEXT
 LANGUAGE plpython3u
@@ -119,14 +118,14 @@ try:
     
     # Create connector and generate streaming
     connector = SteadyTextConnector(host, port)
-    for token in connector.generate_stream(prompt, max_tokens=max_tokens, thinking_mode=thinking_mode):
+    for token in connector.generate_stream(prompt, max_tokens=max_tokens):
         yield token
         
 except Exception as e:
     # Fallback to simple generation with simulated streaming
     try:
         from steadytext import generate
-        full_text = generate(prompt, max_new_tokens=max_tokens, thinking_mode=thinking_mode)
+        full_text = generate(prompt, max_new_tokens=max_tokens)
         
         # Simulate streaming by yielding words
         words = full_text.split()
@@ -214,8 +213,7 @@ $$;
 -- Add async generation function
 CREATE OR REPLACE FUNCTION steadytext_generate_async(
     prompt TEXT,
-    max_tokens INT DEFAULT 512,
-    thinking_mode BOOLEAN DEFAULT FALSE
+    max_tokens INT DEFAULT 512
 )
 RETURNS UUID
 LANGUAGE plpgsql
@@ -243,8 +241,7 @@ BEGIN
         'generate',
         prompt,
         jsonb_build_object(
-            'max_tokens', max_tokens,
-            'thinking_mode', thinking_mode
+            'max_tokens', max_tokens
         )
     )
     RETURNING request_id INTO request_id;

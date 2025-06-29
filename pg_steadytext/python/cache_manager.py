@@ -123,7 +123,7 @@ class CacheManager:
 
         Args:
             prompt: The input prompt
-            params: Generation parameters (max_tokens, thinking_mode, etc.)
+            params: Generation parameters (max_tokens, etc.)
             key_prefix: Optional prefix for the key (e.g., "embed:" for embeddings)
 
         Returns:
@@ -140,7 +140,8 @@ class CacheManager:
             if key == "max_tokens":
                 normalized_params["max_new_tokens"] = value
             elif key == "thinking_mode":
-                normalized_params["thinking_mode"] = value
+                # Skip thinking_mode parameter as it's not supported
+                continue
             elif key == "seed":
                 normalized_params["seed"] = value
             elif key == "temperature":
@@ -235,7 +236,6 @@ class CacheManager:
         response: str,
         params: Optional[Dict[str, Any]] = None,
         model_name: str = "qwen3-1.7b",
-        thinking_mode: bool = False,
     ) -> bool:
         """
         Store text generation in PostgreSQL cache.
@@ -248,7 +248,6 @@ class CacheManager:
             response: Generated text
             params: Generation parameters
             model_name: Model used for generation
-            thinking_mode: Whether thinking mode was enabled
 
         Returns:
             True if cached successfully, False otherwise
@@ -267,7 +266,7 @@ class CacheManager:
                     response,
                     None,  # No embedding for text generation
                     model_name,
-                    thinking_mode,
+                    False,  # thinking_mode column still exists but not used
                     json.dumps(params or {}),
                 ],
             )

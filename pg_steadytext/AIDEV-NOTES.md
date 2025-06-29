@@ -2,6 +2,30 @@
 
 This file contains important development notes and architectural decisions for AI assistants working on pg_steadytext.
 
+## Recent Fixes (v1.0.1)
+
+### 1. Removed thinking_mode Parameter
+- AIDEV-NOTE: The `thinking_mode` parameter was removed from all functions as it's not supported by the core SteadyText library
+- Fixed in: SQL functions, daemon_connector.py, worker.py, cache_manager.py, config.py, and test files
+- The parameter was causing "unexpected keyword argument" errors
+
+### 2. Fixed Python Initialization
+- AIDEV-NOTE: Changed from immediate initialization to on-demand initialization in each function
+- This ensures proper initialization even across session boundaries
+- Functions now call `_steadytext_init_python()` automatically if not initialized
+
+### 3. Optimized Dockerfile for Caching
+- AIDEV-NOTE: Restructured Dockerfile to maximize layer caching
+- Dependencies are installed first (rarely change)
+- Source files are copied in order of change frequency: Makefile → SQL → Python
+- This significantly reduces rebuild time when only Python files change
+
+### 4. Model Compatibility Issues with Gemma-3n
+- AIDEV-NOTE: The gemma-3n models may not be compatible with the inference-sh fork of llama-cpp-python
+- This causes "Failed to load model from file" errors even though the model downloads successfully
+- Added fallback model support using known-working Qwen models
+- Added diagnostic scripts to help troubleshoot model loading issues
+
 ## Architecture Overview
 
 ### Core Design Principles
@@ -33,15 +57,29 @@ pg_steadytext/
 
 **AIDEV-NOTE**: PostgreSQL's plpython3u has a different Python environment than the system Python. Modules must be installed in PostgreSQL's Python path.
 
+**Fixed in v1.0.0**: The module loading issue has been resolved by:
+1. Resolving `$libdir` to actual path using `pg_settings`
+2. Adding module directory to `sys.path` in initialization
+3. Caching modules in GD (Global Dictionary) for reuse
+4. Enhanced error messages with debugging information
+
 ```sql
--- The SQL schema sets up Python path
-ALTER DATABASE dbname SET plpython3.python_path TO '$libdir/pg_steadytext/python:...';
+-- The SQL schema now properly resolves the library path
+SELECT setting FROM pg_settings WHERE name = 'pkglibdir';
+-- Then builds the full path: <pkglibdir>/pg_steadytext/python
 ```
 
+**Key Changes Made**:
+- `_steadytext_init_python()` now adds module path to sys.path
+- All Python functions use cached modules from GD
+- Docker build includes module verification step
+- Better error handling with descriptive messages
+
 **Common Issues**:
-1. ImportError: Module not found → Check installation path
+1. ImportError: Module not found → Run `SELECT _steadytext_init_python();`
 2. Permission denied → Ensure postgres user can read Python files
 3. Version mismatch → PostgreSQL Python != System Python
+4. Docker issues → Check that modules exist in container at `/usr/lib/postgresql/17/lib/pg_steadytext/python/`
 
 ### Daemon Integration
 
@@ -164,6 +202,44 @@ SELECT * FROM steadytext_daemon_health;
    - Check disk space in ~/.cache/steadytext/
    - Verify internet connectivity
 
+5. **"Failed to load model from file: /path/to/gemma-3n-*.gguf"**
+   - This is a known compatibility issue with gemma-3n models and the inference-sh fork of llama-cpp-python
+   - **Solution 1**: Use the fallback model by setting environment variable:
+     ```bash
+     # For Docker build:
+     docker build --build-arg STEADYTEXT_USE_FALLBACK_MODEL=true -t pg_steadytext .
+     
+     # For Docker run:
+     docker run -e STEADYTEXT_USE_FALLBACK_MODEL=true -p 5432:5432 pg_steadytext
+     
+     # For direct usage:
+     export STEADYTEXT_USE_FALLBACK_MODEL=true
+     ```
+   - **Solution 2**: Manually specify a compatible model:
+     ```bash
+     export STEADYTEXT_GENERATION_MODEL_REPO=lmstudio-community/Qwen2.5-3B-Instruct-GGUF
+     export STEADYTEXT_GENERATION_MODEL_FILENAME=Qwen2.5-3B-Instruct-Q8_0.gguf
+     ```
+   - **Diagnostics**: Run the diagnostic script to check your environment:
+     ```bash
+     # Inside Docker container:
+     docker exec -it pg_steadytext /usr/local/bin/diagnose_pg_model
+     
+     # Outside Docker:
+     python /path/to/steadytext/diagnose_model.py
+     ```
+
+### Model Compatibility Matrix
+
+| Model | Repository | Filename | Status | Notes |
+|-------|------------|----------|---------|-------|
+| Gemma-3n 2B | ggml-org/gemma-3n-E2B-it-GGUF | gemma-3n-E2B-it-Q8_0.gguf | ⚠️ Issues | May fail with inference-sh fork |
+| Gemma-3n 4B | ggml-org/gemma-3n-E4B-it-GGUF | gemma-3n-E4B-it-Q8_0.gguf | ⚠️ Issues | May fail with inference-sh fork |
+| Qwen2.5 3B | lmstudio-community/Qwen2.5-3B-Instruct-GGUF | Qwen2.5-3B-Instruct-Q8_0.gguf | ✅ Working | Recommended fallback |
+| Qwen3 1.7B | lmstudio-community/qwen3-1.7b-llama-cpp-python-GGUF | qwen3-1.7b-q8_0.gguf | ✅ Working | Smaller alternative |
+
+AIDEV-TODO: Track updates to the inference-sh fork for gemma-3n support
+
 ## Development Workflow
 
 1. **Make Changes**: Edit SQL/Python files
@@ -176,7 +252,7 @@ SELECT * FROM steadytext_daemon_health;
 
 - PostgreSQL: 14+ (tested on 14, 15, 16)
 - Python: 3.8+ (matches plpython3u version)
-- SteadyText: 1.3.0+ (for daemon support)
+- SteadyText: 2.1.0+ (for daemon support)
 - pgvector: 0.5.0+ (for embedding storage)
 
 ---

@@ -44,7 +44,7 @@ class QueueWorker:
         """Process a text generation request"""
         prompt = request_data["prompt"]
         max_tokens = request_data.get("params", {}).get("max_tokens", 512)
-        thinking_mode = request_data.get("params", {}).get("thinking_mode", False)
+        # thinking_mode removed - not supported by SteadyText
 
         # Validate input
         is_valid, error_msg = self.validator.validate_prompt(prompt)
@@ -54,13 +54,13 @@ class QueueWorker:
         # Generate text
         if self.daemon_client.is_daemon_running():
             return self.daemon_client.generate(
-                prompt, max_tokens=max_tokens, thinking_mode=thinking_mode
+                prompt, max_tokens=max_tokens
             )
         else:
             # Fallback to direct generation
             from steadytext import generate
 
-            return generate(prompt, max_tokens=max_tokens, thinking_mode=thinking_mode)
+            return generate(prompt, max_tokens=max_tokens)
 
     def process_embedding(self, request_data: Dict[str, Any]) -> list:
         """Process an embedding request"""

@@ -18,9 +18,12 @@ try:
     from steadytext.daemon import use_daemon
 
     STEADYTEXT_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     STEADYTEXT_AVAILABLE = False
-    logging.warning("SteadyText not available - extension will use fallback mode")
+    import sys
+    logging.warning(f"SteadyText not available - extension will use fallback mode. Error: {e}")
+    logging.warning(f"Python path: {sys.path}")
+    logging.warning("Install SteadyText with: pip3 install steadytext")
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -142,7 +145,6 @@ class SteadyTextConnector:
         prompt: str,
         max_tokens: int = None,
         max_new_tokens: int = None,
-        thinking_mode: bool = False,
         **kwargs,
     ) -> str:
         """
@@ -156,7 +158,6 @@ class SteadyTextConnector:
             prompt: Input text prompt
             max_tokens: Maximum tokens to generate (legacy parameter name)
             max_new_tokens: Maximum tokens to generate (SteadyText parameter name)
-            thinking_mode: Whether to enable Qwen3 thinking mode
             **kwargs: Additional generation parameters
 
         Returns:
@@ -176,7 +177,6 @@ class SteadyTextConnector:
                 return generate(
                     prompt,
                     max_new_tokens=max_new_tokens,
-                    thinking_mode=thinking_mode,
                     **kwargs,
                 )
         except Exception as e:
@@ -187,7 +187,6 @@ class SteadyTextConnector:
                 return generate(
                     prompt,
                     max_new_tokens=max_new_tokens,
-                    thinking_mode=thinking_mode,
                     **kwargs,
                 )
             except Exception as e2:
@@ -195,7 +194,7 @@ class SteadyTextConnector:
                 return self._fallback_generate(prompt, max_new_tokens)
 
     def generate_stream(
-        self, prompt: str, max_tokens: int = 512, thinking_mode: bool = False, **kwargs
+        self, prompt: str, max_tokens: int = 512, **kwargs
     ):
         """
         Generate text in streaming mode.
@@ -206,7 +205,6 @@ class SteadyTextConnector:
         Args:
             prompt: Input text prompt
             max_tokens: Maximum tokens to generate
-            thinking_mode: Whether to enable Qwen3 thinking mode
             **kwargs: Additional generation parameters
 
         Yields:
@@ -225,7 +223,6 @@ class SteadyTextConnector:
                 for token in generate_iter(
                     prompt,
                     max_new_tokens=max_tokens,
-                    thinking_mode=thinking_mode,
                     **kwargs,
                 ):
                     yield token
@@ -237,7 +234,6 @@ class SteadyTextConnector:
                 for token in generate_iter(
                     prompt,
                     max_new_tokens=max_tokens,
-                    thinking_mode=thinking_mode,
                     **kwargs,
                 ):
                     yield token
