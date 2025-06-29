@@ -1242,14 +1242,13 @@ wheels = [
 [[package]]
 name = "llama-cpp-python"
 version = "0.3.9"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/inference-sh/llama-cpp-python.git?branch=main#ec8e0221ec7dd8dc659606ce8615dc010b5faf76" }
 dependencies = [
     { name = "diskcache" },
     { name = "jinja2" },
     { name = "numpy" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/de/6d/4a20e676bdf7d9d3523be3a081bf327af958f9bdfe2a564f5cf485faeaec/llama_cpp_python-0.3.9.tar.gz", hash = "sha256:a3a985f558385e2f5de5b663f4e9b0817506d6af98122450142cd98e79216370", size = 67858575, upload-time = "2025-05-08T11:12:05.992Z" }
 
 [[package]]
 name = "lxml"
@@ -3207,7 +3206,7 @@ wheels = [
 
 [[package]]
 name = "steadytext"
-version = "2.0.3"
+version = "2.0.4"
 source = { editable = "." }
 dependencies = [
     { name = "chonkie" },
@@ -3269,7 +3268,7 @@ requires-dist = [
     { name = "faiss-cpu", specifier = ">=1.7.0" },
     { name = "huggingface-hub", specifier = ">=0.32.0" },
     { name = "lighteval", marker = "extra == 'benchmark'" },
-    { name = "llama-cpp-python", specifier = ">=0.3.9" },
+    { name = "llama-cpp-python", git = "https://github.com/inference-sh/llama-cpp-python.git?branch=main" },
     { name = "matplotlib", marker = "extra == 'benchmark'" },
     { name = "numpy", specifier = ">=1.21.0" },
     { name = "pandas", marker = "extra == 'benchmark'" },

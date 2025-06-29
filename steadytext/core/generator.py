@@ -10,7 +10,6 @@
 import hashlib
 import logging
 import os
-import re
 from typing import Any, Dict, List, Optional, Union, Tuple, Iterator, cast
 
 from ..cache_manager import get_generation_cache
@@ -83,6 +82,7 @@ class DeterministicGenerator:
     def generate(
         self,
         prompt: str,
+        max_new_tokens: Optional[int] = None,
         return_logprobs: bool = False,
         eos_string: str = "[EOS]",
         model: Optional[str] = None,
@@ -205,6 +205,9 @@ class DeterministicGenerator:
                 # Request logprobs for each generated token
                 sampling_params["logprobs"] = GENERATION_MAX_NEW_TOKENS
 
+            if max_new_tokens is not None:
+                sampling_params["max_tokens"] = max_new_tokens
+
             # AIDEV-NOTE: Use create_chat_completion for model interaction.
             output: Dict[str, Any] = self.model.create_chat_completion(
                 messages=[{"role": "user", "content": final_prompt}], **sampling_params
@@ -233,14 +236,6 @@ class DeterministicGenerator:
                     f"whitespace-only text for prompt: '{prompt[:50]}...'"
                 )
 
-            # AIDEV-NOTE: Strip empty or whitespace-only <think> tags from the output.
-            generated_text = re.sub(
-                r"<think>\s*</think>\s*",
-                "",
-                generated_text,
-                flags=re.MULTILINE | re.DOTALL,
-            )
-
             # Only cache non-logprobs results for default model
             if should_use_cache_for_generation(return_logprobs, repo_id, filename):
                 cache_key = generate_cache_key(prompt, eos_string)
@@ -260,6 +255,7 @@ class DeterministicGenerator:
     def generate_iter(
         self,
         prompt: str,
+        max_new_tokens: Optional[int] = None,
         eos_string: str = "[EOS]",
         include_logprobs: bool = False,
         model: Optional[str] = None,
@@ -463,13 +459,15 @@ class DeterministicGenerator:
                 # Request logprobs for streaming
                 sampling_params["logprobs"] = GENERATION_MAX_NEW_TOKENS
 
+            if max_new_tokens is not None:
+                sampling_params["max_tokens"] = max_new_tokens
+
             # AIDEV-NOTE: Streaming API returns an iterator of partial outputs
             stream = self.model.create_chat_completion(
                 messages=[{"role": "user", "content": final_prompt}], **sampling_params
             )
 
             # AIDEV-NOTE: Collect tokens for processing and caching
-            collected_tokens = []
             should_cache = (
                 not include_logprobs
                 and model is None
@@ -478,56 +476,33 @@ class DeterministicGenerator:
                 and size is None
             )
 
-            # AIDEV-NOTE: For non-logprobs requests, collect all tokens first to enable cleaning
-            # This ensures consistency with non-streaming generate() function
+            # AIDEV-NOTE: For non-logprobs requests, yield tokens immediately and handle caching after.
             if not include_logprobs:
+                # AIDEV-NOTE: The `stream` iterator is consumed here. We need to handle caching
+                # of the complete text after the loop.
+                full_text_list = []
                 for chunk in stream:
+                    token = None
                     if chunk and "choices" in chunk and len(chunk["choices"]) > 0:
                         choice = chunk["choices"][0]
                         delta = choice.get("delta", {})
 
-                        # Normal string token collection
-                        token = None
                         if "content" in delta and delta["content"]:
                             token = delta["content"]
                         elif "text" in choice and choice["text"]:
                             token = choice["text"]
 
                         if token is not None:
-                            collected_tokens.append(token)
+                            full_text_list.append(token)
+                            yield token
 
-                # Apply same think tag cleaning as non-streaming generate()
-                complete_text = "".join(collected_tokens)
-                cleaned_text = re.sub(
-                    r"<think>\s*</think>\s*",
-                    "",
-                    complete_text,
-                    flags=re.MULTILINE | re.DOTALL,
-                )
+                # Join the collected tokens to form the complete text for caching
+                complete_text = "".join(full_text_list)
 
-                # Re-yield cleaned text in chunks to preserve exact content
-                if cleaned_text:
-                    # Yield in word-sized chunks to simulate token streaming
-                    words = cleaned_text.split()
-                    char_index = 0
-                    for i, word in enumerate(words):
-                        # Find the word in the original text to preserve exact spacing
-                        word_start = cleaned_text.find(word, char_index)
-                        if word_start > char_index:
-                            # Yield any whitespace before the word
-                            yield cleaned_text[char_index:word_start]
-                        # Yield the word
-                        yield word
-                        char_index = word_start + len(word)
-
-                    # Yield any remaining content (trailing whitespace)
-                    if char_index < len(cleaned_text):
-                        yield cleaned_text[char_index:]
-
-                # Cache the cleaned text if eligible
-                if should_cache and cleaned_text:
+                # Cache the full response if eligible
+                if should_cache and complete_text:
                     cache_key = generate_cache_key(prompt, eos_string)
-                    get_generation_cache().set(cache_key, cleaned_text)
+                    get_generation_cache().set(cache_key, complete_text)
                     if logger.isEnabledFor(logging.DEBUG):
                         logger.debug(
                             f"DeterministicGenerator.generate_iter: Cached result for prompt: {str(prompt)[:50]}..."
@@ -711,6 +686,7 @@ def _get_generator_instance() -> DeterministicGenerator:
 
 def generate(
     prompt: str,
+    max_new_tokens: Optional[int] = None,
     return_logprobs: bool = False,
     eos_string: str = "[EOS]",
     model: Optional[str] = None,
@@ -725,6 +701,7 @@ def generate(
 
     Args:
         prompt: Input text prompt
+        max_new_tokens: The maximum number of new tokens to generate.
         return_logprobs: Whether to return token log probabilities
         eos_string: End-of-sequence string ("[EOS]" uses model defaults)
         model: Model name from registry (e.g., "gemma-3n-2b", "gemma-3n-4b")
@@ -744,12 +721,12 @@ def generate(
         text = generate("Complex task", size="large")    # Uses Gemma-3n-4B
 
         # Use a model from the registry
-        text = generate("Explain quantum computing", model="gemma-3n-4b")
+        text = generate("Explain quantum computing", model="gemma-3n-2b")
 
         # Use a custom model
         text = generate(
             "Write a poem",
-            model_repo="unsloth/gemma-3n-E4B-it-GGUF",
+            model_repo="ggml-org/gemma-3n-E4B-it-GGUF",
             model_filename="gemma-3n-E4B-it-Q8_0.gguf"
         )
 
@@ -757,6 +734,7 @@ def generate(
     """
     return _get_generator_instance().generate(
         prompt=prompt,
+        max_new_tokens=max_new_tokens,
         return_logprobs=return_logprobs,
         eos_string=eos_string,
         model=model,
@@ -768,6 +746,7 @@ def generate(
 
 def generate_iter(
     prompt: str,
+    max_new_tokens: Optional[int] = None,
     eos_string: str = "[EOS]",
     include_logprobs: bool = False,
     model: Optional[str] = None,
@@ -781,6 +760,7 @@ def generate_iter(
 
     Args:
         prompt: Input text prompt
+        max_new_tokens: The maximum number of new tokens to generate.
         eos_string: End-of-sequence string ("[EOS]" uses model defaults)
         include_logprobs: Whether to include log probabilities in output
         model: Model name from registry (e.g., "gemma-3n-2b")
@@ -795,6 +775,7 @@ def generate_iter(
     """
     return _get_generator_instance().generate_iter(
         prompt=prompt,
+        max_new_tokens=max_new_tokens,
         eos_string=eos_string,
         include_logprobs=include_logprobs,
         model=model,

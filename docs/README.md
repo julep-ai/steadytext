@@ -51,8 +51,8 @@ fast_response = steadytext.generate("Quick task", model="gemma-3n-2b")
 quality_response = steadytext.generate("Complex analysis", model="gemma-3n-4b")
 
 # Size-based selection (v2.0.0+)
-small = steadytext.generate("Simple task", size="small")      # Gemma-3n-2B
-large = steadytext.generate("Complex task", size="large")    # Gemma-3n-4B (default)
+small = steadytext.generate("Simple task", size="small")      # Gemma-3n-2B (default)
+large = steadytext.generate("Complex task", size="large")    # Gemma-3n-4B
 ```
 
 _Or,_
@@ -133,14 +133,14 @@ text = steadytext.generate("Hello", size="large")  # Uses Gemma-3n-4B
 # Or specify custom models
 text = steadytext.generate(
     "Hello",
-    model_repo="unsloth/gemma-3n-E4B-it-GGUF",
+    model_repo="ggml-org/gemma-3n-E4B-it-GGUF",
     model_filename="gemma-3n-E4B-it-Q8_0.gguf"
 )
 ```
 
 Available models: `gemma-3n-2b`, `gemma-3n-4b`
 
-Size shortcuts: `small` (2B), `large` (4B, default)
+Size shortcuts: `small` (2B, default), `large` (4B)
 
 > Each model produces deterministic outputs. The default model remains fixed per major version.
 
@@ -230,8 +230,6 @@ echo "write a function" | st --wait
 # Enable verbose output
 echo "explain recursion" | st --verbose
 
-# Qwen3 thinking mode control
-echo "solve complex problem" | st --think  # Enable thinking mode
 
 # JSON output with metadata
 echo "hello world" | st --json
@@ -484,30 +482,31 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
-## 📈 What's New in v1.3.3
+## 📈 What's New in v2.0.0+
+
+### Gemma-3n Models (v2.0.0+)
+- **State-of-the-art performance** with Gemma-3n model family
+- **Size-based selection** - use `size="small"` or `size="large"` parameters
+- **Improved quality** while maintaining deterministic outputs
+- **Streamlined model registry** focused on proven architectures
 
 ### Daemon Architecture (v1.2.0+)
-- **Persistent model serving** with Zero-MQ for 10-100× faster repeated calls  
-- **Automatic fallback** to direct model loading when daemon unavailable  
-- **Zero configuration** – daemon starts automatically on first use  
-- **Background operation** – daemon runs silently in the background  
+- **Persistent model serving** with ZeroMQ for 10-100x faster repeated calls
+- **Automatic fallback** to direct model loading when daemon unavailable
+- **Zero configuration** - daemon starts automatically on first use
+- **Background operation** - daemon runs silently in the background
 
 ### Centralized Cache System (v1.3.0+)
-- **Unified caching** – consistent behaviour between daemon and direct access  
-- **Thread-safe SQLite backend** for reliable concurrent access  
-- **Shared cache files** across all access modes  
-- **Cache integration** with the daemon server for optimal performance  
+- **Unified caching** - consistent behavior between daemon and direct access
+- **Thread-safe SQLite backend** for reliable concurrent access
+- **Shared cache files** across all access modes
+- **Cache integration** with daemon server for optimal performance
 
 ### Improved CLI Experience (v1.3.0+)
-- **Streaming by default** – see output as it's generated  
-- **Quiet by default** – clean output without informational messages  
-- **New pipe syntax** – `echo "prompt" | st` for better Unix integration  
-- **Daemon management** – built-in commands for daemon lifecycle  
-
-### Qwen3 Thinking Mode (v1.3.0+)
-- **Controllable reasoning** – enable/disable internal thinking process  
-- **Efficiency by default** – thinking disabled for faster generation  
-- **Extended context** – increased to 3072 tokens to support thinking output  
+- **Streaming by default** - see output as it's generated
+- **Quiet by default** - clean output without informational messages
+- **New pipe syntax** - `echo "prompt" | st` for better unix integration
+- **Daemon management** - built-in commands for daemon lifecycle
 
 ---
 
