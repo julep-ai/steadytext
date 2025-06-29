@@ -23,8 +23,8 @@ if not logger.handlers:
 # This prevents INFO messages from appearing in quiet mode
 
 # --- Model Configuration ---
-# AIDEV-NOTE: Switched from Qwen3 to Gemma-3n for generation and are using Qwen3-Embedding-0.6B for embeddings. Users can override the models via environment variables. The unsloth repository is used for the latest GGUF versions.
-DEFAULT_GENERATION_MODEL_REPO = "unsloth/gemma-3n-E4B-it-GGUF"
+# AIDEV-NOTE: Switched from Qwen3 to Gemma-3n for generation and are using Qwen3-Embedding-0.6B for embeddings. Users can override the models via environment variables. The ggml-org repository is used for the latest GGUF versions.
+DEFAULT_GENERATION_MODEL_REPO = "ggml-org/gemma-3n-E4B-it-GGUF"
 DEFAULT_EMBEDDING_MODEL_REPO = "Qwen/Qwen3-Embedding-0.6B-GGUF"
 GENERATION_MODEL_FILENAME = "gemma-3n-E4B-it-Q8_0.gguf"
 EMBEDDING_MODEL_FILENAME = "Qwen3-Embedding-0.6B-Q8_0.gguf"
@@ -34,11 +34,11 @@ EMBEDDING_MODEL_FILENAME = "Qwen3-Embedding-0.6B-Q8_0.gguf"
 MODEL_REGISTRY = {
     # Gemma-3n models
     "gemma-3n-2b": {
-        "repo": "unsloth/gemma-3n-E2B-it-GGUF",
+        "repo": "ggml-org/gemma-3n-E2B-it-GGUF",
         "filename": "gemma-3n-E2B-it-Q8_0.gguf",
     },
     "gemma-3n-4b": {
-        "repo": "unsloth/gemma-3n-E4B-it-GGUF",
+        "repo": "ggml-org/gemma-3n-E4B-it-GGUF",
         "filename": "gemma-3n-E4B-it-Q8_0.gguf",
     },
 }

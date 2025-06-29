@@ -247,3 +247,71 @@ def preload(ctx, size: Optional[str]):
         click.echo("Models preloaded successfully")
     except Exception as e:
         click.echo(f"\nError preloading models: {e}", err=True)
+
+
+@models.command()
+@click.option(
+    "--size",
+    type=click.Choice(["small", "large"]),
+    help="Delete specific model size (small=2B, large=4B)",
+)
+@click.option(
+    "--model",
+    help="Delete specific model from registry (e.g., 'qwen2.5-3b')",
+)
+@click.option(
+    "--all",
+    is_flag=True,
+    help="Delete all available models",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Force deletion without confirmation",
+)
+def delete(size: Optional[str], model: Optional[str], all: bool, force: bool):
+    """Delete cached models."""
+    model_dir = get_cache_dir()
+
+    def _delete_file(path, model_name):
+        if path.exists():
+            if force or click.confirm(f"Delete {model_name} ({path.name})?"):
+                try:
+                    path.unlink()
+                    click.echo(f"Deleted {model_name} ({path.name})")
+                except OSError as e:
+                    click.echo(f"Error deleting {path.name}: {e}", err=True)
+        else:
+            click.echo(f"{model_name} ({path.name}) not found.")
+
+    if all:
+        if force or click.confirm("Delete all cached models?"):
+            # Delete all generation models
+            for model_name, model_info in MODEL_REGISTRY.items():
+                model_path = model_dir / model_info["filename"]
+                _delete_file(model_path, model_name)
+            # Delete embedding model
+            embed_path = model_dir / EMBEDDING_MODEL_FILENAME
+            _delete_file(embed_path, "embedding model")
+    elif size or model:
+        if size and model:
+            click.echo("Error: Cannot specify both --size and --model", err=True)
+            return
+
+        if model:
+            if model not in MODEL_REGISTRY:
+                available = ", ".join(sorted(MODEL_REGISTRY.keys()))
+                click.echo(
+                    f"Error: Unknown model '{model}'. Available models: {available}",
+                    err=True,
+                )
+                return
+            filename = MODEL_REGISTRY[model]["filename"]
+            model_path = model_dir / filename
+            _delete_file(model_path, model)
+        else:  # size
+            repo_id, filename = resolve_model_params(size=size)
+            model_path = model_dir / filename
+            _delete_file(model_path, f"{size} model")
+    else:
+        click.echo("Specify a model to delete or use --all.", err=True)

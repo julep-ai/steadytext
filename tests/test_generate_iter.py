@@ -132,11 +132,6 @@ class TestGenerateIter:
                 break
         assert len(tokens) > 0  # Should still produce output via fallback
 
-    @pytest.mark.skipif(
-        not hasattr(steadytext, "models")
-        or not steadytext.models.loader.get_generator_model_instance(),
-        reason="Model not available",
-    )
     def test_streaming_behavior(self):
         """Test that generate_iter actually streams tokens."""
         prompt = "Tell me a story"

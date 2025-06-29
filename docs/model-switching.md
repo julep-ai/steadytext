@@ -61,8 +61,8 @@ from steadytext import generate
 # Use a custom model
 text = generate(
     "Create a Python function",
-    model_repo="Qwen/Qwen2.5-7B-Instruct-GGUF",
-    model_filename="qwen2.5-7b-instruct-q8_0.gguf"
+    model_repo="ggml-org/gemma-3n-E4B-it-GGUF",
+    model_filename="gemma-3n-E4B-it-Q8_0.gguf"
 )
 ```
 

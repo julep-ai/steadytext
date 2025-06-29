@@ -749,7 +749,7 @@ def generate(
         # Use a custom model
         text = generate(
             "Write a poem",
-            model_repo="unsloth/gemma-3n-E4B-it-GGUF",
+            model_repo="ggml-org/gemma-3n-E4B-it-GGUF",
             model_filename="gemma-3n-E4B-it-Q8_0.gguf"
         )
 

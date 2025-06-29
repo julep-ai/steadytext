@@ -10,9 +10,7 @@ We welcome contributions to SteadyText! This document provides guidelines for co
 
 ## Development Setup
 
-### Using UV (Recommended)
-
-UV is a modern, blazing-fast Python package manager that's 10-100x faster than pip. We recommend using UV for development:
+We use [UV](https://astral.sh/uv), a modern, blazing-fast Python package manager that's 10-100x faster than pip.
 
 ```bash
 # Install UV
@@ -64,22 +62,12 @@ ruff check .
 2. Create a pull request with a clear description
 3. Wait for review and address any feedback
 
-## Code Style
+## Code Style & Testing
 
-- Follow PEP 8
-- Use type hints where appropriate
-- Keep functions focused and well-documented
-- Add docstrings to all public functions
-
-## Testing
-
-- Write tests for all new functionality
-- Ensure tests are deterministic
-- Use pytest for testing
+We use `ruff` for linting and formatting, and `pytest` for testing.
 
 ### Running Tests
 
-**Using UV (recommended):**
 ```bash
 # Run all tests
 uv run python -m pytest
@@ -94,9 +82,15 @@ uv run python -m pytest tests/test_steadytext.py
 STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true uv run python -m pytest
 ```
 
-**Legacy method:**
+### Linting and Formatting
+
 ```bash
-python -m pytest
+# Check for linting errors
+uvx ruff check .
+
+# Format code
+uvx ruff format .
+uvx black .
 ```
 
 ## Questions?

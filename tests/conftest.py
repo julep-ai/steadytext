@@ -13,7 +13,9 @@ def pytest_addoption(parser):
     """Add custom options and set environment variables BEFORE any imports."""
     # Set environment variables immediately, before any test modules are imported
     os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
-    os.environ["STEADYTEXT_ALLOW_MODEL_DOWNLOADS"] = "false"
+    # Only set ALLOW_MODEL_DOWNLOADS to false if not explicitly set to true
+    if os.environ.get("STEADYTEXT_ALLOW_MODEL_DOWNLOADS", "").lower() != "true":
+        os.environ["STEADYTEXT_ALLOW_MODEL_DOWNLOADS"] = "false"
     os.environ["STEADYTEXT_SKIP_MODEL_LOAD"] = "1"
     os.environ["STEADYTEXT_DAEMON_FAILURE_CACHE_SECONDS"] = "1"
     os.environ["STEADYTEXT_DAEMON_TIMEOUT_MS"] = "50"
@@ -25,7 +27,9 @@ def pytest_configure(config):
     # AIDEV-NOTE: Re-set environment variables to be absolutely sure
     # This provides a second layer of protection
     os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
-    os.environ["STEADYTEXT_ALLOW_MODEL_DOWNLOADS"] = "false"
+    # Only set ALLOW_MODEL_DOWNLOADS to false if not explicitly set to true
+    if os.environ.get("STEADYTEXT_ALLOW_MODEL_DOWNLOADS", "").lower() != "true":
+        os.environ["STEADYTEXT_ALLOW_MODEL_DOWNLOADS"] = "false"
     os.environ["STEADYTEXT_SKIP_MODEL_LOAD"] = "1"
     os.environ["STEADYTEXT_DAEMON_FAILURE_CACHE_SECONDS"] = "1"
     os.environ["STEADYTEXT_DAEMON_TIMEOUT_MS"] = "50"

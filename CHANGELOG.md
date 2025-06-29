@@ -3,14 +3,14 @@
 ## Version 2.0.1 (2025-06-28)
 
 ### Bug Fixes
-- **Fixed Model Repository:** Updated Gemma-3n model repository from `ggml-org` to `unsloth` which hosts the latest GGUF versions
-  - E2B model: Now uses `unsloth/gemma-3n-E2B-it-GGUF` with filename `gemma-3n-E2B-it-Q8_0.gguf`
-  - E4B model: Now uses `unsloth/gemma-3n-E4B-it-GGUF` with filename `gemma-3n-E4B-it-Q8_0.gguf`
+- **Fixed Model Repository:** Updated Gemma-3n model repository from `ggml-org` to `ggml-org` which hosts the latest GGUF versions
+  - E2B model: Now uses `ggml-org/gemma-3n-E2B-it-GGUF` with filename `gemma-3n-E2B-it-Q8_0.gguf`
+  - E4B model: Now uses `ggml-org/gemma-3n-E4B-it-GGUF` with filename `gemma-3n-E4B-it-Q8_0.gguf`
 
 ## Version 2.0.0 (2025-06-28)
 
 ### Major Changes
-- **Switched to Gemma-3n:** The default generation model is now `gemma-3n-E2B-it-GGUF` (unsloth/gemma-3n-E2B-it-GGUF).
+- **Switched to Gemma-3n:** The default generation model is now `gemma-3n-E2B-it-GGUF` (ggml-org/gemma-3n-E2B-it-GGUF).
 - **Deprecated Thinking Mode:** The `thinking_mode` parameter has been removed from all functions and the CLI. Temperature=0 deterministic generation works better without thinking mode.
 - **Model Registry Update:** Updated to focus on Gemma-3n models (2B and 4B variants).
 
