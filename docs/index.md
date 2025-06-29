@@ -128,9 +128,10 @@ pip install steadytext
 
 ### Models
 
-**Current models (v1.x)**:
+**Current models (v2.0.0+)**:
 
-* Generation: `Qwen3-1.7B-Q8_0.gguf` (1.83GB)
+* Generation: `Gemma-3n-E2B-it-Q8_0.gguf` (2.0GB) - Gemma-3n-2B (default)
+* Generation: `Gemma-3n-E4B-it-Q8_0.gguf` (4.2GB) - Gemma-3n-4B (optional)
 * Embeddings: `Qwen3-Embedding-0.6B-Q8_0.gguf` (610MB)
 
 !!! note "Version Stability"

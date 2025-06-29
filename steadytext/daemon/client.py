@@ -156,6 +156,7 @@ class DaemonClient:
         model_repo: Optional[str] = None,
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
+        max_new_tokens: Optional[int] = None,
     ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
         """Generate text via daemon."""
         if not self.connect():
@@ -172,6 +173,7 @@ class DaemonClient:
                 "model_repo": model_repo,
                 "model_filename": model_filename,
                 "size": size,
+                "max_new_tokens": max_new_tokens,
             }
 
             request = Request(method="generate", params=params)
@@ -209,6 +211,7 @@ class DaemonClient:
         model_repo: Optional[str] = None,
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
+        max_new_tokens: Optional[int] = None,
     ) -> Iterator[Union[str, Dict[str, Any]]]:
         """Generate text iteratively via daemon.
 
@@ -227,6 +230,7 @@ class DaemonClient:
                 "model_repo": model_repo,
                 "model_filename": model_filename,
                 "size": size,
+                "max_new_tokens": max_new_tokens,
             }
 
             request = Request(method="generate_iter", params=params)

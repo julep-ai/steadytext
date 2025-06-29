@@ -61,6 +61,12 @@ from .index import search_index_for_context, get_default_index_path
     default=None,
     help="Model size (small=2B, large=4B)",
 )
+@click.option(
+    "--max-new-tokens",
+    type=int,
+    default=None,
+    help="Maximum number of new tokens to generate.",
+)
 @click.pass_context
 def generate(
     ctx,
@@ -78,6 +84,7 @@ def generate(
     model_repo: str,
     model_filename: str,
     size: str,
+    max_new_tokens: int,
 ):
     """Generate text from a prompt (streams by default).
 
@@ -86,7 +93,7 @@ def generate(
         echo "quick task" | st --wait            # Waits for full output
         echo "quick task" | st generate --size small    # Uses Gemma-3n-2B
         echo "complex task" | st generate --size large  # Uses Gemma-3n-4B
-        echo "explain quantum computing" | st generate --model gemma-3n-4b
+        echo "explain quantum computing" | st generate --model gemma-3n-2b
         st -  # Read from stdin
         echo "explain this" | st
         echo "complex task" | st generate --model-repo Qwen/Qwen2.5-7B-Instruct-GGUF --model-filename qwen2.5-7b-instruct-q8_0.gguf
@@ -138,14 +145,11 @@ def generate(
     if stream:
         # Streaming mode
         generated_text = ""
-        buffer = ""  # Buffer to detect empty think tags
-        in_think_tag = False
-        think_content = ""
-
         logprobs_tokens = []
 
         for token in steady_generate_iter(
             final_prompt,
+            max_new_tokens=max_new_tokens,
             eos_string=eos_string,
             include_logprobs=logprobs,
             model=model,
@@ -154,73 +158,20 @@ def generate(
             size=size,
         ):
             if logprobs and isinstance(token, dict):
-                # Accumulate logprobs tokens for JSON output
+                # Handle logprobs output
                 if output_format == "json":
                     logprobs_tokens.append(token)
+                    # Also accumulate the text part of the token
+                    generated_text += token.get("token", "")
                 else:
+                    # For raw output with logprobs, print each token's JSON
                     click.echo(json.dumps(token), nl=True)
             else:
-                # Ensure token is a string
-                if isinstance(token, dict):
-                    # Extract the token text from dict if needed
-                    token = token.get("token", "")
-                buffer += str(token)
-
-                # Check for think tag patterns
-                while True:
-                    if not in_think_tag and "<think>" in buffer:
-                        # Found opening tag
-                        idx = buffer.index("<think>")
-                        # Output everything before the tag
-                        if idx > 0:
-                            if output_format != "json":
-                                click.echo(buffer[:idx], nl=False)
-                            generated_text += buffer[:idx]
-                        buffer = buffer[idx + 7 :]  # Skip past <think>
-                        in_think_tag = True
-                        think_content = ""
-                    elif in_think_tag and "</think>" in buffer:
-                        # Found closing tag
-                        idx = buffer.index("</think>")
-                        think_content += buffer[:idx]
-                        buffer = buffer[idx + 8 :]  # Skip past </think>
-                        in_think_tag = False
-
-                        # Only output think tags if they have content
-                        if think_content.strip():
-                            full_tag = f"<think>{think_content}</think>"
-                            if output_format != "json":
-                                click.echo(full_tag, nl=False)
-                            generated_text += full_tag
-                    else:
-                        # No more complete tags to process
-                        break
-
-                # If not in a think tag, output buffer content
-                if not in_think_tag and buffer and "<think>" not in buffer:
-                    if output_format != "json":
-                        click.echo(buffer, nl=False)
-                    generated_text += buffer
-                    buffer = ""
-                elif in_think_tag:
-                    # Accumulate think content
-                    think_content += buffer
-                    buffer = ""
-
-        # Handle any remaining buffer
-        if buffer and not in_think_tag:
-            if output_format != "json":  # Only echo if not JSON format
-                click.echo(buffer, nl=False)
-            generated_text += buffer
-        elif in_think_tag and think_content.strip():
-            # Unclosed think tag with content
-            full_tag = f"<think>{think_content}"
-            if output_format != "json":  # Only echo if not JSON format
-                click.echo(full_tag, nl=False)
-            generated_text += full_tag
-
-        if output_format != "json":
-            click.echo()  # Final newline
+                # Handle raw text output
+                token_str = str(token)
+                if output_format != "json":
+                    click.echo(token_str, nl=False)
+                generated_text += token_str
 
         if output_format == "json":
             # For JSON format in streaming mode, output only the JSON

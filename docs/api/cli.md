@@ -51,7 +51,7 @@ steadytext generate [OPTIONS] PROMPT
 | `--json` | `-j` | flag | `false` | Output as JSON with metadata |
 | `--logprobs` | `-l` | flag | `false` | Include log probabilities |
 | `--eos-string` | `-e` | string | `"[EOS]"` | Custom end-of-sequence string |
-| `--size` | | choice | | Model size: small (2B), large (4B, default) |
+| `--size` | | choice | | Model size: small (2B, default), large (4B) |
 | `--model` | | string | | Model name from registry (e.g., "qwen2.5-3b") |
 | `--model-repo` | | string | | Custom model repository |
 | `--model-filename` | | string | | Custom model filename |
@@ -78,12 +78,6 @@ steadytext generate [OPTIONS] PROMPT
     echo "Explain machine learning" | st --wait
     ```
 
-=== "Thinking Mode"
-
-    ```bash
-    # Enable Qwen3 thinking mode to show reasoning
-    echo "Solve this complex problem" | st --think
-    ```
 
 === "JSON Output"
 
@@ -123,12 +117,12 @@ steadytext generate [OPTIONS] PROMPT
 === "Model Selection"
 
     ```bash
-    # Use specific model from registry
-    st generate "Technical explanation" --model qwen2.5-3b
+    # Use specific model size
+    st generate "Technical explanation" --size large
     
-    # Use custom model
-    st generate "Write code" --model-repo Qwen/Qwen2.5-7B-Instruct-GGUF \
-        --model-filename qwen2.5-7b-instruct-q8_0.gguf
+    # Use custom model (advanced)
+    st generate "Write code" --model-repo ggml-org/gemma-3n-E4B-it-GGUF \
+        --model-filename gemma-3n-E4B-it-Q8_0.gguf
     ```
 
 ### Stdin Support

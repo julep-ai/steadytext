@@ -22,30 +22,6 @@ cd steadytext
 
 # Install in development mode with all dependencies
 uv sync --all-extras --dev
-
-# Run tests
-uv run python -m pytest
-
-# Run linting and formatting
-uvx ruff check .
-uvx ruff format .
-uvx black .
-```
-
-### Legacy Method (pip)
-
-```bash
-# Install in development mode
-pip install -e .
-
-# Install development dependencies
-pip install pytest ruff black pre-commit
-
-# Run tests
-python -m pytest
-
-# Run linting
-ruff check .
 ```
 
 ## Making Changes

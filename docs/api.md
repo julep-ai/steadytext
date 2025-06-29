@@ -26,10 +26,10 @@ Generate deterministic text from a prompt.
 - `prompt` (str): The input text to generate from
 - `return_logprobs` (bool): If True, returns log probabilities along with the text
 - `eos_string` (str): Custom end-of-sequence string to stop generation. Use "[EOS]" for model's default stop tokens
-- `model` (str, optional): Model name from built-in registry (e.g., "qwen2.5-3b", "qwen3-8b")
-- `model_repo` (str, optional): Custom Hugging Face repository ID (e.g., "Qwen/Qwen2.5-3B-Instruct-GGUF")
-- `model_filename` (str, optional): Custom model filename (e.g., "qwen2.5-3b-instruct-q8_0.gguf")
-- `size` (str, optional): Size shortcut for Gemma-3n models: "small" (2B), or "large" (4B, default)
+- `model` (str, optional): Model name from built-in registry (deprecated - use `size` parameter instead)
+- `model_repo` (str, optional): Custom Hugging Face repository ID (e.g., "ggml-org/gemma-3n-E2B-it-GGUF")
+- `model_filename` (str, optional): Custom model filename (e.g., "gemma-3n-E2B-it-Q8_0.gguf")
+- `size` (str, optional): Size shortcut for Gemma-3n models: "small" (2B, default), or "large" (4B) - **recommended approach**
 
 **Returns:**
 - If `return_logprobs=False`: A string containing the generated text
@@ -46,18 +46,15 @@ text, logprobs = steadytext.generate("Explain AI", return_logprobs=True)
 # With custom stop string
 text = steadytext.generate("List items until END", eos_string="END")
 
-# Using a model from the registry
-text = steadytext.generate("Complex analysis", model="qwen2.5-7b")
-
-# Using size parameter
-text = steadytext.generate("Quick task", size="small")  # Uses Qwen3-0.6B
-text = steadytext.generate("Complex task", size="large")  # Uses Qwen3-4B
+# Using size parameter (recommended)
+text = steadytext.generate("Quick task", size="small")   # Uses Gemma-3n-2B
+text = steadytext.generate("Complex task", size="large")  # Uses Gemma-3n-4B
 
 # Using a custom model
 text = steadytext.generate(
     "Write code",
-    model_repo="Qwen/Qwen2.5-3B-Instruct-GGUF",
-    model_filename="qwen2.5-3b-instruct-q8_0.gguf"
+    model_repo="ggml-org/gemma-3n-E4B-it-GGUF",
+    model_filename="gemma-3n-E4B-it-Q8_0.gguf"
 )
 ```
 
@@ -81,10 +78,10 @@ Generate text iteratively, yielding tokens as they are produced.
 - `prompt` (str): The input text to generate from
 - `eos_string` (str): Custom end-of-sequence string to stop generation. Use "[EOS]" for model's default stop tokens
 - `include_logprobs` (bool): If True, yields tuples of (token, logprobs) instead of just tokens
-- `model` (str, optional): Model name from built-in registry (e.g., "qwen2.5-3b")
+- `model` (str, optional): Model name from built-in registry (deprecated - use `size` parameter instead)
 - `model_repo` (str, optional): Custom Hugging Face repository ID
 - `model_filename` (str, optional): Custom model filename
-- `size` (str, optional): Size shortcut for Gemma-3n models: "small" (2B), or "large" (4B, default)
+- `size` (str, optional): Size shortcut for Gemma-3n models: "small" (2B, default), or "large" (4B) - **recommended approach**
 
 **Yields:**
 - str: Text tokens/words as they are generated (if `include_logprobs=False`)
@@ -104,12 +101,11 @@ for token in steadytext.generate_iter("Generate until STOP", eos_string="STOP"):
 for token, logprobs in steadytext.generate_iter("Explain AI", include_logprobs=True):
     print(token, end="", flush=True)
 
-# Stream with a different model
-for token in steadytext.generate_iter("Complex task", model="qwen2.5-7b"):
+# Stream with size parameter (recommended)
+for token in steadytext.generate_iter("Quick response", size="small"):
     print(token, end="", flush=True)
 
-# Stream with size parameter
-for token in steadytext.generate_iter("Quick response", size="small"):
+for token in steadytext.generate_iter("Complex task", size="large"):
     print(token, end="", flush=True)
 ```
 
@@ -210,29 +206,32 @@ print(f"Models are stored in: {cache_dir}")
 
 - **`STEADYTEXT_ALLOW_MODEL_DOWNLOADS`**: Set to "true" to allow automatic model downloads (mainly used for testing)
 
-## Model Switching (v1.0.0+)
+## Model Switching (v2.0.0+)
 
-SteadyText supports dynamic model switching, allowing you to use different models for different tasks without restarting your application.
+SteadyText v2.0.0+ supports model switching with the Gemma-3n model family, allowing you to use different model sizes for different tasks.
 
-### Built-in Model Registry
+### Current Model Registry (v2.0.0+)
 
-The following models are available in the registry:
+The following models are available:
 
-| Model Name | Parameters | Use Case |
-|------------|------------|----------|
-| `qwen3-1.7b` | 1.7B | Default model, balanced performance |
-| `qwen3-4b` | 4B | Better quality, moderate speed |
-| `qwen3-8b` | 8B | High quality, resource intensive |
-| `qwen2.5-0.5b` | 0.5B | Fast, lightweight tasks |
-| `qwen2.5-1.5b` | 1.5B | Good balance of speed/quality |
-| `qwen2.5-3b` | 3B | Enhanced capabilities |
-| `qwen2.5-7b` | 7B | Best quality, slower |
+| Size Parameter | Model Name | Parameters | Use Case |
+|----------------|------------|------------|----------|
+| `small` | `gemma-3n-2b` | 2B | Default, fast tasks |
+| `large` | `gemma-3n-4b` | 4B | High quality, complex tasks |
 
 ### Model Selection Methods
 
-1. **Using the registry**: `generate("prompt", model="qwen2.5-3b")`
+1. **Using size parameter (recommended)**: `generate("prompt", size="large")`
 2. **Custom models**: `generate("prompt", model_repo="...", model_filename="...")`
-3. **Environment variables**: Set `STEADYTEXT_GENERATION_MODEL_REPO` and `STEADYTEXT_GENERATION_MODEL_FILENAME`
+3. **Environment variables**: Set `STEADYTEXT_DEFAULT_SIZE` or custom model variables
+
+### Deprecated Models (v1.x)
+
+> **Note:** The following models were available in SteadyText v1.x but are deprecated in v2.0.0+:
+> - `qwen3-1.7b`, `qwen3-4b`, `qwen3-8b`
+> - `qwen2.5-0.5b`, `qwen2.5-1.5b`, `qwen2.5-3b`, `qwen2.5-7b`
+> 
+> Use the `size` parameter with Gemma-3n models instead.
 
 ### Model Caching
 

@@ -101,6 +101,7 @@ class DaemonServer:
         model_repo = params.get("model_repo")
         model_filename = params.get("model_filename")
         size = params.get("size")
+        max_new_tokens = params.get("max_new_tokens")
 
         # AIDEV-NOTE: Check cache first for non-logprobs requests using default model
         # This mirrors the caching logic in core/generator.py
@@ -119,6 +120,7 @@ class DaemonServer:
             model_repo=model_repo,
             model_filename=model_filename,
             size=size,
+            max_new_tokens=max_new_tokens,
         )
 
         # AIDEV-NOTE: Cache the result for non-logprobs requests using default model
@@ -150,6 +152,7 @@ class DaemonServer:
         model_repo = params.get("model_repo")
         model_filename = params.get("model_filename")
         size = params.get("size")
+        max_new_tokens = params.get("max_new_tokens")
 
         # AIDEV-NOTE: Check cache for non-logprobs streaming requests using default model
         # If cached, simulate streaming by yielding words from cached result
@@ -192,6 +195,7 @@ class DaemonServer:
             model_repo=model_repo,
             model_filename=model_filename,
             size=size,
+            max_new_tokens=max_new_tokens,
         ):
             # For consistency, always yield just the token - main loop will wrap it
             # Token is already a dict if include_logprobs=True, otherwise it's a string
@@ -215,16 +219,6 @@ class DaemonServer:
             # Join collected tokens to form complete text
             complete_text = "".join(collected_tokens)
 
-            # AIDEV-NOTE: Apply same think tag cleaning as non-streaming generate()
-            # to ensure consistency between streaming and non-streaming results
-            import re
-
-            complete_text = re.sub(
-                r"<think>\s*</think>\s*",
-                "",
-                complete_text,
-                flags=re.MULTILINE | re.DOTALL,
-            )
 
             cache_key = generate_cache_key(prompt, eos_string)
             get_generation_cache().set(cache_key, complete_text)

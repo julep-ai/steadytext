@@ -24,9 +24,9 @@ if not logger.handlers:
 
 # --- Model Configuration ---
 # AIDEV-NOTE: Switched from Qwen3 to Gemma-3n for generation and are using Qwen3-Embedding-0.6B for embeddings. Users can override the models via environment variables. The ggml-org repository is used for the latest GGUF versions.
-DEFAULT_GENERATION_MODEL_REPO = "ggml-org/gemma-3n-E4B-it-GGUF"
+DEFAULT_GENERATION_MODEL_REPO = "ggml-org/gemma-3n-E2B-it-GGUF"
 DEFAULT_EMBEDDING_MODEL_REPO = "Qwen/Qwen3-Embedding-0.6B-GGUF"
-GENERATION_MODEL_FILENAME = "gemma-3n-E4B-it-Q8_0.gguf"
+GENERATION_MODEL_FILENAME = "gemma-3n-E2B-it-Q8_0.gguf"
 EMBEDDING_MODEL_FILENAME = "Qwen3-Embedding-0.6B-Q8_0.gguf"
 
 # AIDEV-NOTE: Model registry for validated alternative models
@@ -45,8 +45,8 @@ MODEL_REGISTRY = {
 
 # AIDEV-NOTE: Size to model mapping for convenient size-based selection
 SIZE_TO_MODEL = {
-    "small": "gemma-3n-2b",
-    "large": "gemma-3n-4b",  # default
+    "small": "gemma-3n-2b",  # default
+    "large": "gemma-3n-4b",
 }
 
 # Get model configuration from environment or use defaults

@@ -1,6 +1,6 @@
 # Model Switching in SteadyText
 
-SteadyText 1.0.0 introduces dynamic model switching, allowing you to use different language models without restarting your application or changing environment variables.
+SteadyText v2.0.0+ supports dynamic model switching with the Gemma-3n model family, allowing you to use different model sizes without restarting your application.
 
 ## Overview
 
@@ -21,8 +21,8 @@ The simplest way to choose a model based on your needs:
 from steadytext import generate
 
 # Quick, lightweight tasks
-text = generate("Simple task", size="small")   # Uses Gemma-3n-2B
-text = generate("Complex analysis", size="large")   # Uses Gemma-3n-4B (default)
+text = generate("Simple task", size="small")   # Uses Gemma-3n-2B (default)
+text = generate("Complex analysis", size="large")   # Uses Gemma-3n-4B
 ```
 
 ### 2. Using the Model Registry
@@ -33,23 +33,20 @@ For more specific model selection:
 from steadytext import generate
 
 # Use a smaller, faster model
-text = generate("Explain machine learning", model="qwen2.5-0.5b")
+text = generate("Explain machine learning", size="small")   # Gemma-3n-2B
 
 # Use a larger, more capable model
-text = generate("Write a detailed essay", model="qwen2.5-7b")
+text = generate("Write a detailed essay", size="large")    # Gemma-3n-4B
 ```
 
-Available models in the registry:
+Available models in the registry (v2.0.0+):
 
 | Model Name | Size | Use Case | Size Parameter |
 |------------|------|----------|----------------|
-| `gemma-3n-2b` | 2B | Fast, for simple tasks | `small` |
-| `gemma-3n-4b` | 4B | Default, high quality | `large` |
-| `qwen3-8b` | 8B | High quality, resource intensive | - |
-| `qwen2.5-0.5b` | 0.5B | Fast, lightweight tasks | - |
-| `qwen2.5-1.5b` | 1.5B | Good balance of speed/quality | - |
-| `qwen2.5-3b` | 3B | Enhanced capabilities | - |
-| `qwen2.5-7b` | 7B | Best quality, slower | - |
+| `gemma-3n-2b` | 2B | Default, fast tasks | `small` |
+| `gemma-3n-4b` | 4B | High quality, complex tasks | `large` |
+
+> **Note:** SteadyText v2.0.0+ focuses on the Gemma-3n model family. Previous versions (v1.x) supported Qwen models which are now deprecated.
 
 ### 3. Using Custom Models
 
@@ -71,8 +68,12 @@ text = generate(
 Set default models via environment variables:
 
 ```bash
-export STEADYTEXT_GENERATION_MODEL_REPO="Qwen/Qwen2.5-3B-Instruct-GGUF"
-export STEADYTEXT_GENERATION_MODEL_FILENAME="qwen2.5-3b-instruct-q8_0.gguf"
+# Use small model by default
+export STEADYTEXT_DEFAULT_SIZE="small"
+
+# Or specify custom model (advanced)
+export STEADYTEXT_GENERATION_MODEL_REPO="ggml-org/gemma-3n-E2B-it-GGUF"
+export STEADYTEXT_GENERATION_MODEL_FILENAME="gemma-3n-E2B-it-Q8_0.gguf"
 ```
 
 ## Streaming Generation
@@ -82,8 +83,8 @@ Model switching works with streaming generation too:
 ```python
 from steadytext import generate_iter
 
-# Stream with a specific model
-for token in generate_iter("Tell me a story", model="qwen2.5-3b"):
+# Stream with a specific model size
+for token in generate_iter("Tell me a story", size="large"):
     print(token, end="", flush=True)
 ```
 
@@ -96,7 +97,7 @@ for token in generate_iter("Tell me a story", model="qwen2.5-3b"):
 
 ### For Quality (4B model)
 - **Use cases**: Complex reasoning, detailed content, creative writing
-- **Recommended**: `gemma-3n-4b` (size="large", default)
+- **Recommended**: `gemma-3n-4b` (size="large")
 - **Trade-off**: Best quality, slower generation
 
 ## Performance Considerations
