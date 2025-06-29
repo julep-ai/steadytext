@@ -2,106 +2,110 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://steadytext.dev/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/api/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/benchmarks/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/contributing/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/eos-string-implementation/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/model-switching/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/quick-start/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
+    </url>
+    <url>
+         <loc>https://steadytext.dev/version_history/</loc>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/api/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/api/cli/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/api/embedding/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/api/generation/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/api/vector/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/examples/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/examples/testing/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/examples/tooling/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/mojo-max/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/mojo-max/community-edition/licensing/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/mojo-max/community-edition/limitations/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/mojo-max/examples/python-integration/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/mojo-max/getting-started/hello-world/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/mojo-max/getting-started/installation/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/mojo-max/getting-started/quickstart/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/mojo-max/max-inference/overview/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/mojo-max/mojo-language/basics/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/mojo-max/mojo-language/calling-mojo-from-python/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://steadytext.dev/mojo-max/mojo-language/python-interop/</loc>
-         <lastmod>2025-06-24</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
 </urlset>

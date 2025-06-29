@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://steadytext.dev/model-switching/">
       
       
-        <link rel="prev" href="../quick-start/">
+        <link rel="prev" href="../version_history/">
       
       
         <link rel="next" href="../api/">
@@ -262,6 +262,25 @@
   
   
   
+  
+    <li class="md-tabs__item">
+      <a href="../version_history/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Version History
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
     
   
   
@@ -433,6 +452,28 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../version_history/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Version History
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -565,27 +606,18 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#for-speed-05b-15b-models" class="md-nav__link">
+  <a href="#for-speed-2b-model" class="md-nav__link">
     <span class="md-ellipsis">
-      For Speed (0.5B - 1.5B models)
+      For Speed (2B model)
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#for-balance-17b-3b-models" class="md-nav__link">
+  <a href="#for-quality-4b-model" class="md-nav__link">
     <span class="md-ellipsis">
-      For Balance (1.7B - 3B models)
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#for-quality-4b-models" class="md-nav__link">
-    <span class="md-ellipsis">
-      For Quality (4B+ models)
+      For Quality (4B model)
     </span>
   </a>
   
@@ -710,10 +742,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
             
   
   
@@ -726,8 +758,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             API Reference
           </label>
@@ -854,10 +886,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
   
   
@@ -870,8 +902,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             Examples
           </label>
@@ -995,7 +1027,7 @@
 
 
 <h1 id="model-switching-in-steadytext">Model Switching in SteadyText<a class="headerlink" href="#model-switching-in-steadytext" title="Permanent link">&para;</a></h1>
-<p>SteadyText 1.0.0 introduces dynamic model switching, allowing you to use different language models without restarting your application or changing environment variables.</p>
+<p>SteadyText v2.0.0+ supports dynamic model switching with the Gemma-3n model family, allowing you to use different model sizes without restarting your application.</p>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p>The model switching feature enables you to:</p>
 <ol>
@@ -1010,25 +1042,20 @@
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">steadytext</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Quick, lightweight tasks</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">text</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="s2">&quot;Simple question&quot;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="s2">&quot;small&quot;</span><span class="p">)</span>    <span class="c1"># Uses Qwen3-0.6B</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># Balanced performance (default)</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">text</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="s2">&quot;General task&quot;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="s2">&quot;medium&quot;</span><span class="p">)</span>      <span class="c1"># Uses Qwen3-1.7B</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># Complex, high-quality output</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">text</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="s2">&quot;Complex analysis&quot;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="s2">&quot;large&quot;</span><span class="p">)</span>   <span class="c1"># Uses Qwen3-4B</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">text</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="s2">&quot;Simple task&quot;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="s2">&quot;small&quot;</span><span class="p">)</span>   <span class="c1"># Uses Gemma-3n-2B (default)</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">text</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="s2">&quot;Complex analysis&quot;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="s2">&quot;large&quot;</span><span class="p">)</span>   <span class="c1"># Uses Gemma-3n-4B</span>
 </span></code></pre></div>
 <h3 id="2-using-the-model-registry">2. Using the Model Registry<a class="headerlink" href="#2-using-the-model-registry" title="Permanent link">&para;</a></h3>
 <p>For more specific model selection:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">steadytext</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># Use a smaller, faster model</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">text</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="s2">&quot;Explain machine learning&quot;</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen2.5-0.5b&quot;</span><span class="p">)</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">text</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="s2">&quot;Explain machine learning&quot;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="s2">&quot;small&quot;</span><span class="p">)</span>   <span class="c1"># Gemma-3n-2B</span>
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
 </span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c1"># Use a larger, more capable model</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">text</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="s2">&quot;Write a detailed essay&quot;</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen2.5-7b&quot;</span><span class="p">)</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">text</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="s2">&quot;Write a detailed essay&quot;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="s2">&quot;large&quot;</span><span class="p">)</span>    <span class="c1"># Gemma-3n-4B</span>
 </span></code></pre></div>
-<p>Available models in the registry:</p>
+<p>Available models in the registry (v2.0.0+):</p>
 <table>
 <thead>
 <tr>
@@ -1040,55 +1067,22 @@
 </thead>
 <tbody>
 <tr>
-<td><code>qwen3-0.6b</code></td>
-<td>0.6B</td>
-<td>Very fast, simple tasks</td>
+<td><code>gemma-3n-2b</code></td>
+<td>2B</td>
+<td>Default, fast tasks</td>
 <td><code>small</code></td>
 </tr>
 <tr>
-<td><code>qwen3-1.7b</code></td>
-<td>1.7B</td>
-<td>Default, balanced performance</td>
-<td><code>medium</code></td>
-</tr>
-<tr>
-<td><code>qwen3-4b</code></td>
+<td><code>gemma-3n-4b</code></td>
 <td>4B</td>
-<td>Better quality, slower</td>
+<td>High quality, complex tasks</td>
 <td><code>large</code></td>
-</tr>
-<tr>
-<td><code>qwen3-8b</code></td>
-<td>8B</td>
-<td>High quality, resource intensive</td>
-<td>-</td>
-</tr>
-<tr>
-<td><code>qwen2.5-0.5b</code></td>
-<td>0.5B</td>
-<td>Fast, lightweight tasks</td>
-<td>-</td>
-</tr>
-<tr>
-<td><code>qwen2.5-1.5b</code></td>
-<td>1.5B</td>
-<td>Good balance of speed/quality</td>
-<td>-</td>
-</tr>
-<tr>
-<td><code>qwen2.5-3b</code></td>
-<td>3B</td>
-<td>Enhanced capabilities</td>
-<td>-</td>
-</tr>
-<tr>
-<td><code>qwen2.5-7b</code></td>
-<td>7B</td>
-<td>Best quality, slower</td>
-<td>-</td>
 </tr>
 </tbody>
 </table>
+<blockquote>
+<p><strong>Note:</strong> SteadyText v2.0.0+ focuses on the Gemma-3n model family. Previous versions (v1.x) supported Qwen models which are now deprecated.</p>
+</blockquote>
 <h3 id="3-using-custom-models">3. Using Custom Models<a class="headerlink" href="#3-using-custom-models" title="Permanent link">&para;</a></h3>
 <p>Specify any GGUF model from Hugging Face:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">steadytext</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate</span>
@@ -1096,40 +1090,38 @@
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="c1"># Use a custom model</span>
 </span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">text</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span>
 </span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="s2">&quot;Create a Python function&quot;</span><span class="p">,</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="n">model_repo</span><span class="o">=</span><span class="s2">&quot;Qwen/Qwen2.5-7B-Instruct-GGUF&quot;</span><span class="p">,</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">model_filename</span><span class="o">=</span><span class="s2">&quot;qwen2.5-7b-instruct-q8_0.gguf&quot;</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="n">model_repo</span><span class="o">=</span><span class="s2">&quot;ggml-org/gemma-3n-E4B-it-GGUF&quot;</span><span class="p">,</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">model_filename</span><span class="o">=</span><span class="s2">&quot;gemma-3n-E4B-it-Q8_0.gguf&quot;</span>
 </span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="4-using-environment-variables">4. Using Environment Variables<a class="headerlink" href="#4-using-environment-variables" title="Permanent link">&para;</a></h3>
 <p>Set default models via environment variables:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_GENERATION_MODEL_REPO</span><span class="o">=</span><span class="s2">&quot;Qwen/Qwen2.5-3B-Instruct-GGUF&quot;</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_GENERATION_MODEL_FILENAME</span><span class="o">=</span><span class="s2">&quot;qwen2.5-3b-instruct-q8_0.gguf&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Use small model by default</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_DEFAULT_SIZE</span><span class="o">=</span><span class="s2">&quot;small&quot;</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Or specify custom model (advanced)</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_GENERATION_MODEL_REPO</span><span class="o">=</span><span class="s2">&quot;ggml-org/gemma-3n-E2B-it-GGUF&quot;</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_GENERATION_MODEL_FILENAME</span><span class="o">=</span><span class="s2">&quot;gemma-3n-E2B-it-Q8_0.gguf&quot;</span>
 </span></code></pre></div>
 <h2 id="streaming-generation">Streaming Generation<a class="headerlink" href="#streaming-generation" title="Permanent link">&para;</a></h2>
 <p>Model switching works with streaming generation too:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">steadytext</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_iter</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># Stream with a specific model</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">generate_iter</span><span class="p">(</span><span class="s2">&quot;Tell me a story&quot;</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen2.5-3b&quot;</span><span class="p">):</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># Stream with a specific model size</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">generate_iter</span><span class="p">(</span><span class="s2">&quot;Tell me a story&quot;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="s2">&quot;large&quot;</span><span class="p">):</span>
 </span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">token</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </span></code></pre></div>
 <h2 id="model-selection-guide">Model Selection Guide<a class="headerlink" href="#model-selection-guide" title="Permanent link">&para;</a></h2>
-<h3 id="for-speed-05b-15b-models">For Speed (0.5B - 1.5B models)<a class="headerlink" href="#for-speed-05b-15b-models" title="Permanent link">&para;</a></h3>
+<h3 id="for-speed-2b-model">For Speed (2B model)<a class="headerlink" href="#for-speed-2b-model" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Use cases</strong>: Chat responses, simple completions, real-time applications</li>
-<li><strong>Recommended</strong>: <code>qwen3-0.6b</code> (size="small"), <code>qwen2.5-0.5b</code>, <code>qwen2.5-1.5b</code></li>
+<li><strong>Recommended</strong>: <code>gemma-3n-2b</code> (size="small")</li>
 <li><strong>Trade-off</strong>: Faster generation, simpler outputs</li>
 </ul>
-<h3 id="for-balance-17b-3b-models">For Balance (1.7B - 3B models)<a class="headerlink" href="#for-balance-17b-3b-models" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Use cases</strong>: General text generation, summaries, explanations</li>
-<li><strong>Recommended</strong>: <code>qwen3-1.7b</code> (size="medium", default), <code>qwen2.5-3b</code></li>
-<li><strong>Trade-off</strong>: Good quality with reasonable speed</li>
-</ul>
-<h3 id="for-quality-4b-models">For Quality (4B+ models)<a class="headerlink" href="#for-quality-4b-models" title="Permanent link">&para;</a></h3>
+<h3 id="for-quality-4b-model">For Quality (4B model)<a class="headerlink" href="#for-quality-4b-model" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Use cases</strong>: Complex reasoning, detailed content, creative writing</li>
-<li><strong>Recommended</strong>: <code>qwen3-4b</code> (size="large"), <code>qwen2.5-7b</code>, <code>qwen3-8b</code></li>
+<li><strong>Recommended</strong>: <code>gemma-3n-4b</code> (size="large")</li>
 <li><strong>Trade-off</strong>: Best quality, slower generation</li>
 </ul>
 <h2 id="performance-considerations">Performance Considerations<a class="headerlink" href="#performance-considerations" title="Permanent link">&para;</a></h2>
@@ -1143,17 +1135,14 @@
 <h3 id="adaptive-model-selection">Adaptive Model Selection<a class="headerlink" href="#adaptive-model-selection" title="Permanent link">&para;</a></h3>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">steadytext</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="k">def</span><span class="w"> </span><span class="nf">smart_generate</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="k">def</span><span class="w"> </span><span class="nf">smart_generate</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">complexity</span><span class="o">=</span><span class="s2">&quot;medium&quot;</span><span class="p">):</span>
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Use different models based on task complexity.&quot;&quot;&quot;</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="k">if</span> <span class="n">max_length</span> <span class="o">&lt;</span> <span class="mi">50</span><span class="p">:</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>        <span class="c1"># Use fast model for short outputs</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>        <span class="k">return</span> <span class="n">generate</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen2.5-0.5b&quot;</span><span class="p">)</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="k">elif</span> <span class="n">max_length</span> <span class="o">&lt;</span> <span class="mi">200</span><span class="p">:</span>
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>        <span class="c1"># Use balanced model</span>
-</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>        <span class="k">return</span> <span class="n">generate</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen3-1.7b&quot;</span><span class="p">)</span>
-</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>    <span class="k">else</span><span class="p">:</span>
-</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>        <span class="c1"># Use high-quality model for long outputs</span>
-</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>        <span class="k">return</span> <span class="n">generate</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen2.5-7b&quot;</span><span class="p">)</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="k">if</span> <span class="n">complexity</span> <span class="o">==</span> <span class="s2">&quot;low&quot;</span><span class="p">:</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>        <span class="c1"># Use fast model for simple tasks</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>        <span class="k">return</span> <span class="n">generate</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="s2">&quot;small&quot;</span><span class="p">)</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="k">else</span><span class="p">:</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>        <span class="c1"># Use high-quality model for complex tasks</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>        <span class="k">return</span> <span class="n">generate</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="s2">&quot;large&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="ab-testing-models">A/B Testing Models<a class="headerlink" href="#ab-testing-models" title="Permanent link">&para;</a></h3>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">steadytext</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate</span>
@@ -1164,11 +1153,11 @@
 </span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Prompt: </span><span class="si">{</span><span class="n">prompt</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>
 </span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    <span class="c1"># Test with small model</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="n">small</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen2.5-0.5b&quot;</span><span class="p">)</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="n">small</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="s2">&quot;small&quot;</span><span class="p">)</span>
 </span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Small model: </span><span class="si">{</span><span class="n">small</span><span class="p">[:</span><span class="mi">100</span><span class="p">]</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
 </span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>
 </span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    <span class="c1"># Test with large model</span>
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>    <span class="n">large</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen2.5-3b&quot;</span><span class="p">)</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>    <span class="n">large</span> <span class="o">=</span> <span class="n">generate</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="s2">&quot;large&quot;</span><span class="p">)</span>
 </span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Large model: </span><span class="si">{</span><span class="n">large</span><span class="p">[:</span><span class="mi">100</span><span class="p">]</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
