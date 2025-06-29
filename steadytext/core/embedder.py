@@ -69,7 +69,7 @@ def _deterministic_fallback_embed(text: str, seed: int) -> np.ndarray:
     # Each float32 is 4 bytes, so we need num_floats * 4 bytes
     # Each hex char is 0.5 bytes, so we need num_floats * 8 hex chars
     required_hex_len = num_floats * 8
-    
+
     # SHA-256 produces 64 hex chars, but we need more for 1024 dimensions
     # Repeat the hash until we have enough characters
     while len(hex_digest) < required_hex_len:
@@ -119,7 +119,7 @@ def core_embed(
                    by the public API layer for a "Never Fails" zero vector response).
     """
     validate_seed(seed)
-    
+
     if not isinstance(text_input, (str, list)):
         logger.error(
             f"Core.embedder: Input must be str or list, got {type(text_input)}."

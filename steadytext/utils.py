@@ -69,10 +69,10 @@ DEFAULT_SEED: Final[int] = 42
 
 def validate_seed(seed: int) -> None:
     """Validate that seed is a non-negative integer.
-    
+
     Args:
         seed: The seed value to validate
-        
+
     Raises:
         ValueError: If seed is not a non-negative integer
     """
