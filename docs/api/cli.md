@@ -50,7 +50,6 @@ steadytext generate [OPTIONS] PROMPT
 | `--wait` | `-w` | flag | `false` | Wait for complete output (disable streaming) |
 | `--json` | `-j` | flag | `false` | Output as JSON with metadata |
 | `--logprobs` | `-l` | flag | `false` | Include log probabilities |
-| `--think` | | flag | `false` | Enable Qwen3 thinking mode (shows reasoning) |
 | `--eos-string` | `-e` | string | `"[EOS]"` | Custom end-of-sequence string |
 | `--size` | | choice | | Model size: small (2B), large (4B, default) |
 | `--model` | | string | | Model name from registry (e.g., "qwen2.5-3b") |
@@ -220,37 +219,89 @@ steadytext models [OPTIONS]
 | `--list` | `-l` | List available models |
 | `--preload` | `-p` | Preload all models |
 | `--cache-dir` |  | Show model cache directory |
-| `--cache-info` |  | Show cache usage information |
+| `--json` | flag | `false` | Output as JSON |
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `status` | Check model download status |
+| `list` | List available models |
+| `download` | Pre-download models |
+| `delete` | Delete cached models |
+| `preload` | Preload models into memory |
+| `path` | Show model cache directory |
 
 ### Examples
 
 === "List Models"
 
     ```bash
-    st models --list
+    st models list
     # Output:
-    # Generation Model: Qwen3-1.7B-Q8_0 (1.83GB)
-    # Embedding Model: Qwen3-0.6B-Q8_0 (610MB)
+    # Size Shortcuts:
+    #   small → gemma-3n-2b
+    #   large → gemma-3n-4b
+    #
+    # Available Models:
+    #   gemma-3n-2b
+    #     Repository: ggml-org/gemma-3n-E2B-it-GGUF
+    #     Filename: gemma-3n-E2B-it-Q8_0.gguf
+    #   gemma-3n-4b
+    #     Repository: ggml-org/gemma-3n-E4B-it-GGUF
+    #     Filename: gemma-3n-E4B-it-Q8_0.gguf
+    ```
+
+=== "Download Models"
+
+    ```bash
+    # Download default models
+    st models download
+
+    # Download by size
+    st models download --size small
+
+    # Download by name
+    st models download --model gemma-3n-4b
+
+    # Download all models
+    st models download --all
+    ```
+
+=== "Delete Models"
+
+    ```bash
+    # Delete by size
+    st models delete --size small
+
+    # Delete by name
+    st models delete --model gemma-3n-4b
+
+    # Delete all models with confirmation
+    st models delete --all
+
+    # Force delete all models without confirmation
+    st models delete --all --force
     ```
 
 === "Preload Models"
 
     ```bash
-    st models --preload
+    st models preload
     # Downloads and loads all models
     ```
 
 === "Cache Information"
 
     ```bash
-    st models --cache-dir
+    st models path
     # /home/user/.cache/steadytext/models/
 
-    st models --cache-info
-    # Cache directory: /home/user/.cache/steadytext/models/
-    # Generation model: 1.83GB (downloaded)
-    # Embedding model: 610MB (not downloaded)
-    # Total size: 1.83GB / 2.44GB
+    st models status
+    # {
+    #   "model_directory": "/home/user/.cache/steadytext/models",
+    #   "models": { ... }
+    # }
     ```
 
 ---
