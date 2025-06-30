@@ -128,15 +128,21 @@ def run_simple_accuracy_tests(args):
 
     # Check if code generation produces code-like output
     code_output = steadytext.generate("Write a Python function to sort a list")
-    has_code_markers = any(
-        marker in code_output for marker in ["def ", "return", ":", "(", ")"]
-    )
-    quality_checks.append(("code_generation", has_code_markers))
+    if code_output is not None:
+        has_code_markers = any(
+            marker in code_output for marker in ["def ", "return", ":", "(", ")"]
+        )
+        quality_checks.append(("code_generation", has_code_markers))
+    else:
+        quality_checks.append(("code_generation", False))
 
     # Check if explanations are reasonable length
     explanation = steadytext.generate("Explain quantum computing")
-    reasonable_length = 100 < len(explanation) < 2000
-    quality_checks.append(("explanation_length", reasonable_length))
+    if explanation is not None:
+        reasonable_length = 100 < len(explanation) < 2000
+        quality_checks.append(("explanation_length", reasonable_length))
+    else:
+        quality_checks.append(("explanation_length", False))
 
     results["tests"]["quality"] = {check[0]: check[1] for check in quality_checks}
 

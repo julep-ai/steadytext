@@ -144,9 +144,9 @@ class SteadyTextLightEvalModel(LightevalModel):
                 )
 
             # Truncate at stop sequences
-            truncated_text = generated_text
+            truncated_text = generated_text if generated_text is not None else ""
             for stop_seq in stop_sequences:
-                if stop_seq in truncated_text:
+                if truncated_text and stop_seq in truncated_text:
                     truncated_text = truncated_text.split(stop_seq)[0]
 
             # Create result
@@ -187,9 +187,14 @@ class SteadyTextLightEvalModel(LightevalModel):
                 context + continuation
 
             # Generate with logprobs to get likelihood information
-            generated_text, logprobs_dict = steadytext.generate(
-                prompt=context, return_logprobs=True
-            )
+            result = steadytext.generate(prompt=context, return_logprobs=True)
+
+            # Handle case where model is not loaded
+            if result is None or (isinstance(result, tuple) and result[0] is None):
+                generated_text = ""
+                logprobs_dict = None
+            else:
+                generated_text, logprobs_dict = result
 
             # Since SteadyText is deterministic and doesn't provide
             # true log-likelihoods, we'll use a proxy based on whether

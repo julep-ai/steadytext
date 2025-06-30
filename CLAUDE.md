@@ -159,6 +159,19 @@ When responding to user instructions, the AI assistant (Claude, Cursor, GPT, etc
 10. **Session Boundaries**: If the user's request isn't directly related to the current context and can be safely started in a fresh session, suggest starting from scratch to avoid context confusion.
 
 
+## Deterministic Fallback Removal (v2.1.0+)
+
+AIDEV-NOTE: The deterministic fallback generator has been disabled in v2.1.0+. When models are unavailable or errors occur, functions now return `None` instead of generating deterministic but meaningless text. This change was made because the fallback was causing more confusion than it was solving.
+
+**Key Changes:**
+- `generate()` returns `None` when model is not loaded or on invalid input
+- `generate_iter()` returns an empty iterator when model is not loaded
+- `embed()` returns `None` instead of zero vectors when model is not loaded
+- PostgreSQL extension returns NULL on errors instead of fallback text
+- Tests updated to expect `None` instead of fallback outputs
+
+The original fallback functions (`_deterministic_fallback_generate` and `_deterministic_fallback_generate_iter`) are preserved but marked as DEPRECATED.
+
 ## pytest Collection Hanging Fix
 
 AIDEV-NOTE: Fixed in v2.0.1+ - pytest collection was hanging due to module-level code execution. The fixes include removing module-level execution, adding environment checks for model downloads, lazy cache initialization, and early environment setup in conftest.py.

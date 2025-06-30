@@ -32,24 +32,49 @@ EMBEDDING_MODEL_FILENAME = "Qwen3-Embedding-0.6B-Q8_0.gguf"
 # AIDEV-NOTE: Model registry for validated alternative models
 # Each entry contains repo_id and filename for known working models
 MODEL_REGISTRY = {
-    # Gemma-3n models
+    # Gemma-3n models (may have compatibility issues with inference-sh fork)
     "gemma-3n-2b": {
         "repo": "ggml-org/gemma-3n-E2B-it-GGUF",
         "filename": "gemma-3n-E2B-it-Q8_0.gguf",
+        "compatibility_warning": "May not be compatible with inference-sh llama-cpp-python fork",
     },
     "gemma-3n-4b": {
         "repo": "ggml-org/gemma-3n-E4B-it-GGUF",
         "filename": "gemma-3n-E4B-it-Q8_0.gguf",
+        "compatibility_warning": "May not be compatible with inference-sh llama-cpp-python fork",
+    },
+    # Qwen models (known to work with inference-sh fork)
+    "qwen2.5-3b": {
+        "repo": "lmstudio-community/Qwen2.5-3B-Instruct-GGUF",
+        "filename": "Qwen2.5-3B-Instruct-Q8_0.gguf",
+        "verified": True,
+    },
+    "qwen3-1.7b": {
+        "repo": "lmstudio-community/qwen3-1.7b-llama-cpp-python-GGUF",
+        "filename": "qwen3-1.7b-q8_0.gguf",
+        "verified": True,
     },
 }
 
 # AIDEV-NOTE: Size to model mapping for convenient size-based selection
 SIZE_TO_MODEL = {
-    "small": "gemma-3n-2b",  # default
-    "large": "gemma-3n-4b",
+    "small": "qwen3-1.7b",  # fallback to known working model
+    "medium": "qwen2.5-3b",  # fallback to known working model
+    "large": "gemma-3n-4b",  # may have compatibility issues
 }
 
 # Get model configuration from environment or use defaults
+# AIDEV-NOTE: If gemma-3n models fail, set STEADYTEXT_USE_FALLBACK_MODEL=true
+USE_FALLBACK_MODEL = (
+    os.environ.get("STEADYTEXT_USE_FALLBACK_MODEL", "false").lower() == "true"
+)
+
+if USE_FALLBACK_MODEL:
+    # Use known working Qwen model as fallback
+    DEFAULT_GENERATION_MODEL_REPO = "lmstudio-community/Qwen2.5-3B-Instruct-GGUF"
+    GENERATION_MODEL_FILENAME = "Qwen2.5-3B-Instruct-Q8_0.gguf"
+    logger.info("Using fallback Qwen model due to STEADYTEXT_USE_FALLBACK_MODEL=true")
+
 GENERATION_MODEL_REPO = os.environ.get(
     "STEADYTEXT_GENERATION_MODEL_REPO", DEFAULT_GENERATION_MODEL_REPO
 )
@@ -362,3 +387,35 @@ def should_use_cache_for_streaming(
         and model_filename is None
         and size is None
     )
+
+
+def check_model_compatibility(repo_id: str, filename: str) -> tuple[bool, str]:
+    """Check if a model is known to be compatible with the current llama-cpp-python version.
+
+    Args:
+        repo_id: Repository ID of the model
+        filename: Filename of the model
+
+    Returns:
+        Tuple of (is_compatible, warning_message)
+
+    AIDEV-NOTE: This helps detect potential compatibility issues with the inference-sh fork of llama-cpp-python
+    """
+    # Check if this is a known problematic model
+    for model_name, config in MODEL_REGISTRY.items():
+        if config["repo"] == repo_id and config["filename"] == filename:
+            if "compatibility_warning" in config:
+                return False, config["compatibility_warning"]
+            elif config.get("verified", False):
+                return True, ""
+            break
+
+    # Check for known problematic patterns
+    if "gemma-3n" in filename.lower():
+        return (
+            False,
+            "Gemma-3n models may not be compatible with inference-sh llama-cpp-python fork. Consider using STEADYTEXT_USE_FALLBACK_MODEL=true",
+        )
+
+    # Unknown model - proceed with caution
+    return True, ""

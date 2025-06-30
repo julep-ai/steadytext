@@ -99,7 +99,10 @@ def main():
     print("\nUsing context manager:")
     with st.use_daemon():
         text = st.generate("Context manager test")
-        print(f"  Generated {len(text)} characters")
+        if text is not None:
+            print(f"  Generated {len(text)} characters")
+        else:
+            print("  Generation failed")
 
 
 if __name__ == "__main__":

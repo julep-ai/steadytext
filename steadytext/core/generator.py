@@ -91,7 +91,7 @@ class DeterministicGenerator:
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
         seed: int = DEFAULT_SEED,
-    ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
+    ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None]]:
         """Generate text with optional model switching.
 
         Args:
@@ -131,11 +131,9 @@ class DeterministicGenerator:
 
         if not isinstance(prompt, str):
             logger.error(
-                f"DeterministicGenerator.generate: Invalid prompt type: {type(prompt)}. Expected str. Using fallback."
+                f"DeterministicGenerator.generate: Invalid prompt type: {type(prompt)}. Expected str."
             )
-            # Pass string representation to fallback
-            fallback = _deterministic_fallback_generate(str(prompt), seed)
-            return (fallback, None) if return_logprobs else fallback
+            return (None, None) if return_logprobs else None
 
         # Check if we need to load a different model
         model_key = f"{repo_id or 'default'}::{filename or 'default'}"
@@ -151,42 +149,29 @@ class DeterministicGenerator:
                 force_reload=False,  # Use cache if available
             )
 
-        # AIDEV-NOTE: This is the critical fallback point. If the model fails to load, it uses a hash-based generator.
+        # AIDEV-NOTE: Return None if model is not loaded instead of using fallback
         skip_model_load = os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1"
         if self.model is None or skip_model_load:
             if skip_model_load:
-                logger.debug(
+                logger.error(
                     "DeterministicGenerator.generate: STEADYTEXT_SKIP_MODEL_LOAD=1. "
-                    "Using fallback generator."
+                    "Model loading is disabled."
                 )
             else:
-                logger.warning(
+                logger.error(
                     "DeterministicGenerator.generate: Model not loaded. "
-                    "Using fallback generator."
+                    "Cannot generate text."
                 )
-            fallback = _deterministic_fallback_generate(prompt, seed)
-
-            # Cache fallback result for non-logprobs requests and default model
-            if should_use_cache_for_generation(return_logprobs, repo_id, filename):
-                cache_key = generate_cache_key(prompt, eos_string)
-                get_generation_cache().set(cache_key, fallback)
-
-            return (fallback, None) if return_logprobs else fallback
+            # Return None to indicate failure
+            return (None, None) if return_logprobs else None
 
         if not prompt or not prompt.strip():  # Check after ensuring prompt is a string
-            logger.warning(
+            logger.error(
                 "DeterministicGenerator.generate: Empty or whitespace-only "
-                "prompt received. Using fallback generator."
+                "prompt received. Cannot generate from empty prompt."
             )
-            # Call fallback for empty/whitespace
-            fallback = _deterministic_fallback_generate(prompt, seed)
-
-            # Cache fallback result for non-logprobs requests and default model
-            if should_use_cache_for_generation(return_logprobs, repo_id, filename):
-                cache_key = generate_cache_key(prompt, eos_string)
-                get_generation_cache().set(cache_key, fallback)
-
-            return (fallback, None) if return_logprobs else fallback
+            # Return None for empty/whitespace prompts
+            return (None, None) if return_logprobs else None
 
         try:
             # AIDEV-NOTE: Reset model cache before generation to ensure deterministic
@@ -289,27 +274,9 @@ class DeterministicGenerator:
         set_deterministic_environment(seed)
         if not isinstance(prompt, str):
             logger.error(
-                f"DeterministicGenerator.generate_iter: Invalid prompt type: {type(prompt)}. Expected str. Using fallback."
+                f"DeterministicGenerator.generate_iter: Invalid prompt type: {type(prompt)}. Expected str."
             )
-            # Yield words from fallback
-            fallback_text = _deterministic_fallback_generate(str(prompt), seed)
-            words = fallback_text.split()
-            for i, word in enumerate(words):
-                if include_logprobs:
-                    # AIDEV-NOTE: Fallback returns None logprobs for compatibility
-                    yield {
-                        "token": word + (" " if i < len(words) - 1 else ""),
-                        "logprobs": None,
-                    }
-                else:
-                    yield word + (" " if i < len(words) - 1 else "")
-
-            # Cache fallback result for non-logprobs requests with default model
-            if should_use_cache_for_streaming(
-                include_logprobs, model, model_repo, model_filename, size
-            ):
-                cache_key = generate_cache_key(str(prompt), eos_string)
-                get_generation_cache().set(cache_key, fallback_text)
+            # Return early for invalid input
             return
 
         # AIDEV-NOTE: Check cache first for non-logprobs requests using default model
@@ -389,63 +356,28 @@ class DeterministicGenerator:
                 force_reload=False,
             )
 
-        # AIDEV-NOTE: Check if model is loaded, fallback to word-by-word generation if not
-        # Also check for STEADYTEXT_SKIP_MODEL_LOAD environment variable
+        # AIDEV-NOTE: Return early if model is not loaded
         skip_model_load = os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1"
         if self.model is None or skip_model_load:
             if skip_model_load:
-                logger.debug(
+                logger.error(
                     "DeterministicGenerator.generate_iter: STEADYTEXT_SKIP_MODEL_LOAD=1. "
-                    "Using fallback generator."
+                    "Model loading is disabled."
                 )
             else:
-                logger.warning(
+                logger.error(
                     "DeterministicGenerator.generate_iter: Model not loaded. "
-                    "Using fallback generator."
+                    "Cannot generate text."
                 )
-            fallback_text = _deterministic_fallback_generate(prompt, seed)
-            words = fallback_text.split()
-            for i, word in enumerate(words):
-                if include_logprobs:
-                    # AIDEV-NOTE: Fallback returns None logprobs for compatibility
-                    yield {
-                        "token": word + (" " if i < len(words) - 1 else ""),
-                        "logprobs": None,
-                    }
-                else:
-                    yield word + (" " if i < len(words) - 1 else "")
-
-            # Cache fallback result for non-logprobs requests with default model
-            if should_use_cache_for_streaming(
-                include_logprobs, model, model_repo, model_filename, size
-            ):
-                cache_key = generate_cache_key(prompt, eos_string)
-                get_generation_cache().set(cache_key, fallback_text)
+            # Return empty iterator
             return
 
         if not prompt or not prompt.strip():
-            logger.warning(
+            logger.error(
                 "DeterministicGenerator.generate_iter: Empty or whitespace-only "
-                "prompt received. Using fallback generator."
+                "prompt received. Cannot generate from empty prompt."
             )
-            fallback_text = _deterministic_fallback_generate(prompt, seed)
-            words = fallback_text.split()
-            for i, word in enumerate(words):
-                if include_logprobs:
-                    # AIDEV-NOTE: Fallback returns None logprobs for compatibility
-                    yield {
-                        "token": word + (" " if i < len(words) - 1 else ""),
-                        "logprobs": None,
-                    }
-                else:
-                    yield word + (" " if i < len(words) - 1 else "")
-
-            # Cache fallback result for non-logprobs requests with default model
-            if should_use_cache_for_streaming(
-                include_logprobs, model, model_repo, model_filename, size
-            ):
-                cache_key = generate_cache_key(prompt, eos_string)
-                get_generation_cache().set(cache_key, fallback_text)
+            # Return empty iterator
             return
 
         try:
@@ -546,10 +478,13 @@ class DeterministicGenerator:
             # On error, don't yield anything further
 
 
-# AIDEV-NOTE: Complex hash-based fallback generation algorithm for
-# deterministic output when model is unavailable - uses multiple hash seeds
-# for word selection
-# AIDEV-NOTE: This is the hash-based fallback mechanism.
+# AIDEV-NOTE: DEPRECATED - The deterministic fallback generator has been disabled.
+# The system now returns None when models are unavailable instead of generating
+# deterministic but meaningless text. This change was made because the fallback
+# was causing more confusion than it was solving.
+#
+# Original implementation preserved below for reference:
+# A complex, hash-based fallback generator for deterministic output when the model is unavailable.
 def _deterministic_fallback_generate(prompt: str, seed: int = DEFAULT_SEED) -> str:
     # Ensure prompt_for_hash is always a string, even if original prompt was not.
     if not isinstance(prompt, str) or not prompt.strip():
@@ -670,10 +605,11 @@ def _deterministic_fallback_generate(prompt: str, seed: int = DEFAULT_SEED) -> s
     return " ".join(fallback_text_parts)
 
 
+# AIDEV-NOTE: DEPRECATED - See note above _deterministic_fallback_generate
 def _deterministic_fallback_generate_iter(
     prompt: str, seed: int = DEFAULT_SEED
 ) -> Iterator[str]:
-    """Iterative version of deterministic fallback that yields words one by one.
+    """DEPRECATED: Iterative version of deterministic fallback that yields words one by one.
 
     AIDEV-NOTE: Used by generate_iter when the model is unavailable. Yields the same output as _deterministic_fallback_generate but word by word.
     """
@@ -708,7 +644,7 @@ def core_generate(
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
     seed: int = DEFAULT_SEED,
-) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
+) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None]]:
     """Generate text deterministically with optional model switching.
 
     This is the main public API for text generation. It maintains backward

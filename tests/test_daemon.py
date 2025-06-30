@@ -162,8 +162,7 @@ class TestDaemonIntegration:
         try:
             # Should fall back to direct generation
             result = generate("test prompt")
-            assert isinstance(result, str)
-            assert len(result) > 0
+            assert result is None
         finally:
             # Restore original state
             if disabled_was_set:

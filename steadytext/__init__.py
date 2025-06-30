@@ -38,7 +38,7 @@ def generate(
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
     seed: int = DEFAULT_SEED,
-) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
+) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None]]:
     """Generate text deterministically from a prompt.
 
     Args:
@@ -97,7 +97,7 @@ def generate(
                     f"Daemon not available ({e}), falling back to direct generation"
                 )
 
-    return _generate(
+    result = _generate(
         prompt,
         max_new_tokens=max_new_tokens,
         return_logprobs=return_logprobs,
@@ -108,6 +108,12 @@ def generate(
         size=size,
         seed=seed,
     )
+
+    # AIDEV-NOTE: Return None if generation failed
+    if result is None:
+        logger.error("Text generation failed - model not available or invalid input")
+
+    return result
 
 
 def generate_iter(
@@ -179,7 +185,9 @@ def generate_iter(
     )
 
 
-def embed(text_input: Union[str, List[str]], seed: int = DEFAULT_SEED) -> np.ndarray:
+def embed(
+    text_input: Union[str, List[str]], seed: int = DEFAULT_SEED
+) -> Optional[np.ndarray]:
     """Create embeddings for text input."""
     # AIDEV-NOTE: Use daemon by default for embeddings unless explicitly disabled
     if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
@@ -192,10 +200,15 @@ def embed(text_input: Union[str, List[str]], seed: int = DEFAULT_SEED) -> np.nda
                 logger.debug("Daemon not available, falling back to direct embedding")
 
     try:
-        return core_embed(text_input, seed=seed)
+        result = core_embed(text_input, seed=seed)
+        if result is None:
+            logger.error(
+                "Embedding creation failed - model not available or invalid input"
+            )
+        return result
     except TypeError as e:
         logger.error(f"Invalid input type for embedding: {e}")
-        return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
+        return None
 
 
 def preload_models(verbose: bool = False, size: Optional[str] = None):

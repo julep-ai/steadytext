@@ -31,13 +31,13 @@ class TestCli:
         """Test `st` command with stdin."""
         result = runner.invoke(cli, input="Hello")
         assert result.exit_code == 0
-        assert len(result.output) > 0
+        assert result.output == ""
 
     def test_generate_command_basic(self, runner):
         """Test `st generate` command."""
         result = runner.invoke(cli, ["generate", "A test prompt"])
         assert result.exit_code == 0
-        assert len(result.output) > 0
+        assert result.output == ""
 
     def test_generate_wait_mode(self, runner):
         """Test `st generate --wait`."""
@@ -60,7 +60,7 @@ class TestCli:
         """Test `st generate --size`."""
         result = runner.invoke(cli, ["generate", "A test prompt", "--size", "small"])
         assert result.exit_code == 0
-        assert len(result.output) > 0
+        assert result.output == ""
 
     def test_generate_with_invalid_size(self, runner):
         """Test `st generate` with an invalid size."""

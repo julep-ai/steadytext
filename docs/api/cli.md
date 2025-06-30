@@ -51,6 +51,8 @@ steadytext generate [OPTIONS] PROMPT
 | `--json` | `-j` | flag | `false` | Output as JSON with metadata |
 | `--logprobs` | `-l` | flag | `false` | Include log probabilities |
 | `--eos-string` | `-e` | string | `"[EOS]"` | Custom end-of-sequence string |
+| `--max-new-tokens` | | int | `512` | Maximum number of tokens to generate |
+| `--seed` | | int | `42` | Random seed for deterministic generation |
 | `--size` | | choice | | Model size: small (2B, default), large (4B) |
 | `--model` | | string | | Model name from registry (e.g., "qwen2.5-3b") |
 | `--model-repo` | | string | | Custom model repository |
@@ -104,6 +106,31 @@ steadytext generate [OPTIONS] PROMPT
     st generate "List colors until STOP" --eos-string "STOP"
     ```
 
+=== "Custom Seed for Reproducibility"
+
+    ```bash
+    # Generate with specific seed for reproducible results
+    echo "Write a story" | st --seed 123
+    
+    # Same seed always produces same output
+    st generate "Tell me a joke" --seed 456
+    st generate "Tell me a joke" --seed 456  # Identical result
+    
+    # Different seeds produce different outputs
+    st generate "Explain AI" --seed 100
+    st generate "Explain AI" --seed 200  # Different result
+    ```
+
+=== "Custom Length"
+
+    ```bash
+    # Generate shorter responses
+    echo "Quick summary of Python" | st --max-new-tokens 50
+    
+    # Generate longer responses
+    echo "Detailed explanation of ML" | st --max-new-tokens 200
+    ```
+
 === "Using Size Parameter"
 
     ```bash
@@ -112,6 +139,9 @@ steadytext generate [OPTIONS] PROMPT
     
     # High quality with large model  
     st generate "Complex analysis" --size large
+    
+    # Combine size with custom seed
+    st generate "Technical explanation" --size large --seed 789
     ```
 
 === "Model Selection"
@@ -123,6 +153,11 @@ steadytext generate [OPTIONS] PROMPT
     # Use custom model (advanced)
     st generate "Write code" --model-repo ggml-org/gemma-3n-E4B-it-GGUF \
         --model-filename gemma-3n-E4B-it-Q8_0.gguf
+    
+    # Custom model with seed and length control
+    st generate "Complex task" --model-repo ggml-org/gemma-3n-E4B-it-GGUF \
+        --model-filename gemma-3n-E4B-it-Q8_0.gguf \
+        --seed 999 --max-new-tokens 100
     ```
 
 ### Stdin Support
@@ -153,6 +188,7 @@ steadytext embed [OPTIONS] TEXT
 |--------|-------|------|---------|-------------|
 | `--format` | `-f` | choice | `json` | Output format: `json`, `numpy`, `hex` |
 | `--output` | `-o` | path | `-` | Output file (default: stdout) |
+| `--seed` | | int | `42` | Random seed for deterministic embedding generation |
 
 ### Examples
 
@@ -161,6 +197,19 @@ steadytext embed [OPTIONS] TEXT
     ```bash
     st embed "machine learning"
     # Outputs JSON array with 1024 float values
+    ```
+
+=== "Custom Seed"
+
+    ```bash
+    # Generate reproducible embeddings
+    st embed "artificial intelligence" --seed 123
+    st embed "artificial intelligence" --seed 123  # Same result
+    st embed "artificial intelligence" --seed 456  # Different result
+    
+    # Compare embeddings with different seeds
+    st embed "test text" --seed 100 --format json > embed1.json
+    st embed "test text" --seed 200 --format json > embed2.json
     ```
 
 === "Numpy Format"
@@ -182,6 +231,10 @@ steadytext embed [OPTIONS] TEXT
     ```bash
     st embed "important text" --output embedding.json
     st embed "data" --format numpy --output embedding.npy
+    
+    # Save with custom seed
+    st embed "research data" --seed 42 --output research_embedding.json
+    st embed "experiment" --seed 123 --format numpy --output exp_embed.npy
     ```
 
 ### Stdin Support
@@ -191,6 +244,10 @@ Embed text from stdin:
 ```bash
 echo "text to embed" | st embed
 cat document.txt | st embed --format numpy --output doc_embedding.npy
+
+# Stdin with custom seed
+echo "text to embed" | st embed --seed 789
+cat document.txt | st embed --seed 42 --format numpy --output doc_embed_s42.npy
 ```
 
 ---
@@ -214,6 +271,7 @@ steadytext models [OPTIONS]
 | `--preload` | `-p` | Preload all models |
 | `--cache-dir` |  | Show model cache directory |
 | `--json` | flag | `false` | Output as JSON |
+| `--seed` | | int | Random seed for model operations |
 
 ### Commands
 
@@ -283,6 +341,9 @@ steadytext models [OPTIONS]
     ```bash
     st models preload
     # Downloads and loads all models
+    
+    # Preload with specific seed for deterministic initialization
+    st models preload --seed 42
     ```
 
 === "Cache Information"
@@ -321,6 +382,13 @@ steadytext vector COMMAND [OPTIONS]
 | `average` | Compute average of multiple embeddings |
 | `arithmetic` | Perform vector arithmetic operations |
 
+### Global Vector Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--seed` | int | `42` | Random seed for deterministic embeddings |
+| `--json` | flag | `false` | Output as JSON with metadata |
+
 ### Examples
 
 === "Similarity"
@@ -332,6 +400,11 @@ steadytext vector COMMAND [OPTIONS]
     
     # With JSON output
     st vector similarity "king" "queen" --json
+    
+    # Reproducible similarity with custom seed
+    st vector similarity "king" "queen" --seed 123
+    st vector similarity "king" "queen" --seed 123  # Same result
+    st vector similarity "king" "queen" --seed 456  # Different result
     ```
 
 === "Distance"
@@ -352,6 +425,10 @@ steadytext vector COMMAND [OPTIONS]
     
     # From file, top 3
     st vector search "python" --candidates langs.txt --top 3
+    
+    # Reproducible search with custom seed
+    echo -e "apple\norange\ncar" | st vector search "fruit" --stdin --seed 789
+    st vector search "programming" --candidates langs.txt --top 3 --seed 42
     ```
 
 === "Average"
@@ -362,6 +439,10 @@ steadytext vector COMMAND [OPTIONS]
     
     # With full embedding output
     st vector average "red" "green" "blue" --json
+    
+    # Reproducible averaging with custom seed
+    st vector average "cat" "dog" "hamster" --seed 555
+    st vector average "colors" "shapes" "sizes" --seed 666 --json
     ```
 
 === "Arithmetic"
@@ -372,6 +453,10 @@ steadytext vector COMMAND [OPTIONS]
     
     # Location arithmetic
     st vector arithmetic "paris" "italy" --subtract "france"
+    
+    # Reproducible arithmetic with custom seed
+    st vector arithmetic "king" "woman" --subtract "man" --seed 777
+    st vector arithmetic "tokyo" "italy" --subtract "japan" --seed 888 --json
     ```
 
 See [Vector Operations Documentation](vector.md) for detailed usage.
@@ -440,6 +525,12 @@ steadytext daemon COMMAND [OPTIONS]
 | `status` | Check daemon status |
 | `restart` | Restart the daemon server |
 
+### Global Daemon Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--seed` | int | `42` | Default seed for daemon operations |
+
 ### Options
 
 #### start
@@ -475,6 +566,12 @@ steadytext daemon COMMAND [OPTIONS]
     
     # Custom host/port
     st daemon start --host 0.0.0.0 --port 8080
+    
+    # Start with custom default seed
+    st daemon start --seed 123
+    
+    # Combined options
+    st daemon start --host 0.0.0.0 --port 8080 --seed 456 --foreground
     ```
 
 === "Check Status"
@@ -529,6 +626,12 @@ steadytext index COMMAND [OPTIONS]
 | `search` | Search index for similar chunks |
 | `info` | Show index information |
 
+### Global Index Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--seed` | int | `42` | Random seed for embedding generation |
+
 ### Options
 
 #### create
@@ -559,6 +662,10 @@ steadytext index COMMAND [OPTIONS]
     
     # Custom chunk size
     st index create *.txt --output custom.faiss --chunk-size 256
+    
+    # Reproducible index creation with custom seed
+    st index create doc1.txt doc2.txt --output docs_s123.faiss --seed 123
+    st index create --glob "**/*.md" --output project_s456.faiss --seed 456
     ```
 
 === "Search Index"
@@ -572,6 +679,10 @@ steadytext index COMMAND [OPTIONS]
     
     # With threshold
     st index search docs.faiss "specific term" --threshold 0.8
+    
+    # Reproducible search with custom seed
+    st index search docs.faiss "query text" --seed 789
+    st index search docs.faiss "error message" --top-k 10 --seed 123
     ```
 
 === "Index Info"
@@ -601,8 +712,12 @@ export STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB=100
 # Allow model downloads (for development)
 export STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true
 
+# Set default seed for all operations
+export STEADYTEXT_DEFAULT_SEED=42
+
 # Then run commands
 st generate "test prompt"
+st generate "test prompt" --seed 123  # Override default seed
 ```
 
 ### Pipeline Usage

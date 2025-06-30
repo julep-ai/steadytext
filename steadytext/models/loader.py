@@ -21,6 +21,9 @@ from ..utils import (
     set_deterministic_environment,
     suppress_llama_output,
     DEFAULT_SEED,
+    check_model_compatibility,
+    GENERATION_MODEL_REPO,
+    GENERATION_MODEL_FILENAME,
 )
 from .cache import get_generation_model_path, get_embedding_model_path
 
@@ -108,6 +111,15 @@ class _ModelInstanceCache:
                 )
                 return None
 
+            # Check model compatibility
+            actual_repo = repo_id or GENERATION_MODEL_REPO
+            actual_filename = filename or GENERATION_MODEL_FILENAME
+            is_compatible, warning_msg = check_model_compatibility(
+                actual_repo, actual_filename
+            )
+            if not is_compatible:
+                logger.warning(f"Model compatibility issue: {warning_msg}")
+
             # For custom models, always load fresh (or use cache)
             needs_reload = True
 
@@ -139,6 +151,10 @@ class _ModelInstanceCache:
                         new_model = Llama(model_path=str(model_path), **params)
                     new_model._logits_enabled = enable_logits  # type: ignore[attr-defined]
 
+                    # Verify model loaded successfully
+                    if new_model is None or not hasattr(new_model, "n_ctx"):
+                        raise ValueError("Model loaded but appears to be invalid")
+
                     # Store in cache
                     inst._generator_models_cache[cache_key] = new_model
                     inst._generator_paths_cache[cache_key] = model_path
@@ -155,9 +171,28 @@ class _ModelInstanceCache:
                             f"Generator model loaded successfully for {cache_key}."
                         )
                     return new_model
+                except ValueError as ve:
+                    # Specific GGUF format error from llama_cpp
+                    error_msg = str(ve)
+                    if "Failed to load model from file" in error_msg:
+                        logger.error(
+                            f"Failed to load generator model {cache_key}: {error_msg}\n"
+                            f"This may be a GGUF format compatibility issue with the inference-sh fork of llama-cpp-python.\n"
+                            f"Try setting STEADYTEXT_USE_FALLBACK_MODEL=true to use a known working model."
+                        )
+                    else:
+                        logger.error(
+                            f"Failed to load generator model {cache_key}: {ve}",
+                            exc_info=True,
+                        )
+                    inst._generator_models_cache[cache_key] = None
+                    inst._generator_paths_cache[cache_key] = None
+                    return None
                 except Exception as e:
                     logger.error(
-                        f"Failed to load generator model {cache_key}: {e}",
+                        f"Unexpected error loading generator model {cache_key}: {e}\n"
+                        f"Model file: {model_path}\n"
+                        f"llama-cpp-python version: {getattr(Llama, '__version__', 'unknown')}",
                         exc_info=True,
                     )
                     inst._generator_models_cache[cache_key] = None

@@ -122,6 +122,9 @@ class TestDaemonCacheIntegration:
         # Step 1: Generate via direct access (should cache the result)
         os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
         direct_result = generate(test_prompt)
+        if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
+            assert direct_result is None
+            return  # Cant test consistency if no model
         assert isinstance(direct_result, str)
         assert len(direct_result) > 0
 
@@ -170,6 +173,9 @@ class TestDaemonCacheIntegration:
         # Step 1: Generate normally to populate cache
         os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
         direct_result = generate(test_prompt)
+        if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
+            assert direct_result is None
+            return  # Cant test consistency if no model
         assert isinstance(direct_result, str)
 
         # Step 2: Test streaming from cache (direct mode)
@@ -285,6 +291,9 @@ class TestDaemonCacheIntegration:
             try:
                 # Generate via daemon (cache miss)
                 daemon_result = client.generate(test_prompt)
+                if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
+                    assert daemon_result is None
+                    return
                 assert isinstance(daemon_result, str)
                 assert len(daemon_result) > 0
 
@@ -327,6 +336,9 @@ class TestDaemonCacheIntegration:
             try:
                 # Generate with default eos_string
                 result_default = client.generate(test_prompt)
+                if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
+                    assert result_default is None
+                    return
 
                 # Generate with custom eos_string
                 result_custom = client.generate(test_prompt, eos_string=custom_eos)

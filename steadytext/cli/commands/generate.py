@@ -231,7 +231,10 @@ def generate(
                 seed=seed,
             )
             # Unpack the tuple result
-            text, logprobs_data = result
+            if result is not None and isinstance(result, tuple):
+                text, logprobs_data = result
+            else:
+                text, logprobs_data = None, None
             if output_format == "json":
                 generated_text = ""
                 for token in steady_generate_iter(
@@ -254,8 +257,9 @@ def generate(
                     "model": model or "gemma-3n-E2B-it-GGUF",
                     "usage": {
                         "prompt_tokens": len(prompt.split()),
-                        "completion_tokens": len(text.split()),
-                        "total_tokens": len(prompt.split()) + len(text.split()),
+                        "completion_tokens": len(text.split()) if text else 0,
+                        "total_tokens": len(prompt.split())
+                        + (len(text.split()) if text else 0),
                     },
                     "logprobs": logprobs_data,
                     "prompt": prompt,

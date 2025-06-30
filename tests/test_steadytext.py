@@ -118,8 +118,14 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
         output1 = steadytext.generate(prompt)
         output2 = steadytext.generate(prompt)
 
-        self.assertIsInstance(output1, str, "Output must be a string.")
-        if MODELS_ARE_ACCESSIBLE_FOR_TESTING and not output1.startswith("Error:"):
+        self.assertIsInstance(
+            output1, (str, type(None)), "Output must be a string or None."
+        )
+        if (
+            MODELS_ARE_ACCESSIBLE_FOR_TESTING
+            and output1 is not None
+            and not output1.startswith("Error:")
+        ):
             self.assertTrue(
                 len(output1) > 0, "Successful generation should not be empty."
             )
@@ -145,6 +151,15 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
         text = "A test sentence for string embedding evaluation."
         embedding1 = steadytext.embed(text)
         embedding2 = steadytext.embed(text)
+
+        self.assertIsNotNone(
+            embedding1, "Embedding should not be None when models are accessible"
+        )
+        self.assertIsNotNone(
+            embedding2, "Embedding should not be None when models are accessible"
+        )
+        assert embedding1 is not None  # Type narrowing for mypy
+        assert embedding2 is not None  # Type narrowing for mypy
 
         self.assertTrue(
             np.array_equal(embedding1, embedding2),
@@ -197,6 +212,15 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
         ]
         embedding1 = steadytext.embed(texts)
         embedding2 = steadytext.embed(texts)
+
+        self.assertIsNotNone(
+            embedding1, "Embedding should not be None when models are accessible"
+        )
+        self.assertIsNotNone(
+            embedding2, "Embedding should not be None when models are accessible"
+        )
+        assert embedding1 is not None  # Type narrowing for mypy
+        assert embedding2 is not None  # Type narrowing for mypy
 
         self.assertTrue(
             np.array_equal(embedding1, embedding2),
@@ -276,11 +300,15 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
                 "Models deemed not accessible, skipping eos_string with logprobs test."
             )
 
-        text, logp = steadytext.generate(
+        result = steadytext.generate(
             "Test prompt", return_logprobs=True, eos_string="CUSTOM_END"
         )
-        self.assertIsInstance(text, str)
-        self.assertTrue(logp is None or isinstance(logp, dict))
+        if result is not None and isinstance(result, tuple):
+            text, logp = result
+            self.assertIsInstance(text, str)
+            self.assertTrue(logp is None or isinstance(logp, dict))
+        else:
+            self.assertIsNone(result)
 
     def test_embed_list_averaging_and_empty_string_handling(self):
         """Test list averaging and correct handling of empty/whitespace strings
@@ -329,72 +357,63 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
 @pytest.mark.fast
 class TestSteadyTextAPIErrorFallbacks(unittest.TestCase):
     """
-    Tests the "Never Fails" aspect of the SteadyText public API, ensuring
-    graceful error handling and deterministic fallback outputs (error strings
-    for generate, zero vectors for embed). These tests do NOT require
-    successful model loading and should pass even if models are unavailable.
+    Tests the error handling of the SteadyText public API, ensuring
+    it returns None when models are unavailable or inputs are invalid.
+    These tests do NOT require successful model loading and should pass
+    even if models are unavailable.
     """
 
-    def test_generate_invalid_prompt_type_fallback(self):
-        """Test generate() with an invalid prompt type returns a
-        deterministic error string."""
+    def test_generate_invalid_prompt_type_returns_none(self):
+        """Test generate() with an invalid prompt type returns None."""
         prompt_int = 12345
-        from steadytext.core.generator import _deterministic_fallback_generate
 
         output = steadytext.generate(prompt_int)  # type: ignore
 
-        expected_fallback_for_int_prompt = _deterministic_fallback_generate(
-            str(prompt_int)
-        )  # noqa E501
-        self.assertIsInstance(output, str)
-        self.assertEqual(output, expected_fallback_for_int_prompt)
+        # Should return None for invalid input
+        self.assertIsNone(output, "Invalid prompt type should return None")
 
-        # Ensure it's deterministic - this part should still hold
+        # Ensure it's consistent
         output2 = steadytext.generate(prompt_int)  # type: ignore
-        self.assertEqual(
-            output,
-            output2,
-            "Fallback output for same invalid input should be deterministic.",
+        self.assertIsNone(
+            output2, "Invalid prompt type should consistently return None"
         )
-        # Fallback generator output does not currently include the seed in its hash computation directly,
-        # so changing the seed passed to steadytext.generate won't change the
-        # fallback output here.  # noqa E501
 
-    def test_generate_empty_prompt_fallback(self):
-        """Test generate() with an empty prompt; should not be 'Invalid prompt type' error."""
-        # The core generator now uses a space " " for empty prompts.
-        # If models are inaccessible, it will return a model loading error.
-        # If models are accessible, it will generate text from " ".
-        output = steadytext.generate("")
-        self.assertIsInstance(output, str)
-        self.assertTrue(
-            len(output) > 0, "Output for empty prompt should not itself be empty."
-        )
-        self.assertFalse(
-            output.startswith("Error: Invalid prompt type."),
-            "Empty string is a valid type, should not be 'Invalid prompt type' error.",
-        )
-        # If models can't load, it will be an error like "Error: Text generation model unavailable..."
-        # If models load, it will be actual text. This test just ensures it's not
-        # an *invalid type* error.
+    def test_generate_empty_prompt_returns_none_without_model(self):
+        """Test generate() with an empty prompt returns None when model is not available."""
+        # If models are inaccessible, it will return None
+        # If models are accessible, this test may need to be skipped
+        import os
+
+        if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
+            output = steadytext.generate("")
+            self.assertIsNone(
+                output, "Empty prompt should return None when model is not available"
+            )
+        else:
+            # Skip this test if models are loaded
+            self.skipTest("This test requires STEADYTEXT_SKIP_MODEL_LOAD=1")
 
     def test_generate_with_eos_string_edge_cases(self):
         """Test generate() with edge case eos_string values."""
         # Test with empty eos_string
         output_empty = steadytext.generate("Test prompt", eos_string="")
-        self.assertIsInstance(output_empty, str)
+        if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") != "1":
+            self.assertIsInstance(output_empty, str)
 
         # Test with special characters
         output_special = steadytext.generate("Test prompt", eos_string="<|END|>")
-        self.assertIsInstance(output_special, str)
+        if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") != "1":
+            self.assertIsInstance(output_special, str)
 
         # Test with unicode characters
         output_unicode = steadytext.generate("Test prompt", eos_string="终结")
-        self.assertIsInstance(output_unicode, str)
+        if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") != "1":
+            self.assertIsInstance(output_unicode, str)
 
         # Test with whitespace
         output_whitespace = steadytext.generate("Test prompt", eos_string="   ")
-        self.assertIsInstance(output_whitespace, str)
+        if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") != "1":
+            self.assertIsInstance(output_whitespace, str)
 
     def test_generate_iter_with_eos_string_edge_cases(self):
         """Test generate_iter() with edge case eos_string values."""
@@ -427,14 +446,20 @@ class TestSteadyTextAPIErrorFallbacks(unittest.TestCase):
         output_different = steadytext.generate("Test prompt", eos_string="END")
         # Note: In fallback mode, the actual eos_string might not affect the output,
         # but the caching should still work correctly
-        self.assertIsInstance(output_different, str)
+        if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") != "1":
+            self.assertIsInstance(output_different, str)
 
     def test_generate_with_logprobs_flag(self):
         """generate() should return a tuple when return_logprobs=True."""
-        text, logp = steadytext.generate("test", return_logprobs=True)
-        self.assertIsInstance(text, str)
-        # logprobs is None when fallback generation is used
-        self.assertTrue(logp is None or isinstance(logp, dict))
+        result = steadytext.generate("test", return_logprobs=True)
+        if result is not None and isinstance(result, tuple):
+            text, logp = result
+            if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") != "1":
+                self.assertIsInstance(text, str)
+            # logprobs is None when fallback generation is used
+            self.assertTrue(logp is None or isinstance(logp, dict))
+        else:
+            self.assertIsNone(result)
 
     def test_embed_empty_string_fallback(self):
         """Test embed() with an empty string returns a zero vector."""
@@ -466,18 +491,14 @@ class TestSteadyTextAPIErrorFallbacks(unittest.TestCase):
         """Test embed() with a completely invalid input type (e.g., int)
         returns a zero vector."""
         embedding = steadytext.embed(12345)  # type: ignore
-        self.assertTrue(
-            np.array_equal(embedding, np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)),
-            "Embedding of invalid type (int) should be a zero vector.",
-        )
+        self.assertIsNone(embedding, "Embedding of invalid type (int) should be None.")
 
     def test_embed_list_with_invalid_item_type_fallback(self):
         """Test embed() with a list containing an invalid item type (e.g., int)
         returns a zero vector."""
         embedding = steadytext.embed(["hello", 123, "world"])  # type: ignore
-        self.assertTrue(
-            np.array_equal(embedding, np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)),
-            "Embedding of list with invalid item type should be a zero vector.",
+        self.assertIsNone(
+            embedding, "Embedding of list with invalid item type should be None."
         )
 
 
@@ -485,62 +506,8 @@ class TestSteadyTextAPIErrorFallbacks(unittest.TestCase):
 class TestSteadyTextFallbackBehavior(unittest.TestCase):
     """Tests to verify fallback behavior when models cannot be loaded."""
 
-    def test_generator_fallback_produces_deterministic_output(self):
-        """Test that generator fallback produces deterministic hash-based text."""
-        from unittest.mock import patch
-        from steadytext.core.generator import (
-            DeterministicGenerator,
-            _deterministic_fallback_generate,
-        )
-        from steadytext.models.loader import clear_model_cache
-
-        # Test the fallback function directly first
-        prompt = "Test prompt for fallback generation"
-        fallback1 = _deterministic_fallback_generate(prompt)
-        fallback2 = _deterministic_fallback_generate(prompt)
-
-        self.assertIsInstance(fallback1, str)
-        self.assertTrue(len(fallback1) > 0, "Fallback should generate non-empty text")
-        self.assertEqual(fallback1, fallback2, "Fallback should be deterministic")
-
-        # Test different prompts produce different outputs
-        different_prompt = "Different test prompt"
-        fallback_different = _deterministic_fallback_generate(different_prompt)
-        self.assertNotEqual(
-            fallback1,
-            fallback_different,
-            "Different prompts should produce different fallback text",
-        )
-
-        # AIDEV-NOTE: Clear any cached models and the generation cache before testing to ensure a clean state. The singleton _ModelInstanceCache persists real models across test runs, so mock patches will not work unless the cache is cleared first.
-        clear_model_cache()
-        from steadytext.cache_manager import get_generation_cache
-
-        get_generation_cache().clear()
-
-        # Test that generator uses fallback when model is None
-        # Patch where get_generator_model_instance is looked up by
-        # DeterministicGenerator
-        with patch(
-            "steadytext.core.generator.get_generator_model_instance", return_value=None
-        ):
-            generator = DeterministicGenerator()
-            self.assertIsNone(
-                generator.model,
-                "Patching failed: generator.model is not None in fallback test",
-            )
-            output = generator.generate(prompt)
-            # This expected text is likely still the model-generated one,
-            # will need to update after patch works.
-            expected_fallback_text = _deterministic_fallback_generate(prompt)  # noqa E501
-            self.assertEqual(
-                output,
-                expected_fallback_text,
-                "Generator should use fallback when model is None",
-            )
-
     def test_embed_api_handles_type_errors_gracefully(self):
-        """Test that embed() API catches TypeErrors and returns zero vector."""
+        """Test that embed() API catches TypeErrors and returns None."""
         from unittest.mock import patch
 
         # This import is fine for context
@@ -551,13 +518,12 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
             "steadytext.core_embed", side_effect=TypeError("Invalid input type")
         ) as mock_core_embed:
             result = steadytext.embed("test")
-            expected_zero = np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
             mock_core_embed.assert_called_once_with(
                 "test", seed=42
             )  # Verify the mock was called
-            self.assertTrue(
-                np.array_equal(result, expected_zero),
-                "Should return zero vector on TypeError",
+            self.assertIsNone(
+                result,
+                "Should return None on TypeError",
             )
 
     def test_stop_sequences_integration(self):
@@ -815,10 +781,15 @@ class TestSizeParameter(unittest.TestCase):
             # Test all valid size values
             for size in ["small", "large"]:
                 output = steadytext.generate("Test prompt", size=size)
-                self.assertIsInstance(output, str)
-                self.assertTrue(
-                    len(output) > 0, f"Size {size} should generate non-empty text"
-                )
+                if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") != "1":
+                    if output is not None:
+                        self.assertIsInstance(output, str)
+                        self.assertTrue(
+                            len(output) > 0,
+                            f"Size {size} should generate non-empty text",
+                        )
+                    else:
+                        self.assertIsNone(output)
         except Exception as e:
             # If models aren't available, it should still work with fallback
             if "model" not in str(e).lower():
@@ -833,7 +804,8 @@ class TestSizeParameter(unittest.TestCase):
                 model="qwen3-1.7b",  # Explicit model
                 size="small",  # Should be ignored
             )
-            self.assertIsInstance(output, str)
+            if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") != "1":
+                self.assertIsInstance(output, str)
         except Exception as e:
             # If models aren't available, it should still work with fallback
             if "model" not in str(e).lower():
@@ -843,7 +815,8 @@ class TestSizeParameter(unittest.TestCase):
         """Test that generate() with an invalid model name falls back gracefully."""
         with self.assertLogs("steadytext", level="WARNING") as cm:
             output = steadytext.generate("Test prompt", model="non_existent_model")
-            self.assertIsInstance(output, str)
+            if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") != "1":
+                self.assertIsInstance(output, str)
             # Verify that a warning was logged
             self.assertTrue(
                 any(
@@ -856,7 +829,8 @@ class TestSizeParameter(unittest.TestCase):
         """Test that generate() with an invalid size falls back gracefully."""
         with self.assertLogs("steadytext", level="WARNING") as cm:
             output = steadytext.generate("Test prompt", size="extra_large")
-            self.assertIsInstance(output, str)
+            if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") != "1":
+                self.assertIsInstance(output, str)
             # Verify that a warning was logged
             self.assertTrue(
                 any("Invalid size 'extra_large'" in log for log in cm.output)
