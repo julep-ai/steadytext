@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 2.1.1 (2025-06-30)
+
+### Bug Fixes
+- **Fixed Llama CPP Fork:** Switched to the `inference-sh` fork of `llama-cpp-python` to resolve build issues and ensure compatibility with the latest GGUF models.
+
 ## Version 2.1.0 (2025-06-29)
 
 ### New Features
