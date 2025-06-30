@@ -1,0 +1,43 @@
+name: Deploy Documentation
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:  # Allow manual trigger
+
+permissions:
+  contents: write     # Required for mkdocs gh-deploy to push to gh-pages branch
+  pages: write        # Required for GitHub Pages deployment
+  id-token: write     # Required for newer GitHub Pages deployment methods
+
+jobs:
+  deploy-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history needed for mkdocs gh-deploy
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Configure Git credentials
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Build documentation
+        run: uv run poe docs-build
+
+      - name: Deploy to GitHub Pages
+        run: uv run poe docs-deploy --force
