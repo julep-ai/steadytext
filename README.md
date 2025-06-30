@@ -128,6 +128,13 @@ text = steadytext.generate("Hello world")  # Direct model loading
 
 ## Fun Goofy Sample You Can Try
 
+They will (literally) **always** do this...
+
+```bash
+❯ st generate --verbose --size large --eos-string STOP "DON'T SAY STOP (ALL CAPS) NO MATTER WHAT"
+Understood. I will not use the word "%
+```
+
 > [!NOTE]
 > This is by far the single best explanation of recursion in existence.
 
