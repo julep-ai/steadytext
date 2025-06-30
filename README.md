@@ -126,6 +126,45 @@ text = steadytext.generate("Hello world")  # Direct model loading
 
 ---
 
+## Fun Goofy Sample You Can Try
+
+> [!NOTE]
+> This is by far the single best explanation of recursion in existence.
+
+```bash
+$> echo "explain recursion in pig latin" | st --verbose --size large
+
+Okay, let's explain recursion in Pig Latin!  It's a bit tricky to do *in* Pig Latin, but I'll try to explain the concept and then give a Pig Latin-flavored analogy.
+
+**What is Recursion? (In English)**
+
+Recursion is like a set of instructions that calls *itself* to solve a smaller version of the same problem. Think of it like Russian nesting dolls (Matryoshka dolls). Each doll contains a smaller version of itself.
+
+Here's the breakdown:
+
+1. **Base Case:**  This is the *stopping point*.  It's the simplest version of the problem that you can solve directly, *without* calling the function again.  Without a base case, the recursion would go on forever (like an infinite loop!).
+
+2. **Recursive Step:** This is where the function calls *itself*, but with a slightly modified (smaller) version of the original problem.  Each call gets closer to the base case.
+
+**Example (in English):**
+
+Let's say you want to calculate the factorial of a number (e.g., 5! = 5 * 4 * 3 * 2 * 1 = 120).  You can do this recursively:
+
+* **Base Case:** If the number is 1, the factorial is 1.
+* **Recursive Step:**  If the number is greater than 1, the factorial is the number multiplied by the factorial of the number minus 1.
+
+**Pig Latin Analogy (Trying to explain it *using* Pig Latin):**
+
+Okay, this is where it gets fun (and a little silly)!  Let's say we want to count the number of "ay" sounds in a word.
+
+Here's how we could *imagine* a recursive Pig Latin function to do this:
+
+\```piglatin
+"Ehay-ay"  ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-%
+```
+
+---
+
 ## 📦 Installation & Models
 
 Install stable release:
