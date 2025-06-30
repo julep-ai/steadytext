@@ -1,5 +1,34 @@
 # Changelog
 
+## Version 2.2.0 (2025-06-30)
+
+### New Features
+- **Pluggable Cache Backend System:** Added support for multiple cache backends with a factory pattern:
+  - **SQLite Backend** (default): Thread-safe local storage with WAL mode
+  - **D1 Backend**: Cloudflare's distributed SQLite for edge deployments
+  - **Memory Backend**: In-memory cache for testing/ephemeral workloads
+- **Cache Backend Configuration:** Environment variables for backend selection and configuration:
+  - `STEADYTEXT_CACHE_BACKEND` to select backend type
+  - D1-specific configuration (`STEADYTEXT_D1_API_URL`, `STEADYTEXT_D1_API_KEY`)
+- **PostgreSQL Extension Improvements:** Enhanced pg_steadytext with daemon connectivity and better error handling
+- **Cloudflare Workers Integration:** Added D1 cache proxy worker for distributed caching scenarios
+
+### Architecture Improvements
+- **Cache Factory Pattern:** Unified cache backend interface for consistent behavior across all backends
+- **Enhanced Documentation:** New documentation structure with dedicated pages for architecture, deployment, and integrations
+- **Test Coverage:** Added comprehensive tests for all cache backends and PostgreSQL extension
+
+### Bug Fixes
+- **PostgreSQL Path Configuration:** Fixed SQL syntax error in pg_steadytext extension initialization
+- **Test Suite Improvements:** Fixed pytest skip usage and enhanced test reliability
+- **Type Safety:** Improved typechecker compliance across test files
+
+### Documentation
+- Added architecture overview documentation
+- Added cache backends configuration guide
+- Added deployment and integration guides
+- Enhanced FAQ and migration documentation
+
 ## Version 2.1.1 (2025-06-30)
 
 ### Bug Fixes

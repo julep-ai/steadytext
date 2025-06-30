@@ -14,6 +14,10 @@ def enable_cache_for_tests(monkeypatch):
     monkeypatch.delenv("STEADYTEXT_SKIP_CACHE_INIT", raising=False)
 
 
+@pytest.mark.skipif(
+    os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1",
+    reason="Model loading is disabled, skipping streaming cache tests",
+)
 class TestStreamingCachePopulation:
     """Test that streaming generation populates cache in both modes."""
 
@@ -195,8 +199,11 @@ class TestStreamingCachePopulation:
         streaming_result = "".join(streaming_tokens)
 
         # Both should produce the same result (deterministic)
-        assert streaming_result == non_streaming_result
-
-        # Cache should contain the same result
-        cached_result = get_generation_cache().get(test_prompt)
-        assert cached_result == non_streaming_result
+        # With v2.1.0+, both may return None/empty when model is not loaded
+        if non_streaming_result is None:
+            assert streaming_result == ""
+        else:
+            assert streaming_result == non_streaming_result
+            # Cache should contain the same result
+            cached_result = get_generation_cache().get(test_prompt)
+            assert cached_result == non_streaming_result

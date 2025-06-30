@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "steadytext"
-version = "2.1.1"
+version = "2.2.0"
 description = "Deterministic text generation and embedding with zero configuration"
 readme = "README.md"
 authors = [
@@ -60,6 +60,9 @@ benchmark = [
     "pandas",
     "lighteval",
 ]
+d1 = [
+    "httpx>=0.25.0",
+]
 
 [project.scripts]
 steadytext = "steadytext.cli:main"
@@ -76,6 +79,14 @@ pre-commit = "pre-commit run --all-files"
 docs-build = "mkdocs build"
 docs-serve = "mkdocs serve"
 docs-deploy = "mkdocs gh-deploy"
+build = [
+  "format",
+  "lint",
+  "check",
+  "test-parallel",
+  "docs-build",
+]
+
 
 [dependency-groups]
 dev = [

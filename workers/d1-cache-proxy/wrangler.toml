@@ -1,0 +1,18 @@
+name = "d1-cache-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# Environment variables
+[vars]
+# Add any non-secret configuration here
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "steadytext-cache"
+database_id = "YOUR_DATABASE_ID"  # Replace with actual database ID
+
+# Optional: Add custom domain
+# routes = [
+#   { pattern = "cache-api.yourdomain.com/*", custom_domain = true }
+# ]

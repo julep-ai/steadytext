@@ -63,8 +63,12 @@ def test_cli_generate_different_seeds():
     runner = CliRunner()
     result1 = runner.invoke(cli, ["generate", "test", "--seed", "123"])
     result2 = runner.invoke(cli, ["generate", "test", "--seed", "456"])
+    # Only check for different outputs when models are loaded
     if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") != "1":
         assert result1.stdout != result2.stdout
+    else:
+        # When model loading is disabled, both return empty
+        assert result1.stdout == result2.stdout == ""
 
 
 def test_cli_embed_default_seed():
@@ -100,6 +104,11 @@ def test_cli_embed_different_seeds():
     json2 = json.loads(result2.stdout)
     if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") != "1":
         assert json1["embedding"] != json2["embedding"]
+    else:
+        # When model loading is disabled, both return zero vectors
+        assert json1["embedding"] == json2["embedding"]
+        # Verify they are zero vectors
+        assert all(v == 0.0 for v in json1["embedding"])
 
 
 # Edge case tests

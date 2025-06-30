@@ -39,18 +39,29 @@ theme:
 nav:
   - Home: index.md
   - Quick Start: quick-start.md
-  - Version History: version_history.md
-  - Model Switching: model-switching.md
   - API Reference:
     - Overview: api/index.md
     - Text Generation: api/generation.md
     - Embeddings: api/embedding.md
     - CLI Reference: api/cli.md
+  - Guides:
+    - Caching: examples/caching.md
+    - Cache Backends: cache-backends.md
+    - Custom Seeds: examples/custom-seeds.md
+    - Daemon Usage: examples/daemon-usage.md
+    - Deployment: deployment.md
+    - Error Handling: examples/error-handling.md
+    - Integrations: integrations.md
+    - Performance Tuning: examples/performance-tuning.md
+    - PostgreSQL Extension: pg_steadytext.md
   - Examples:
     - Overview: examples/index.md
     - Testing with AI: examples/testing.md
     - CLI Tools: examples/tooling.md
   - Contributing: contributing.md
+  - About:
+    - Version History: version_history.md
+    - Model Switching: model-switching.md
 
 markdown_extensions:
   - pymdownx.highlight:

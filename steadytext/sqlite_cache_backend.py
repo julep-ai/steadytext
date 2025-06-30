@@ -600,6 +600,16 @@ class SQLiteDiskBackedFrecencyCache(FrecencyCache):
             logger.error(f"Failed to get cache length: {e}")
             return 0
 
+    def delete(self, key: Any) -> None:
+        """Delete a single entry from the cache."""
+        try:
+            with self._transaction() as conn:
+                conn.execute(
+                    "DELETE FROM cache WHERE key = ?", (self._serialize_key(key),)
+                )
+        except Exception as e:
+            logger.error(f"Failed to delete cache entry for key {key}: {e}")
+
     def __del__(self):
         """Clean up database connections with proper shutdown sequence."""
         try:

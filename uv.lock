@@ -3216,7 +3216,7 @@ wheels = [
 
 [[package]]
 name = "steadytext"
-version = "2.1.1"
+version = "2.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "chonkie" },
@@ -3237,6 +3237,9 @@ benchmark = [
     { name = "pandas" },
     { name = "psutil" },
     { name = "tabulate" },
+]
+d1 = [
+    { name = "httpx" },
 ]
 test = [
     { name = "pytest" },
@@ -3276,6 +3279,7 @@ requires-dist = [
     { name = "chonkie", specifier = ">=0.2.1" },
     { name = "click", specifier = ">=8.0.0" },
     { name = "faiss-cpu", specifier = ">=1.7.0" },
+    { name = "httpx", marker = "extra == 'd1'", specifier = ">=0.25.0" },
     { name = "huggingface-hub", specifier = ">=0.32.0" },
     { name = "lighteval", marker = "extra == 'benchmark'" },
     { name = "llama-cpp-python", git = "https://github.com/inference-sh/llama-cpp-python.git?branch=main" },
@@ -3291,7 +3295,7 @@ requires-dist = [
     { name = "tabulate", marker = "extra == 'benchmark'" },
     { name = "tqdm", specifier = ">=4" },
 ]
-provides-extras = ["test", "benchmark"]
+provides-extras = ["test", "benchmark", "d1"]
 
 [package.metadata.requires-dev]
 dev = [

@@ -1,39 +1,24 @@
-# AIDEV-NOTE: A disk-backed frecency cache that uses an SQLite backend for concurrent access safety, automatic migration from the legacy pickle format, and falls back to an in-memory cache if SQLite fails.
+# AIDEV-NOTE: A disk-backed frecency cache that uses pluggable cache backends through the factory pattern
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-try:
-    from .sqlite_cache_backend import SQLiteDiskBackedFrecencyCache
-except ImportError:
-    try:
-        # For direct testing
-        import sys
-
-        sys.path.insert(0, str(Path(__file__).parent))
-        from sqlite_cache_backend import SQLiteDiskBackedFrecencyCache  # type: ignore[import-not-found,no-redef]
-    except ImportError:
-        # If SQLite is not available, we'll need to handle this gracefully
-        # AIDEV-NOTE: This is a temporary workaround for environments without SQLite
-        SQLiteDiskBackedFrecencyCache = None  # type: ignore[assignment,misc]
+from .cache import CacheBackend, get_cache_backend
 
 
 class DiskBackedFrecencyCache:
-    """Disk-backed frecency cache with configurable size limits.
+    """Disk-backed frecency cache with configurable backends.
 
-    Now uses SQLite backend for:
-    - Thread-safe and process-safe concurrent access
-    - Automatic migration from legacy pickle format
-    - Configurable maximum cache file size in MB
-    - Automatic eviction when size limit is exceeded
-    - Atomic operations with proper error handling
+    Supports multiple backends through a pluggable architecture:
+    - SQLite: Thread-safe and process-safe with automatic migration
+    - D1: Cloudflare's distributed SQLite (requires proxy Worker)
+    - Memory: Simple in-memory cache for testing
 
-    Maintains the same API as the original pickle-based implementation.
+    Maintains the same API as the original implementation.
     """
 
-    _backend: Optional[Any]  # SQLiteDiskBackedFrecencyCache when available
-    _memory_cache: Dict[Any, Any]  # Fallback memory cache
+    _backend: CacheBackend
 
     def __init__(
         self,
@@ -41,6 +26,8 @@ class DiskBackedFrecencyCache:
         cache_name: str = "frecency_cache",
         max_size_mb: float = 100.0,
         cache_dir: Optional[Path] = None,
+        backend_type: Optional[str] = None,
+        **backend_kwargs: Any,
     ) -> None:
         """Initialize disk-backed frecency cache.
 
@@ -49,74 +36,45 @@ class DiskBackedFrecencyCache:
             cache_name: Name for the cache file (without extension)
             max_size_mb: Maximum cache file size in megabytes
             cache_dir: Directory for cache file (defaults to steadytext cache dir)
+            backend_type: Type of backend to use (sqlite, d1, memory)
+            **backend_kwargs: Additional backend-specific configuration
         """
-        # AIDEV-NOTE: Check if we should skip cache initialization (for pytest collection)
-        import os
-
-        if os.environ.get("STEADYTEXT_SKIP_CACHE_INIT") == "1":
-            self._backend = None
-            self._memory_cache = {}
-        # AIDEV-NOTE: Use SQLite backend for all operations if available
-        elif SQLiteDiskBackedFrecencyCache is not None:
-            self._backend = SQLiteDiskBackedFrecencyCache(
-                capacity=capacity,
-                cache_name=cache_name,
-                max_size_mb=max_size_mb,
-                cache_dir=cache_dir,
-            )
-            self._memory_cache = {}  # Initialize but not used when backend available
-        else:
-            # AIDEV-NOTE: Fallback to a simple in-memory cache when SQLite unavailable
-            self._backend = None
-            self._memory_cache = {}
+        # AIDEV-NOTE: Use the factory to create the appropriate backend
+        self._backend = get_cache_backend(
+            backend_type=backend_type,
+            capacity=capacity,
+            cache_name=cache_name,
+            max_size_mb=max_size_mb,
+            cache_dir=cache_dir,
+            **backend_kwargs,
+        )
 
         # Store parameters for compatibility
         self.capacity = capacity
         self.cache_name = cache_name
         self.max_size_bytes = int(max_size_mb * 1024 * 1024)
-        self.cache_dir = self._backend.cache_dir if self._backend else cache_dir
+        self.cache_dir = cache_dir
 
     def get(self, key: Any) -> Any | None:
         """Get value from cache, updating frecency metadata."""
-        if self._backend is not None:
-            return self._backend.get(key)
-        else:
-            return self._memory_cache.get(key)
+        return self._backend.get(key)
 
     def set(self, key: Any, value: Any) -> None:
         """Set value in cache and persist to disk."""
-        if self._backend is not None:
-            self._backend.set(key, value)
-        else:
-            self._memory_cache[key] = value
+        self._backend.set(key, value)
 
     def clear(self) -> None:
         """Clear cache and remove disk file."""
-        if self._backend is not None:
-            self._backend.clear()
-        else:
-            self._memory_cache.clear()
+        self._backend.clear()
 
     def sync(self) -> None:
         """Explicitly sync cache to disk."""
-        if self._backend is not None:
-            self._backend.sync()
-        # No-op for memory cache
+        self._backend.sync()
 
     def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics for monitoring and debugging."""
-        if self._backend is not None:
-            return self._backend.get_stats()
-        else:
-            return {
-                "entries": len(self._memory_cache),
-                "backend": "memory",
-                "capacity": self.capacity,
-            }
+        return self._backend.get_stats()
 
     def __len__(self) -> int:
         """Return number of entries in cache."""
-        if self._backend is not None:
-            return len(self._backend)
-        else:
-            return len(self._memory_cache)
+        return len(self._backend)

@@ -102,24 +102,37 @@ SteadyText v2.0+ uses Gemma-3n models for generation and Qwen3 for embeddings.
 
 ## Cache Management
 
-SteadyText v1.3+ uses a centralized cache management system to ensure consistent behavior between daemon and direct access modes.
+SteadyText v1.3+ uses a centralized cache management system with pluggable backends (v2.2.0+).
 
 ### Key Components
 
 **cache_manager.py**
 - Centralized cache management with singleton pattern
-- Shared SQLite-backed caches for generation and embedding results
+- Support for multiple cache backends via factory pattern
 - Thread-safe and process-safe access across all components
 
-**Centralized Architecture:**
-- Generation cache: Shared between daemon and direct generation calls
-- Embedding cache: Shared between daemon and direct embedding calls
-- Cache files stored in consistent locations across all access modes
-- Automatic cache directory creation and management
+**Cache Backends (v2.2.0+):**
+- **SQLite** (default): Thread-safe local storage with WAL mode
+- **D1**: Cloudflare's distributed SQLite for edge deployments
+- **Memory**: In-memory cache for testing/ephemeral workloads
+
+### Cache Backend Selection
+
+```bash
+# Select cache backend
+export STEADYTEXT_CACHE_BACKEND=sqlite  # Default
+export STEADYTEXT_CACHE_BACKEND=d1      # Cloudflare D1
+export STEADYTEXT_CACHE_BACKEND=memory  # In-memory
+
+# D1-specific configuration
+export STEADYTEXT_D1_API_URL=https://your-worker.workers.dev
+export STEADYTEXT_D1_API_KEY=your-api-key
+export STEADYTEXT_D1_BATCH_SIZE=50
+```
 
 ### Cache Configuration
 
-Same environment variables as before, but now affect both daemon and direct access:
+Environment variables affect all backends:
 
 **Generation Cache:**
 - `STEADYTEXT_GENERATION_CACHE_CAPACITY` (default: 256)
@@ -141,7 +154,16 @@ print(f"Generation cache size: {stats['generation']['size']}")
 
 # Clear all caches (for testing)
 cache_manager.clear_all_caches()
+
+# Programmatic backend selection
+from steadytext.disk_backed_frecency_cache import DiskBackedFrecencyCache
+cache = DiskBackedFrecencyCache(backend_type="d1", api_url="...", api_key="...")
 ```
+
+AIDEV-NOTE: The cache backend system uses a factory pattern in `cache/factory.py`
+AIDEV-NOTE: D1 backend requires a proxy Worker due to Cloudflare access restrictions
+AIDEV-NOTE: All backends implement the same CacheBackend interface for consistency
+AIDEV-TODO: Consider adding Redis backend for traditional distributed caching
 
 ## AI Assistant Workflow: Step-by-Step Methodology
 

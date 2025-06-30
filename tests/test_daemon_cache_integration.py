@@ -25,8 +25,9 @@ from steadytext.daemon.client import DaemonClient
 # AIDEV-NOTE: Skip daemon tests only if explicitly disabled
 # Allow model downloads for daemon tests since they require real models
 pytestmark = pytest.mark.skipif(
-    os.environ.get("STEADYTEXT_DISABLE_DAEMON_TESTS", "0") == "1",
-    reason="Daemon tests explicitly disabled",
+    os.environ.get("STEADYTEXT_DISABLE_DAEMON_TESTS", "0") == "1"
+    or os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD", "0") == "1",
+    reason="Daemon tests explicitly disabled or model loading is disabled",
 )
 
 

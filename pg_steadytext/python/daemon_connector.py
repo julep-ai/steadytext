@@ -349,17 +349,24 @@ class SteadyTextConnector:
         try:
             # Try using daemon first
             with use_daemon():
-                return embed(text)
+                result = embed(text)
+                if result is not None:
+                    return result
+                # If None, fall through to return zero vector
         except Exception as e:
             logger.warning(f"Daemon embedding failed: {e}, using direct embedding")
 
             # Fall back to direct embedding
             try:
-                return embed(text)
+                result = embed(text)
+                if result is not None:
+                    return result
+                # If None, fall through to return zero vector
             except Exception as e2:
                 logger.error(f"Direct embedding also failed: {e2}")
-                # Return zero vector as fallback
-                return np.zeros(1024, dtype=np.float32)
+
+        # Return zero vector as fallback
+        return np.zeros(1024, dtype=np.float32)
 
     def _fallback_generate(self, prompt: str, max_tokens: int) -> str:
         """

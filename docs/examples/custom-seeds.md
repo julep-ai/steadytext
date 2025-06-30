@@ -1,16 +1,52 @@
-# Custom Seeds Examples
+# Custom Seeds Guide
 
-This guide demonstrates how to use custom seeds in SteadyText for reproducible and varied text generation and embeddings. Custom seeds give you precise control over the deterministic behavior of SteadyText.
+Learn how to use custom seeds in SteadyText for reproducible variations in text generation and embeddings.
+
+## Overview
+
+SteadyText uses seeds to control randomness, allowing you to:
+- Generate different outputs for the same prompt
+- Ensure reproducible results across runs
+- Create variations while maintaining determinism
+- Control randomness in production systems
 
 ## Table of Contents
 
-- [Basic Seed Usage](#basic-seed-usage)
-- [Reproducible Research](#reproducible-research)
-- [A/B Testing with Seeds](#ab-testing-with-seeds)
-- [Content Variations](#content-variations)
-- [Embedding Experiments](#embedding-experiments)
-- [CLI Workflows](#cli-workflows)
-- [Advanced Patterns](#advanced-patterns)
+- [Understanding Seeds](#understanding-seeds)
+- [Text Generation with Seeds](#text-generation-with-seeds)
+- [Streaming with Seeds](#streaming-with-seeds)
+- [Embeddings with Seeds](#embeddings-with-seeds)
+- [Seed Strategies](#seed-strategies)
+- [CLI Seed Usage](#cli-seed-usage)
+- [Best Practices](#best-practices)
+- [Troubleshooting](#troubleshooting)
+
+## Understanding Seeds
+
+### What is a Seed?
+
+A seed is an integer that initializes the random number generator. Same seed + same input = same output, always.
+
+```python
+import steadytext
+
+# Default seed (42) - always same result
+text1 = steadytext.generate("Hello world")
+text2 = steadytext.generate("Hello world")
+assert text1 == text2  # Always true
+
+# Custom seeds - different results
+text3 = steadytext.generate("Hello world", seed=123)
+text4 = steadytext.generate("Hello world", seed=456)
+assert text3 != text4  # Different seeds, different outputs
+```
+
+### Seed Behavior
+
+- **Deterministic**: Same seed always produces same result
+- **Independent**: Each operation uses its own seed
+- **Cascading**: Seed affects all random choices in generation
+- **Cross-platform**: Same seed works identically everywhere
 
 ## Basic Seed Usage
 

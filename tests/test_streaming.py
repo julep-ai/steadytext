@@ -6,6 +6,7 @@ import time
 import subprocess
 import fcntl
 import os
+import pytest
 import steadytext
 
 
@@ -68,6 +69,10 @@ class TestStreamingBehavior:
 
     def test_library_is_streaming(self):
         """Verify steadytext.generate_iter() streams tokens."""
+        # Skip if model loading is disabled
+        if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
+            pytest.skip("Model loading is disabled, skipping streaming test")
+
         prompt = "Generate a short story about a robot who discovers music."
         token_iterator = steadytext.generate_iter(prompt, max_new_tokens=50)
 
@@ -75,6 +80,10 @@ class TestStreamingBehavior:
 
     def test_cli_is_streaming(self):
         """Verify the CLI streams output by default."""
+        # Skip if model loading is disabled
+        if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
+            pytest.skip("Model loading is disabled, skipping CLI streaming test")
+
         prompt = "Generate a short story about a robot who discovers music."
 
         # We use subprocess here instead of CliRunner because CliRunner waits

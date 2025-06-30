@@ -61,6 +61,15 @@ class CacheManager:
             return _DummyCache()
 
         if self._generation_cache is None:
+            # AIDEV-NOTE: Support configurable cache backend
+            backend_type = _os.environ.get("STEADYTEXT_CACHE_BACKEND")
+
+            # Collect backend-specific configuration
+            backend_kwargs = {}
+            if backend_type == "d1":
+                backend_kwargs["api_url"] = _os.environ.get("STEADYTEXT_D1_API_URL")
+                backend_kwargs["api_key"] = _os.environ.get("STEADYTEXT_D1_API_KEY")
+
             self._generation_cache = DiskBackedFrecencyCache(
                 capacity=int(
                     _os.environ.get("STEADYTEXT_GENERATION_CACHE_CAPACITY", "256")
@@ -70,6 +79,8 @@ class CacheManager:
                     _os.environ.get("STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB", "50.0")
                 ),
                 cache_dir=Path(get_cache_dir()) / "caches",
+                backend_type=backend_type,
+                **backend_kwargs,
             )
         return self._generation_cache
 
@@ -81,6 +92,15 @@ class CacheManager:
             return _DummyCache()
 
         if self._embedding_cache is None:
+            # AIDEV-NOTE: Support configurable cache backend
+            backend_type = _os.environ.get("STEADYTEXT_CACHE_BACKEND")
+
+            # Collect backend-specific configuration
+            backend_kwargs = {}
+            if backend_type == "d1":
+                backend_kwargs["api_url"] = _os.environ.get("STEADYTEXT_D1_API_URL")
+                backend_kwargs["api_key"] = _os.environ.get("STEADYTEXT_D1_API_KEY")
+
             self._embedding_cache = DiskBackedFrecencyCache(
                 capacity=int(
                     _os.environ.get("STEADYTEXT_EMBEDDING_CACHE_CAPACITY", "512")
@@ -90,6 +110,8 @@ class CacheManager:
                     _os.environ.get("STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB", "100.0")
                 ),
                 cache_dir=Path(get_cache_dir()) / "caches",
+                backend_type=backend_type,
+                **backend_kwargs,
             )
         return self._embedding_cache
 
