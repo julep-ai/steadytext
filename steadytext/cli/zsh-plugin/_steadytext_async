@@ -1,0 +1,16 @@
+#!/usr/bin/env zsh
+# Async helper for SteadyText suggestions
+# AIDEV-NOTE: This runs in a background process to avoid blocking the shell
+
+# Get the suggestion and write to temp file
+context="$1"
+tempfile="$2"
+size="${3:-small}"
+
+suggestion=$(echo "$context" | st --size "$size" --quiet 2>/dev/null | head -1 | sed 's/^[ \t]*//;s/[ \t]*$//')
+
+if [[ -n "$suggestion" ]]; then
+    echo "$suggestion" > "$tempfile"
+else
+    echo "" > "$tempfile"
+fi

@@ -379,6 +379,7 @@ SteadyText includes a command-line interface built with Click:
 - `embed.py`: Embedding creation with multiple output formats (JSON, numpy, hex)
 - `cache.py`: Cache management and status commands
 - `models.py`: Model management (list, preload, etc.)
+- `completion.py`: Shell completion script generation for bash/zsh/fish
 
 **CLI Features:**
 - Deterministic outputs matching the Python API
@@ -387,6 +388,63 @@ SteadyText includes a command-line interface built with Click:
 - Quiet by default (use `--verbose` to enable informational output)
 - Stdin/pipe support for unix-style command chaining
 - Log probability access for advanced use cases
+- Shell completion support for all commands and options
+
+## Shell Integration and ZSH Plugins
+
+SteadyText provides advanced shell integration through ZSH plugins that enable AI-powered command suggestions.
+
+### Shell Completions
+Basic tab completion for commands and options:
+```bash
+# Install completions
+st completion --install
+
+# Manual installation for specific shell
+st completion --shell zsh
+```
+
+### ZSH Plugins (`steadytext/cli/zsh-plugin/`)
+
+**Context-Aware Suggestions (`steadytext-context.plugin.zsh`)**
+- AIDEV-NOTE: Gathers shell context (pwd, git, env, history) for AI suggestions
+- Triggered with `Ctrl-X Ctrl-S` by default
+- Configurable via environment variables
+- Non-intrusive manual activation
+
+**Autosuggestions (`steadytext-autosuggestions.zsh`)**
+- AIDEV-NOTE: Fish-like autosuggestions powered by SteadyText
+- Shows AI predictions as you type in gray text
+- Async processing to avoid blocking
+- Suggestion caching for performance
+- Integrates with zsh-autosuggestions if available
+- Multiple strategies: context, history, or mixed
+
+**Installation:**
+```bash
+# Quick install (interactive installer)
+bash /path/to/steadytext/cli/zsh-plugin/install.sh
+
+# Manual oh-my-zsh
+plugins=(... steadytext-context steadytext-autosuggestions)
+
+# Manual standalone
+source /path/to/steadytext/cli/zsh-plugin/steadytext-context.plugin.zsh
+source /path/to/steadytext/cli/zsh-plugin/steadytext-autosuggestions.zsh
+```
+
+**Configuration:**
+```bash
+export STEADYTEXT_SUGGEST_ENABLED=1          # Enable/disable
+export STEADYTEXT_SUGGEST_MODEL_SIZE=small   # Model size
+export STEADYTEXT_SUGGEST_STRATEGY=context   # Suggestion strategy
+export STEADYTEXT_SUGGEST_ASYNC=1            # Async mode
+```
+
+AIDEV-NOTE: The ZSH plugins send minimal context to preserve privacy
+AIDEV-TODO: Consider adding bash/fish equivalents of the context-aware plugins
+AIDEV-TODO: Add telemetry for suggestion acceptance rates (opt-in)
+AIDEV-QUESTION: Should we support project-specific contexts via .steadytext files?
 
 ## Cache Configuration
 

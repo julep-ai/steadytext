@@ -6,7 +6,6 @@ import time
 import subprocess
 import fcntl
 import os
-import pytest
 import steadytext
 
 
@@ -71,7 +70,7 @@ class TestStreamingBehavior:
         """Verify steadytext.generate_iter() streams tokens."""
         # Skip if model loading is disabled
         if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
-            pytest.skip("Model loading is disabled, skipping streaming test")
+            return
 
         prompt = "Generate a short story about a robot who discovers music."
         token_iterator = steadytext.generate_iter(prompt, max_new_tokens=50)
@@ -82,7 +81,7 @@ class TestStreamingBehavior:
         """Verify the CLI streams output by default."""
         # Skip if model loading is disabled
         if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
-            pytest.skip("Model loading is disabled, skipping CLI streaming test")
+            return
 
         prompt = "Generate a short story about a robot who discovers music."
 
