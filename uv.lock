@@ -1240,48 +1240,16 @@ wheels = [
 ]
 
 [[package]]
-name = "llama-cpp-python"
+name = "llama-cpp-python-bundled"
 version = "0.3.9"
-source = { url = "https://github.com/julep-ai/llama-cpp-python/archive/main.tar.gz" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "diskcache" },
     { name = "jinja2" },
     { name = "numpy" },
     { name = "typing-extensions" },
 ]
-sdist = { hash = "sha256:14fa6cb8f243a2877b59daa46cc0f1178dcf46f4a9eef853a69891811a0408cf" }
-
-[package.metadata]
-requires-dist = [
-    { name = "black", marker = "extra == 'dev'", specifier = ">=23.3.0" },
-    { name = "diskcache", specifier = ">=5.6.1" },
-    { name = "fastapi", marker = "extra == 'server'", specifier = ">=0.100.0" },
-    { name = "fastapi", marker = "extra == 'test'", specifier = ">=0.100.0" },
-    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.24.1" },
-    { name = "httpx", marker = "extra == 'test'", specifier = ">=0.24.1" },
-    { name = "huggingface-hub", marker = "extra == 'test'", specifier = ">=0.23.0" },
-    { name = "jinja2", specifier = ">=2.11.3" },
-    { name = "llama-cpp-python", extras = ["dev", "server", "test"], marker = "extra == 'all'" },
-    { name = "mkdocs", marker = "extra == 'dev'", specifier = ">=1.4.3" },
-    { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.1.18" },
-    { name = "mkdocstrings", extras = ["python"], marker = "extra == 'dev'", specifier = ">=0.22.0" },
-    { name = "numpy", specifier = ">=1.20.0" },
-    { name = "pydantic-settings", marker = "extra == 'server'", specifier = ">=2.0.1" },
-    { name = "pydantic-settings", marker = "extra == 'test'", specifier = ">=2.0.1" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.4.0" },
-    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.4.0" },
-    { name = "pyyaml", marker = "extra == 'server'", specifier = ">=5.1" },
-    { name = "scipy", marker = "extra == 'test'", specifier = ">=1.10" },
-    { name = "sse-starlette", marker = "extra == 'server'", specifier = ">=1.6.1" },
-    { name = "sse-starlette", marker = "extra == 'test'", specifier = ">=1.6.1" },
-    { name = "starlette-context", marker = "extra == 'server'", specifier = ">=0.3.6,<0.4" },
-    { name = "starlette-context", marker = "extra == 'test'", specifier = ">=0.3.6,<0.4" },
-    { name = "twine", marker = "extra == 'dev'", specifier = ">=4.0.2" },
-    { name = "typeguard", marker = "extra == 'test'", specifier = ">=4.2.1" },
-    { name = "typing-extensions", specifier = ">=4.5.0" },
-    { name = "uvicorn", marker = "extra == 'server'", specifier = ">=0.22.0" },
-]
-provides-extras = ["server", "test", "dev", "all"]
+sdist = { url = "https://files.pythonhosted.org/packages/11/53/8ce48422b605b8c25a5eac309616a7d1e8a57f90c7192b6c07e3ce8a7076/llama_cpp_python_bundled-0.3.9.tar.gz", hash = "sha256:f07d63bf5d3328de8fd2a7fcf197a70ba366c8808b1af2c18d2ea056cd1b4990", size = 43976745, upload-time = "2025-07-02T07:49:46.992Z" }
 
 [[package]]
 name = "lxml"
@@ -3256,7 +3224,7 @@ dependencies = [
     { name = "click" },
     { name = "faiss-cpu" },
     { name = "huggingface-hub" },
-    { name = "llama-cpp-python" },
+    { name = "llama-cpp-python-bundled" },
     { name = "numpy" },
     { name = "pyzmq" },
     { name = "requests" },
@@ -3315,7 +3283,7 @@ requires-dist = [
     { name = "httpx", marker = "extra == 'd1'", specifier = ">=0.25.0" },
     { name = "huggingface-hub", specifier = ">=0.32.0" },
     { name = "lighteval", marker = "extra == 'benchmark'" },
-    { name = "llama-cpp-python", url = "https://github.com/julep-ai/llama-cpp-python/archive/main.tar.gz" },
+    { name = "llama-cpp-python-bundled", specifier = ">=0.3.9" },
     { name = "matplotlib", marker = "extra == 'benchmark'" },
     { name = "numpy", specifier = ">=1.21.0" },
     { name = "pandas", marker = "extra == 'benchmark'" },
