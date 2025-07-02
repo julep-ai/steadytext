@@ -18,6 +18,7 @@ This guide provides comprehensive examples for integrating SteadyText with Postg
 ```sql
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS plpython3u CASCADE;
+CREATE EXTENSION IF NOT EXISTS omni_python CASCADE;
 CREATE EXTENSION IF NOT EXISTS pgvector CASCADE;
 CREATE EXTENSION IF NOT EXISTS pg_steadytext CASCADE;
 

@@ -47,6 +47,15 @@ There are two primary ways to install and use `pg_steadytext`:
 1.  **Docker (Recommended):** Use the provided Docker setup for a self-contained environment.
 2.  **Manual Installation:** Build and install the extension on your own PostgreSQL server.
 
+### Prerequisites
+
+- PostgreSQL 12 or later
+- Python 3.8 or later  
+- `postgresql-plpython3` package for your PostgreSQL version
+- `omni-python` extension for PostgreSQL Python integration (see https://docs.omnigres.org/quick_start/)
+- `pgvector` extension for vector operations
+- pip (Python package manager)
+
 ### Docker Installation
 
 The included `Dockerfile` builds a PostgreSQL image with `pg_steadytext` and all its dependencies pre-installed.
@@ -86,6 +95,12 @@ For manual installation, you'll need a PostgreSQL server with `pgvector` and `pl
     # System packages (example for Debian/Ubuntu)
     sudo apt-get update
     sudo apt-get install postgresql-server-dev-all postgresql-plpython3-17 python3-pip
+    
+    # Install omni-python extension
+    sudo apt-get install postgresql-17-omni-python || \
+        (git clone https://github.com/omnigres/omnigres.git && \
+         cd omnigres/extensions/omni_python && \
+         make && sudo make install)
 
     # Python packages
     pip3 install steadytext pyzmq numpy
@@ -108,6 +123,7 @@ For manual installation, you'll need a PostgreSQL server with `pgvector` and `pl
 
     ```sql
     CREATE EXTENSION IF NOT EXISTS plpython3u;
+    CREATE EXTENSION IF NOT EXISTS omni_python;
     CREATE EXTENSION IF NOT EXISTS vector;
     CREATE EXTENSION pg_steadytext;
     ```

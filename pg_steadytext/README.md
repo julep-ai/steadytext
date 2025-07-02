@@ -24,11 +24,13 @@
 
 ## Installation
 
+For detailed installation instructions, see [INSTALL.md](INSTALL.md).
+
 ### Quick Install
 
 ```bash
 # Install Python dependencies
-pip3 install steadytext
+pip3 install steadytext pyzmq numpy
 
 # Clone and install the extension
 git clone https://github.com/julep-ai/steadytext.git
@@ -39,15 +41,15 @@ make && sudo make install
 CREATE EXTENSION pg_steadytext CASCADE;
 ```
 
-### Development Install
+### Docker Install (Recommended)
 
 ```bash
-# Install with development setup
-make dev-install
-
-# Run tests
-make dev-test
+# Build Docker image with pg_steadytext
+docker build -t pg_steadytext .
+docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres pg_steadytext
 ```
+
+See [INSTALL.md](INSTALL.md) for complete instructions including troubleshooting.
 
 ## Basic Usage
 

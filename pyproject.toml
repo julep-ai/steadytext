@@ -71,15 +71,20 @@ test-cov = "pytest --cov=steadytext --cov-report=term-missing --cov-report=html 
 test-parallel = "pytest -p no:xdist"
 lint = "ruff check --fix --unsafe-fixes"
 format = "ruff format"
-check = "ty check"
+typecheck = "ty check"
 pre-commit = "pre-commit run --all-files"
 docs-build = "mkdocs build"
 docs-serve = "mkdocs serve"
 docs-deploy = "mkdocs gh-deploy"
+check = [
+  "format",
+  "lint",
+  "typecheck"
+]
 build = [
   "format",
   "lint",
-  "check",
+  "typecheck",
   "test-parallel",
   "docs-build",
 ]

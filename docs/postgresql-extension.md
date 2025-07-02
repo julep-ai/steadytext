@@ -22,6 +22,7 @@ pg_steadytext extends PostgreSQL with:
 - **Extensions**:
   - `plpython3u` (required for Python integration)
   - `pgvector` (required for embedding storage)
+  - `omni_python` (required for enhanced Python integration, see https://docs.omnigres.org/quick_start/)
 
 ## Installation
 
@@ -29,7 +30,13 @@ pg_steadytext extends PostgreSQL with:
 
 ```bash
 # Install Python dependencies
-pip3 install steadytext>=2.1.0
+pip3 install steadytext>=2.1.0 pyzmq numpy
+
+# Install omni-python (if not available via package manager)
+git clone https://github.com/omnigres/omnigres.git
+cd omnigres/extensions/omni_python
+make && sudo make install
+cd ../../..
 
 # Clone the SteadyText repository
 git clone https://github.com/julep-ai/steadytext.git
@@ -40,6 +47,7 @@ make && sudo make install
 
 # Enable in PostgreSQL
 psql -U postgres -c "CREATE EXTENSION IF NOT EXISTS plpython3u CASCADE;"
+psql -U postgres -c "CREATE EXTENSION IF NOT EXISTS omni_python CASCADE;"
 psql -U postgres -c "CREATE EXTENSION IF NOT EXISTS pgvector CASCADE;"
 psql -U postgres -c "CREATE EXTENSION pg_steadytext CASCADE;"
 ```

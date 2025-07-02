@@ -329,7 +329,7 @@ class SteadyTextConnector:
                 for word in result.split():
                     yield word + " "
 
-    def embed(self, text: str) -> np.ndarray:
+    def embed(self, text: str, seed: int = 42) -> np.ndarray:
         """
         Generate embedding for text using SteadyText.
 
@@ -338,6 +338,7 @@ class SteadyTextConnector:
 
         Args:
             text: Input text to embed
+            seed: Random seed for deterministic embeddings (default: 42)
 
         Returns:
             1024-dimensional numpy array
@@ -349,7 +350,7 @@ class SteadyTextConnector:
         try:
             # Try using daemon first
             with use_daemon():
-                result = embed(text)
+                result = embed(text, seed=seed)
                 if result is not None:
                     return result
                 # If None, fall through to return zero vector
@@ -358,7 +359,7 @@ class SteadyTextConnector:
 
             # Fall back to direct embedding
             try:
-                result = embed(text)
+                result = embed(text, seed=seed)
                 if result is not None:
                     return result
                 # If None, fall through to return zero vector

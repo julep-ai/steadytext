@@ -1,0 +1,46 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run poe check"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "source .venv/bin/activate || echo 'no venv found'"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "mcp__brave-search__brave_web_search",
+      "mcp__firecrawl__firecrawl_map",
+      "mcp__firecrawl__firecrawl_scrape",
+      "mcp__firecrawl__firecrawl_search",
+      "mcp__fetch__fetch",
+      "Bash(python test:*)",
+      "Bash(python:*)",
+      "Bash(uv run:*)",
+      "Bash(rm:*)"
+    ],
+    "deny": []
+  },
+  "enabledMcpjsonServers": [
+    "fetch",
+    "firecrawl",
+    "search"
+  ],
+  "enableAllProjectMcpServers": true
+}
