@@ -565,13 +565,13 @@ steadytext daemon COMMAND [OPTIONS]
     st daemon start --foreground
     
     # Custom host/port
-    st daemon start --host 0.0.0.0 --port 8080
+    st daemon start --host 0.0.0.0 --port 5557
     
     # Start with custom default seed
     st daemon start --seed 123
     
     # Combined options
-    st daemon start --host 0.0.0.0 --port 8080 --seed 456 --foreground
+    st daemon start --host 0.0.0.0 --port 5557 --seed 456 --foreground
     ```
 
 === "Check Status"

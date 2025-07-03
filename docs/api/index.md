@@ -101,7 +101,11 @@ def generate(
     model_repo: Optional[str] = None,
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
-    seed: int = DEFAULT_SEED
+    seed: int = DEFAULT_SEED,
+    schema: Optional[Union[Dict[str, Any], type, object]] = None,
+    regex: Optional[str] = None,
+    choices: Optional[List[str]] = None,
+    response_format: Optional[Dict[str, Any]] = None,
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]
 ```
 

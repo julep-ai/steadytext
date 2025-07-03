@@ -56,7 +56,7 @@ def embed(text_input: Union[str, List[str]], seed: int = DEFAULT_SEED) -> np.nda
 === "Multiple Texts"
 
     ```python
-    # Embed multiple texts (averaged)
+    # Embed multiple texts (returns a single, averaged embedding)
     texts = ["machine learning", "artificial intelligence", "deep learning"]
     vector = steadytext.embed(texts)
     

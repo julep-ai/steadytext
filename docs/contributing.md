@@ -56,36 +56,36 @@ We welcome contributions to SteadyText! This document provides guidelines for co
 
 ### Development Commands
 
-SteadyText uses [poethepoet](https://github.com/nat-n/poethepoet) for task management:
+SteadyText uses [uv](https://github.com/astral-sh/uv) for task management:
 
 ```bash
 # Run tests
-poe test
+uv run python -m pytest
 
 # Run tests with coverage
-poe test-cov
+uv run python -m pytest --cov=steadytext
 
 # Run tests with model downloads (slower)
-poe test-models
+STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true uv run python -m pytest
 
 # Run linting
-poe lint
+uvx ruff check .
 
 # Format code
-poe format
+uvx ruff format .
 
 # Type checking
-poe check
+uvx mypy .
 
 # Run pre-commit hooks
-poe pre-commit
+uvx pre-commit run --all-files
 ```
 
 ## Making Changes
 
 ### Code Style
 
-- **Follow PEP 8**: Use `poe format` to auto-format code
+- **Follow PEP 8**: Use `uvx ruff format .` to auto-format code
 - **Use type hints**: Add type annotations for function parameters and returns
 - **Add docstrings**: Document all public functions and classes
 - **Keep functions focused**: Single responsibility principle
@@ -133,19 +133,19 @@ def test_your_feature():
 
 ```bash
 # Run all tests
-poe test
+uv run python -m pytest
 
 # Run specific test file
-pytest tests/test_your_feature.py
+uv run python -m pytest tests/test_your_feature.py
 
 # Run with coverage
-poe test-cov
+uv run python -m pytest --cov=steadytext
 
 # Run tests that require model downloads
-poe test-models
+STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true uv run python -m pytest
 
 # Run tests in parallel
-pytest -n auto
+uv run python -m pytest -n auto
 ```
 
 ### Documentation
@@ -184,10 +184,10 @@ steadytext/
 
 ### Before Submitting
 
-1. **Run all tests**: `poe test`
-2. **Check linting**: `poe lint`
-3. **Format code**: `poe format`
-4. **Type check**: `poe check`
+1. **Run all tests**: `uv run python -m pytest`
+2. **Check linting**: `uvx ruff check .`
+3. **Format code**: `uvx ruff format .`
+4. **Type check**: `uvx mypy .`
 5. **Update documentation**: Add/update relevant docs
 
 ### Pull Request Process

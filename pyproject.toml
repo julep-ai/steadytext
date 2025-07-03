@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "steadytext"
-version = "2.3.0"
+version = "2.4.0"
 description = "Deterministic text generation and embedding with zero configuration"
 readme = "README.md"
 authors = [
@@ -35,6 +35,7 @@ dependencies = [
     "chonkie>=0.2.1",
     "faiss-cpu>=1.7.0",
     "pyzmq>=22.0.0",
+    "outlines>=1.0.3",
 ]
 
 [tool.hatch.metadata]

@@ -18,11 +18,15 @@ def generate(
     model_repo: Optional[str] = None,
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
-    seed: int = DEFAULT_SEED
+    seed: int = DEFAULT_SEED,
+    schema: Optional[Union[Dict[str, Any], type, object]] = None,
+    regex: Optional[str] = None,
+    choices: Optional[List[str]] = None,
+    response_format: Optional[Dict[str, Any]] = None,
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]
 ```
 
-Generate deterministic text from a prompt.
+Generate deterministic text from a prompt, with optional structured output.
 
 **Parameters:**
 - `prompt` (str): The input text to generate from
@@ -34,9 +38,13 @@ Generate deterministic text from a prompt.
 - `model_filename` (str, optional): Custom model filename (e.g., "gemma-3n-E2B-it-Q8_0.gguf")
 - `size` (str, optional): Size shortcut for Gemma-3n models: "small" (2B, default), or "large" (4B) - **recommended approach**
 - `seed` (int): Random seed for deterministic generation (default: 42)
+- `schema` (Union[Dict, type, object], optional): JSON schema, Pydantic model, or Python type for structured JSON output.
+- `regex` (str, optional): A regular expression to constrain the output.
+- `choices` (List[str], optional): A list of strings to choose from.
+- `response_format` (Dict, optional): A dictionary specifying the output format (e.g., `{"type": "json_object"}`).
 
 **Returns:**
-- If `return_logprobs=False`: A string containing the generated text
+- If `return_logprobs=False`: A string containing the generated text. For structured JSON output, the JSON is wrapped in `<json-output>` tags.
 - If `return_logprobs=True`: A tuple of (text, logprobs_dict)
 
 **Example:**
@@ -69,6 +77,21 @@ text = steadytext.generate(
     model_filename="gemma-3n-E4B-it-Q8_0.gguf",
     seed=999
 )
+
+# Structured generation with a regex pattern
+phone_number = steadytext.generate("My phone number is: ", regex=r"\d{3}-\d{3}-\d{4}")
+
+# Structured generation with choices
+mood = steadytext.generate("I feel", choices=["happy", "sad", "angry"])
+
+# Structured generation with a JSON schema
+from pydantic import BaseModel
+class User(BaseModel):
+    name: str
+    age: int
+
+user_json = steadytext.generate("Create a user named John, age 30", schema=User)
+# user_json will contain: '... <json-output>{"name": "John", "age": 30}</json-output>'
 ```
 
 #### `steadytext.generate_iter()`
@@ -130,6 +153,62 @@ for token in steadytext.generate_iter("Complex task", size="large", seed=789):
     print(token, end="", flush=True)
 ```
 
+### Structured Generation (v2.3.0+)
+
+These are convenience functions for structured generation.
+
+#### `steadytext.generate_json()`
+
+```python
+def generate_json(
+    prompt: str,
+    schema: Union[Dict[str, Any], type, object],
+    max_tokens: int = 512,
+    **kwargs
+) -> str
+```
+
+Generates a JSON string that conforms to the provided schema.
+
+#### `steadytext.generate_regex()`
+
+```python
+def generate_regex(
+    prompt: str,
+    pattern: str,
+    max_tokens: int = 512,
+    **kwargs
+) -> str
+```
+
+Generates a string that matches the given regular expression.
+
+#### `steadytext.generate_choice()`
+
+```python
+def generate_choice(
+    prompt: str,
+    choices: List[str],
+    max_tokens: int = 512,
+    **kwargs
+) -> str
+```
+
+Generates a string that is one of the provided choices.
+
+#### `steadytext.generate_format()`
+
+```python
+def generate_format(
+    prompt: str,
+    format_type: type,
+    max_tokens: int = 512,
+    **kwargs
+) -> str
+```
+
+Generates a string that conforms to a basic Python type (e.g., `int`, `float`, `bool`).
+
 ### Embeddings
 
 #### `steadytext.embed()`
@@ -157,7 +236,7 @@ vec1 = steadytext.embed("Hello world", seed=123)
 vec2 = steadytext.embed("Hello world", seed=123)  # Same result as vec1
 vec3 = steadytext.embed("Hello world", seed=456)  # Different result
 
-# Multiple strings (averaged)
+# Multiple strings (returns a single, averaged embedding)
 vec = steadytext.embed(["Hello", "world"])
 
 # Multiple strings with custom seed

@@ -98,6 +98,16 @@ SteadyText achieves determinism via:
 
 This means `generate("hello")` returns the exact same 512 tokens on any machine, every single time.
 
+## 🌐 Ecosystem
+
+SteadyText is more than just a library. It's a full ecosystem for deterministic AI:
+
+- **Python Library**: The core `steadytext` library for programmatic use in your applications.
+- **Command-Line Interface (CLI)**: A powerful `st` command to use SteadyText from your shell for scripting and automation.
+- **Zsh Plugin**: Supercharge your shell with AI-powered command suggestions and history search.
+- **PostgreSQL Extension**: Run deterministic AI functions directly within your PostgreSQL database.
+- **Cloudflare Worker**: Deploy SteadyText to the edge with a Cloudflare Worker for distributed, low-latency applications.
+
 ### ⚡ Daemon Architecture (Default)
 
 SteadyText uses a daemon architecture by default for optimal performance:
@@ -169,6 +179,42 @@ Here's how we could *imagine* a recursive Pig Latin function to do this:
 \```piglatin
 "Ehay-ay"  ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-ay-%
 ```
+
+---
+
+## ✨ Structured Generation (v2.3.0+)
+
+SteadyText now supports structured generation, allowing you to force the model's output to conform to a specific format.
+
+- **JSON Generation**: Generate JSON that validates against a schema or Pydantic model.
+- **Regex Matching**: Constrain output to a regular expression.
+- **Multiple Choice**: Force the output to be one of a list of choices.
+
+```python
+import steadytext
+from pydantic import BaseModel
+
+# JSON generation with a Pydantic model
+class User(BaseModel):
+    name: str
+    email: str
+
+user_json = steadytext.generate(
+    "Create a user: name John Doe, email john.doe@example.com",
+    schema=User
+)
+# Output contains: <json-output>{"name": "John Doe", "email": "john.doe@example.com"}</json-output>
+
+# Regex-constrained generation
+phone = steadytext.generate("My number is ", regex=r"\(\d{3}\) \d{3}-\d{4}")
+# Output: (123) 456-7890
+
+# Multiple choice
+response = steadytext.generate("Is this useful?", choices=["Yes", "No"])
+# Output: Yes
+```
+
+📚 **[Learn more in the Structured Generation Guide](docs/structured-generation.md)**
 
 ---
 

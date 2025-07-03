@@ -241,6 +241,72 @@ AIDEV-NOTE: The context window affects only input capacity, not output quality o
 AIDEV-TODO: Add automatic input truncation option for oversized inputs
 AIDEV-TODO: Support for sliding window or chunking for very long documents
 
+## Structured Generation (v2.3.0+)
+
+### Known Compatibility Issues
+
+AIDEV-NOTE: Outlines 1.0.3+ has a known incompatibility with certain model vocabularies when using llama-cpp-python. This affects models like Gemma-3n, Qwen1.5, Phi-2, and Llama 3.x, causing a "Cannot convert token to bytes" RuntimeError.
+
+**Error Details:**
+- Error: `RuntimeError: Cannot convert token ` �` (58588) to bytes:  �`
+- Occurs when Outlines tries to process the model's vocabulary during FSM creation
+- Tracked in: https://github.com/outlines-dev/outlines/issues/820
+
+**Current Workaround:**
+- The code now catches this error and provides a clear error message
+- Tests should expect this error for incompatible models
+- Consider using alternative models like OpenHermes-2.5-Mistral-7B that are known to work
+
+AIDEV-TODO: Monitor Outlines updates for a fix to this vocabulary processing issue
+AIDEV-TODO: Consider implementing a model compatibility check before structured generation
+AIDEV-QUESTION: Should we maintain a list of compatible/incompatible models?
+
+### Feature Overview
+
+SteadyText supports structured text generation using Outlines, enabling:
+- JSON generation with schemas or Pydantic models
+- Regex pattern matching for formatted output
+- Choice constraints for multiple-choice selection
+- Type constraints for basic Python types (int, float, bool, str)
+
+### Usage Examples
+
+```python
+from steadytext import generate, generate_json, generate_regex, generate_choice
+from pydantic import BaseModel
+
+# JSON with Pydantic model
+class Person(BaseModel):
+    name: str
+    age: int
+
+result = generate("Create a person", schema=Person)
+# Returns: "Let me create a person...<json-output>{"name": "Alice", "age": 30}</json-output>"
+
+# Regex pattern matching
+phone = generate("My number is", regex=r"\d{3}-\d{3}-\d{4}")
+# Returns: "555-123-4567"
+
+# Choice constraints
+answer = generate("Is Python good?", choices=["yes", "no", "maybe"])
+# Returns: "yes"
+
+# JSON schema
+schema = {"type": "object", "properties": {"color": {"type": "string"}}}
+result = generate_json("Pick a color", schema)
+```
+
+### Technical Implementation
+
+- AIDEV-NOTE: Structured generation uses a two-phase approach:
+  1. Generate thoughts/reasoning up to `<json-` tag
+  2. Use Outlines to generate constrained output after `<json-output>`
+- AIDEV-NOTE: All structured outputs are deterministic and cacheable
+- AIDEV-NOTE: Structured generation bypasses cache for logprobs requests
+- AIDEV-NOTE: The daemon protocol has been extended to support structured parameters
+- AIDEV-TODO: Add streaming support for structured generation
+- AIDEV-TODO: Support context-free grammars when Outlines adds llama.cpp support
+
 ## Development Commands
 
 ### Testing

@@ -5,12 +5,12 @@ AIDEV-NOTE: Fixed "Never Fails" - embed() now catches TypeErrors & returns zero 
 """
 
 # Version of the steadytext package - should match pyproject.toml
-__version__ = "2.2.0"
+__version__ = "2.4.0"
 
 # Import core functions and classes for public API
 import os
 import numpy as np
-from typing import Optional, Any, Union, Tuple, Dict, Iterator, List
+from typing import Optional, Any, Union, Tuple, Dict, Iterator, List, Type
 from .core.generator import (
     core_generate as _generate,
     core_generate_iter as _generate_iter,
@@ -27,6 +27,14 @@ from .models.loader import get_generator_model_instance, get_embedding_model_ins
 from .daemon.client import DaemonClient, use_daemon, get_daemon_client
 from .cache_manager import get_cache_manager
 
+# Import structured generation functions
+from .core.structured import (
+    generate_json,
+    generate_regex,
+    generate_choice,
+    generate_format,
+)
+
 
 def generate(
     prompt: str,
@@ -38,8 +46,12 @@ def generate(
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
     seed: int = DEFAULT_SEED,
+    response_format: Optional[Dict[str, Any]] = None,
+    schema: Optional[Union[Dict[str, Any], Type, object]] = None,
+    regex: Optional[str] = None,
+    choices: Optional[List[str]] = None,
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None]]:
-    """Generate text deterministically from a prompt.
+    """Generate text deterministically from a prompt with optional structured output.
 
     Args:
         prompt: The input prompt to generate from
@@ -51,9 +63,15 @@ def generate(
         model_repo: Custom Hugging Face repository ID
         model_filename: Custom model filename
         size: Size identifier ("small", "large")
+        seed: Seed for deterministic generation
+        response_format: Dict specifying output format (e.g., {"type": "json_object"})
+        schema: JSON schema, Pydantic model, or Python type for structured output
+        regex: Regular expression pattern for output format
+        choices: List of allowed string choices for output
 
     Returns:
         Generated text string, or tuple (text, logprobs) if return_logprobs=True
+        For structured output, JSON is wrapped in <json-output> tags
 
     Examples:
         # Use default model
@@ -71,6 +89,21 @@ def generate(
             model_repo="ggml-org/gemma-3n-E4B-it-GGUF",
             model_filename="gemma-3n-E4B-it-Q8_0.gguf"
         )
+
+        # Generate JSON with schema
+        from pydantic import BaseModel
+        class Person(BaseModel):
+            name: str
+            age: int
+
+        result = generate("Create a person", schema=Person)
+        # Returns: "Let me create...<json-output>{"name": "John", "age": 30}</json-output>"
+
+        # Generate with regex pattern
+        phone = generate("My phone is", regex=r"\d{3}-\d{3}-\d{4}")
+
+        # Generate with choices
+        answer = generate("Is Python good?", choices=["yes", "no", "maybe"])
     """
     # AIDEV-NOTE: This is the primary public API. It orchestrates the daemon-first logic.
     # If the daemon is enabled (default), it attempts to use the client.
@@ -90,6 +123,10 @@ def generate(
                     model_filename=model_filename,
                     size=size,
                     seed=seed,
+                    response_format=response_format,
+                    schema=schema,
+                    regex=regex,
+                    choices=choices,
                 )
             except ConnectionError as e:
                 # Fall back to direct generation
@@ -107,6 +144,10 @@ def generate(
         model_filename=model_filename,
         size=size,
         seed=seed,
+        response_format=response_format,
+        schema=schema,
+        regex=regex,
+        choices=choices,
     )
 
     # AIDEV-NOTE: Return None if generation failed
@@ -269,4 +310,9 @@ __all__ = [
     "EMBEDDING_DIMENSION",
     "logger",
     "__version__",
+    # Structured generation
+    "generate_json",
+    "generate_regex",
+    "generate_choice",
+    "generate_format",
 ]

@@ -8,7 +8,7 @@ import os
 import contextlib
 import threading
 import time
-from typing import Any, Dict, Optional, Union, Tuple, Iterator
+from typing import Any, Dict, Optional, Union, Tuple, Iterator, Type, List
 import numpy as np
 
 try:
@@ -158,7 +158,11 @@ class DaemonClient:
         size: Optional[str] = None,
         seed: int = DEFAULT_SEED,
         max_new_tokens: Optional[int] = None,
-    ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]]]:
+        response_format: Optional[Dict[str, Any]] = None,
+        schema: Optional[Union[Dict[str, Any], Type, object]] = None,
+        regex: Optional[str] = None,
+        choices: Optional[List[str]] = None,
+    ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None]]:
         """Generate text via daemon."""
         if not self.connect():
             # AIDEV-NOTE: Fallback to direct generation handled by caller
@@ -176,6 +180,10 @@ class DaemonClient:
                 "size": size,
                 "seed": seed,
                 "max_new_tokens": max_new_tokens,
+                "response_format": response_format,
+                "schema": schema,
+                "regex": regex,
+                "choices": choices,
             }
 
             request = Request(method="generate", params=params)

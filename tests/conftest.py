@@ -16,7 +16,8 @@ def pytest_addoption(parser):
     # Only set ALLOW_MODEL_DOWNLOADS to false if not explicitly set to true
     if os.environ.get("STEADYTEXT_ALLOW_MODEL_DOWNLOADS", "").lower() != "true":
         os.environ["STEADYTEXT_ALLOW_MODEL_DOWNLOADS"] = "false"
-    os.environ["STEADYTEXT_SKIP_MODEL_LOAD"] = "1"
+        # Only skip model loading when downloads are not allowed
+        os.environ["STEADYTEXT_SKIP_MODEL_LOAD"] = "1"
     os.environ["STEADYTEXT_DAEMON_FAILURE_CACHE_SECONDS"] = "1"
     os.environ["STEADYTEXT_DAEMON_TIMEOUT_MS"] = "50"
     os.environ["STEADYTEXT_SKIP_CACHE_INIT"] = "1"
@@ -30,7 +31,8 @@ def pytest_configure(config):
     # Only set ALLOW_MODEL_DOWNLOADS to false if not explicitly set to true
     if os.environ.get("STEADYTEXT_ALLOW_MODEL_DOWNLOADS", "").lower() != "true":
         os.environ["STEADYTEXT_ALLOW_MODEL_DOWNLOADS"] = "false"
-    os.environ["STEADYTEXT_SKIP_MODEL_LOAD"] = "1"
+        # Only skip model loading when downloads are not allowed
+        os.environ["STEADYTEXT_SKIP_MODEL_LOAD"] = "1"
     os.environ["STEADYTEXT_DAEMON_FAILURE_CACHE_SECONDS"] = "1"
     os.environ["STEADYTEXT_DAEMON_TIMEOUT_MS"] = "50"
     os.environ["STEADYTEXT_SKIP_CACHE_INIT"] = "1"

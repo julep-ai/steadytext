@@ -42,6 +42,7 @@ nav:
   - API Reference:
     - Overview: api/index.md
     - Text Generation: api/generation.md
+    - Structured Generation: structured-generation.md
     - Embeddings: api/embedding.md
     - CLI Reference: api/cli.md
   - Guides:

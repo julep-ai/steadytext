@@ -10,7 +10,7 @@
 import hashlib
 import logging
 import os
-from typing import Any, Dict, List, Optional, Union, Tuple, Iterator, cast
+from typing import Any, Dict, List, Optional, Union, Tuple, Iterator, cast, Type
 
 from ..cache_manager import get_generation_cache
 from ..models.loader import get_generator_model_instance
@@ -216,8 +216,12 @@ class DeterministicGenerator:
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
         seed: int = DEFAULT_SEED,
+        response_format: Optional[Dict[str, Any]] = None,
+        schema: Optional[Union[Dict[str, Any], Type, object]] = None,
+        regex: Optional[str] = None,
+        choices: Optional[List[str]] = None,
     ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None]]:
-        """Generate text with optional model switching.
+        """Generate text with optional model switching and structured output.
 
         Args:
             prompt: Input text prompt
@@ -228,11 +232,69 @@ class DeterministicGenerator:
             model_filename: Custom model filename
             size: Size identifier ("small", "large")
             seed: Seed for deterministic generation
+            response_format: Dict specifying output format (e.g., {"type": "json_object"})
+            schema: JSON schema, Pydantic model, or Python type for structured output
+            regex: Regular expression pattern for output format
+            choices: List of allowed string choices for output
 
         AIDEV-NOTE: Model switching parameters allow using different models without restarting.
+        AIDEV-NOTE: Structured output parameters delegate to the structured generator when provided.
         """
         validate_seed(seed)
         set_deterministic_environment(seed)
+
+        # AIDEV-NOTE: Check if structured output is requested
+        is_structured = any([response_format, schema, regex, choices])
+
+        # Handle structured generation
+        if is_structured:
+            # Structured generation doesn't support logprobs
+            if return_logprobs:
+                logger.warning(
+                    "Structured generation does not support logprobs. Ignoring return_logprobs=True."
+                )
+
+            # Import here to avoid circular dependencies
+            from .structured import (
+                generate_json,
+                generate_regex,
+                generate_choice,
+            )
+
+            # Determine which structured generator to use
+            if schema is not None or (
+                response_format and response_format.get("type") == "json_object"
+            ):
+                # JSON generation
+                if schema is None:
+                    # If only response_format is provided, generate generic JSON
+                    schema = dict  # Generic dict type
+                result = generate_json(
+                    prompt=prompt,
+                    schema=schema,
+                    max_tokens=max_new_tokens or GENERATION_MAX_NEW_TOKENS,
+                    seed=seed,
+                )
+                return (result, None) if return_logprobs else result
+            elif regex is not None:
+                # Regex pattern matching
+                result = generate_regex(
+                    prompt=prompt,
+                    pattern=regex,
+                    max_tokens=max_new_tokens or GENERATION_MAX_NEW_TOKENS,
+                    seed=seed,
+                )
+                return (result, None) if return_logprobs else result
+            elif choices is not None:
+                # Multiple choice
+                result = generate_choice(
+                    prompt=prompt,
+                    choices=choices,
+                    max_tokens=max_new_tokens or GENERATION_MAX_NEW_TOKENS,
+                    seed=seed,
+                )
+                return (result, None) if return_logprobs else result
+
         # Resolve model parameters
         repo_id: Optional[str] = None
         filename: Optional[str] = None
@@ -619,6 +681,27 @@ class DeterministicGenerator:
             # On error, don't yield anything further
 
 
+# AIDEV-NOTE: Export validation function for use in structured generation
+def _validate_input_length(
+    model, prompt: str, max_new_tokens: Optional[int] = None
+) -> None:
+    """Validate input length against model's context window.
+
+    This is a module-level function to allow use from structured.py.
+    """
+    generator = _get_generator_instance()
+    if model is not None:
+        # Temporarily set the model for validation
+        old_model = generator.model
+        generator.model = model
+        try:
+            generator._validate_input_length(prompt, max_new_tokens)
+        finally:
+            generator.model = old_model
+    else:
+        generator._validate_input_length(prompt, max_new_tokens)
+
+
 # AIDEV-NOTE: DEPRECATED - The deterministic fallback generator has been disabled.
 # The system now returns None when models are unavailable instead of generating
 # deterministic but meaningless text. This change was made because the fallback
@@ -785,11 +868,15 @@ def core_generate(
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
     seed: int = DEFAULT_SEED,
+    response_format: Optional[Dict[str, Any]] = None,
+    schema: Optional[Union[Dict[str, Any], Type, object]] = None,
+    regex: Optional[str] = None,
+    choices: Optional[List[str]] = None,
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None]]:
-    """Generate text deterministically with optional model switching.
+    """Generate text deterministically with optional model switching and structured output.
 
     This is the main public API for text generation. It maintains backward
-    compatibility while adding support for dynamic model switching.
+    compatibility while adding support for dynamic model switching and structured output.
 
     Args:
         prompt: Input text prompt
@@ -801,6 +888,10 @@ def core_generate(
         model_filename: Custom model filename
         size: Size identifier ("small", "large")
         seed: Seed for deterministic generation
+        response_format: Dict specifying output format (e.g., {"type": "json_object"})
+        schema: JSON schema, Pydantic model, or Python type for structured output
+        regex: Regular expression pattern for output format
+        choices: List of allowed string choices for output
 
     Returns:
         Generated text string, or tuple of (text, logprobs) if return_logprobs=True
@@ -823,7 +914,23 @@ def core_generate(
             model_filename="gemma-3n-E4B-it-Q8_0.gguf"
         )
 
+        # Generate JSON with schema
+        from pydantic import BaseModel
+        class Person(BaseModel):
+            name: str
+            age: int
+
+        result = generate("Create a person", schema=Person)
+        # Returns: "Let me create...<json-output>{"name": "John", "age": 30}</json-output>"
+
+        # Generate with regex pattern
+        phone = generate("My phone number is", regex=r"\d{3}-\d{3}-\d{4}")
+
+        # Generate with choices
+        answer = generate("Is Python good?", choices=["yes", "no", "maybe"])
+
     AIDEV-NOTE: Model switching allows using different models without changing environment variables. Models are cached after the first load.
+    AIDEV-NOTE: Structured output parameters enable JSON, regex, and choice-constrained generation.
     """
     return _get_generator_instance().generate(
         prompt=prompt,
@@ -835,6 +942,10 @@ def core_generate(
         model_filename=model_filename,
         size=size,
         seed=seed,
+        response_format=response_format,
+        schema=schema,
+        regex=regex,
+        choices=choices,
     )
 
 

@@ -8,6 +8,12 @@ This section demonstrates practical applications of SteadyText across different 
 
 - **[Testing with AI](testing.md)** - Reliable AI tests that never flake
 - **[CLI Tools](tooling.md)** - Building deterministic command-line tools
+- **[Caching Guide](caching.md)** - Configure and optimize caching
+- **[Custom Seeds Guide](custom-seeds.md)** - Use custom seeds for reproducible variations
+- **[Daemon Usage Guide](daemon-usage.md)** - Persistent model serving for faster responses
+- **[Error Handling Guide](error-handling.md)** - Handle errors gracefully
+- **[Performance Tuning Guide](performance-tuning.md)** - Optimize for speed and efficiency
+- **[PostgreSQL Integration Examples](postgresql-integration.md)** - Integrate with PostgreSQL
 
 All examples showcase SteadyText's core principle: **same input → same output, every time**.
 

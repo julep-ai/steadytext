@@ -215,7 +215,7 @@ st daemon stop --force             # Force stop daemon
 st daemon restart                  # Restart daemon
 
 # Daemon configuration
-st daemon start --host 127.0.0.1 --port 5678  # Custom host/port
+st daemon start --host 127.0.0.1 --port 5557  # Custom host/port
 ```
 
 ### Text Generation
@@ -287,29 +287,41 @@ st models --preload
 ## 🔍 API Overview
 
 ```python
-# Text generation (uses daemon by default)
-steadytext.generate(prompt: str) -> str
-steadytext.generate(prompt, return_logprobs=True)
+import steadytext
+import numpy as np
+from typing import List, Optional, Dict, Tuple, Iterator, Union
 
+# Text generation with structured output
+def generate(
+    prompt: str,
+    max_new_tokens: Optional[int] = None,
+    return_logprobs: bool = False,
+    size: Optional[str] = None,
+    seed: int = 42,
+    schema: Optional[Union[Dict, type]] = None,
+    regex: Optional[str] = None,
+    choices: Optional[List[str]] = None
+) -> Union[str, Tuple[str, Optional[Dict]]]:
+    # ... implementation ...
 
 # Streaming generation
-steadytext.generate_iter(prompt: str)
+def generate_iter(
+    prompt: str,
+    max_new_tokens: Optional[int] = None,
+    seed: int = 42
+) -> Iterator[str]:
+    # ... implementation ...
 
-# Embeddings (uses daemon by default)
-steadytext.embed(text: str | List[str]) -> np.ndarray
-
-# Daemon management
-from steadytext.daemon import use_daemon
-with use_daemon():  # Ensure daemon connection
-    text = steadytext.generate("Hello")
+# Embeddings
+def embed(
+    text_input: Union[str, List[str]],
+    seed: int = 42
+) -> np.ndarray:
+    # ... implementation ...
 
 # Model preloading
-steadytext.preload_models(verbose=True)
-
-# Cache management
-from steadytext import get_cache_manager
-cache_manager = get_cache_manager()
-stats = cache_manager.get_cache_stats()
+def preload_models(verbose: bool = False) -> None:
+    # ... implementation ...
 ```
 
 ### Vector Operations (CLI)
@@ -375,7 +387,7 @@ export STEADYTEXT_DISABLE_DAEMON=1
 
 # Daemon connection settings
 export STEADYTEXT_DAEMON_HOST=127.0.0.1
-export STEADYTEXT_DAEMON_PORT=5678
+export STEADYTEXT_DAEMON_PORT=5557
 ```
 
 ### Model Downloads
@@ -430,7 +442,7 @@ Create deterministic embeddings for text input.
 # Single string
 vec = steadytext.embed("Hello world")
 
-# List of strings (averaged)
+# List of strings (returns a single, averaged embedding)
 vecs = steadytext.embed(["Hello", "world"])
 ```
 

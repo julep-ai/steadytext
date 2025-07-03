@@ -1,5 +1,52 @@
 # Changelog
 
+## Version 2.4.0 (2025-07-03)
+
+### New Features
+- **Structured Generation:** Introduced structured generation capabilities using Outlines library.
+  - Generate JSON output conforming to a JSON schema or Pydantic model
+  - Constrain output to specific regular expression patterns
+  - Limit output to a predefined list of choices
+  - Support for basic Python types (int, float, bool, str)
+  - New API functions: `generate_json()`, `generate_regex()`, `generate_choice()`, and `generate_format()`
+  - New parameters for `generate()`: `schema`, `regex`, `choices`, and `response_format`
+  - Two-phase generation approach: reasoning followed by structured output
+  - Full integration with daemon mode and caching system
+  - Comprehensive examples in `examples/structured_generation.py`
+  - Added `outlines>=1.0.3` as a new dependency
+
+### Documentation
+- Added comprehensive structured generation documentation in `docs/structured-generation.md`
+- Added structured generation examples showcasing all features
+- Updated API documentation with new structured generation parameters
+
+### Known Issues
+- Some models (Gemma-3n, Qwen1.5, Phi-2, Llama 3.x) have vocabulary compatibility issues with Outlines 1.0.3+
+- Tracked in: https://github.com/outlines-dev/outlines/issues/820
+
+## Version 2.3.0 (2025-07-03)
+
+### New Features
+- **Context Window Management:** Added dynamic context window sizing and input validation.
+  - Automatically uses the largest context window supported by each model
+  - Input length validation before generation to prevent mid-generation failures
+  - Raises `ContextLengthExceededError` with detailed token counts when input is too long
+  - Support for environment variable override via `STEADYTEXT_MAX_CONTEXT_WINDOW`
+  - Token counting using model's tokenizer with fallback to estimation
+  - Safety margins and output token reservation (default: 512 tokens + 10% margin)
+  - Maintains deterministic behavior across different context window sizes
+  - Added `get_optimal_context_window()` function for automatic context sizing
+  - Comprehensive test suite for context window features
+
+### Bug Fixes
+- Fixed PostgreSQL extension embed connector functionality
+- Applied formatting and lint fixes across the codebase
+
+### Internal Changes
+- Added `steadytext/exceptions.py` with new `ContextLengthExceededError` exception
+- Enhanced model loader with context window configuration
+- Updated generator with input validation and token counting
+
 ## Version 2.2.0 (2025-06-30)
 
 ### New Features

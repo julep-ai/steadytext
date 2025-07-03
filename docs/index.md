@@ -77,6 +77,16 @@ SteadyText achieves determinism via:
 
 This means `generate("hello")` returns the exact same 512 tokens on any machine, every single time.
 
+## 🌐 Ecosystem
+
+SteadyText is more than just a library. It's a full ecosystem for deterministic AI:
+
+- **Python Library**: The core `steadytext` library for programmatic use in your applications.
+- **Command-Line Interface (CLI)**: A powerful `st` command to use SteadyText from your shell for scripting and automation.
+- **Zsh Plugin**: Supercharge your shell with AI-powered command suggestions and history search.
+- **PostgreSQL Extension**: Run deterministic AI functions directly within your PostgreSQL database.
+- **Cloudflare Worker**: Deploy SteadyText to the edge with a Cloudflare Worker for distributed, low-latency applications.
+
 ### Daemon Mode (v1.3+)
 
 SteadyText includes a daemon mode that keeps models loaded in memory for instant responses:

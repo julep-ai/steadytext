@@ -2,16 +2,39 @@
 
 This document outlines the major versions of SteadyText and the key features introduced in each.
 
-**Latest Version**: 2.1.0+ - Custom Seeds & PostgreSQL Extension
+**Latest Version**: 2.3.0 - Structured Generation
 
 | Version | Key Features                                                                                                                            | Default Generation Model                               | Default Embedding Model                                | Python Versions |
 | :------ | :-------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------- | :----------------------------------------------------- | :-------------- |
+| **2.3.x** | - **Structured Generation**: Added support for JSON, Regex, and Choice-constrained generation via `outlines`.<br>- **New API parameters**: `schema`, `regex`, `choices` added to `generate()`.<br>- **New convenience functions**: `generate_json()`, `generate_regex()`, `generate_choice()`. | `ggml-org/gemma-3n-E2B-it-GGUF` (gemma-3n-E2B-it-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `>=3.10, <3.14` |
 | **2.1.x** | - **Custom Seeds**: Added seed parameter to all generation and embedding functions.<br>- **PostgreSQL Extension**: Released pg_steadytext extension.<br>- **Enhanced Reproducibility**: Full control over deterministic generation. | `ggml-org/gemma-3n-E2B-it-GGUF` (gemma-3n-E2B-it-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `>=3.10, <3.14` |
 | **2.0.x** | - **Daemon Mode**: Persistent model serving with ZeroMQ.<br>- **Gemma-3n Models**: Switched to `gemma-3n` for generation.<br>- **Thinking Mode Deprecated**: Removed thinking mode. | `ggml-org/gemma-3n-E2B-it-GGUF` (gemma-3n-E2B-it-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `>=3.10, <3.14` |
 | **1.x** | - **Model Switching**: Added support for switching models via environment variables and a model registry.<br>- **Qwen3 Models**: Switched to `qwen3-1.7b` for generation.<br>- **Indexing**: Added support for FAISS indexing. | `Qwen/Qwen3-1.7B-GGUF` (Qwen3-1.7B-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `>=3.10, <3.14` |
 | **0.x** | - **Initial Release**: Deterministic text generation and embedding.                                                                      | `Qwen/Qwen1.5-0.5B-Chat-GGUF` (qwen1_5-0_5b-chat-q4_k_m.gguf) | `Qwen/Qwen1.5-0.5B-Chat-GGUF` (qwen1_5-0_5b-chat-q8_0.gguf) | `>=3.10`        |
 
 ## Detailed Release Notes
+
+### Version 2.3.0 - Structured Generation
+
+**Release Date**: July 2025
+
+#### ✨ Structured Generation
+
+**Major Feature**: Introduced structured generation capabilities powered by the [Outlines](https://github.com/outlines-dev/outlines) library.
+
+- **JSON Generation**: Generate JSON that conforms to a JSON schema or a Pydantic model.
+  - `steadytext.generate(prompt, schema=MyPydanticModel)`
+  - `steadytext.generate_json(prompt, schema={"type": "object", ...})`
+- **Regex-Constrained Generation**: Force output to match a regular expression.
+  - `steadytext.generate(prompt, regex=r"\d{3}-\d{3}-\d{4}")`
+- **Multiple Choice**: Force model to choose from a list of options.
+  - `steadytext.generate(prompt, choices=["A", "B", "C"])`
+
+**Use Cases**:
+- Reliable data extraction
+- Building robust function-calling systems
+- Creating predictable application logic
+- Generating structured data for databases
 
 ### Version 2.1.0+ - Custom Seeds & PostgreSQL Extension
 

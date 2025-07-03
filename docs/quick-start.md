@@ -68,7 +68,7 @@ for token in steadytext.generate_iter("Tell me a joke", seed=789):
 vector = steadytext.embed("Hello world")
 print(f"Embedding shape: {vector.shape}")  # (1024,)
 
-# Multiple texts (averaged)
+# Multiple texts (returns a single, averaged embedding)
 vector = steadytext.embed(["Hello", "world", "AI"])
 
 # Custom seeds for different embedding variations

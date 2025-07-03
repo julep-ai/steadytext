@@ -66,7 +66,7 @@ The SteadyText daemon is a background service that keeps models loaded in memory
 st daemon start
 
 # Start with custom settings
-st daemon start --host 0.0.0.0 --port 8080 --seed 42
+st daemon start --host 0.0.0.0 --port 5557 --seed 42
 
 # Check status
 st daemon status

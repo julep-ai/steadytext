@@ -260,6 +260,10 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
         if not MODELS_ARE_ACCESSIBLE_FOR_TESTING:
             self.skipTest("Models deemed not accessible, skipping eos_string test.")
 
+        # Skip if model loading is disabled
+        if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
+            self.skipTest("Model loading is disabled, skipping eos_string test.")
+
         # Test with default [EOS]
         output_default = steadytext.generate("Test prompt", eos_string="[EOS]")
         self.assertIsInstance(output_default, str)
@@ -283,6 +287,12 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
                 "Models deemed not accessible, skipping eos_string streaming test."
             )
 
+        # Skip if model loading is disabled
+        if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
+            self.skipTest(
+                "Model loading is disabled, skipping eos_string streaming test."
+            )
+
         # Test streaming with custom eos
         tokens = []
         for token in steadytext.generate_iter("Test prompt", eos_string="END"):
@@ -298,6 +308,12 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
         if not MODELS_ARE_ACCESSIBLE_FOR_TESTING:
             self.skipTest(
                 "Models deemed not accessible, skipping eos_string with logprobs test."
+            )
+
+        # Skip if model loading is disabled
+        if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
+            self.skipTest(
+                "Model loading is disabled, skipping eos_string with logprobs test."
             )
 
         result = steadytext.generate(
@@ -644,8 +660,8 @@ class TestSteadyTextUtilities(unittest.TestCase):
         package."""
         self.assertEqual(steadytext.DEFAULT_SEED, 42)
         self.assertEqual(
-            steadytext.GENERATION_MAX_NEW_TOKENS, 512
-        )  # Reduced back to 512 in v2.0.0
+            steadytext.GENERATION_MAX_NEW_TOKENS, 1024
+        )  # Updated to 1024 in v2.2.0
         self.assertEqual(steadytext.EMBEDDING_DIMENSION, 1024)
         self.assertIsInstance(steadytext.__version__, str)
         self.assertTrue(

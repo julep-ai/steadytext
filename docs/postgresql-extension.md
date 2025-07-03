@@ -215,7 +215,7 @@ Start the SteadyText daemon for improved performance.
 
 ```sql
 SELECT steadytext_daemon_start();
-SELECT steadytext_daemon_start('localhost', 5555); -- Custom host/port
+SELECT steadytext_daemon_start('localhost', 5557); -- Custom host/port
 ```
 
 #### `steadytext_daemon_status()`
@@ -274,7 +274,7 @@ SELECT steadytext_config_get('default_max_tokens');
 SELECT steadytext_config_set('default_max_tokens', '1024');
 SELECT steadytext_config_set('cache_enabled', 'true');
 SELECT steadytext_config_set('daemon_host', 'localhost');
-SELECT steadytext_config_set('daemon_port', '5555');
+SELECT steadytext_config_set('daemon_port', '5557');
 SELECT steadytext_config_set('default_seed', '42');
 ```
 
@@ -314,7 +314,7 @@ SELECT key, value, description FROM steadytext_config;
 | `default_max_tokens` | `512` | Default maximum tokens to generate |
 | `cache_enabled` | `true` | Enable/disable caching |
 | `daemon_host` | `localhost` | Daemon server host |
-| `daemon_port` | `5555` | Daemon server port |
+| `daemon_port` | `5557` | Daemon server port |
 | `default_seed` | `42` | Default seed for operations |
 | `use_fallback_model` | `false` | Use fallback model if primary fails |
 | `rate_limit_enabled` | `false` | Enable rate limiting |
@@ -748,7 +748,7 @@ SELECT * FROM steadytext_daemon_status();
 -- Restart daemon with custom settings
 SELECT steadytext_daemon_stop();
 SELECT steadytext_config_set('daemon_host', 'localhost');
-SELECT steadytext_config_set('daemon_port', '5555');
+SELECT steadytext_config_set('daemon_port', '5557');
 SELECT steadytext_daemon_start();
 
 -- Test daemon connectivity
