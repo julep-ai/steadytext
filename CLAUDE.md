@@ -198,6 +198,49 @@ The original fallback functions (`_deterministic_fallback_generate` and `_determ
 
 AIDEV-NOTE: Fixed in v2.0.1+ - pytest collection was hanging due to module-level code execution. The fixes include removing module-level execution, adding environment checks for model downloads, lazy cache initialization, and early environment setup in conftest.py.
 
+## Context Window Management (v2.3.0+)
+
+AIDEV-NOTE: SteadyText now dynamically manages context windows to maximize available context while preventing errors.
+
+### Key Features
+
+**Dynamic Context Window Sizing:**
+- Automatically uses the largest context window supported by each model
+- Can be overridden via `STEADYTEXT_MAX_CONTEXT_WINDOW` environment variable
+- Known model limits are hardcoded for safety (e.g., Qwen2.5-3B: 32768 tokens)
+
+**Input Length Validation:**
+- Validates input length before generation to prevent mid-generation failures
+- Raises `ContextLengthExceededError` with detailed token counts
+- Reserves space for output tokens (default: 512) plus 10% safety margin
+- Uses model's tokenizer for accurate counting, falls back to estimation
+
+**Deterministic Behavior:**
+- Output remains identical regardless of context window size
+- The same input produces the same output whether n_ctx=2048 or n_ctx=32768
+- Only the maximum processable input length changes
+
+### Usage
+
+```python
+# Context window is set automatically
+text = generate("Your prompt here")  # Uses optimal context for loaded model
+
+# Override context window size
+os.environ["STEADYTEXT_MAX_CONTEXT_WINDOW"] = "8192"
+text = generate("Your prompt here")  # Limited to 8192 tokens
+
+# Handle long inputs gracefully
+try:
+    text = generate(very_long_prompt)
+except ContextLengthExceededError as e:
+    print(f"Input too long: {e.input_tokens} tokens, max: {e.max_tokens}")
+```
+
+AIDEV-NOTE: The context window affects only input capacity, not output quality or consistency
+AIDEV-TODO: Add automatic input truncation option for oversized inputs
+AIDEV-TODO: Support for sliding window or chunking for very long documents
+
 ## Development Commands
 
 ### Testing

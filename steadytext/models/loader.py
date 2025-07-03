@@ -24,6 +24,7 @@ from ..utils import (
     check_model_compatibility,
     GENERATION_MODEL_REPO,
     GENERATION_MODEL_FILENAME,
+    get_optimal_context_window,
 )
 from .cache import get_generation_model_path, get_embedding_model_path
 
@@ -54,6 +55,16 @@ class _ModelInstanceCache:
 
     def __init__(self) -> None:
         raise RuntimeError("Call __getInstance() instead")
+
+    @staticmethod
+    def _get_model_registry() -> Dict[str, Dict[str, str]]:
+        """Get the model registry from utils.
+
+        AIDEV-NOTE: Helper method to access MODEL_REGISTRY from utils module.
+        """
+        from ..utils import MODEL_REGISTRY
+
+        return MODEL_REGISTRY
 
     @classmethod
     def _ensure_init(cls):
@@ -146,6 +157,35 @@ class _ModelInstanceCache:
                     if enable_logits:
                         params["logits_all"] = True
 
+                    # AIDEV-NOTE: Set optimal context window dynamically based on model
+                    # Resolve model name to pass to get_optimal_context_window
+                    model_name = None
+                    if repo_id is None and filename is None:
+                        # Using default model - check if it matches a known model
+                        for name, config in cls._get_model_registry().items():
+                            if (
+                                config.get("repo") == GENERATION_MODEL_REPO
+                                and config.get("filename") == GENERATION_MODEL_FILENAME
+                            ):
+                                model_name = name
+                                break
+                    else:
+                        # Check if custom model matches a known model
+                        for name, config in cls._get_model_registry().items():
+                            if (
+                                config.get("repo") == repo_id
+                                and config.get("filename") == filename
+                            ):
+                                model_name = name
+                                break
+
+                    # Get optimal context window
+                    optimal_ctx = get_optimal_context_window(
+                        model_name=model_name,
+                        model_repo=repo_id or GENERATION_MODEL_REPO,
+                    )
+                    params["n_ctx"] = optimal_ctx
+
                     # Suppress llama.cpp output in quiet mode
                     with suppress_llama_output():
                         new_model = Llama(model_path=str(model_path), **params)
@@ -237,6 +277,17 @@ class _ModelInstanceCache:
                     logger.info(f"Loading embedder model from: {model_path}")
                 try:
                     params = {**LLAMA_CPP_EMBEDDING_PARAMS_DETERMINISTIC}
+
+                    # AIDEV-NOTE: Set optimal context window for embedding model too
+                    # Embedding models typically need less context than generation models
+                    # but we still use the dynamic system for consistency
+                    optimal_ctx = get_optimal_context_window(
+                        model_name=None,  # Could add embedding model detection later
+                        model_repo=None,
+                        requested_size=None,
+                    )
+                    params["n_ctx"] = optimal_ctx
+
                     logger.debug(f"Embedding Llama params: {params}")  # ADDED LOGGING
                     # Suppress llama.cpp output in quiet mode
                     with suppress_llama_output():

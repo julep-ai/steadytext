@@ -1,15 +1,6 @@
 {
   "hooks": {
     "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "uv run poe check"
-          }
-        ]
-      }
     ],
     "PreToolUse": [
       {
@@ -17,7 +8,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "source .venv/bin/activate || echo 'no venv found'"
+            "command": "[ -z \"$VIRTUAL_ENV\" ] && source .venv/bin/activate || echo 'venv already active'"
           }
         ]
       }

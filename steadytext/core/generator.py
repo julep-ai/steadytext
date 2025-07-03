@@ -26,7 +26,9 @@ from ..utils import (
     should_use_cache_for_generation,
     should_use_cache_for_streaming,
     validate_seed,
+    get_optimal_context_window,
 )
+from ..exceptions import ContextLengthExceededError
 
 # AIDEV-NOTE: Removed module-level set_deterministic_environment call to prevent
 # hanging during pytest collection. This is now called lazily when needed.
@@ -44,6 +46,10 @@ class DeterministicGenerator:
         self.model = None
         self._logits_enabled = False
         self._current_model_key = "default::default"
+        # AIDEV-NOTE: Initialize with default context window to prevent None errors during validation
+        self._context_window = (
+            get_optimal_context_window()
+        )  # Will be updated when model is loaded
         # Load model without logits_all initially
         # AIDEV-NOTE: Skip model loading if STEADYTEXT_SKIP_MODEL_LOAD is set
         if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") != "1":
@@ -75,9 +81,128 @@ class DeterministicGenerator:
         )
         self._logits_enabled = enable_logits
         self._current_model_key = f"{repo_id or 'default'}::{filename or 'default'}"
-        if self.model is None:
+
+        # AIDEV-NOTE: Store context window size from loaded model
+        if self.model is not None:
+            # Get actual context window from model
+            if hasattr(self.model, "n_ctx"):
+                try:
+                    ctx_value = self.model.n_ctx()
+                    # AIDEV-NOTE: Ensure we get a valid integer, not a Mock or other object
+                    # This handles cases where tests use mock models that return Mock objects
+                    if isinstance(ctx_value, int) and ctx_value > 0:
+                        self._context_window = ctx_value
+                    else:
+                        raise ValueError(f"Invalid context window value: {ctx_value}")
+                except (TypeError, ValueError, AttributeError) as e:
+                    # AIDEV-NOTE: Fallback to default context window if model doesn't provide valid n_ctx
+                    # This ensures tests with mock models still work properly
+                    logger.warning(
+                        f"Failed to get context window from model: {e}. Using default."
+                    )
+                    self._context_window = get_optimal_context_window(
+                        model_name=None, model_repo=repo_id
+                    )
+            else:
+                # Fallback to calculating it
+                model_name = None
+                # Try to resolve model name for context window calculation
+                from ..utils import (
+                    MODEL_REGISTRY,
+                    GENERATION_MODEL_REPO,
+                    GENERATION_MODEL_FILENAME,
+                )
+
+                for name, config in MODEL_REGISTRY.items():
+                    if (
+                        repo_id is None
+                        and filename is None
+                        and config.get("repo") == GENERATION_MODEL_REPO
+                        and config.get("filename") == GENERATION_MODEL_FILENAME
+                    ) or (
+                        config.get("repo") == repo_id
+                        and config.get("filename") == filename
+                    ):
+                        model_name = name
+                        break
+                self._context_window = get_optimal_context_window(
+                    model_name=model_name, model_repo=repo_id or GENERATION_MODEL_REPO
+                )
+        else:
             logger.error(
                 f"DeterministicGenerator: Model instance is None after attempting to load {self._current_model_key}."
+            )
+
+    def _count_tokens(self, text: str) -> int:
+        """Count tokens in text using the model's tokenizer.
+
+        AIDEV-NOTE: This method provides token counting for input validation.
+        Falls back to character-based estimation if tokenizer is not available.
+
+        Args:
+            text: Input text to count tokens for
+
+        Returns:
+            Number of tokens in the text
+        """
+        if self.model is None:
+            # Fallback: estimate ~4 characters per token
+            return len(text) // 4
+
+        try:
+            # Use model's tokenizer if available
+            if hasattr(self.model, "tokenize"):
+                tokens = self.model.tokenize(text.encode("utf-8"))
+                return len(tokens)
+            else:
+                # Fallback estimation
+                return len(text) // 4
+        except Exception as e:
+            logger.warning(f"Error counting tokens: {e}. Using fallback estimation.")
+            return len(text) // 4
+
+    def _validate_input_length(
+        self, prompt: str, max_new_tokens: Optional[int] = None
+    ) -> None:
+        """Validate that input prompt fits within context window.
+
+        AIDEV-NOTE: Validates input length and raises ContextLengthExceededError
+        if the input would exceed the model's context window, leaving room for
+        the response tokens.
+
+        Args:
+            prompt: Input prompt to validate
+            max_new_tokens: Maximum tokens to generate (for reserving space)
+
+        Raises:
+            ContextLengthExceededError: If input exceeds available context
+        """
+        if self._context_window is None:
+            # If we don't know the context window, we can't validate
+            return
+
+        # Count input tokens
+        input_tokens = self._count_tokens(prompt)
+
+        # Reserve space for output
+        output_reserve = max_new_tokens or GENERATION_MAX_NEW_TOKENS
+
+        # Calculate available tokens for input (leave 10% margin for safety)
+        safety_margin = int(self._context_window * 0.1)
+        available_tokens = self._context_window - output_reserve - safety_margin
+
+        if input_tokens > available_tokens:
+            raise ContextLengthExceededError(
+                input_tokens=input_tokens,
+                max_tokens=available_tokens,
+                input_text=prompt,
+                message=(
+                    f"Input is too long: {input_tokens} tokens. "
+                    f"Maximum allowed: {available_tokens} tokens "
+                    f"(context window: {self._context_window}, "
+                    f"reserved for output: {output_reserve}, "
+                    f"safety margin: {safety_margin})"
+                ),
             )
 
     def generate(
@@ -172,6 +297,14 @@ class DeterministicGenerator:
             )
             # Return None for empty/whitespace prompts
             return (None, None) if return_logprobs else None
+
+        # AIDEV-NOTE: Validate input length before generation
+        try:
+            self._validate_input_length(prompt, max_new_tokens)
+        except ContextLengthExceededError as e:
+            logger.error(f"Input validation failed: {e}")
+            # Re-raise the exception to notify the caller
+            raise
 
         try:
             # AIDEV-NOTE: Reset model cache before generation to ensure deterministic
@@ -379,6 +512,14 @@ class DeterministicGenerator:
             )
             # Return empty iterator
             return
+
+        # AIDEV-NOTE: Validate input length before streaming generation
+        try:
+            self._validate_input_length(prompt, max_new_tokens)
+        except ContextLengthExceededError as e:
+            logger.error(f"Input validation failed: {e}")
+            # Re-raise the exception to notify the caller
+            raise
 
         try:
             # AIDEV-NOTE: Reset model cache before generation

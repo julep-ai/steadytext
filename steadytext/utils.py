@@ -125,8 +125,86 @@ def set_deterministic_environment(seed: int):
 
 # --- Llama.cpp Model Parameters ---
 # These are now structured as per the new loader.py's expectation
+# AIDEV-NOTE: Context window configuration now supports dynamic sizing
+# Default to None to let get_optimal_context_window() determine the best value
+DEFAULT_CONTEXT_WINDOW = None  # Will be set dynamically based on model capabilities
+
+# Maximum context window sizes for known models
+# AIDEV-NOTE: These are conservative estimates to ensure stability
+MODEL_MAX_CONTEXT_WINDOWS = {
+    "gemma-3n-2b": 8192,
+    "gemma-3n-4b": 8192,
+    "qwen2.5-3b": 32768,
+    "qwen3-1.7b": 8192,
+}
+
+
+def get_optimal_context_window(
+    model_name: Optional[str] = None,
+    model_repo: Optional[str] = None,
+    requested_size: Optional[int] = None,
+) -> int:
+    """Determine the optimal context window size for a model.
+
+    AIDEV-NOTE: This function determines the context window size with the following priority:
+    1. User-specified via STEADYTEXT_MAX_CONTEXT_WINDOW env var
+    2. Requested size parameter
+    3. Known model maximum from MODEL_MAX_CONTEXT_WINDOWS
+    4. Safe default of 4096
+
+    Args:
+        model_name: Optional model name from registry
+        model_repo: Optional repository ID
+        requested_size: Optional requested context size
+
+    Returns:
+        Optimal context window size in tokens
+    """
+    # Check environment variable first
+    env_ctx = os.environ.get("STEADYTEXT_MAX_CONTEXT_WINDOW")
+    if env_ctx:
+        try:
+            ctx_size = int(env_ctx)
+            if ctx_size > 0:
+                logger.info(f"Using context window from env var: {ctx_size}")
+                return ctx_size
+        except ValueError:
+            logger.warning(
+                f"Invalid STEADYTEXT_MAX_CONTEXT_WINDOW value: {env_ctx}. "
+                "Using default."
+            )
+
+    # Use requested size if provided
+    if requested_size and requested_size > 0:
+        logger.info(f"Using requested context window: {requested_size}")
+        return requested_size
+
+    # Look up known model limits
+    if model_name and model_name in MODEL_MAX_CONTEXT_WINDOWS:
+        ctx_size = MODEL_MAX_CONTEXT_WINDOWS[model_name]
+        logger.info(f"Using known context window for {model_name}: {ctx_size}")
+        return ctx_size
+
+    # Try to infer from repo name
+    if model_repo:
+        repo_lower = model_repo.lower()
+        for model, max_ctx in MODEL_MAX_CONTEXT_WINDOWS.items():
+            if model.replace("-", "").replace(".", "") in repo_lower.replace(
+                "-", ""
+            ).replace(".", ""):
+                logger.info(
+                    f"Inferred context window from repo {model_repo}: {max_ctx}"
+                )
+                return max_ctx
+
+    # Default to a safe value
+    default_ctx = 4096
+    logger.info(f"Using default context window: {default_ctx}")
+    return default_ctx
+
+
 LLAMA_CPP_BASE_PARAMS: Dict[str, Any] = {
-    "n_ctx": 2048,
+    "n_ctx": DEFAULT_CONTEXT_WINDOW,  # Set dynamically via get_optimal_context_window()
     "n_gpu_layers": 0,  # CPU-only for zero-config
     "verbose": False,
 }
@@ -139,7 +217,7 @@ LLAMA_CPP_MAIN_PARAMS_DETERMINISTIC: Dict[str, Any] = {
 }
 
 # --- Output Configuration (from previous full utils.py) ---
-GENERATION_MAX_NEW_TOKENS = 512
+GENERATION_MAX_NEW_TOKENS = 1024
 EMBEDDING_DIMENSION = 1024  # Setting to 1024 as per objective
 
 LLAMA_CPP_EMBEDDING_PARAMS_DETERMINISTIC: Dict[str, Any] = {
