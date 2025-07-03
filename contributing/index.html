@@ -20,7 +20,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.14">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.15">
     
     
       
@@ -548,6 +548,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../structured-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Structured Generation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../api/embedding/" class="md-nav__link">
         
   
@@ -830,7 +853,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../pg_steadytext/" class="md-nav__link">
+      <a href="../pg_steadytext.md" class="md-nav__link">
         
   
   
@@ -1508,32 +1531,32 @@
 </div>
 </div>
 <h3 id="development-commands">Development Commands<a class="headerlink" href="#development-commands" title="Permanent link">&para;</a></h3>
-<p>SteadyText uses <a href="https://github.com/nat-n/poethepoet">poethepoet</a> for task management:</p>
+<p>SteadyText uses <a href="https://github.com/astral-sh/uv">uv</a> for task management:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Run tests</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>poe<span class="w"> </span><span class="nb">test</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>pytest
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
 </span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Run tests with coverage</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>poe<span class="w"> </span>test-cov
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>--cov<span class="o">=</span>steadytext
 </span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
 </span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="c1"># Run tests with model downloads (slower)</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>poe<span class="w"> </span>test-models
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="nv">STEADYTEXT_ALLOW_MODEL_DOWNLOADS</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>pytest
 </span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
 </span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="c1"># Run linting</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>poe<span class="w"> </span>lint
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>uvx<span class="w"> </span>ruff<span class="w"> </span>check<span class="w"> </span>.
 </span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
 </span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="c1"># Format code</span>
-</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>poe<span class="w"> </span>format
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>uvx<span class="w"> </span>ruff<span class="w"> </span>format<span class="w"> </span>.
 </span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>
 </span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="c1"># Type checking</span>
-</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>poe<span class="w"> </span>check
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>uvx<span class="w"> </span>mypy<span class="w"> </span>.
 </span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>
 </span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="c1"># Run pre-commit hooks</span>
-</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>poe<span class="w"> </span>pre-commit
+</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>uvx<span class="w"> </span>pre-commit<span class="w"> </span>run<span class="w"> </span>--all-files
 </span></code></pre></div>
 <h2 id="making-changes">Making Changes<a class="headerlink" href="#making-changes" title="Permanent link">&para;</a></h2>
 <h3 id="code-style">Code Style<a class="headerlink" href="#code-style" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Follow PEP 8</strong>: Use <code>poe format</code> to auto-format code</li>
+<li><strong>Follow PEP 8</strong>: Use <code>uvx ruff format .</code> to auto-format code</li>
 <li><strong>Use type hints</strong>: Add type annotations for function parameters and returns</li>
 <li><strong>Add docstrings</strong>: Document all public functions and classes</li>
 <li><strong>Keep functions focused</strong>: Single responsibility principle</li>
@@ -1572,19 +1595,19 @@
 </span></code></pre></div>
 <h4 id="running-tests">Running Tests<a class="headerlink" href="#running-tests" title="Permanent link">&para;</a></h4>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Run all tests</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>poe<span class="w"> </span><span class="nb">test</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>pytest
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Run specific test file</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>pytest<span class="w"> </span>tests/test_your_feature.py
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/test_your_feature.py
 </span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
 </span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Run with coverage</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>poe<span class="w"> </span>test-cov
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>--cov<span class="o">=</span>steadytext
 </span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>
 </span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="c1"># Run tests that require model downloads</span>
-</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>poe<span class="w"> </span>test-models
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="nv">STEADYTEXT_ALLOW_MODEL_DOWNLOADS</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>pytest
 </span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>
 </span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="c1"># Run tests in parallel</span>
-</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>pytest<span class="w"> </span>-n<span class="w"> </span>auto
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>-n<span class="w"> </span>auto
 </span></code></pre></div>
 <h3 id="documentation">Documentation<a class="headerlink" href="#documentation" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1617,10 +1640,10 @@
 <h2 id="submitting-changes">Submitting Changes<a class="headerlink" href="#submitting-changes" title="Permanent link">&para;</a></h2>
 <h3 id="before-submitting">Before Submitting<a class="headerlink" href="#before-submitting" title="Permanent link">&para;</a></h3>
 <ol>
-<li><strong>Run all tests</strong>: <code>poe test</code></li>
-<li><strong>Check linting</strong>: <code>poe lint</code></li>
-<li><strong>Format code</strong>: <code>poe format</code></li>
-<li><strong>Type check</strong>: <code>poe check</code></li>
+<li><strong>Run all tests</strong>: <code>uv run python -m pytest</code></li>
+<li><strong>Check linting</strong>: <code>uvx ruff check .</code></li>
+<li><strong>Format code</strong>: <code>uvx ruff format .</code></li>
+<li><strong>Type check</strong>: <code>uvx mypy .</code></li>
 <li><strong>Update documentation</strong>: Add/update relevant docs</li>
 </ol>
 <h3 id="pull-request-process">Pull Request Process<a class="headerlink" href="#pull-request-process" title="Permanent link">&para;</a></h3>
@@ -1815,7 +1838,7 @@
       <script id="__config" type="application/json">{"base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "toc.follow", "toc.integrate"], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.13a4f30d.min.js"></script>
+      <script src="../assets/javascripts/bundle.56ea9cef.min.js"></script>
       
     
   </body>
