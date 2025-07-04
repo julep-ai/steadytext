@@ -241,29 +241,30 @@ AIDEV-NOTE: The context window affects only input capacity, not output quality o
 AIDEV-TODO: Add automatic input truncation option for oversized inputs
 AIDEV-TODO: Support for sliding window or chunking for very long documents
 
-## Structured Generation (v2.3.0+)
+## Structured Generation (v2.4.0+)
 
-### Known Compatibility Issues
+### Native Grammar Support
 
-AIDEV-NOTE: Outlines 1.0.3+ has a known incompatibility with certain model vocabularies when using llama-cpp-python. This affects models like Gemma-3n, Qwen1.5, Phi-2, and Llama 3.x, causing a "Cannot convert token to bytes" RuntimeError.
+AIDEV-NOTE: As of v2.4.0, SteadyText uses llama.cpp's native GBNF grammar support instead of Outlines. This resolves compatibility issues with Gemma-3n and other models that had vocabulary processing errors.
 
-**Error Details:**
-- Error: `RuntimeError: Cannot convert token ` �` (58588) to bytes:  �`
-- Occurs when Outlines tries to process the model's vocabulary during FSM creation
-- Tracked in: https://github.com/outlines-dev/outlines/issues/820
+**Implementation Details:**
+- `core/grammar.py`: Converts JSON schemas, regex patterns, and choices to GBNF grammars
+- `core/structured.py`: Uses llama-cpp-python's `grammar` parameter for constrained generation
+- Outlines dependency has been removed from the project
 
-**Current Workaround:**
-- The code now catches this error and provides a clear error message
-- Tests should expect this error for incompatible models
-- Consider using alternative models like OpenHermes-2.5-Mistral-7B that are known to work
+**Grammar Conversion Features:**
+- JSON schemas (including Pydantic models) → GBNF
+- Simple regex patterns → GBNF (complex patterns fall back to generic string)
+- Choice lists → GBNF
+- Python types (int, float, bool, str) → GBNF
 
-AIDEV-TODO: Monitor Outlines updates for a fix to this vocabulary processing issue
-AIDEV-TODO: Consider implementing a model compatibility check before structured generation
-AIDEV-QUESTION: Should we maintain a list of compatible/incompatible models?
+AIDEV-NOTE: The grammar-based approach is fully compatible with all models supported by llama.cpp
+AIDEV-TODO: Expand regex to GBNF conversion for more complex patterns
+AIDEV-TODO: Add support for recursive JSON schemas
 
 ### Feature Overview
 
-SteadyText supports structured text generation using Outlines, enabling:
+SteadyText supports structured text generation using llama.cpp grammars, enabling:
 - JSON generation with schemas or Pydantic models
 - Regex pattern matching for formatted output
 - Choice constraints for multiple-choice selection
@@ -300,12 +301,13 @@ result = generate_json("Pick a color", schema)
 
 - AIDEV-NOTE: Structured generation uses a two-phase approach:
   1. Generate thoughts/reasoning up to `<json-` tag
-  2. Use Outlines to generate constrained output after `<json-output>`
+  2. Use llama.cpp grammars to generate constrained output after `<json-output>`
 - AIDEV-NOTE: All structured outputs are deterministic and cacheable
 - AIDEV-NOTE: Structured generation bypasses cache for logprobs requests
-- AIDEV-NOTE: The daemon protocol has been extended to support structured parameters
+- AIDEV-NOTE: The daemon protocol supports grammar parameters natively
+- AIDEV-NOTE: Grammar conversion happens on-the-fly for each request
 - AIDEV-TODO: Add streaming support for structured generation
-- AIDEV-TODO: Support context-free grammars when Outlines adds llama.cpp support
+- AIDEV-TODO: Cache compiled grammars for frequently used schemas
 
 ## Development Commands
 
@@ -838,6 +840,41 @@ docker run -d -p 5432:5432 --name pg_steadytext pg_steadytext
 docker exec -it pg_steadytext psql -U postgres -c "SELECT steadytext_generate('Hello Docker!');"
 docker exec -it pg_steadytext psql -U postgres -c "SELECT steadytext_version();"
 ```
+
+## PostgreSQL Extension Structured Output (v2.4.0+)
+
+AIDEV-NOTE: The PostgreSQL extension now supports structured output generation using the same grammar-based approach as the main library.
+
+**New SQL Functions:**
+
+```sql
+-- Generate JSON with schema validation
+SELECT steadytext_generate_json(
+    'Create a person',
+    '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}}'::jsonb
+);
+
+-- Generate text matching a regex pattern
+SELECT steadytext_generate_regex(
+    'My phone number is',
+    '\d{3}-\d{3}-\d{4}'
+);
+
+-- Generate one of the provided choices
+SELECT steadytext_generate_choice(
+    'Is Python good?',
+    ARRAY['yes', 'no', 'maybe']
+);
+```
+
+**Implementation Details:**
+- All structured functions support caching with schema/pattern/choices included in cache keys
+- Functions use the same `daemon_connector.py` methods that wrap the main library
+- Fallback generation provides deterministic outputs when models are unavailable
+- All functions return NULL on error (no fallback text)
+
+AIDEV-TODO: Add tests for PostgreSQL structured generation functions
+AIDEV-TODO: Consider adding support for Pydantic models in PostgreSQL (would need JSON serialization)
 
 ## Development Workflow
 

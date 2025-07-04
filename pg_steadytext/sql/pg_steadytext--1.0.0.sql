@@ -708,6 +708,348 @@ AS $$
     SELECT value::text FROM steadytext_config WHERE key = $1;
 $$;
 
+-- AIDEV-SECTION: STRUCTURED_GENERATION_FUNCTIONS
+-- Structured generation functions using llama.cpp grammars
+
+-- Generate JSON with schema validation
+CREATE OR REPLACE FUNCTION steadytext_generate_json(
+    prompt TEXT,
+    schema JSONB,
+    max_tokens INT DEFAULT NULL,
+    use_cache BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42
+)
+RETURNS TEXT
+LANGUAGE plpython3u
+AS $$
+# AIDEV-NOTE: Generate JSON that conforms to a schema using llama.cpp grammars
+import json
+import hashlib
+
+# Check if initialized, if not, initialize now
+if not GD.get('steadytext_initialized', False):
+    plpy.execute("SELECT _steadytext_init_python()")
+    if not GD.get('steadytext_initialized', False):
+        plpy.error("Failed to initialize pg_steadytext Python environment")
+
+# Get cached modules from GD
+daemon_connector = GD.get('module_daemon_connector')
+if not daemon_connector:
+    plpy.error("daemon_connector module not loaded")
+
+# Get configuration
+plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
+
+# Resolve max_tokens
+resolved_max_tokens = max_tokens
+if resolved_max_tokens is None:
+    rv = plpy.execute(plan, ["default_max_tokens"])
+    resolved_max_tokens = json.loads(rv[0]["value"]) if rv else 512
+
+# Resolve seed
+resolved_seed = seed
+if resolved_seed is None:
+    rv = plpy.execute(plan, ["default_seed"])
+    resolved_seed = json.loads(rv[0]["value"]) if rv else 42
+
+# Validate inputs
+if not prompt or not prompt.strip():
+    plpy.error("Prompt cannot be empty")
+
+if not schema:
+    plpy.error("Schema cannot be empty")
+
+# Convert JSONB to dict if needed
+schema_dict = schema
+if isinstance(schema, str):
+    try:
+        schema_dict = json.loads(schema)
+    except json.JSONDecodeError as e:
+        plpy.error(f"Invalid JSON schema: {e}")
+
+# Check if we should use cache
+if use_cache:
+    # Generate cache key including schema
+    # AIDEV-NOTE: Include schema in cache key for structured generation
+    cache_key_input = f"{prompt}|json|{json.dumps(schema_dict, sort_keys=True)}"
+    cache_key = hashlib.sha256(cache_key_input.encode()).hexdigest()
+    
+    # Try to get from cache first
+    cache_plan = plpy.prepare("""
+        UPDATE steadytext_cache 
+        SET access_count = access_count + 1,
+            last_accessed = NOW()
+        WHERE cache_key = $1
+        RETURNING response
+    """, ["text"])
+    
+    cache_result = plpy.execute(cache_plan, [cache_key])
+    if cache_result and cache_result[0]["response"]:
+        plpy.notice(f"JSON cache hit for key: {cache_key[:8]}...")
+        return cache_result[0]["response"]
+
+# If not in cache or cache disabled, generate new response
+try:
+    # Get daemon configuration
+    host_rv = plpy.execute(plan, ["daemon_host"])
+    port_rv = plpy.execute(plan, ["daemon_port"])
+    
+    host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
+    port = json.loads(port_rv[0]["value"]) if port_rv else 5555
+    
+    # Connect and generate JSON using cached module
+    connector = daemon_connector.SteadyTextConnector(host, port)
+    response = connector.generate_json(prompt, schema_dict, max_tokens=resolved_max_tokens, seed=resolved_seed)
+    
+    # Store in cache if enabled
+    if use_cache and response:
+        insert_plan = plpy.prepare("""
+            INSERT INTO steadytext_cache 
+            (cache_key, prompt, response, generation_params)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (cache_key) DO UPDATE
+            SET response = EXCLUDED.response,
+                access_count = steadytext_cache.access_count + 1,
+                last_accessed = NOW()
+        """, ["text", "text", "text", "jsonb"])
+        
+        params = {
+            "max_tokens": resolved_max_tokens,
+            "seed": resolved_seed,
+            "schema": schema_dict
+        }
+        plpy.execute(insert_plan, [cache_key, prompt, response, json.dumps(params)])
+        plpy.notice(f"Cached JSON response with key: {cache_key[:8]}...")
+    
+    return response
+    
+except Exception as e:
+    plpy.warning(f"Failed to generate JSON: {e}")
+    # Return NULL instead of fallback
+    return None
+$$;
+
+-- Generate text matching a regex pattern
+CREATE OR REPLACE FUNCTION steadytext_generate_regex(
+    prompt TEXT,
+    pattern TEXT,
+    max_tokens INT DEFAULT NULL,
+    use_cache BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42
+)
+RETURNS TEXT
+LANGUAGE plpython3u
+AS $$
+# AIDEV-NOTE: Generate text matching a regex pattern using llama.cpp grammars
+import json
+import hashlib
+
+# Check if initialized, if not, initialize now
+if not GD.get('steadytext_initialized', False):
+    plpy.execute("SELECT _steadytext_init_python()")
+    if not GD.get('steadytext_initialized', False):
+        plpy.error("Failed to initialize pg_steadytext Python environment")
+
+# Get cached modules from GD
+daemon_connector = GD.get('module_daemon_connector')
+if not daemon_connector:
+    plpy.error("daemon_connector module not loaded")
+
+# Get configuration
+plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
+
+# Resolve max_tokens
+resolved_max_tokens = max_tokens
+if resolved_max_tokens is None:
+    rv = plpy.execute(plan, ["default_max_tokens"])
+    resolved_max_tokens = json.loads(rv[0]["value"]) if rv else 512
+
+# Resolve seed
+resolved_seed = seed
+if resolved_seed is None:
+    rv = plpy.execute(plan, ["default_seed"])
+    resolved_seed = json.loads(rv[0]["value"]) if rv else 42
+
+# Validate inputs
+if not prompt or not prompt.strip():
+    plpy.error("Prompt cannot be empty")
+
+if not pattern or not pattern.strip():
+    plpy.error("Pattern cannot be empty")
+
+# Check if we should use cache
+if use_cache:
+    # Generate cache key including pattern
+    cache_key_input = f"{prompt}|regex|{pattern}"
+    cache_key = hashlib.sha256(cache_key_input.encode()).hexdigest()
+    
+    # Try to get from cache first
+    cache_plan = plpy.prepare("""
+        UPDATE steadytext_cache 
+        SET access_count = access_count + 1,
+            last_accessed = NOW()
+        WHERE cache_key = $1
+        RETURNING response
+    """, ["text"])
+    
+    cache_result = plpy.execute(cache_plan, [cache_key])
+    if cache_result and cache_result[0]["response"]:
+        plpy.notice(f"Regex cache hit for key: {cache_key[:8]}...")
+        return cache_result[0]["response"]
+
+# If not in cache or cache disabled, generate new response
+try:
+    # Get daemon configuration
+    host_rv = plpy.execute(plan, ["daemon_host"])
+    port_rv = plpy.execute(plan, ["daemon_port"])
+    
+    host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
+    port = json.loads(port_rv[0]["value"]) if port_rv else 5555
+    
+    # Connect and generate regex-constrained text using cached module
+    connector = daemon_connector.SteadyTextConnector(host, port)
+    response = connector.generate_regex(prompt, pattern, max_tokens=resolved_max_tokens, seed=resolved_seed)
+    
+    # Store in cache if enabled
+    if use_cache and response:
+        insert_plan = plpy.prepare("""
+            INSERT INTO steadytext_cache 
+            (cache_key, prompt, response, generation_params)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (cache_key) DO UPDATE
+            SET response = EXCLUDED.response,
+                access_count = steadytext_cache.access_count + 1,
+                last_accessed = NOW()
+        """, ["text", "text", "text", "jsonb"])
+        
+        params = {
+            "max_tokens": resolved_max_tokens,
+            "seed": resolved_seed,
+            "pattern": pattern
+        }
+        plpy.execute(insert_plan, [cache_key, prompt, response, json.dumps(params)])
+        plpy.notice(f"Cached regex response with key: {cache_key[:8]}...")
+    
+    return response
+    
+except Exception as e:
+    plpy.warning(f"Failed to generate regex-constrained text: {e}")
+    # Return NULL instead of fallback
+    return None
+$$;
+
+-- Generate text from a list of choices
+CREATE OR REPLACE FUNCTION steadytext_generate_choice(
+    prompt TEXT,
+    choices TEXT[],
+    max_tokens INT DEFAULT NULL,
+    use_cache BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42
+)
+RETURNS TEXT
+LANGUAGE plpython3u
+AS $$
+# AIDEV-NOTE: Generate text constrained to one of the provided choices
+import json
+import hashlib
+
+# Check if initialized, if not, initialize now
+if not GD.get('steadytext_initialized', False):
+    plpy.execute("SELECT _steadytext_init_python()")
+    if not GD.get('steadytext_initialized', False):
+        plpy.error("Failed to initialize pg_steadytext Python environment")
+
+# Get cached modules from GD
+daemon_connector = GD.get('module_daemon_connector')
+if not daemon_connector:
+    plpy.error("daemon_connector module not loaded")
+
+# Get configuration
+plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
+
+# Resolve max_tokens
+resolved_max_tokens = max_tokens
+if resolved_max_tokens is None:
+    rv = plpy.execute(plan, ["default_max_tokens"])
+    resolved_max_tokens = json.loads(rv[0]["value"]) if rv else 512
+
+# Resolve seed
+resolved_seed = seed
+if resolved_seed is None:
+    rv = plpy.execute(plan, ["default_seed"])
+    resolved_seed = json.loads(rv[0]["value"]) if rv else 42
+
+# Validate inputs
+if not prompt or not prompt.strip():
+    plpy.error("Prompt cannot be empty")
+
+if not choices or len(choices) == 0:
+    plpy.error("Choices list cannot be empty")
+
+# Convert PostgreSQL array to Python list
+choices_list = list(choices)
+
+# Check if we should use cache
+if use_cache:
+    # Generate cache key including choices
+    cache_key_input = f"{prompt}|choice|{json.dumps(sorted(choices_list))}"
+    cache_key = hashlib.sha256(cache_key_input.encode()).hexdigest()
+    
+    # Try to get from cache first
+    cache_plan = plpy.prepare("""
+        UPDATE steadytext_cache 
+        SET access_count = access_count + 1,
+            last_accessed = NOW()
+        WHERE cache_key = $1
+        RETURNING response
+    """, ["text"])
+    
+    cache_result = plpy.execute(cache_plan, [cache_key])
+    if cache_result and cache_result[0]["response"]:
+        plpy.notice(f"Choice cache hit for key: {cache_key[:8]}...")
+        return cache_result[0]["response"]
+
+# If not in cache or cache disabled, generate new response
+try:
+    # Get daemon configuration
+    host_rv = plpy.execute(plan, ["daemon_host"])
+    port_rv = plpy.execute(plan, ["daemon_port"])
+    
+    host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
+    port = json.loads(port_rv[0]["value"]) if port_rv else 5555
+    
+    # Connect and generate choice-constrained text using cached module
+    connector = daemon_connector.SteadyTextConnector(host, port)
+    response = connector.generate_choice(prompt, choices_list, max_tokens=resolved_max_tokens, seed=resolved_seed)
+    
+    # Store in cache if enabled
+    if use_cache and response:
+        insert_plan = plpy.prepare("""
+            INSERT INTO steadytext_cache 
+            (cache_key, prompt, response, generation_params)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (cache_key) DO UPDATE
+            SET response = EXCLUDED.response,
+                access_count = steadytext_cache.access_count + 1,
+                last_accessed = NOW()
+        """, ["text", "text", "text", "jsonb"])
+        
+        params = {
+            "max_tokens": resolved_max_tokens,
+            "seed": resolved_seed,
+            "choices": choices_list
+        }
+        plpy.execute(insert_plan, [cache_key, prompt, response, json.dumps(params)])
+        plpy.notice(f"Cached choice response with key: {cache_key[:8]}...")
+    
+    return response
+    
+except Exception as e:
+    plpy.warning(f"Failed to generate choice-constrained text: {e}")
+    # Return NULL instead of fallback
+    return None
+$$;
+
 -- Grant appropriate permissions
 GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO PUBLIC;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO PUBLIC;
@@ -731,3 +1073,5 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO PUBLIC;
 -- - FAISS index operations (steadytext_index_create, steadytext_index_search)
 -- - Worker management functions
 -- - Enhanced security and rate limiting functions
+-- - Support for Pydantic models in structured generation (needs JSON serialization)
+-- - Tests for structured generation functions

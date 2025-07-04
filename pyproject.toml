@@ -35,7 +35,6 @@ dependencies = [
     "chonkie>=0.2.1",
     "faiss-cpu>=1.7.0",
     "pyzmq>=22.0.0",
-    "outlines>=1.0.3",
 ]
 
 [tool.hatch.metadata]
