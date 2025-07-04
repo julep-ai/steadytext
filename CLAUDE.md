@@ -243,27 +243,28 @@ AIDEV-TODO: Support for sliding window or chunking for very long documents
 
 ## Structured Generation (v2.3.0+)
 
-### Known Compatibility Issues
+### Implementation Details (v2.4.0+)
 
-AIDEV-NOTE: Outlines 1.0.3+ has a known incompatibility with certain model vocabularies when using llama-cpp-python. This affects models like Gemma-3n, Qwen1.5, Phi-2, and Llama 3.x, causing a "Cannot convert token to bytes" RuntimeError.
+AIDEV-NOTE: As of v2.4.0, SteadyText uses llama.cpp's native grammar support instead of Outlines for structured generation. This change was made to fix compatibility issues with Gemma-3n models.
 
-**Error Details:**
-- Error: `RuntimeError: Cannot convert token ` �` (58588) to bytes:  �`
-- Occurs when Outlines tries to process the model's vocabulary during FSM creation
-- Tracked in: https://github.com/outlines-dev/outlines/issues/820
+**Key Changes:**
+- Replaced Outlines with direct llama.cpp grammar-based generation
+- Added JSON schema to GBNF grammar converter in `core/grammar.py`
+- Maintained full API compatibility - no changes needed in user code
+- All structured generation features continue to work as before
 
-**Current Workaround:**
-- The code now catches this error and provides a clear error message
-- Tests should expect this error for incompatible models
-- Consider using alternative models like OpenHermes-2.5-Mistral-7B that are known to work
+**Implementation:**
+- `core/grammar.py`: Converts JSON schemas, regex patterns, and choices to GBNF grammars
+- `core/structured.py`: Updated to use llama.cpp grammars instead of Outlines
+- Grammar constraints are passed directly to llama.cpp via the `grammar` parameter
 
-AIDEV-TODO: Monitor Outlines updates for a fix to this vocabulary processing issue
-AIDEV-TODO: Consider implementing a model compatibility check before structured generation
-AIDEV-QUESTION: Should we maintain a list of compatible/incompatible models?
+AIDEV-NOTE: The original Outlines implementation is preserved in `core/structured_outlines_backup.py` for reference
+AIDEV-TODO: Add support for more complex regex patterns in grammar converter
+AIDEV-TODO: Consider caching compiled grammars for performance
 
 ### Feature Overview
 
-SteadyText supports structured text generation using Outlines, enabling:
+SteadyText supports structured text generation using llama.cpp grammars, enabling:
 - JSON generation with schemas or Pydantic models
 - Regex pattern matching for formatted output
 - Choice constraints for multiple-choice selection

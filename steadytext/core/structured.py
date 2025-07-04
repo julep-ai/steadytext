@@ -1,76 +1,55 @@
-"""Structured generation support using Outlines.
+"""Structured generation support using llama.cpp grammars.
 
 This module provides deterministic structured text generation with support for:
 - JSON schemas (dict or Pydantic models)
 - Regular expression patterns
 - Choice constraints (multiple choice)
 - Type constraints (int, float, bool, str)
+
+AIDEV-NOTE: This replaces the Outlines implementation which has compatibility
+issues with Gemma-3n models. Uses llama.cpp's native grammar support instead.
 """
 
+import json
 import logging
 import re
 from typing import Any, Dict, List, Union, Type, Optional
 
 try:
-    import outlines
     from pydantic import BaseModel
-
-    OUTLINES_AVAILABLE = True
+    PYDANTIC_AVAILABLE = True
 except ImportError:
-    OUTLINES_AVAILABLE = False
+    PYDANTIC_AVAILABLE = False
     BaseModel = None  # type: ignore[assignment, misc]
 
 from ..models.loader import get_generator_model_instance
-from ..utils import suppress_llama_output
+from ..utils import suppress_llama_output, LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC, DEFAULT_STOP_SEQUENCES
 from .generator import _validate_input_length
+from .grammar import GrammarConverter
 
 logger = logging.getLogger(__name__)
 
 
 class StructuredGenerator:
-    """Handles structured text generation using Outlines."""
+    """Handles structured text generation using llama.cpp grammars.
+    
+    AIDEV-NOTE: Class name kept as StructuredGenerator for backward compatibility,
+    but implementation now uses llama.cpp grammars instead of Outlines.
+    """
 
     def __init__(self):
         """Initialize the structured generator."""
         self._model = None
-        self._outlines_model = None
+        self._grammar_converter = GrammarConverter()
 
     def _ensure_model_loaded(self):
-        """Ensure the model is loaded and wrapped with Outlines."""
-        if self._outlines_model is None:
-            if not OUTLINES_AVAILABLE:
-                raise ImportError(
-                    "Outlines is not installed. Install with: pip install outlines"
-                )
-
+        """Ensure the model is loaded."""
+        if self._model is None:
             # Get the llama.cpp model instance
             llama_model = get_generator_model_instance()
             if llama_model is None:
                 raise RuntimeError("Failed to load generation model")
-
-            # AIDEV-NOTE: Known issue with Outlines 1.0.3+ and certain model vocabularies
-            # Some models (e.g., Gemma-3n, Qwen1.5, Phi-2) have tokens that cannot be
-            # converted to bytes, causing RuntimeError. This is tracked in:
-            # - https://github.com/outlines-dev/outlines/issues/820
-            # - https://github.com/dottxt-ai/outlines/issues/1261
-            try:
-                # Wrap with Outlines
-                with suppress_llama_output():
-                    self._outlines_model = outlines.from_llamacpp(llama_model)  # type: ignore[attr-defined]
-                self._model = llama_model
-            except RuntimeError as e:
-                if "Cannot convert token" in str(e) and "to bytes" in str(e):
-                    logger.error(
-                        "Model vocabulary incompatibility with Outlines: %s. "
-                        "This is a known issue with certain models. See "
-                        "https://github.com/outlines-dev/outlines/issues/820",
-                        str(e),
-                    )
-                    raise RuntimeError(
-                        f"Model vocabulary is incompatible with Outlines structured generation: {e}"
-                    ) from e
-                else:
-                    raise
+            self._model = llama_model
 
     def generate_json(
         self,
@@ -89,12 +68,37 @@ class StructuredGenerator:
 
         Returns:
             JSON string that conforms to the schema
+
+        AIDEV-NOTE: Uses llama.cpp grammar-based generation instead of Outlines.
         """
         self._ensure_model_loaded()
 
         # Validate input length
         _validate_input_length(self._model, prompt, max_tokens)
 
+        # Convert schema to JSON schema if needed
+        json_schema = None
+        if isinstance(schema, dict):
+            json_schema = schema
+        elif PYDANTIC_AVAILABLE and isinstance(schema, type) and issubclass(schema, BaseModel):
+            json_schema = self._grammar_converter.pydantic_to_json_schema(schema)
+        elif isinstance(schema, type):
+            # Basic Python type
+            type_map = {
+                int: {"type": "integer"},
+                float: {"type": "number"},
+                str: {"type": "string"},
+                bool: {"type": "boolean"},
+                dict: {"type": "object"},
+                list: {"type": "array"},
+            }
+            json_schema = type_map.get(schema, {"type": "string"})
+        else:
+            raise ValueError(f"Unsupported schema type: {type(schema)}")
+
+        # Convert JSON schema to GBNF grammar
+        grammar = self._grammar_converter.json_schema_to_gbnf(json_schema)
+        
         # AIDEV-NOTE: Add structured generation instruction to prompt
         structured_prompt = (
             prompt
@@ -104,45 +108,42 @@ class StructuredGenerator:
         # First, generate thoughts up to <json- tag
         with suppress_llama_output():
             # Set stop token to generate thoughts first
-            thoughts = self._model(
-                structured_prompt, max_tokens=max_tokens, stop=["<json-"], **kwargs
-            )["choices"][0]["text"]
+            sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
+            sampling_params["stop"] = ["<json-"] + DEFAULT_STOP_SEQUENCES
+            sampling_params["max_tokens"] = max_tokens
+            
+            # Use the model's generation method
+            output = self._model.create_chat_completion(
+                messages=[{"role": "user", "content": structured_prompt}],
+                **sampling_params
+            )
+            
+            thoughts = ""
+            if output and "choices" in output and len(output["choices"]) > 0:
+                choice = output["choices"][0]
+                if "message" in choice and "content" in choice["message"]:
+                    thoughts = choice["message"]["content"].strip()
 
-        # Now generate the structured JSON
+        # Now generate the structured JSON with grammar
         full_prompt = structured_prompt + thoughts + "<json-output>"
-
-        # Create the structured generator
-        # AIDEV-NOTE: The token conversion error can also happen here when creating
-        # generators for specific schemas, not just during model wrapping
-        try:
-            if isinstance(schema, dict):
-                # JSON schema dict
-                generator = outlines.generate.json(self._outlines_model, schema)
-            elif isinstance(schema, type) and issubclass(schema, BaseModel):
-                # Pydantic model
-                generator = outlines.generate.json(self._outlines_model, schema)
-            elif isinstance(schema, type):
-                # Basic Python type
-                generator = outlines.generate.json(self._outlines_model, schema)
-            else:
-                raise ValueError(f"Unsupported schema type: {type(schema)}")
-        except RuntimeError as e:
-            if "Cannot convert token" in str(e) and "to bytes" in str(e):
-                logger.error(
-                    "Model vocabulary incompatibility with Outlines: %s. "
-                    "This is a known issue with certain models. See "
-                    "https://github.com/outlines-dev/outlines/issues/820",
-                    str(e),
-                )
-                raise RuntimeError(
-                    f"Model vocabulary is incompatible with Outlines structured generation: {e}"
-                ) from e
-            else:
-                raise
-
-        # Generate the JSON
+        
+        # Generate JSON with grammar constraint
         with suppress_llama_output():
-            json_output = generator(full_prompt, max_tokens=max_tokens, **kwargs)
+            sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
+            sampling_params["stop"] = ["</json-output>"] + DEFAULT_STOP_SEQUENCES
+            sampling_params["max_tokens"] = max_tokens
+            sampling_params["grammar"] = grammar  # AIDEV-NOTE: Key addition - grammar constraint
+            
+            output = self._model.create_chat_completion(
+                messages=[{"role": "user", "content": full_prompt}],
+                **sampling_params
+            )
+            
+            json_output = ""
+            if output and "choices" in output and len(output["choices"]) > 0:
+                choice = output["choices"][0]
+                if "message" in choice and "content" in choice["message"]:
+                    json_output = choice["message"]["content"].strip()
 
         # Return the complete output with XML tags
         return thoughts + "<json-output>" + json_output + "</json-output>"
@@ -160,6 +161,8 @@ class StructuredGenerator:
 
         Returns:
             Text that matches the pattern
+
+        AIDEV-NOTE: Uses llama.cpp grammar-based generation for regex patterns.
         """
         self._ensure_model_loaded()
 
@@ -172,26 +175,26 @@ class StructuredGenerator:
         except re.error as e:
             raise ValueError(f"Invalid regex pattern: {e}")
 
-        # Create the regex generator
-        try:
-            generator = outlines.generate.regex(self._outlines_model, pattern)
-        except RuntimeError as e:
-            if "Cannot convert token" in str(e) and "to bytes" in str(e):
-                logger.error(
-                    "Model vocabulary incompatibility with Outlines: %s. "
-                    "This is a known issue with certain models. See "
-                    "https://github.com/outlines-dev/outlines/issues/820",
-                    str(e),
-                )
-                raise RuntimeError(
-                    f"Model vocabulary is incompatible with Outlines structured generation: {e}"
-                ) from e
-            else:
-                raise
+        # Convert regex to GBNF grammar
+        grammar = self._grammar_converter.regex_to_gbnf(pattern)
 
-        # Generate text matching the pattern
+        # Generate text matching the pattern with grammar constraint
         with suppress_llama_output():
-            result = generator(prompt, max_tokens=max_tokens, **kwargs)
+            sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
+            sampling_params["stop"] = DEFAULT_STOP_SEQUENCES
+            sampling_params["max_tokens"] = max_tokens
+            sampling_params["grammar"] = grammar  # AIDEV-NOTE: Grammar constraint for regex
+            
+            output = self._model.create_chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                **sampling_params
+            )
+            
+            result = ""
+            if output and "choices" in output and len(output["choices"]) > 0:
+                choice = output["choices"][0]
+                if "message" in choice and "content" in choice["message"]:
+                    result = choice["message"]["content"].strip()
 
         return result
 
@@ -208,6 +211,8 @@ class StructuredGenerator:
 
         Returns:
             One of the provided choices
+
+        AIDEV-NOTE: Uses llama.cpp grammar to constrain output to provided choices.
         """
         self._ensure_model_loaded()
 
@@ -217,26 +222,26 @@ class StructuredGenerator:
         if not choices:
             raise ValueError("Choices list cannot be empty")
 
-        # Create the choice generator
-        try:
-            generator = outlines.generate.choice(self._outlines_model, choices)
-        except RuntimeError as e:
-            if "Cannot convert token" in str(e) and "to bytes" in str(e):
-                logger.error(
-                    "Model vocabulary incompatibility with Outlines: %s. "
-                    "This is a known issue with certain models. See "
-                    "https://github.com/outlines-dev/outlines/issues/820",
-                    str(e),
-                )
-                raise RuntimeError(
-                    f"Model vocabulary is incompatible with Outlines structured generation: {e}"
-                ) from e
-            else:
-                raise
+        # Convert choices to GBNF grammar
+        grammar = self._grammar_converter.choices_to_gbnf(choices)
 
-        # Generate one of the choices
+        # Generate one of the choices with grammar constraint
         with suppress_llama_output():
-            result = generator(prompt, **kwargs)
+            sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
+            sampling_params["stop"] = DEFAULT_STOP_SEQUENCES
+            sampling_params["max_tokens"] = max_tokens
+            sampling_params["grammar"] = grammar  # AIDEV-NOTE: Grammar constraint for choices
+            
+            output = self._model.create_chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                **sampling_params
+            )
+            
+            result = ""
+            if output and "choices" in output and len(output["choices"]) > 0:
+                choice = output["choices"][0]
+                if "message" in choice and "content" in choice["message"]:
+                    result = choice["message"]["content"].strip()
 
         return result
 
@@ -253,23 +258,48 @@ class StructuredGenerator:
 
         Returns:
             Text formatted as the specified type
+
+        AIDEV-NOTE: Uses JSON schema conversion for type constraints.
         """
         self._ensure_model_loaded()
 
         # Validate input length
         _validate_input_length(self._model, prompt, max_tokens)
 
-        # Use the appropriate generator based on type
-        if format_type in (int, float, bool, str):
-            generator = outlines.generate.format(self._outlines_model, format_type)
+        # Convert type to schema and generate
+        if format_type == int:
+            schema = {"type": "integer"}
+        elif format_type == float:
+            schema = {"type": "number"}
+        elif format_type == bool:
+            schema = {"type": "boolean"}
+        elif format_type == str:
+            schema = {"type": "string"}
         else:
             raise ValueError(f"Unsupported format type: {format_type}")
 
-        # Generate formatted text
-        with suppress_llama_output():
-            result = generator(prompt, max_tokens=max_tokens, **kwargs)
+        # Convert to grammar
+        grammar = self._grammar_converter.json_schema_to_gbnf(schema)
 
-        return str(result)
+        # Generate formatted text with grammar constraint
+        with suppress_llama_output():
+            sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
+            sampling_params["stop"] = DEFAULT_STOP_SEQUENCES
+            sampling_params["max_tokens"] = max_tokens
+            sampling_params["grammar"] = grammar
+            
+            output = self._model.create_chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                **sampling_params
+            )
+            
+            result = ""
+            if output and "choices" in output and len(output["choices"]) > 0:
+                choice = output["choices"][0]
+                if "message" in choice and "content" in choice["message"]:
+                    result = choice["message"]["content"].strip()
+
+        return result
 
 
 # Singleton instance
@@ -320,6 +350,9 @@ def generate_json(
 
         >>> # Using a basic type
         >>> result = generate_json("Pick a number", int)
+
+    AIDEV-NOTE: Now uses llama.cpp grammars instead of Outlines for compatibility
+    with Gemma-3n models.
     """
     generator = get_structured_generator()
     return generator.generate_json(prompt, schema, max_tokens, **kwargs)
@@ -343,6 +376,8 @@ def generate_regex(prompt: str, pattern: str, max_tokens: int = 512, **kwargs) -
 
         >>> # Generate an email
         >>> result = generate_regex("Email:", r"[a-z]+@[a-z]+\.[a-z]+")
+
+    AIDEV-NOTE: Now uses llama.cpp grammars for regex pattern matching.
     """
     generator = get_structured_generator()
     return generator.generate_regex(prompt, pattern, max_tokens, **kwargs)
@@ -368,6 +403,8 @@ def generate_choice(
         ...     "Is Python good?",
         ...     ["yes", "no", "maybe"]
         ... )
+
+    AIDEV-NOTE: Now uses llama.cpp grammars to constrain output to choices.
     """
     generator = get_structured_generator()
     return generator.generate_choice(prompt, choices, max_tokens, **kwargs)
@@ -393,6 +430,8 @@ def generate_format(
 
         >>> # Generate a boolean
         >>> result = generate_format("True or false?", bool)
+
+    AIDEV-NOTE: Now uses llama.cpp grammars for type constraints.
     """
     generator = get_structured_generator()
     return generator.generate_format(prompt, format_type, max_tokens, **kwargs)
