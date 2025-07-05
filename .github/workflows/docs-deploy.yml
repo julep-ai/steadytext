@@ -34,8 +34,8 @@ jobs:
         run: |
           uv venv
           source .venv/bin/activate
-          uv sync --all-extras --dev
-          # Ensure mkdocs and poethepoet are available
+          #uv sync --all-extras --dev
+          ## Ensure mkdocs and poethepoet are available
           uv pip install mkdocs mkdocs-material poethepoet
 
       - name: Build documentation
