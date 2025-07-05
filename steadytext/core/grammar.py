@@ -36,7 +36,9 @@ class GrammarConverter:
         """
         rules = []
         self._defined_rules: Set[str] = set()
-        self._additional_rules: List[str] = []  # Collect rules generated during traversal
+        self._additional_rules: List[
+            str
+        ] = []  # Collect rules generated during traversal
 
         # Add primitive rules
         for name, rule in self._primitive_rules.items():
@@ -50,7 +52,7 @@ class GrammarConverter:
         # Generate root rule
         root_rule = self._generate_rule("root", schema)
         rules.insert(0, root_rule)
-        
+
         # Add any additional rules that were generated
         rules.extend(self._additional_rules)
 
@@ -130,7 +132,7 @@ class GrammarConverter:
             # Create key-value rule for this property
             kv_rule = f'{name}_{self._sanitize_name(prop_name)}_kv ::= "\\"" "{prop_name}" "\\"" ws ":" ws {prop_rule_name}'
             self._additional_rules.append(kv_rule)
-            
+
             if prop_name in required:
                 prop_kv_rules.append(f"{name}_{self._sanitize_name(prop_name)}_kv")
 

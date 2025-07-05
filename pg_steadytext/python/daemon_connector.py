@@ -462,7 +462,7 @@ class SteadyTextConnector:
             with use_daemon():
                 result = generate_regex(
                     prompt,
-                    regex=pattern,
+                    pattern=pattern,
                     max_tokens=max_tokens,
                     **kwargs,
                 )
@@ -476,7 +476,7 @@ class SteadyTextConnector:
             try:
                 result = generate_regex(
                     prompt,
-                    regex=pattern,
+                    pattern=pattern,
                     max_tokens=max_tokens,
                     **kwargs,
                 )

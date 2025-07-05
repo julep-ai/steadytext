@@ -123,7 +123,7 @@ def generate(
         st -  # Read from stdin
         echo "explain this" | st
         echo "complex task" | st generate --model-repo Qwen/Qwen2.5-7B-Instruct-GGUF --model-filename qwen2.5-7b-instruct-q8_0.gguf
-        
+
     Structured output examples:
         echo "Create a person" | st --schema '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}}'
         echo "My phone is" | st --regex '\\d{3}-\\d{3}-\\d{4}'
@@ -154,18 +154,21 @@ def generate(
     # AIDEV-NOTE: Parse structured generation options
     schema_obj = None
     choices_list = None
-    
+
     # Validate that only one structured option is provided
     structured_count = sum(1 for opt in [schema, regex, choices] if opt is not None)
     if structured_count > 1:
-        click.echo("Error: Only one of --schema, --regex, or --choices can be provided.", err=True)
+        click.echo(
+            "Error: Only one of --schema, --regex, or --choices can be provided.",
+            err=True,
+        )
         sys.exit(1)
-    
+
     # Parse schema if provided
     if schema:
         # Check if it's a file path
-        if schema.endswith('.json') and Path(schema).exists():
-            with open(schema, 'r') as f:
+        if schema.endswith(".json") and Path(schema).exists():
+            with open(schema, "r") as f:
                 schema_obj = json.load(f)
         else:
             # Try to parse as inline JSON
@@ -174,10 +177,10 @@ def generate(
             except json.JSONDecodeError:
                 click.echo(f"Error: Invalid JSON schema: {schema}", err=True)
                 sys.exit(1)
-    
+
     # Parse choices if provided
     if choices:
-        choices_list = [c.strip() for c in choices.split(',')]
+        choices_list = [c.strip() for c in choices.split(",")]
 
     # AIDEV-NOTE: Search index for context unless disabled
     context_chunks = []
@@ -212,9 +215,12 @@ def generate(
 
         # AIDEV-NOTE: Streaming not supported for structured generation
         if schema_obj or regex or choices_list:
-            click.echo("Error: Streaming not supported for structured generation. Use --wait.", err=True)
+            click.echo(
+                "Error: Streaming not supported for structured generation. Use --wait.",
+                err=True,
+            )
             sys.exit(1)
-            
+
         for token in steady_generate_iter(
             final_prompt,
             max_new_tokens=max_new_tokens,
