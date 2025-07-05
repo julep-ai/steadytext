@@ -31,7 +31,27 @@ from .commands.completion import completion
     help="Seed for deterministic generation.",
     show_default=True,
 )
-def cli(ctx, version, quiet, verbose, size, seed):
+@click.option(
+    "--wait",
+    is_flag=True,
+    help="Wait for full generation before output (disables streaming)",
+)
+@click.option(
+    "--schema",
+    default=None,
+    help="JSON schema for structured output (can be file path or inline JSON)",
+)
+@click.option(
+    "--regex",
+    default=None,
+    help="Regular expression pattern for structured output",
+)
+@click.option(
+    "--choices",
+    default=None,
+    help="Comma-separated list of allowed choices for structured output",
+)
+def cli(ctx, version, quiet, verbose, size, seed, wait, schema, regex, choices):
     """SteadyText: Deterministic text generation and embedding CLI."""
     # Handle verbosity - verbose overrides quiet
     if verbose:
@@ -58,7 +78,16 @@ def cli(ctx, version, quiet, verbose, size, seed):
 
     if ctx.invoked_subcommand is None and not sys.stdin.isatty():
         # If no subcommand and input is from pipe, assume generate
-        ctx.invoke(generate, prompt="-", size=size, seed=seed)
+        ctx.invoke(
+            generate,
+            prompt="-",
+            size=size,
+            seed=seed,
+            wait=wait,
+            schema=schema,
+            regex=regex,
+            choices=choices,
+        )
     elif ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
 
