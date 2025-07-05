@@ -450,7 +450,7 @@ def register_steadytext_tasks():
         raise ImportError("LightEval is required to register tasks")
 
     try:
-        from lighteval.tasks.registry import Registry
+        from lighteval.tasks.registry import Registry  # type: ignore[unresolved-import]
 
         registry = Registry()
 

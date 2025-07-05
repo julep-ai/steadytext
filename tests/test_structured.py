@@ -24,26 +24,20 @@ from steadytext import (
 )
 from steadytext.exceptions import ContextLengthExceededError
 
-# Try to import pydantic, but make it optional for tests
-try:
-    from pydantic import BaseModel
-
-    PYDANTIC_AVAILABLE = True
-except ImportError:
-    PYDANTIC_AVAILABLE = False
-    BaseModel = None  # type: ignore[assignment, misc]
+from pydantic import BaseModel
 
 
 # Test models for structured generation
-if PYDANTIC_AVAILABLE:
 
-    class Person(BaseModel):
-        name: str
-        age: int
-        hobbies: Optional[List[str]] = None
 
-    class ColorList(BaseModel):
-        colors: List[str]
+class Person(BaseModel):
+    name: str
+    age: int
+    hobbies: Optional[List[str]] = None
+
+
+class ColorList(BaseModel):
+    colors: List[str]
 
 
 @pytest.mark.skipif(
@@ -84,7 +78,6 @@ class TestStructuredGeneration:
         assert isinstance(data["name"], str)
         assert isinstance(data["count"], int)
 
-    @pytest.mark.skipif(not PYDANTIC_AVAILABLE, reason="Pydantic not available")
     def test_generate_with_pydantic_model(self):
         """Test generation with Pydantic model."""
         result = generate("Create a person named Alice who is 30", schema=Person)
@@ -230,7 +223,6 @@ class TestStructuredGeneration:
             assert isinstance(result, tuple)
             assert result[1] is None
 
-    @pytest.mark.skipif(not PYDANTIC_AVAILABLE, reason="Pydantic not available")
     def test_generate_json_with_pydantic(self):
         """Test generate_json with Pydantic model."""
         result = generate_json("List some colors", schema=ColorList)
