@@ -14,13 +14,7 @@ import logging
 import re
 from typing import Any, Dict, List, Union, Type, Optional
 
-try:
-    from pydantic import BaseModel
-
-    PYDANTIC_AVAILABLE = True
-except ImportError:
-    PYDANTIC_AVAILABLE = False
-    BaseModel = None  # type: ignore[assignment, misc]
+from pydantic import BaseModel
 
 from ..models.loader import get_generator_model_instance
 from ..utils import suppress_llama_output
@@ -30,11 +24,8 @@ from .grammar import json_schema_to_grammar, regex_to_grammar, choices_to_gramma
 # AIDEV-NOTE: Import LlamaGrammar for creating grammar objects from GBNF strings
 # llama-cpp-python expects LlamaGrammar objects, not raw GBNF strings
 # Fixed issue #28: AttributeError: 'str' object has no attribute '_grammar'
-try:
-    from llama_cpp import LlamaGrammar
-except ImportError:
-    # Fallback for older versions
-    LlamaGrammar = None
+from llama_cpp import LlamaGrammar
+
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +74,7 @@ class StructuredGenerator:
 
         # Convert JSON schema to GBNF grammar
         grammar_str = json_schema_to_grammar(json_schema)
-        
+
         # AIDEV-NOTE: Create LlamaGrammar object from GBNF string
         if LlamaGrammar is not None:
             grammar = LlamaGrammar.from_string(grammar_str)
@@ -136,11 +127,7 @@ class StructuredGenerator:
         if isinstance(schema, dict):
             # Already a JSON schema
             return schema
-        elif (
-            PYDANTIC_AVAILABLE
-            and isinstance(schema, type)
-            and issubclass(schema, BaseModel)
-        ):
+        elif isinstance(schema, type) and issubclass(schema, BaseModel):
             # Pydantic model - convert to JSON schema
             # AIDEV-NOTE: Use Pydantic v2 method if available, else v1
             try:
@@ -191,7 +178,7 @@ class StructuredGenerator:
 
         # Convert regex to GBNF grammar
         grammar_str = regex_to_grammar(pattern)
-        
+
         # AIDEV-NOTE: Create LlamaGrammar object from GBNF string
         if LlamaGrammar is not None:
             grammar = LlamaGrammar.from_string(grammar_str)
@@ -230,7 +217,7 @@ class StructuredGenerator:
 
         # Convert choices to GBNF grammar string
         grammar_str = choices_to_grammar(choices)
-        
+
         # AIDEV-NOTE: Create LlamaGrammar object from GBNF string
         if LlamaGrammar is not None:
             grammar = LlamaGrammar.from_string(grammar_str)
@@ -267,7 +254,7 @@ class StructuredGenerator:
         # Convert type to JSON schema then to grammar
         json_schema = self._schema_to_json_schema(format_type)
         grammar_str = json_schema_to_grammar(json_schema)
-        
+
         # AIDEV-NOTE: Create LlamaGrammar object from GBNF string
         if LlamaGrammar is not None:
             grammar = LlamaGrammar.from_string(grammar_str)

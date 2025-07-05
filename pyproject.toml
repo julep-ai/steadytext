@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "steadytext"
-version = "2.4.2"
+version = "2.4.3"
 description = "Deterministic text generation and embedding with zero configuration"
 readme = "README.md"
 authors = [
@@ -35,6 +35,8 @@ dependencies = [
     "chonkie>=0.2.1",
     "faiss-cpu>=1.7.0",
     "pyzmq>=22.0.0",
+    "pydantic>=2.11.7",
+    "httpx>=0.27.2",
 ]
 
 [tool.hatch.metadata]
@@ -114,6 +116,8 @@ dev = [
     "matplotlib>=3.10.3",
     "pandas>=2.3.0",
     # "lighteval>=0.10.0",
+    "pydantic>=2.11.7",
+    "setuptools>=80.9.0",
 ]
 
 [tool.pytest.ini_options]
