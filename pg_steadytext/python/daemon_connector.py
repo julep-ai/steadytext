@@ -462,7 +462,7 @@ class SteadyTextConnector:
             with use_daemon():
                 result = generate_regex(
                     prompt,
-                    pattern=pattern,
+                    regex=pattern,
                     max_tokens=max_tokens,
                     **kwargs,
                 )
@@ -476,7 +476,7 @@ class SteadyTextConnector:
             try:
                 result = generate_regex(
                     prompt,
-                    pattern=pattern,
+                    regex=pattern,
                     max_tokens=max_tokens,
                     **kwargs,
                 )
@@ -509,7 +509,7 @@ class SteadyTextConnector:
         """
         if not STEADYTEXT_AVAILABLE:
             # Return deterministic choice
-            return choices[hash(prompt) % len(choices)] if choices else ""
+            return choices[abs(hash(prompt)) % len(choices)] if choices else ""
 
         try:
             # Try using daemon first
@@ -538,7 +538,7 @@ class SteadyTextConnector:
             except Exception as e2:
                 logger.error(f"Direct choice generation also failed: {e2}")
                 # Return deterministic choice
-                return choices[hash(prompt) % len(choices)] if choices else ""
+                return choices[abs(hash(prompt)) % len(choices)] if choices else ""
 
     def _fallback_generate(self, prompt: str, max_tokens: int) -> str:
         """
@@ -555,7 +555,7 @@ class SteadyTextConnector:
             Deterministic text based on prompt
         """
         # Use hash of prompt for deterministic output
-        hash_val = hash(prompt) % 1000
+        hash_val = abs(hash(prompt)) % 1000
 
         templates = [
             f"Generated response for prompt (hash: {hash_val}): {prompt[:50]}...",
@@ -595,11 +595,11 @@ class SteadyTextConnector:
                 if prop_type == "string":
                     result[prop] = f"fallback_{prop}"
                 elif prop_type == "integer":
-                    result[prop] = hash(prompt + prop) % 100
+                    result[prop] = abs(hash(prompt + prop)) % 100
                 elif prop_type == "boolean":
-                    result[prop] = (hash(prompt + prop) % 2) == 0
+                    result[prop] = (abs(hash(prompt + prop)) % 2) == 0
                 elif prop_type == "number":
-                    result[prop] = (hash(prompt + prop) % 100) / 10.0
+                    result[prop] = (abs(hash(prompt + prop)) % 100) / 10.0
                 elif prop_type == "array":
                     result[prop] = []
                 elif prop_type == "object":

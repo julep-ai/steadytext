@@ -36,6 +36,7 @@ class GrammarConverter:
         """
         rules = []
         self._defined_rules: Set[str] = set()
+        self._additional_rules: List[str] = []  # Collect rules generated during traversal
 
         # Add primitive rules
         for name, rule in self._primitive_rules.items():
@@ -49,6 +50,9 @@ class GrammarConverter:
         # Generate root rule
         root_rule = self._generate_rule("root", schema)
         rules.insert(0, root_rule)
+        
+        # Add any additional rules that were generated
+        rules.extend(self._additional_rules)
 
         return "\n".join(rules)
 
@@ -114,22 +118,24 @@ class GrammarConverter:
             return f'{name} ::= "{{" ws "}}" | "{{" ws {name}_kv ("," ws {name}_kv)* ws "}}"'
 
         # Build property rules
-        prop_rules = []
+        prop_kv_rules = []
         for prop_name, prop_schema in properties.items():
             prop_rule_name = f"{name}_{self._sanitize_name(prop_name)}"
             if prop_rule_name not in self._defined_rules:
                 prop_rule = self._generate_rule(prop_rule_name, prop_schema)
                 self._defined_rules.add(prop_rule_name)
-                # Add the rule to be appended later
-                prop_rules.append(prop_rule)
+                # Add the rule to the additional rules collection
+                self._additional_rules.append(prop_rule)
 
+            # Create key-value rule for this property
+            kv_rule = f'{name}_{self._sanitize_name(prop_name)}_kv ::= "\\"" "{prop_name}" "\\"" ws ":" ws {prop_rule_name}'
+            self._additional_rules.append(kv_rule)
+            
             if prop_name in required:
-                prop_rules.append(
-                    f'{name}_{self._sanitize_name(prop_name)}_kv ::= "\\"" "{prop_name}" "\\"" ws ":" ws {prop_rule_name}'
-                )
+                prop_kv_rules.append(f"{name}_{self._sanitize_name(prop_name)}_kv")
 
         # Build the object rule
-        if prop_rules:
+        if properties:
             # Fixed order for required properties
             required_props = [
                 f"{name}_{self._sanitize_name(p)}_kv"
@@ -170,8 +176,9 @@ class GrammarConverter:
         item_rule_name = f"{name}_item"
 
         if item_rule_name not in self._defined_rules:
-            self._generate_rule(item_rule_name, items)
+            item_rule = self._generate_rule(item_rule_name, items)
             self._defined_rules.add(item_rule_name)
+            self._additional_rules.append(item_rule)
 
         return f'{name} ::= "[" ws "]" | "[" ws {item_rule_name} ("," ws {item_rule_name})* ws "]"'
 
@@ -203,8 +210,9 @@ class GrammarConverter:
         for i, schema in enumerate(schemas):
             option_name = f"{name}_option{i}"
             if option_name not in self._defined_rules:
-                self._generate_rule(option_name, schema)
+                option_rule = self._generate_rule(option_name, schema)
                 self._defined_rules.add(option_name)
+                self._additional_rules.append(option_rule)
             options.append(option_name)
 
         return f"{name} ::= {' | '.join(options)}"
@@ -246,6 +254,36 @@ class GrammarConverter:
         elif pattern == r"[A-Z]{2}\d{4}":
             # License plate pattern
             return "root ::= [A-Z] [A-Z] [0-9] [0-9] [0-9] [0-9]"
+        elif pattern == r"[0-9]+":
+            # Alternative for digit sequences
+            return "root ::= [0-9]+"
+        elif pattern == r"[a-zA-Z]+":
+            # Letters only
+            return "root ::= [a-zA-Z]+"
+        elif pattern == r"[a-z]+":
+            # Lowercase letters
+            return "root ::= [a-z]+"
+        elif pattern == r"[A-Z]+":
+            # Uppercase letters
+            return "root ::= [A-Z]+"
+        elif pattern == r"\w+":
+            # Word characters (letters, digits, underscore)
+            return "root ::= [a-zA-Z0-9_]+"
+        elif pattern == r"[0-9]{4}":
+            # 4-digit year/PIN
+            return "root ::= [0-9] [0-9] [0-9] [0-9]"
+        elif pattern == r"[0-9]{2}":
+            # 2-digit number
+            return "root ::= [0-9] [0-9]"
+        elif pattern == r"[a-zA-Z0-9]+":
+            # Alphanumeric
+            return "root ::= [a-zA-Z0-9]+"
+        elif pattern == r"(true|false)":
+            # Boolean
+            return 'root ::= "true" | "false"'
+        elif pattern == r"(yes|no)":
+            # Yes/No
+            return 'root ::= "yes" | "no"'
         else:
             # For unsupported patterns, fall back to generic string
             # and log a warning
