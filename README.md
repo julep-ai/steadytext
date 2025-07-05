@@ -190,6 +190,8 @@ SteadyText now supports structured generation using llama.cpp's native grammar s
 - **Regex Matching**: Constrain output to a regular expression.
 - **Multiple Choice**: Force the output to be one of a list of choices.
 
+### Python API
+
 ```python
 import steadytext
 from pydantic import BaseModel
@@ -212,6 +214,22 @@ phone = steadytext.generate("My number is ", regex=r"\(\d{3}\) \d{3}-\d{4}")
 # Multiple choice
 response = steadytext.generate("Is this useful?", choices=["Yes", "No"])
 # Output: Yes
+```
+
+### CLI Support
+
+```bash
+# JSON generation with schema
+echo "Create a person" | st --schema '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}}' --wait
+
+# JSON from schema file
+echo "Generate user data" | st --schema user_schema.json --wait
+
+# Regex pattern matching
+echo "My phone is" | st --regex '\d{3}-\d{3}-\d{4}' --wait
+
+# Multiple choice selection
+echo "Is Python good?" | st --choices "yes,no,maybe" --wait
 ```
 
 📚 **[Learn more in the Structured Generation Guide](docs/structured-generation.md)**

@@ -74,6 +74,21 @@ from .index import search_index_for_context, get_default_index_path
     default=None,
     help="Maximum number of new tokens to generate.",
 )
+@click.option(
+    "--schema",
+    default=None,
+    help="JSON schema for structured output (can be file path or inline JSON)",
+)
+@click.option(
+    "--regex",
+    default=None,
+    help="Regular expression pattern for structured output",
+)
+@click.option(
+    "--choices",
+    default=None,
+    help="Comma-separated list of allowed choices for structured output",
+)
 @click.pass_context
 def generate(
     ctx,
@@ -93,6 +108,9 @@ def generate(
     size: str,
     seed: int,
     max_new_tokens: int,
+    schema: str,
+    regex: str,
+    choices: str,
 ):
     """Generate text from a prompt (streams by default).
 
@@ -105,6 +123,12 @@ def generate(
         st -  # Read from stdin
         echo "explain this" | st
         echo "complex task" | st generate --model-repo Qwen/Qwen2.5-7B-Instruct-GGUF --model-filename qwen2.5-7b-instruct-q8_0.gguf
+        
+    Structured output examples:
+        echo "Create a person" | st --schema '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}}'
+        echo "My phone is" | st --regex '\\d{3}-\\d{3}-\\d{4}'
+        echo "Is Python good?" | st --choices "yes,no,maybe"
+        echo "Generate user data" | st --schema user_schema.json  # From file
     """
     # Handle verbosity - verbose overrides quiet
     if verbose:
@@ -126,6 +150,34 @@ def generate(
     if not prompt:
         click.echo("Error: Empty prompt provided.", err=True)
         sys.exit(1)
+
+    # AIDEV-NOTE: Parse structured generation options
+    schema_obj = None
+    choices_list = None
+    
+    # Validate that only one structured option is provided
+    structured_count = sum(1 for opt in [schema, regex, choices] if opt is not None)
+    if structured_count > 1:
+        click.echo("Error: Only one of --schema, --regex, or --choices can be provided.", err=True)
+        sys.exit(1)
+    
+    # Parse schema if provided
+    if schema:
+        # Check if it's a file path
+        if schema.endswith('.json') and Path(schema).exists():
+            with open(schema, 'r') as f:
+                schema_obj = json.load(f)
+        else:
+            # Try to parse as inline JSON
+            try:
+                schema_obj = json.loads(schema)
+            except json.JSONDecodeError:
+                click.echo(f"Error: Invalid JSON schema: {schema}", err=True)
+                sys.exit(1)
+    
+    # Parse choices if provided
+    if choices:
+        choices_list = [c.strip() for c in choices.split(',')]
 
     # AIDEV-NOTE: Search index for context unless disabled
     context_chunks = []
@@ -158,6 +210,11 @@ def generate(
         generated_text = ""
         logprobs_tokens = []
 
+        # AIDEV-NOTE: Streaming not supported for structured generation
+        if schema_obj or regex or choices_list:
+            click.echo("Error: Streaming not supported for structured generation. Use --wait.", err=True)
+            sys.exit(1)
+            
         for token in steady_generate_iter(
             final_prompt,
             max_new_tokens=max_new_tokens,
@@ -229,6 +286,9 @@ def generate(
                 model_filename=model_filename,
                 size=size,
                 seed=seed,
+                schema=schema_obj,
+                regex=regex,
+                choices=choices_list,
             )
             # Unpack the tuple result
             if result is not None and isinstance(result, tuple):
@@ -284,6 +344,9 @@ def generate(
                 model_filename=model_filename,
                 size=size,
                 seed=seed,
+                schema=schema_obj,
+                regex=regex,
+                choices=choices_list,
             )
             if output_format == "json":
                 metadata = {
