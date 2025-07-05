@@ -205,6 +205,135 @@ FROM (
 ) results;
 ```
 
+### Structured Generation (v2.4.1+)
+
+New in v2.4.1, the PostgreSQL extension now supports structured text generation using llama.cpp's native grammar support.
+
+#### `steadytext_generate_json()`
+
+Generate JSON that conforms to a JSON schema.
+
+```sql
+steadytext_generate_json(
+    prompt TEXT,
+    schema JSONB,
+    max_tokens INTEGER DEFAULT 512,
+    use_cache BOOLEAN DEFAULT true,
+    seed INTEGER DEFAULT 42
+) RETURNS TEXT
+-- Returns NULL if generation fails
+```
+
+**Examples:**
+
+```sql
+-- Simple JSON generation
+SELECT steadytext_generate_json(
+    'Create a user named John, age 30',
+    '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}}'::jsonb
+);
+
+-- Generate product information
+SELECT steadytext_generate_json(
+    'Create a product listing for a laptop',
+    '{
+        "type": "object",
+        "properties": {
+            "name": {"type": "string"},
+            "price": {"type": "number"},
+            "specs": {
+                "type": "object",
+                "properties": {
+                    "cpu": {"type": "string"},
+                    "ram": {"type": "string"},
+                    "storage": {"type": "string"}
+                }
+            }
+        }
+    }'::jsonb,
+    seed := 999
+);
+```
+
+#### `steadytext_generate_regex()`
+
+Generate text that matches a regular expression pattern.
+
+```sql
+steadytext_generate_regex(
+    prompt TEXT,
+    pattern TEXT,
+    max_tokens INTEGER DEFAULT 512,
+    use_cache BOOLEAN DEFAULT true,
+    seed INTEGER DEFAULT 42
+) RETURNS TEXT
+-- Returns NULL if generation fails
+```
+
+**Examples:**
+
+```sql
+-- Generate a phone number
+SELECT steadytext_generate_regex(
+    'Contact number: ',
+    '\d{3}-\d{3}-\d{4}'
+);
+
+-- Generate a date
+SELECT steadytext_generate_regex(
+    'Event date: ',
+    '\d{4}-\d{2}-\d{2}'
+);
+
+-- Generate an email
+SELECT steadytext_generate_regex(
+    'Email: ',
+    '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+);
+```
+
+#### `steadytext_generate_choice()`
+
+Generate text that is one of the provided choices.
+
+```sql
+steadytext_generate_choice(
+    prompt TEXT,
+    choices TEXT[],
+    max_tokens INTEGER DEFAULT 512,
+    use_cache BOOLEAN DEFAULT true,
+    seed INTEGER DEFAULT 42
+) RETURNS TEXT
+-- Returns NULL if generation fails
+```
+
+**Examples:**
+
+```sql
+-- Simple choice
+SELECT steadytext_generate_choice(
+    'The weather today is',
+    ARRAY['sunny', 'cloudy', 'rainy']
+);
+
+-- Sentiment analysis
+SELECT 
+    review,
+    steadytext_generate_choice(
+        'Sentiment of this review: ' || review,
+        ARRAY['positive', 'negative', 'neutral']
+    ) AS sentiment
+FROM product_reviews
+LIMIT 5;
+
+-- Classification with custom seed
+SELECT steadytext_generate_choice(
+    'This document is about',
+    ARRAY['technology', 'business', 'health', 'sports', 'entertainment'],
+    seed := 456
+);
+```
+
 ## Management Functions
 
 ### Daemon Management

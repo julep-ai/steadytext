@@ -2,10 +2,11 @@
 
 This document outlines the major versions of SteadyText and the key features introduced in each.
 
-**Latest Version**: 2.3.0 - Structured Generation
+**Latest Version**: 2.4.1 - Structured Generation with Native Grammar Support
 
 | Version | Key Features                                                                                                                            | Default Generation Model                               | Default Embedding Model                                | Python Versions |
 | :------ | :-------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------- | :----------------------------------------------------- | :-------------- |
+| **2.4.x** | - **Native Grammar Support**: Replaced Outlines with llama.cpp's native GBNF grammars for structured generation.<br>- **PostgreSQL Structured Generation**: Added `steadytext_generate_json()`, `steadytext_generate_regex()`, `steadytext_generate_choice()` SQL functions.<br>- **Better Compatibility**: Fixes issues with Gemma-3n and other models. | `ggml-org/gemma-3n-E2B-it-GGUF` (gemma-3n-E2B-it-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `>=3.10, <3.14` |
 | **2.3.x** | - **Structured Generation**: Added support for JSON, Regex, and Choice-constrained generation via `outlines`.<br>- **New API parameters**: `schema`, `regex`, `choices` added to `generate()`.<br>- **New convenience functions**: `generate_json()`, `generate_regex()`, `generate_choice()`. | `ggml-org/gemma-3n-E2B-it-GGUF` (gemma-3n-E2B-it-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `>=3.10, <3.14` |
 | **2.1.x** | - **Custom Seeds**: Added seed parameter to all generation and embedding functions.<br>- **PostgreSQL Extension**: Released pg_steadytext extension.<br>- **Enhanced Reproducibility**: Full control over deterministic generation. | `ggml-org/gemma-3n-E2B-it-GGUF` (gemma-3n-E2B-it-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `>=3.10, <3.14` |
 | **2.0.x** | - **Daemon Mode**: Persistent model serving with ZeroMQ.<br>- **Gemma-3n Models**: Switched to `gemma-3n` for generation.<br>- **Thinking Mode Deprecated**: Removed thinking mode. | `ggml-org/gemma-3n-E2B-it-GGUF` (gemma-3n-E2B-it-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `>=3.10, <3.14` |
@@ -13,6 +14,55 @@ This document outlines the major versions of SteadyText and the key features int
 | **0.x** | - **Initial Release**: Deterministic text generation and embedding.                                                                      | `Qwen/Qwen1.5-0.5B-Chat-GGUF` (qwen1_5-0_5b-chat-q4_k_m.gguf) | `Qwen/Qwen1.5-0.5B-Chat-GGUF` (qwen1_5-0_5b-chat-q8_0.gguf) | `>=3.10`        |
 
 ## Detailed Release Notes
+
+### Version 2.4.1 - Native Grammar Support
+
+**Release Date**: July 2025
+
+#### 🔧 Grammar-Based Structured Generation
+
+**Major Improvement**: Replaced Outlines with llama.cpp's native GBNF (Grammatical Backus-Naur Form) grammar support.
+
+**Benefits**:
+- **Better Compatibility**: Fixes vocabulary processing errors with Gemma-3n, Qwen1.5, Phi-2, and Llama 3.x models
+- **Improved Performance**: Native integration with llama.cpp eliminates external library overhead
+- **No API Changes**: Existing structured generation code continues to work unchanged
+- **Deterministic Output**: Grammar-based generation maintains SteadyText's determinism guarantees
+
+**Technical Details**:
+- New `core/grammar.py` module converts JSON schemas, regex patterns, and choice lists to GBNF
+- `StructuredGenerator` now uses llama-cpp-python's `grammar` parameter directly
+- Removed `outlines` dependency, simplifying the dependency tree
+
+#### 🐘 PostgreSQL Structured Generation
+
+**New Feature**: Added structured generation support to the PostgreSQL extension.
+
+**New SQL Functions**:
+- `steadytext_generate_json(prompt, schema)` - Generate JSON conforming to a schema
+- `steadytext_generate_regex(prompt, pattern)` - Generate text matching a regex
+- `steadytext_generate_choice(prompt, choices)` - Generate one of the provided choices
+
+**Example Usage**:
+```sql
+-- Generate structured JSON
+SELECT steadytext_generate_json(
+    'Create a person named Alice',
+    '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}}'::jsonb
+);
+
+-- Generate text matching a pattern
+SELECT steadytext_generate_regex(
+    'My phone number is',
+    '\d{3}-\d{3}-\d{4}'
+);
+
+-- Generate from choices
+SELECT steadytext_generate_choice(
+    'Is Python good?',
+    ARRAY['yes', 'no', 'maybe']
+);
+```
 
 ### Version 2.3.0 - Structured Generation
 
