@@ -8,9 +8,8 @@ and provides native grammar support for Gemma-3n and other models that have
 compatibility issues with Outlines.
 """
 
-import json
 import re
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Set, Union
 
 
 class GrammarConverter:
@@ -20,8 +19,8 @@ class GrammarConverter:
         """Initialize the grammar converter."""
         self._primitive_rules = {
             "boolean": 'boolean ::= "true" | "false"',
-            "number": "number ::= (\"-\"? ([0-9] | [1-9] [0-9]*)) (\".\" [0-9]+)? ([eE] [-+]? [0-9]+)?",
-            "integer": "integer ::= \"-\"? ([0-9] | [1-9] [0-9]*)",
+            "number": 'number ::= ("-"? ([0-9] | [1-9] [0-9]*)) ("." [0-9]+)? ([eE] [-+]? [0-9]+)?',
+            "integer": 'integer ::= "-"? ([0-9] | [1-9] [0-9]*)',
             "string": 'string ::= "\\"" ([^"\\\\] | "\\\\" (["\\\\/bfnrt] | "u" [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F]))* "\\""',
             "null": 'null ::= "null"',
         }
@@ -94,7 +93,7 @@ class GrammarConverter:
                 return self._generate_union_rule(name, schema["oneOf"])
             else:
                 # Default to any JSON value
-                return f'{name} ::= object | array | string | number | boolean | null'
+                return f"{name} ::= object | array | string | number | boolean | null"
 
     def _generate_object_rule(self, name: str, schema: Dict[str, Any]) -> str:
         """Generate GBNF rule for object type.
@@ -133,24 +132,25 @@ class GrammarConverter:
         if prop_rules:
             # Fixed order for required properties
             required_props = [
-                f'{name}_{self._sanitize_name(p)}_kv'
+                f"{name}_{self._sanitize_name(p)}_kv"
                 for p in properties.keys()
                 if p in required
             ]
             optional_props = [
-                f'{name}_{self._sanitize_name(p)}_kv'
+                f"{name}_{self._sanitize_name(p)}_kv"
                 for p in properties.keys()
                 if p not in required
             ]
 
-            rule_parts = [f'"{{"']
+            rule_parts = ['"{"']
             if required_props:
-                rule_parts.append(f' ws {" ws \",\" ws ".join(required_props)}')
+                joiner = ' ws "," ws '
+                rule_parts.append(f" ws {joiner.join(required_props)}")
             if optional_props:
                 # AIDEV-NOTE: Simplified optional property handling
                 # Full implementation would need more complex grammar
                 pass
-            rule_parts.append(f' ws "}}"')
+            rule_parts.append(' ws "}"')
 
             return f"{name} ::= {''.join(rule_parts)}"
         else:
@@ -170,7 +170,7 @@ class GrammarConverter:
         item_rule_name = f"{name}_item"
 
         if item_rule_name not in self._defined_rules:
-            item_rule = self._generate_rule(item_rule_name, items)
+            self._generate_rule(item_rule_name, items)
             self._defined_rules.add(item_rule_name)
 
         return f'{name} ::= "[" ws "]" | "[" ws {item_rule_name} ("," ws {item_rule_name})* ws "]"'
@@ -203,7 +203,7 @@ class GrammarConverter:
         for i, schema in enumerate(schemas):
             option_name = f"{name}_option{i}"
             if option_name not in self._defined_rules:
-                option_rule = self._generate_rule(option_name, schema)
+                self._generate_rule(option_name, schema)
                 self._defined_rules.add(option_name)
             options.append(option_name)
 
@@ -239,17 +239,18 @@ class GrammarConverter:
 
         # Handle some common patterns
         if pattern == r"\d+":
-            return 'root ::= [0-9]+'
+            return "root ::= [0-9]+"
         elif pattern == r"\d{3}-\d{3}-\d{4}":
             # Phone number pattern
             return 'root ::= [0-9] [0-9] [0-9] "-" [0-9] [0-9] [0-9] "-" [0-9] [0-9] [0-9] [0-9]'
         elif pattern == r"[A-Z]{2}\d{4}":
             # License plate pattern
-            return 'root ::= [A-Z] [A-Z] [0-9] [0-9] [0-9] [0-9]'
+            return "root ::= [A-Z] [A-Z] [0-9] [0-9] [0-9] [0-9]"
         else:
             # For unsupported patterns, fall back to generic string
             # and log a warning
             import logging
+
             logger = logging.getLogger(__name__)
             logger.warning(
                 f"Complex regex pattern '{pattern}' cannot be fully converted to GBNF. "
@@ -286,13 +287,13 @@ def json_schema_to_grammar(schema: Union[Dict[str, Any], type]) -> str:
     """
     if isinstance(schema, type):
         # Convert Python type to JSON schema
-        if schema == int:
+        if schema is int:
             schema = {"type": "integer"}
-        elif schema == float:
+        elif schema is float:
             schema = {"type": "number"}
-        elif schema == str:
+        elif schema is str:
             schema = {"type": "string"}
-        elif schema == bool:
+        elif schema is bool:
             schema = {"type": "boolean"}
         else:
             raise ValueError(f"Unsupported Python type: {schema}")

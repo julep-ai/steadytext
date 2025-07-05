@@ -10,13 +10,13 @@ AIDEV-NOTE: This implementation uses llama.cpp's native GBNF grammar support
 instead of Outlines to avoid compatibility issues with models like Gemma-3n.
 """
 
-import json
 import logging
 import re
 from typing import Any, Dict, List, Union, Type, Optional
 
 try:
     from pydantic import BaseModel
+
     PYDANTIC_AVAILABLE = True
 except ImportError:
     PYDANTIC_AVAILABLE = False
@@ -99,14 +99,16 @@ class StructuredGenerator:
                 max_tokens=max_tokens,
                 grammar=grammar,
                 stop=["</json-output>"],
-                **kwargs
+                **kwargs,
             )
             json_output = result["choices"][0]["text"]
 
         # Return the complete output with XML tags
         return thoughts + "<json-output>" + json_output + "</json-output>"
 
-    def _schema_to_json_schema(self, schema: Union[Dict[str, Any], Type["BaseModel"], Type]) -> Dict[str, Any]:
+    def _schema_to_json_schema(
+        self, schema: Union[Dict[str, Any], Type["BaseModel"], Type]
+    ) -> Dict[str, Any]:
         """Convert various schema types to JSON schema.
 
         Args:
@@ -118,7 +120,11 @@ class StructuredGenerator:
         if isinstance(schema, dict):
             # Already a JSON schema
             return schema
-        elif PYDANTIC_AVAILABLE and isinstance(schema, type) and issubclass(schema, BaseModel):
+        elif (
+            PYDANTIC_AVAILABLE
+            and isinstance(schema, type)
+            and issubclass(schema, BaseModel)
+        ):
             # Pydantic model - convert to JSON schema
             # AIDEV-NOTE: Use Pydantic v2 method if available, else v1
             try:
@@ -129,13 +135,13 @@ class StructuredGenerator:
                 return schema.schema()
         elif isinstance(schema, type):
             # Basic Python type
-            if schema == int:
+            if schema is int:
                 return {"type": "integer"}
-            elif schema == float:
+            elif schema is float:
                 return {"type": "number"}
-            elif schema == str:
+            elif schema is str:
                 return {"type": "string"}
-            elif schema == bool:
+            elif schema is bool:
                 return {"type": "boolean"}
             else:
                 raise ValueError(f"Unsupported Python type: {schema}")
@@ -173,10 +179,7 @@ class StructuredGenerator:
         # Generate text matching the pattern
         with suppress_llama_output():
             result = self._model(
-                prompt,
-                max_tokens=max_tokens,
-                grammar=grammar,
-                **kwargs
+                prompt, max_tokens=max_tokens, grammar=grammar, **kwargs
             )
             return result["choices"][0]["text"]
 
@@ -208,10 +211,7 @@ class StructuredGenerator:
         # Generate one of the choices
         with suppress_llama_output():
             result = self._model(
-                prompt,
-                max_tokens=max_tokens,
-                grammar=grammar,
-                **kwargs
+                prompt, max_tokens=max_tokens, grammar=grammar, **kwargs
             )
             return result["choices"][0]["text"]
 
@@ -241,10 +241,7 @@ class StructuredGenerator:
         # Generate formatted text
         with suppress_llama_output():
             result = self._model(
-                prompt,
-                max_tokens=max_tokens,
-                grammar=grammar,
-                **kwargs
+                prompt, max_tokens=max_tokens, grammar=grammar, **kwargs
             )
             return result["choices"][0]["text"]
 

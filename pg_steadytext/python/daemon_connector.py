@@ -15,7 +15,14 @@ import numpy as np
 
 # AIDEV-NOTE: Import SteadyText components - these should be available if steadytext is installed
 try:
-    from steadytext import generate, embed, generate_iter, generate_json, generate_regex, generate_choice
+    from steadytext import (
+        generate,
+        embed,
+        generate_iter,
+        generate_json,
+        generate_regex,
+        generate_choice,
+    )
     from steadytext.daemon import use_daemon
 
     STEADYTEXT_AVAILABLE = True
@@ -407,7 +414,9 @@ class SteadyTextConnector:
                 )
                 return cast(str, result)
         except Exception as e:
-            logger.warning(f"Daemon JSON generation failed: {e}, using direct generation")
+            logger.warning(
+                f"Daemon JSON generation failed: {e}, using direct generation"
+            )
 
             # Fall back to direct generation
             try:
@@ -453,19 +462,21 @@ class SteadyTextConnector:
             with use_daemon():
                 result = generate_regex(
                     prompt,
-                    regex=pattern,
+                    pattern=pattern,
                     max_tokens=max_tokens,
                     **kwargs,
                 )
                 return cast(str, result)
         except Exception as e:
-            logger.warning(f"Daemon regex generation failed: {e}, using direct generation")
+            logger.warning(
+                f"Daemon regex generation failed: {e}, using direct generation"
+            )
 
             # Fall back to direct generation
             try:
                 result = generate_regex(
                     prompt,
-                    regex=pattern,
+                    pattern=pattern,
                     max_tokens=max_tokens,
                     **kwargs,
                 )
@@ -511,7 +522,9 @@ class SteadyTextConnector:
                 )
                 return cast(str, result)
         except Exception as e:
-            logger.warning(f"Daemon choice generation failed: {e}, using direct generation")
+            logger.warning(
+                f"Daemon choice generation failed: {e}, using direct generation"
+            )
 
             # Fall back to direct generation
             try:
@@ -557,7 +570,9 @@ class SteadyTextConnector:
         max_chars = max_tokens * 4
         return template[:max_chars]
 
-    def _fallback_generate_json(self, prompt: str, schema: dict, max_tokens: int) -> str:
+    def _fallback_generate_json(
+        self, prompt: str, schema: dict, max_tokens: int
+    ) -> str:
         """
         Deterministic fallback JSON generation.
 
@@ -625,13 +640,17 @@ def pg_generate_json(prompt: str, schema: dict, max_tokens: int = 512, **kwargs)
     return connector.generate_json(prompt, schema, max_tokens, **kwargs)
 
 
-def pg_generate_regex(prompt: str, pattern: str, max_tokens: int = 512, **kwargs) -> str:
+def pg_generate_regex(
+    prompt: str, pattern: str, max_tokens: int = 512, **kwargs
+) -> str:
     """PostgreSQL-friendly wrapper for regex-constrained generation."""
     connector = get_default_connector()
     return connector.generate_regex(prompt, pattern, max_tokens, **kwargs)
 
 
-def pg_generate_choice(prompt: str, choices: List[str], max_tokens: int = 512, **kwargs) -> str:
+def pg_generate_choice(
+    prompt: str, choices: List[str], max_tokens: int = 512, **kwargs
+) -> str:
     """PostgreSQL-friendly wrapper for choice-constrained generation."""
     connector = get_default_connector()
     return connector.generate_choice(prompt, choices, max_tokens, **kwargs)
