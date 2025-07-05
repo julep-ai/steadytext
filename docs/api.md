@@ -153,9 +153,9 @@ for token in steadytext.generate_iter("Complex task", size="large", seed=789):
     print(token, end="", flush=True)
 ```
 
-### Structured Generation (v2.3.0+)
+### Structured Generation (v2.4.1+)
 
-These are convenience functions for structured generation.
+These are convenience functions for structured generation using llama.cpp's native grammar support.
 
 #### `steadytext.generate_json()`
 

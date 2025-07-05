@@ -117,6 +117,28 @@ SELECT steadytext_config_set('cache_enabled', 'false');
 SELECT steadytext_config_get('daemon_port');
 ```
 
+### Structured Generation (v2.4.1+)
+
+```sql
+-- Generate JSON
+SELECT steadytext_generate_json(
+    'Create a person named Alice, age 30',
+    '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}}'::jsonb
+);
+
+-- Generate text matching regex
+SELECT steadytext_generate_regex(
+    'Phone: ',
+    '\d{3}-\d{3}-\d{4}'
+);
+
+-- Generate from choices
+SELECT steadytext_generate_choice(
+    'The sentiment is',
+    ARRAY['positive', 'negative', 'neutral']
+);
+```
+
 ## Architecture
 
 pg_steadytext integrates with SteadyText's existing architecture:
@@ -147,6 +169,11 @@ PostgreSQL Client
 - `steadytext_generate(prompt, max_tokens, use_cache, seed)` - Generate text
 - `steadytext_embed(text, use_cache)` - Generate embedding
 - `steadytext_generate_stream(prompt, max_tokens)` - Stream text generation
+
+### Structured Generation Functions (v2.4.1+)
+- `steadytext_generate_json(prompt, schema, max_tokens, use_cache, seed)` - Generate JSON conforming to schema
+- `steadytext_generate_regex(prompt, pattern, max_tokens, use_cache, seed)` - Generate text matching regex
+- `steadytext_generate_choice(prompt, choices, max_tokens, use_cache, seed)` - Generate one of the choices
 
 ### Management Functions
 - `steadytext_daemon_start()` - Start the daemon

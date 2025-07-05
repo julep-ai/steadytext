@@ -1,8 +1,8 @@
 # Structured Generation
 
-SteadyText v2.3.0 introduces powerful structured generation capabilities, allowing you to force the model's output to conform to a specific format. This is useful for a wide range of applications, from data extraction to building reliable applications on top of language models.
+SteadyText v2.4.1 introduces powerful structured generation capabilities, allowing you to force the model's output to conform to a specific format. This is useful for a wide range of applications, from data extraction to building reliable applications on top of language models.
 
-This feature is powered by the [Outlines](https://github.com/outlines-dev/outlines) library.
+This feature is powered by llama.cpp's native grammar support, providing better compatibility and performance compared to external libraries.
 
 ## How it Works
 
@@ -12,7 +12,14 @@ Structured generation is enabled by passing one of the following parameters to t
 - `regex`: For generating text that matches a regular expression.
 - `choices`: For generating text that is one of a list of choices.
 
-When one of these parameters is provided, SteadyText will use Outlines to guide the generation process, ensuring that the output is always valid according to the specified format.
+When one of these parameters is provided, SteadyText converts your constraint into a GBNF (Grammatical Backus-Naur Form) grammar that llama.cpp uses to guide the generation process. This ensures that the output is always valid according to the specified format.
+
+The conversion process:
+1. JSON schemas, Pydantic models, and Python types are converted to GBNF grammars that enforce the exact structure
+2. Regular expressions are converted to equivalent GBNF patterns (when possible)
+3. Choice lists are converted to simple alternative rules in GBNF
+
+This native integration with llama.cpp provides deterministic, reliable structured output generation.
 
 ## JSON Generation
 

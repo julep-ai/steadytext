@@ -43,6 +43,15 @@ pip install steadytext
 
     # Deterministic embeddings
     vec = steadytext.embed("Hello world")  # 1024-dim numpy array
+    
+    # Structured generation (v2.4.1+)
+    from pydantic import BaseModel
+    class User(BaseModel):
+        name: str
+        age: int
+    
+    result = steadytext.generate("Create user Alice age 30", schema=User)
+    # Returns: '...<json-output>{"name": "Alice", "age": 30}</json-output>'
     ```
 
 === "Command Line"

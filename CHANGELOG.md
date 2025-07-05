@@ -1,5 +1,27 @@
 # Changelog
 
+## Version 2.4.1 (2025-07-04)
+
+### Bug Fixes & Improvements
+- **Grammar-Based Generation:** Replaced Outlines with llama.cpp's native GBNF grammar support for structured generation.
+  - Resolves compatibility issues with Gemma-3n models and other models that had vocabulary processing errors
+  - Provides better performance and reliability
+  - No API changes - existing structured generation code continues to work unchanged
+  - Added new `core/grammar.py` module for JSON schema to GBNF conversion
+  - Removed `outlines` dependency from the project
+
+### New Features  
+- **PostgreSQL Structured Generation:** Added structured output support to the PostgreSQL extension.
+  - New SQL functions: `steadytext_generate_json()`, `steadytext_generate_regex()`, `steadytext_generate_choice()`
+  - Full integration with the same grammar-based approach as the main library
+  - Includes fallback methods for when SteadyText is unavailable
+  - All structured functions support caching with schema/pattern/choices included in cache keys
+
+### Internal Changes
+- Implemented `GrammarConverter` class for converting JSON schemas, regex patterns, and choice lists to GBNF
+- Updated `StructuredGenerator` to use llama-cpp-python's `grammar` parameter directly
+- Enhanced PostgreSQL extension's `daemon_connector.py` with structured generation methods
+
 ## Version 2.4.0 (2025-07-03)
 
 ### New Features

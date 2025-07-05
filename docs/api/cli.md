@@ -60,6 +60,9 @@ steadytext generate [OPTIONS] PROMPT
 | `--no-index` | | flag | `false` | Disable automatic index search |
 | `--index-file` | | path | | Use specific index file |
 | `--top-k` | | int | `3` | Number of context chunks to retrieve |
+| `--schema` | | string | | JSON schema for structured output (file path or inline JSON) |
+| `--regex` | | string | | Regular expression pattern for structured output |
+| `--choices` | | string | | Comma-separated list of allowed choices |
 
 ### Examples
 
@@ -159,6 +162,53 @@ steadytext generate [OPTIONS] PROMPT
         --model-filename gemma-3n-E4B-it-Q8_0.gguf \
         --seed 999 --max-new-tokens 100
     ```
+
+=== "Structured JSON Output"
+
+    ```bash
+    # Generate JSON with inline schema
+    echo "Create a person" | st --schema '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}}' --wait
+    
+    # Generate JSON from schema file
+    echo "Generate user data" | st --schema user_schema.json --wait
+    
+    # Complex schema example
+    echo "Create a product listing" | st --schema '{"type": "object", "properties": {"title": {"type": "string"}, "price": {"type": "number"}, "inStock": {"type": "boolean"}}}' --wait
+    ```
+
+=== "Regex Pattern Matching"
+
+    ```bash
+    # Phone number pattern
+    echo "My phone number is" | st --regex '\d{3}-\d{3}-\d{4}' --wait
+    
+    # Date pattern
+    echo "Today's date is" | st --regex '\d{4}-\d{2}-\d{2}' --wait
+    
+    # Custom pattern
+    echo "The product code is" | st --regex '[A-Z]{3}-\d{4}' --wait
+    ```
+
+=== "Choice Constraints"
+
+    ```bash
+    # Simple yes/no choice
+    echo "Is Python a good language?" | st --choices "yes,no" --wait
+    
+    # Multiple choice
+    echo "What's the weather like?" | st --choices "sunny,cloudy,rainy,snowy" --wait
+    
+    # Decision making
+    echo "Should we proceed with deployment?" | st --choices "proceed,wait,cancel" --wait
+    ```
+
+### Structured Generation Notes
+
+!!! warning "Structured Generation Requirements"
+    - **Streaming not supported**: Always use `--wait` flag with structured options
+    - **Mutually exclusive**: Only one of `--schema`, `--regex`, or `--choices` can be used at a time
+    - **Schema format**: Can be inline JSON or path to a `.json` file
+    - **Choices format**: Comma-separated values without spaces around commas
 
 ### Stdin Support
 

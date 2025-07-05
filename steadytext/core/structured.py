@@ -1,10 +1,13 @@
-"""Structured generation support using Outlines.
+"""Structured generation support using llama.cpp's native grammar support.
 
 This module provides deterministic structured text generation with support for:
 - JSON schemas (dict or Pydantic models)
 - Regular expression patterns
 - Choice constraints (multiple choice)
 - Type constraints (int, float, bool, str)
+
+AIDEV-NOTE: This implementation uses llama.cpp's native GBNF grammar support
+instead of Outlines to avoid compatibility issues with models like Gemma-3n.
 """
 
 import logging
@@ -12,65 +15,36 @@ import re
 from typing import Any, Dict, List, Union, Type, Optional
 
 try:
-    import outlines
     from pydantic import BaseModel
 
-    OUTLINES_AVAILABLE = True
+    PYDANTIC_AVAILABLE = True
 except ImportError:
-    OUTLINES_AVAILABLE = False
+    PYDANTIC_AVAILABLE = False
     BaseModel = None  # type: ignore[assignment, misc]
 
 from ..models.loader import get_generator_model_instance
 from ..utils import suppress_llama_output
 from .generator import _validate_input_length
+from .grammar import json_schema_to_grammar, regex_to_grammar, choices_to_grammar
 
 logger = logging.getLogger(__name__)
 
 
 class StructuredGenerator:
-    """Handles structured text generation using Outlines."""
+    """Handles structured text generation using llama.cpp grammars."""
 
     def __init__(self):
         """Initialize the structured generator."""
         self._model = None
-        self._outlines_model = None
 
     def _ensure_model_loaded(self):
-        """Ensure the model is loaded and wrapped with Outlines."""
-        if self._outlines_model is None:
-            if not OUTLINES_AVAILABLE:
-                raise ImportError(
-                    "Outlines is not installed. Install with: pip install outlines"
-                )
-
+        """Ensure the model is loaded."""
+        if self._model is None:
             # Get the llama.cpp model instance
             llama_model = get_generator_model_instance()
             if llama_model is None:
                 raise RuntimeError("Failed to load generation model")
-
-            # AIDEV-NOTE: Known issue with Outlines 1.0.3+ and certain model vocabularies
-            # Some models (e.g., Gemma-3n, Qwen1.5, Phi-2) have tokens that cannot be
-            # converted to bytes, causing RuntimeError. This is tracked in:
-            # - https://github.com/outlines-dev/outlines/issues/820
-            # - https://github.com/dottxt-ai/outlines/issues/1261
-            try:
-                # Wrap with Outlines
-                with suppress_llama_output():
-                    self._outlines_model = outlines.from_llamacpp(llama_model)  # type: ignore[attr-defined]
-                self._model = llama_model
-            except RuntimeError as e:
-                if "Cannot convert token" in str(e) and "to bytes" in str(e):
-                    logger.error(
-                        "Model vocabulary incompatibility with Outlines: %s. "
-                        "This is a known issue with certain models. See "
-                        "https://github.com/outlines-dev/outlines/issues/820",
-                        str(e),
-                    )
-                    raise RuntimeError(
-                        f"Model vocabulary is incompatible with Outlines structured generation: {e}"
-                    ) from e
-                else:
-                    raise
+            self._model = llama_model
 
     def generate_json(
         self,
@@ -95,6 +69,12 @@ class StructuredGenerator:
         # Validate input length
         _validate_input_length(self._model, prompt, max_tokens)
 
+        # Convert schema to JSON schema if needed
+        json_schema = self._schema_to_json_schema(schema)
+
+        # Convert JSON schema to GBNF grammar
+        grammar = json_schema_to_grammar(json_schema)
+
         # AIDEV-NOTE: Add structured generation instruction to prompt
         structured_prompt = (
             prompt
@@ -111,41 +91,62 @@ class StructuredGenerator:
         # Now generate the structured JSON
         full_prompt = structured_prompt + thoughts + "<json-output>"
 
-        # Create the structured generator
-        # AIDEV-NOTE: The token conversion error can also happen here when creating
-        # generators for specific schemas, not just during model wrapping
-        try:
-            if isinstance(schema, dict):
-                # JSON schema dict
-                generator = outlines.generate.json(self._outlines_model, schema)
-            elif isinstance(schema, type) and issubclass(schema, BaseModel):
-                # Pydantic model
-                generator = outlines.generate.json(self._outlines_model, schema)
-            elif isinstance(schema, type):
-                # Basic Python type
-                generator = outlines.generate.json(self._outlines_model, schema)
-            else:
-                raise ValueError(f"Unsupported schema type: {type(schema)}")
-        except RuntimeError as e:
-            if "Cannot convert token" in str(e) and "to bytes" in str(e):
-                logger.error(
-                    "Model vocabulary incompatibility with Outlines: %s. "
-                    "This is a known issue with certain models. See "
-                    "https://github.com/outlines-dev/outlines/issues/820",
-                    str(e),
-                )
-                raise RuntimeError(
-                    f"Model vocabulary is incompatible with Outlines structured generation: {e}"
-                ) from e
-            else:
-                raise
-
-        # Generate the JSON
+        # Generate JSON using grammar
         with suppress_llama_output():
-            json_output = generator(full_prompt, max_tokens=max_tokens, **kwargs)
+            # AIDEV-NOTE: llama-cpp-python accepts grammar as a string parameter
+            result = self._model(
+                full_prompt,
+                max_tokens=max_tokens,
+                grammar=grammar,
+                stop=["</json-output>"],
+                **kwargs,
+            )
+            json_output = result["choices"][0]["text"]
 
         # Return the complete output with XML tags
         return thoughts + "<json-output>" + json_output + "</json-output>"
+
+    def _schema_to_json_schema(
+        self, schema: Union[Dict[str, Any], Type["BaseModel"], Type]
+    ) -> Dict[str, Any]:
+        """Convert various schema types to JSON schema.
+
+        Args:
+            schema: JSON schema dict, Pydantic model, or Python type
+
+        Returns:
+            JSON schema dictionary
+        """
+        if isinstance(schema, dict):
+            # Already a JSON schema
+            return schema
+        elif (
+            PYDANTIC_AVAILABLE
+            and isinstance(schema, type)
+            and issubclass(schema, BaseModel)
+        ):
+            # Pydantic model - convert to JSON schema
+            # AIDEV-NOTE: Use Pydantic v2 method if available, else v1
+            try:
+                # Pydantic v2
+                return schema.model_json_schema()
+            except AttributeError:
+                # Pydantic v1
+                return schema.schema()
+        elif isinstance(schema, type):
+            # Basic Python type
+            if schema is int:
+                return {"type": "integer"}
+            elif schema is float:
+                return {"type": "number"}
+            elif schema is str:
+                return {"type": "string"}
+            elif schema is bool:
+                return {"type": "boolean"}
+            else:
+                raise ValueError(f"Unsupported Python type: {schema}")
+        else:
+            raise ValueError(f"Unsupported schema type: {type(schema)}")
 
     def generate_regex(
         self, prompt: str, pattern: str, max_tokens: int = 512, **kwargs
@@ -172,28 +173,15 @@ class StructuredGenerator:
         except re.error as e:
             raise ValueError(f"Invalid regex pattern: {e}")
 
-        # Create the regex generator
-        try:
-            generator = outlines.generate.regex(self._outlines_model, pattern)
-        except RuntimeError as e:
-            if "Cannot convert token" in str(e) and "to bytes" in str(e):
-                logger.error(
-                    "Model vocabulary incompatibility with Outlines: %s. "
-                    "This is a known issue with certain models. See "
-                    "https://github.com/outlines-dev/outlines/issues/820",
-                    str(e),
-                )
-                raise RuntimeError(
-                    f"Model vocabulary is incompatible with Outlines structured generation: {e}"
-                ) from e
-            else:
-                raise
+        # Convert regex to GBNF grammar
+        grammar = regex_to_grammar(pattern)
 
         # Generate text matching the pattern
         with suppress_llama_output():
-            result = generator(prompt, max_tokens=max_tokens, **kwargs)
-
-        return result
+            result = self._model(
+                prompt, max_tokens=max_tokens, grammar=grammar, **kwargs
+            )
+            return result["choices"][0]["text"]
 
     def generate_choice(
         self, prompt: str, choices: List[str], max_tokens: int = 512, **kwargs
@@ -217,28 +205,15 @@ class StructuredGenerator:
         if not choices:
             raise ValueError("Choices list cannot be empty")
 
-        # Create the choice generator
-        try:
-            generator = outlines.generate.choice(self._outlines_model, choices)
-        except RuntimeError as e:
-            if "Cannot convert token" in str(e) and "to bytes" in str(e):
-                logger.error(
-                    "Model vocabulary incompatibility with Outlines: %s. "
-                    "This is a known issue with certain models. See "
-                    "https://github.com/outlines-dev/outlines/issues/820",
-                    str(e),
-                )
-                raise RuntimeError(
-                    f"Model vocabulary is incompatible with Outlines structured generation: {e}"
-                ) from e
-            else:
-                raise
+        # Convert choices to GBNF grammar
+        grammar = choices_to_grammar(choices)
 
         # Generate one of the choices
         with suppress_llama_output():
-            result = generator(prompt, **kwargs)
-
-        return result
+            result = self._model(
+                prompt, max_tokens=max_tokens, grammar=grammar, **kwargs
+            )
+            return result["choices"][0]["text"]
 
     def generate_format(
         self, prompt: str, format_type: Type, max_tokens: int = 512, **kwargs
@@ -259,17 +234,16 @@ class StructuredGenerator:
         # Validate input length
         _validate_input_length(self._model, prompt, max_tokens)
 
-        # Use the appropriate generator based on type
-        if format_type in (int, float, bool, str):
-            generator = outlines.generate.format(self._outlines_model, format_type)
-        else:
-            raise ValueError(f"Unsupported format type: {format_type}")
+        # Convert type to JSON schema then to grammar
+        json_schema = self._schema_to_json_schema(format_type)
+        grammar = json_schema_to_grammar(json_schema)
 
         # Generate formatted text
         with suppress_llama_output():
-            result = generator(prompt, max_tokens=max_tokens, **kwargs)
-
-        return str(result)
+            result = self._model(
+                prompt, max_tokens=max_tokens, grammar=grammar, **kwargs
+            )
+            return result["choices"][0]["text"]
 
 
 # Singleton instance

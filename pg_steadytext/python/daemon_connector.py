@@ -6,6 +6,7 @@ AIDEV-NOTE: This module provides the bridge between PostgreSQL and SteadyText's 
 It handles automatic daemon startup, connection management, and fallback to direct generation.
 """
 
+import json
 import time
 import subprocess
 import logging
@@ -14,7 +15,14 @@ import numpy as np
 
 # AIDEV-NOTE: Import SteadyText components - these should be available if steadytext is installed
 try:
-    from steadytext import generate, embed, generate_iter
+    from steadytext import (
+        generate,
+        embed,
+        generate_iter,
+        generate_json,
+        generate_regex,
+        generate_choice,
+    )
     from steadytext.daemon import use_daemon
 
     STEADYTEXT_AVAILABLE = True
@@ -369,6 +377,169 @@ class SteadyTextConnector:
         # Return zero vector as fallback
         return np.zeros(1024, dtype=np.float32)
 
+    def generate_json(
+        self,
+        prompt: str,
+        schema: dict,
+        max_tokens: int = 512,
+        **kwargs,
+    ) -> str:
+        """
+        Generate JSON text using schema constraints.
+
+        AIDEV-NOTE: This method generates JSON that conforms to the provided
+        schema using llama.cpp's grammar support.
+
+        Args:
+            prompt: Input text prompt
+            schema: JSON schema dictionary
+            max_tokens: Maximum tokens to generate
+            **kwargs: Additional generation parameters
+
+        Returns:
+            JSON string that conforms to the schema
+        """
+        if not STEADYTEXT_AVAILABLE:
+            # Return fallback JSON
+            return self._fallback_generate_json(prompt, schema, max_tokens)
+
+        try:
+            # Try using daemon first
+            with use_daemon():
+                result = generate_json(
+                    prompt,
+                    schema=schema,
+                    max_tokens=max_tokens,
+                    **kwargs,
+                )
+                return cast(str, result)
+        except Exception as e:
+            logger.warning(
+                f"Daemon JSON generation failed: {e}, using direct generation"
+            )
+
+            # Fall back to direct generation
+            try:
+                result = generate_json(
+                    prompt,
+                    schema=schema,
+                    max_tokens=max_tokens,
+                    **kwargs,
+                )
+                return cast(str, result)
+            except Exception as e2:
+                logger.error(f"Direct JSON generation also failed: {e2}")
+                return self._fallback_generate_json(prompt, schema, max_tokens)
+
+    def generate_regex(
+        self,
+        prompt: str,
+        pattern: str,
+        max_tokens: int = 512,
+        **kwargs,
+    ) -> str:
+        """
+        Generate text that matches a regex pattern.
+
+        AIDEV-NOTE: This method generates text constrained by the provided
+        regex pattern using llama.cpp's grammar support.
+
+        Args:
+            prompt: Input text prompt
+            pattern: Regular expression pattern
+            max_tokens: Maximum tokens to generate
+            **kwargs: Additional generation parameters
+
+        Returns:
+            Text that matches the pattern
+        """
+        if not STEADYTEXT_AVAILABLE:
+            # Return simple fallback
+            return self._fallback_generate(prompt, max_tokens)
+
+        try:
+            # Try using daemon first
+            with use_daemon():
+                result = generate_regex(
+                    prompt,
+                    pattern=pattern,
+                    max_tokens=max_tokens,
+                    **kwargs,
+                )
+                return cast(str, result)
+        except Exception as e:
+            logger.warning(
+                f"Daemon regex generation failed: {e}, using direct generation"
+            )
+
+            # Fall back to direct generation
+            try:
+                result = generate_regex(
+                    prompt,
+                    pattern=pattern,
+                    max_tokens=max_tokens,
+                    **kwargs,
+                )
+                return cast(str, result)
+            except Exception as e2:
+                logger.error(f"Direct regex generation also failed: {e2}")
+                return self._fallback_generate(prompt, max_tokens)
+
+    def generate_choice(
+        self,
+        prompt: str,
+        choices: List[str],
+        max_tokens: int = 512,
+        **kwargs,
+    ) -> str:
+        """
+        Generate text that is one of the provided choices.
+
+        AIDEV-NOTE: This method generates text constrained to one of the
+        provided choices using llama.cpp's grammar support.
+
+        Args:
+            prompt: Input text prompt
+            choices: List of allowed string choices
+            max_tokens: Maximum tokens to generate
+            **kwargs: Additional generation parameters
+
+        Returns:
+            One of the provided choices
+        """
+        if not STEADYTEXT_AVAILABLE:
+            # Return deterministic choice
+            return choices[abs(hash(prompt)) % len(choices)] if choices else ""
+
+        try:
+            # Try using daemon first
+            with use_daemon():
+                result = generate_choice(
+                    prompt,
+                    choices=choices,
+                    max_tokens=max_tokens,
+                    **kwargs,
+                )
+                return cast(str, result)
+        except Exception as e:
+            logger.warning(
+                f"Daemon choice generation failed: {e}, using direct generation"
+            )
+
+            # Fall back to direct generation
+            try:
+                result = generate_choice(
+                    prompt,
+                    choices=choices,
+                    max_tokens=max_tokens,
+                    **kwargs,
+                )
+                return cast(str, result)
+            except Exception as e2:
+                logger.error(f"Direct choice generation also failed: {e2}")
+                # Return deterministic choice
+                return choices[abs(hash(prompt)) % len(choices)] if choices else ""
+
     def _fallback_generate(self, prompt: str, max_tokens: int) -> str:
         """
         Deterministic fallback text generation.
@@ -384,7 +555,7 @@ class SteadyTextConnector:
             Deterministic text based on prompt
         """
         # Use hash of prompt for deterministic output
-        hash_val = hash(prompt) % 1000
+        hash_val = abs(hash(prompt)) % 1000
 
         templates = [
             f"Generated response for prompt (hash: {hash_val}): {prompt[:50]}...",
@@ -398,6 +569,43 @@ class SteadyTextConnector:
         # Limit to approximate token count (assuming ~4 chars per token)
         max_chars = max_tokens * 4
         return template[:max_chars]
+
+    def _fallback_generate_json(
+        self, prompt: str, schema: dict, max_tokens: int
+    ) -> str:
+        """
+        Deterministic fallback JSON generation.
+
+        AIDEV-NOTE: This provides a predictable JSON output when SteadyText
+        is unavailable.
+
+        Args:
+            prompt: Input prompt
+            schema: JSON schema (used to create basic structure)
+            max_tokens: Maximum tokens (ignored for JSON)
+
+        Returns:
+            Deterministic JSON based on schema
+        """
+        # Create a simple JSON object based on schema
+        result = {}
+        if "properties" in schema:
+            for prop, prop_schema in schema["properties"].items():
+                prop_type = prop_schema.get("type", "string")
+                if prop_type == "string":
+                    result[prop] = f"fallback_{prop}"
+                elif prop_type == "integer":
+                    result[prop] = abs(hash(prompt + prop)) % 100
+                elif prop_type == "boolean":
+                    result[prop] = (abs(hash(prompt + prop)) % 2) == 0
+                elif prop_type == "number":
+                    result[prop] = (abs(hash(prompt + prop)) % 100) / 10.0
+                elif prop_type == "array":
+                    result[prop] = []
+                elif prop_type == "object":
+                    result[prop] = {}
+
+        return json.dumps(result)
 
 
 # AIDEV-NOTE: Module-level convenience functions for PostgreSQL integration
@@ -424,3 +632,25 @@ def pg_embed(text: str) -> List[float]:
     connector = get_default_connector()
     embedding = connector.embed(text)
     return embedding.tolist()  # Convert to list for PostgreSQL
+
+
+def pg_generate_json(prompt: str, schema: dict, max_tokens: int = 512, **kwargs) -> str:
+    """PostgreSQL-friendly wrapper for JSON generation."""
+    connector = get_default_connector()
+    return connector.generate_json(prompt, schema, max_tokens, **kwargs)
+
+
+def pg_generate_regex(
+    prompt: str, pattern: str, max_tokens: int = 512, **kwargs
+) -> str:
+    """PostgreSQL-friendly wrapper for regex-constrained generation."""
+    connector = get_default_connector()
+    return connector.generate_regex(prompt, pattern, max_tokens, **kwargs)
+
+
+def pg_generate_choice(
+    prompt: str, choices: List[str], max_tokens: int = 512, **kwargs
+) -> str:
+    """PostgreSQL-friendly wrapper for choice-constrained generation."""
+    connector = get_default_connector()
+    return connector.generate_choice(prompt, choices, max_tokens, **kwargs)
