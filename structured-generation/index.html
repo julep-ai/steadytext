@@ -1260,8 +1260,8 @@
 
 
 <h1 id="structured-generation">Structured Generation<a class="headerlink" href="#structured-generation" title="Permanent link">&para;</a></h1>
-<p>SteadyText v2.3.0 introduces powerful structured generation capabilities, allowing you to force the model's output to conform to a specific format. This is useful for a wide range of applications, from data extraction to building reliable applications on top of language models.</p>
-<p>This feature is powered by the <a href="https://github.com/outlines-dev/outlines">Outlines</a> library.</p>
+<p>SteadyText v2.4.1 introduces powerful structured generation capabilities, allowing you to force the model's output to conform to a specific format. This is useful for a wide range of applications, from data extraction to building reliable applications on top of language models.</p>
+<p>This feature is powered by llama.cpp's native grammar support, providing better compatibility and performance compared to external libraries.</p>
 <h2 id="how-it-works">How it Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
 <p>Structured generation is enabled by passing one of the following parameters to the <code>steadytext.generate</code> function:</p>
 <ul>
@@ -1269,7 +1269,12 @@
 <li><code>regex</code>: For generating text that matches a regular expression.</li>
 <li><code>choices</code>: For generating text that is one of a list of choices.</li>
 </ul>
-<p>When one of these parameters is provided, SteadyText will use Outlines to guide the generation process, ensuring that the output is always valid according to the specified format.</p>
+<p>When one of these parameters is provided, SteadyText converts your constraint into a GBNF (Grammatical Backus-Naur Form) grammar that llama.cpp uses to guide the generation process. This ensures that the output is always valid according to the specified format.</p>
+<p>The conversion process:
+1. JSON schemas, Pydantic models, and Python types are converted to GBNF grammars that enforce the exact structure
+2. Regular expressions are converted to equivalent GBNF patterns (when possible)
+3. Choice lists are converted to simple alternative rules in GBNF</p>
+<p>This native integration with llama.cpp provides deterministic, reliable structured output generation.</p>
 <h2 id="json-generation">JSON Generation<a class="headerlink" href="#json-generation" title="Permanent link">&para;</a></h2>
 <p>You can generate JSON output in several ways.</p>
 <h3 id="with-a-json-schema">With a JSON Schema<a class="headerlink" href="#with-a-json-schema" title="Permanent link">&para;</a></h3>
