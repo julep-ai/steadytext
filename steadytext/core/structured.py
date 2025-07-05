@@ -27,6 +27,15 @@ from ..utils import suppress_llama_output
 from .generator import _validate_input_length
 from .grammar import json_schema_to_grammar, regex_to_grammar, choices_to_grammar
 
+# AIDEV-NOTE: Import LlamaGrammar for creating grammar objects from GBNF strings
+# llama-cpp-python expects LlamaGrammar objects, not raw GBNF strings
+# Fixed issue #28: AttributeError: 'str' object has no attribute '_grammar'
+try:
+    from llama_cpp import LlamaGrammar
+except ImportError:
+    # Fallback for older versions
+    LlamaGrammar = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -73,7 +82,14 @@ class StructuredGenerator:
         json_schema = self._schema_to_json_schema(schema)
 
         # Convert JSON schema to GBNF grammar
-        grammar = json_schema_to_grammar(json_schema)
+        grammar_str = json_schema_to_grammar(json_schema)
+        
+        # AIDEV-NOTE: Create LlamaGrammar object from GBNF string
+        if LlamaGrammar is not None:
+            grammar = LlamaGrammar.from_string(grammar_str)
+        else:
+            # Fallback: pass the string directly (for older versions)
+            grammar = grammar_str
 
         # AIDEV-NOTE: Add structured generation instruction to prompt
         structured_prompt = (
@@ -93,7 +109,7 @@ class StructuredGenerator:
 
         # Generate JSON using grammar
         with suppress_llama_output():
-            # AIDEV-NOTE: llama-cpp-python accepts grammar as a string parameter
+            # AIDEV-NOTE: llama-cpp-python accepts grammar as a LlamaGrammar object
             result = self._model(
                 full_prompt,
                 max_tokens=max_tokens,
@@ -174,7 +190,14 @@ class StructuredGenerator:
             raise ValueError(f"Invalid regex pattern: {e}")
 
         # Convert regex to GBNF grammar
-        grammar = regex_to_grammar(pattern)
+        grammar_str = regex_to_grammar(pattern)
+        
+        # AIDEV-NOTE: Create LlamaGrammar object from GBNF string
+        if LlamaGrammar is not None:
+            grammar = LlamaGrammar.from_string(grammar_str)
+        else:
+            # Fallback: pass the string directly (for older versions)
+            grammar = grammar_str
 
         # Generate text matching the pattern
         with suppress_llama_output():
@@ -205,8 +228,15 @@ class StructuredGenerator:
         if not choices:
             raise ValueError("Choices list cannot be empty")
 
-        # Convert choices to GBNF grammar
-        grammar = choices_to_grammar(choices)
+        # Convert choices to GBNF grammar string
+        grammar_str = choices_to_grammar(choices)
+        
+        # AIDEV-NOTE: Create LlamaGrammar object from GBNF string
+        if LlamaGrammar is not None:
+            grammar = LlamaGrammar.from_string(grammar_str)
+        else:
+            # Fallback: pass the string directly (for older versions)
+            grammar = grammar_str
 
         # Generate one of the choices
         with suppress_llama_output():
@@ -236,7 +266,14 @@ class StructuredGenerator:
 
         # Convert type to JSON schema then to grammar
         json_schema = self._schema_to_json_schema(format_type)
-        grammar = json_schema_to_grammar(json_schema)
+        grammar_str = json_schema_to_grammar(json_schema)
+        
+        # AIDEV-NOTE: Create LlamaGrammar object from GBNF string
+        if LlamaGrammar is not None:
+            grammar = LlamaGrammar.from_string(grammar_str)
+        else:
+            # Fallback: pass the string directly (for older versions)
+            grammar = grammar_str
 
         # Generate formatted text
         with suppress_llama_output():
