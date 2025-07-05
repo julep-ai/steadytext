@@ -2,13 +2,14 @@ name: Deploy Documentation
 
 on:
   push:
-    branches: ["main"]
-  workflow_dispatch:  # Allow manual trigger
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
-  contents: write     # Required for mkdocs gh-deploy to push to gh-pages branch
-  pages: write        # Required for GitHub Pages deployment
-  id-token: write     # Required for newer GitHub Pages deployment methods
+  contents: write
+  pages: write
+  id-token: write
 
 jobs:
   deploy-docs:
@@ -17,27 +18,34 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history needed for mkdocs gh-deploy
-
-      - name: Install UV
-        uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-          cache-dependency-glob: uv.lock
+          fetch-depth: 0  # Fetch all history for proper git info
 
       - name: Set up Python
-        run: uv python install 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install UV package manager
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        run: uv sync --all-extras --dev
-
-      - name: Configure Git credentials
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          uv venv
+          source .venv/bin/activate
+          uv sync --all-extras --dev
+          # Ensure mkdocs and poethepoet are available
+          uv pip install mkdocs mkdocs-material poethepoet
 
       - name: Build documentation
-        run: uv run poe docs-build
+        run: |
+          source .venv/bin/activate
+          poe docs-build
 
       - name: Deploy to GitHub Pages
-        run: uv run poe docs-deploy --force
+        run: |
+          source .venv/bin/activate
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          poe docs-deploy --force
