@@ -1,0 +1,61 @@
+defaultMode: plan
+
+mcps:
+  context7:
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - '@upstash/context7-mcp'
+  kit:
+    type: stdio
+    command: uvx
+    args:
+      - --from
+      - cased-kit
+      - kit-mcp
+
+  fetch:
+    type: stdio
+    command: uvx
+    args:
+      - 'mcp-server-fetch'
+    env:
+      PYTHONUTF8: "1"
+
+  # llms-txt:
+  #   type: stdio
+  #   command: uvx
+  #   args: [mcp-llms-txt]
+  #   env:
+  #     PYTHONUTF8: 1
+
+hooks:
+  PreToolUse:
+    - matcher: ".*"
+      hooks:
+        - type: command
+          command: claude-generic-hooks store ~/.claude/hooks.db
+        - type: command
+          command: claude-generic-hooks yolo
+  PostToolUse:
+    - matcher: ".*"
+      hooks:
+        - type: command
+          command: claude-generic-hooks store ~/.claude/hooks.db
+  Notification:
+    - matcher: ""
+      hooks:
+        - type: command
+          command: claude-generic-hooks store ~/.claude/hooks.db
+  Stop:
+    - matcher: ""
+      hooks:
+        - type: command
+          command: claude-generic-hooks store ~/.claude/hooks.db
+  SubagentStop:
+    - matcher: ""
+      hooks:
+        - type: command
+          command: claude-generic-hooks store ~/.claude/hooks.db
+
