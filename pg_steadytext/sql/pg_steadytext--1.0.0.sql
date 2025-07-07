@@ -282,6 +282,7 @@ CREATE OR REPLACE FUNCTION steadytext_generate(
 )
 RETURNS TEXT
 LANGUAGE plpython3u
+IMMUTABLE PARALLEL SAFE
 AS $$
 # AIDEV-NOTE: Main text generation function that integrates with SteadyText daemon
 import json
@@ -392,6 +393,7 @@ CREATE OR REPLACE FUNCTION steadytext_embed(
 )
 RETURNS vector(1024)
 LANGUAGE plpython3u
+IMMUTABLE PARALLEL SAFE
 AS $$
 # AIDEV-NOTE: Embedding generation function that integrates with SteadyText daemon
 import json
@@ -656,6 +658,7 @@ RETURNS TABLE(
     newest_entry TIMESTAMPTZ
 )
 LANGUAGE sql
+STABLE PARALLEL SAFE
 AS $$
     SELECT 
         COUNT(*)::BIGINT as total_entries,
@@ -683,6 +686,7 @@ $$;
 CREATE OR REPLACE FUNCTION steadytext_version()
 RETURNS TEXT
 LANGUAGE sql
+IMMUTABLE PARALLEL SAFE LEAKPROOF
 AS $$
     SELECT '1.0.0'::TEXT;
 $$;
@@ -704,6 +708,7 @@ $$;
 CREATE OR REPLACE FUNCTION steadytext_config_get(key TEXT)
 RETURNS TEXT
 LANGUAGE sql
+STABLE PARALLEL SAFE LEAKPROOF
 AS $$
     SELECT value::text FROM steadytext_config WHERE key = $1;
 $$;
@@ -721,6 +726,7 @@ CREATE OR REPLACE FUNCTION steadytext_generate_json(
 )
 RETURNS TEXT
 LANGUAGE plpython3u
+IMMUTABLE PARALLEL SAFE
 AS $$
 # AIDEV-NOTE: Generate JSON that conforms to a schema using llama.cpp grammars
 import json
@@ -839,6 +845,7 @@ CREATE OR REPLACE FUNCTION steadytext_generate_regex(
 )
 RETURNS TEXT
 LANGUAGE plpython3u
+IMMUTABLE PARALLEL SAFE
 AS $$
 # AIDEV-NOTE: Generate text matching a regex pattern using llama.cpp grammars
 import json
@@ -948,6 +955,7 @@ CREATE OR REPLACE FUNCTION steadytext_generate_choice(
 )
 RETURNS TEXT
 LANGUAGE plpython3u
+IMMUTABLE PARALLEL SAFE
 AS $$
 # AIDEV-NOTE: Generate text constrained to one of the provided choices
 import json
@@ -1075,3 +1083,12 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO PUBLIC;
 -- - Enhanced security and rate limiting functions
 -- - Support for Pydantic models in structured generation (needs JSON serialization)
 -- - Tests for structured generation functions
+
+-- AIDEV-NOTE: Added in v1.0.1 (2025-07-07):
+-- Marked all deterministic functions as IMMUTABLE, PARALLEL SAFE, and LEAKPROOF (where allowed):
+-- - steadytext_generate(), steadytext_embed(), steadytext_generate_json(), 
+--   steadytext_generate_regex(), steadytext_generate_choice() are IMMUTABLE PARALLEL SAFE
+-- - steadytext_version() is IMMUTABLE PARALLEL SAFE LEAKPROOF
+-- - steadytext_cache_stats() and steadytext_config_get() are STABLE PARALLEL SAFE
+-- - steadytext_config_get() is also LEAKPROOF since it's a simple SQL function
+-- This enables use with TimescaleDB and in aggregates, and improves query optimization

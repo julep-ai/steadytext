@@ -93,6 +93,7 @@ CREATE OR REPLACE FUNCTION steadytext_generate_stream(
 )
 RETURNS SETOF TEXT
 LANGUAGE plpython3u
+IMMUTABLE PARALLEL SAFE
 AS $$
 # AIDEV-NOTE: Simple streaming text generation function
 import json
@@ -146,6 +147,7 @@ CREATE OR REPLACE FUNCTION steadytext_embed_batch(
 )
 RETURNS TABLE(text TEXT, embedding vector)
 LANGUAGE plpython3u
+IMMUTABLE PARALLEL SAFE
 AS $$
 # AIDEV-NOTE: Batch embedding function for multiple texts
 import json
@@ -266,6 +268,7 @@ RETURNS TABLE(
     processing_time_ms INT
 )
 LANGUAGE sql
+STABLE PARALLEL SAFE LEAKPROOF
 AS $$
     SELECT 
         status,
@@ -290,6 +293,7 @@ RETURNS TABLE(
     similarity FLOAT
 )
 LANGUAGE plpgsql
+STABLE PARALLEL SAFE
 AS $$
 DECLARE
     query_embedding vector;
@@ -372,3 +376,14 @@ BEGIN
     RETURN deleted_count;
 END;
 $$;
+
+-- AIDEV-NOTE: Added in v1.0.1 (2025-07-07):
+-- Marked deterministic and read-only functions with appropriate properties:
+-- - steadytext_generate_stream() is IMMUTABLE PARALLEL SAFE
+-- - steadytext_embed_batch() is IMMUTABLE PARALLEL SAFE
+-- - steadytext_check_async() is STABLE PARALLEL SAFE LEAKPROOF
+-- - steadytext_semantic_search() is STABLE PARALLEL SAFE
+-- Functions that modify state remain VOLATILE:
+-- - _steadytext_init_python() (modifies GD)
+-- - steadytext_generate_async() (inserts into queue)
+-- - steadytext_cache_evict() (deletes from cache)
