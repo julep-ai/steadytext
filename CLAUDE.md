@@ -845,33 +845,44 @@ docker exec -it pg_steadytext psql -U postgres -c "SELECT steadytext_version();"
 
 AIDEV-NOTE: The PostgreSQL extension now supports structured output generation using the same grammar-based approach as the main library.
 
-**New SQL Functions:**
+## PostgreSQL Extension Async Functions (v1.1.0+)
 
+AIDEV-NOTE: The PostgreSQL extension now includes async counterparts for all generation and embedding functions.
+
+**Key Features:**
+- Non-blocking execution: Functions return UUID immediately
+- Queue-based processing with priority support
+- Background worker handles AI operations
+- LISTEN/NOTIFY integration for responsive processing
+- Batch operations for efficiency
+
+**New Async SQL Functions:**
 ```sql
--- Generate JSON with schema validation
-SELECT steadytext_generate_json(
-    'Create a person',
-    '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}}'::jsonb
-);
+-- Async generation
+steadytext_generate_async(prompt, max_tokens) → UUID
+steadytext_embed_async(text, use_cache) → UUID
+steadytext_generate_json_async(prompt, schema, max_tokens, use_cache, seed) → UUID
+steadytext_generate_regex_async(prompt, pattern, max_tokens, use_cache, seed) → UUID
+steadytext_generate_choice_async(prompt, choices, use_cache, seed) → UUID
 
--- Generate text matching a regex pattern
-SELECT steadytext_generate_regex(
-    'My phone number is',
-    '\d{3}-\d{3}-\d{4}'
-);
+-- Batch operations
+steadytext_generate_batch_async(prompts[], max_tokens) → UUID[]
+steadytext_embed_batch_async(texts[], use_cache) → UUID[]
 
--- Generate one of the provided choices
-SELECT steadytext_generate_choice(
-    'Is Python good?',
-    ARRAY['yes', 'no', 'maybe']
-);
+-- Result retrieval
+steadytext_check_async(request_id) → (status, result, error, ...)
+steadytext_get_async_result(request_id, timeout_seconds) → TEXT
+steadytext_cancel_async(request_id) → BOOLEAN
+steadytext_check_async_batch(request_ids[]) → TABLE
 ```
 
 **Implementation Details:**
-- All structured functions support caching with schema/pattern/choices included in cache keys
+- Queue table (`steadytext_queue`) stores all async requests
+- Python worker (`pg_steadytext/python/worker.py`) processes queue
+- Updated to handle all structured generation types
+- Supports concurrent workers with `FOR UPDATE SKIP LOCKED`
+- All async functions follow the same patterns as synchronous versions
 - Functions use the same `daemon_connector.py` methods that wrap the main library
-- Fallback generation provides deterministic outputs when models are unavailable
-- All functions return NULL on error (no fallback text)
 
 AIDEV-TODO: Add tests for PostgreSQL structured generation functions
 AIDEV-TODO: Consider adding support for Pydantic models in PostgreSQL (would need JSON serialization)

@@ -73,6 +73,59 @@ class QueueWorker:
 
         return embedding.tolist()
 
+    def process_generation_json(self, request_data: Dict[str, Any]) -> str:
+        """Process a JSON generation request
+        AIDEV-NOTE: Added in v1.1.0 for async structured generation support
+        """
+        prompt = request_data["prompt"]
+        params = request_data.get("params", {})
+        schema = params.get("schema", {})
+        max_tokens = params.get("max_tokens", 512)
+        seed = params.get("seed", 42)
+        
+        # Validate input
+        is_valid, error_msg = SecurityValidator.validate_prompt(prompt)
+        if not is_valid:
+            raise ValueError(error_msg)
+        
+        # Generate JSON using daemon connector
+        return self.daemon_client.generate_json(prompt, schema, max_tokens=max_tokens, seed=seed)
+    
+    def process_generation_regex(self, request_data: Dict[str, Any]) -> str:
+        """Process a regex-constrained generation request
+        AIDEV-NOTE: Added in v1.1.0 for async structured generation support
+        """
+        prompt = request_data["prompt"]
+        params = request_data.get("params", {})
+        pattern = params.get("pattern", "")
+        max_tokens = params.get("max_tokens", 512)
+        seed = params.get("seed", 42)
+        
+        # Validate input
+        is_valid, error_msg = SecurityValidator.validate_prompt(prompt)
+        if not is_valid:
+            raise ValueError(error_msg)
+        
+        # Generate text matching regex using daemon connector
+        return self.daemon_client.generate_regex(prompt, pattern, max_tokens=max_tokens, seed=seed)
+    
+    def process_generation_choice(self, request_data: Dict[str, Any]) -> str:
+        """Process a choice-constrained generation request
+        AIDEV-NOTE: Added in v1.1.0 for async structured generation support
+        """
+        prompt = request_data["prompt"]
+        params = request_data.get("params", {})
+        choices = params.get("choices", [])
+        seed = params.get("seed", 42)
+        
+        # Validate input
+        is_valid, error_msg = SecurityValidator.validate_prompt(prompt)
+        if not is_valid:
+            raise ValueError(error_msg)
+        
+        # Generate choice using daemon connector
+        return self.daemon_client.generate_choice(prompt, choices, seed=seed)
+
     def process_queue_item(self, item: Dict[str, Any]) -> None:
         """Process a single queue item"""
         conn = self.connect_db()
@@ -124,6 +177,61 @@ class QueueWorker:
                         """,
                             (
                                 embedding,
+                                int((time.time() - start_time) * 1000),
+                                item["id"],
+                            ),
+                        )
+                    
+                    # AIDEV-NOTE: Added structured generation types in v1.1.0
+                    elif item["request_type"] == "generate_json":
+                        result = self.process_generation_json(item)
+                        cur.execute(
+                            """
+                            UPDATE steadytext_queue 
+                            SET status = 'completed',
+                                result = %s,
+                                completed_at = NOW(),
+                                processing_time_ms = %s
+                            WHERE id = %s
+                        """,
+                            (
+                                result,
+                                int((time.time() - start_time) * 1000),
+                                item["id"],
+                            ),
+                        )
+                    
+                    elif item["request_type"] == "generate_regex":
+                        result = self.process_generation_regex(item)
+                        cur.execute(
+                            """
+                            UPDATE steadytext_queue 
+                            SET status = 'completed',
+                                result = %s,
+                                completed_at = NOW(),
+                                processing_time_ms = %s
+                            WHERE id = %s
+                        """,
+                            (
+                                result,
+                                int((time.time() - start_time) * 1000),
+                                item["id"],
+                            ),
+                        )
+                    
+                    elif item["request_type"] == "generate_choice":
+                        result = self.process_generation_choice(item)
+                        cur.execute(
+                            """
+                            UPDATE steadytext_queue 
+                            SET status = 'completed',
+                                result = %s,
+                                completed_at = NOW(),
+                                processing_time_ms = %s
+                            WHERE id = %s
+                        """,
+                            (
+                                result,
                                 int((time.time() - start_time) * 1000),
                                 item["id"],
                             ),

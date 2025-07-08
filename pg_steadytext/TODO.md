@@ -2,6 +2,22 @@
 
 This file contains detailed implementation tasks for the pg_steadytext PostgreSQL extension.
 
+## UPDATE: Async Functions Completed (v1.1.0)
+
+AIDEV-NOTE: The following async functions have been implemented:
+- ✅ `steadytext_generate_async` - Queue text generation
+- ✅ `steadytext_embed_async` - Queue embedding generation  
+- ✅ `steadytext_generate_json_async` - Queue JSON generation with schema
+- ✅ `steadytext_generate_regex_async` - Queue regex-constrained generation
+- ✅ `steadytext_generate_choice_async` - Queue choice-constrained generation
+- ✅ `steadytext_generate_batch_async` - Queue multiple generation requests
+- ✅ `steadytext_embed_batch_async` - Queue multiple embedding requests
+- ✅ `steadytext_check_async` - Check async request status
+- ✅ `steadytext_get_async_result` - Get result with timeout
+- ✅ `steadytext_cancel_async` - Cancel pending request
+- ✅ `steadytext_check_async_batch` - Check multiple request statuses
+- ✅ Background worker (`python/worker.py`) processes all request types
+
 ## Phase 1: Basic Infrastructure Setup (Week 1)
 
 ### 1.1 Set up PostgreSQL Extensions [Complexity: Medium, Uncertainty: Low]
@@ -257,11 +273,11 @@ CREATE OR REPLACE FUNCTION steadytext_daemon_start() RETURNS VOID AS $$
 $$ LANGUAGE plpython3u;
 ```
 
-## Phase 3: Background Worker & Async Processing (Week 3)
+## Phase 3: Background Worker & Async Processing (Week 3) ✅ COMPLETED
 
-### 3.1 Queue system implementation [Complexity: High, Uncertainty: Medium]
+### 3.1 Queue system implementation [Complexity: High, Uncertainty: Medium] ✅ COMPLETED
 
-#### 3.1.1 Design queue schema with priority and status tracking
+#### 3.1.1 Design queue schema with priority and status tracking ✅ COMPLETED
 ```sql
 CREATE TABLE steadytext_queue (
     id BIGSERIAL PRIMARY KEY,
@@ -283,7 +299,7 @@ CREATE INDEX idx_queue_status_priority ON steadytext_queue(status, priority DESC
 CREATE INDEX idx_queue_user ON steadytext_queue(user_id, created_at DESC);
 ```
 
-#### 3.1.2 Implement async generation function
+#### 3.1.2 Implement async generation function ✅ COMPLETED
 ```sql
 CREATE OR REPLACE FUNCTION steadytext_generate_async(
     prompt TEXT,
@@ -306,9 +322,10 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-### 3.2 Background worker process with omni_worker [Complexity: High, Uncertainty: High]
+### 3.2 Background worker process with omni_worker [Complexity: High, Uncertainty: High] ✅ COMPLETED (without omni_worker)
 
-#### 3.2.1 Create worker using omni_worker framework
+#### 3.2.1 Create worker using omni_worker framework ✅ COMPLETED
+AIDEV-NOTE: Implemented as standalone Python worker (worker.py) that polls the queue table using psycopg2
 ```python
 # python/worker.py
 # AIDEV-NOTE: omni_worker provides background job processing
