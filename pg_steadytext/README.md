@@ -8,7 +8,7 @@
 - **Vector Embeddings**: Generate 1024-dimensional embeddings compatible with pgvector
 - **Built-in Caching**: PostgreSQL-based frecency cache that mirrors SteadyText's cache
 - **Daemon Integration**: Seamlessly integrates with SteadyText's ZeroMQ daemon
-- **Async Processing**: Queue-based asynchronous text generation (coming soon)
+- **Async Processing**: Queue-based asynchronous generation and embedding with background workers
 - **Security**: Input validation and rate limiting
 - **Monitoring**: Health checks and performance statistics
 
@@ -138,6 +138,32 @@ SELECT steadytext_generate_choice(
     ARRAY['positive', 'negative', 'neutral']
 );
 ```
+
+### Async Functions (v1.1.0+)
+
+```sql
+-- Queue async generation
+SELECT request_id FROM steadytext_generate_async('Write a story about space');
+
+-- Queue async structured generation
+SELECT steadytext_generate_json_async(
+    'Create a product',
+    '{"type": "object", "properties": {"name": {"type": "string"}, "price": {"type": "number"}}}'::jsonb
+);
+
+-- Check async status
+SELECT * FROM steadytext_check_async('your-request-id'::uuid);
+
+-- Get result (blocks until ready)
+SELECT steadytext_get_async_result('your-request-id'::uuid, timeout_seconds := 30);
+
+-- Batch operations
+SELECT unnest(steadytext_generate_batch_async(
+    ARRAY['Prompt 1', 'Prompt 2', 'Prompt 3']
+));
+```
+
+See [docs/ASYNC_FUNCTIONS.md](docs/ASYNC_FUNCTIONS.md) for complete async documentation.
 
 ## Architecture
 
