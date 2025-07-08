@@ -39,30 +39,36 @@ theme:
 nav:
   - Home: index.md
   - Quick Start: quick-start.md
+  - Architecture: architecture.md
   - API Reference:
     - Overview: api/index.md
     - Text Generation: api/generation.md
-    - Structured Generation: structured-generation.md
     - Embeddings: api/embedding.md
+    - Structured Generation: structured-generation.md
     - CLI Reference: api/cli.md
   - Guides:
+    - Deployment: deployment.md
     - Caching: examples/caching.md
     - Cache Backends: cache-backends.md
     - Custom Seeds: examples/custom-seeds.md
     - Daemon Usage: examples/daemon-usage.md
-    - Deployment: deployment.md
     - Error Handling: examples/error-handling.md
-    - Integrations: integrations.md
     - Performance Tuning: examples/performance-tuning.md
-    - PostgreSQL Extension: pg_steadytext.md
+    - PostgreSQL Extension: postgresql-extension.md
+    - PostgreSQL Integration: examples/postgresql-integration.md
+    - Integrations: integrations.md
+    - Model Switching: model-switching.md
+    - EOS String Implementation: eos-string-implementation.md
   - Examples:
     - Overview: examples/index.md
     - Testing with AI: examples/testing.md
     - CLI Tools: examples/tooling.md
-  - Contributing: contributing.md
-  - About:
+  - Reference:
+    - FAQ: faq.md
+    - Migration Guide: migration-guide.md
+    - Benchmarks: benchmarks.md
     - Version History: version_history.md
-    - Model Switching: model-switching.md
+  - Contributing: contributing.md
 
 markdown_extensions:
   - pymdownx.highlight:
