@@ -39,7 +39,10 @@ case $COMMAND in
         ;;
     clean)
         echo "Cleaning build artifacts..."
-        rm -rf build/
+        # Use safer cleanup with explicit path validation
+        if [ -d "packaging/build" ]; then
+            rm -rf packaging/build/
+        fi
         ;;
     *)
         echo "Usage: $0 [all|deb|rpm|pgxn|test|clean]"

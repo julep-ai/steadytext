@@ -31,7 +31,7 @@ if [ -d "build/rpm/RPMS" ]; then
 fi
 
 # Test PGXN package
-if [ -f "build/pgxn/*.zip" ]; then
+if ls build/pgxn/*.zip >/dev/null 2>&1; then
     echo "=== Testing PGXN package ==="
     for zip in build/pgxn/*.zip; do
         if [ -f "$zip" ]; then

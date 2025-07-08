@@ -105,8 +105,10 @@ The extension needs access to the SteadyText Python package:
 SHOW plpython3.python_path;
 
 -- The package installer should have set this automatically
--- If not, set it manually:
-ALTER DATABASE your_db SET plpython3.python_path = '/opt/steadytext/venv/lib/python3.11/site-packages';
+-- If not, set it manually (adjust Python version as needed):
+ALTER DATABASE your_db SET plpython3.python_path = '/opt/steadytext/venv/lib/python3.*/site-packages';
+-- Or find the exact path:
+-- ls /opt/steadytext/venv/lib/
 ```
 
 ### 2. Async Worker Service
@@ -156,8 +158,10 @@ sudo chown -R postgres:postgres /opt/steadytext
 
 If the extension can't find the Python module:
 ```sql
--- Set the Python path explicitly
-ALTER DATABASE your_db SET plpython3.python_path = '/opt/steadytext/venv/lib/python3.11/site-packages';
+-- Set the Python path explicitly (adjust Python version as needed)
+ALTER DATABASE your_db SET plpython3.python_path = '/opt/steadytext/venv/lib/python3.*/site-packages';
+-- Or find the exact path:
+-- ls /opt/steadytext/venv/lib/
 
 -- Reload configuration
 SELECT pg_reload_conf();

@@ -4,8 +4,23 @@
 set -e
 
 # Read version from META.json
-VERSION=$(python3 -c "import json; print(json.load(open('../pg_steadytext/META.json'))['version'])")
-PYTHON_VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('../pyproject.toml', 'rb'))['project']['version'])")
+VERSION=$(python3 -c "
+import json, sys
+try:
+    print(json.load(open('../pg_steadytext/META.json'))['version'])
+except (FileNotFoundError, KeyError, json.JSONDecodeError) as e:
+    print(f'Error reading version from META.json: {e}', file=sys.stderr)
+    sys.exit(1)
+") || exit 1
+
+PYTHON_VERSION=$(python3 -c "
+import tomllib, sys
+try:
+    print(tomllib.load(open('../pyproject.toml', 'rb'))['project']['version'])
+except (FileNotFoundError, KeyError, tomllib.TOMLDecodeError) as e:
+    print(f'Error reading version from pyproject.toml: {e}', file=sys.stderr)
+    sys.exit(1)
+") || exit 1
 
 # PostgreSQL versions to build for
 PG_VERSIONS=${PG_VERSIONS:-"14 15 16 17"}
@@ -65,18 +80,18 @@ mkdir -p %{buildroot}/usr/lib/systemd/system
 mkdir -p %{buildroot}/usr/share/doc/%{name}
 
 # Copy extension files
-cp ${PWD}/../pg_steadytext/*.control %{buildroot}%{pginstdir}/share/extension/
-cp ${PWD}/../pg_steadytext/sql/*.sql %{buildroot}%{pginstdir}/share/extension/
+cp %{_builddir}/../pg_steadytext/*.control %{buildroot}%{pginstdir}/share/extension/
+cp %{_builddir}/../pg_steadytext/sql/*.sql %{buildroot}%{pginstdir}/share/extension/
 
 # Copy Python files
-cp -r ${PWD}/../pg_steadytext/python/* %{buildroot}/opt/steadytext/python/
+cp -r %{_builddir}/../pg_steadytext/python/* %{buildroot}/opt/steadytext/python/
 
 # Copy service file
-cp ${PWD}/../pg_steadytext/pg_steadytext_worker.service %{buildroot}/usr/lib/systemd/system/
+cp %{_builddir}/../pg_steadytext/pg_steadytext_worker.service %{buildroot}/usr/lib/systemd/system/
 
 # Copy documentation
-cp ${PWD}/../pg_steadytext/README.md %{buildroot}/usr/share/doc/%{name}/
-cp ${PWD}/../LICENSE %{buildroot}/usr/share/doc/%{name}/
+cp %{_builddir}/../pg_steadytext/README.md %{buildroot}/usr/share/doc/%{name}/
+cp %{_builddir}/../LICENSE %{buildroot}/usr/share/doc/%{name}/
 
 %files
 %defattr(-,root,root,-)
@@ -87,9 +102,18 @@ cp ${PWD}/../LICENSE %{buildroot}/usr/share/doc/%{name}/
 
 %post
 # Create virtual environment and install dependencies
-python3 -m venv /opt/steadytext/venv
-/opt/steadytext/venv/bin/pip install --upgrade pip
-/opt/steadytext/venv/bin/pip install steadytext
+if ! python3 -m venv /opt/steadytext/venv; then
+    echo "Failed to create virtual environment" >&2
+    exit 1
+fi
+if ! /opt/steadytext/venv/bin/pip install --upgrade pip; then
+    echo "Failed to upgrade pip" >&2
+    exit 1
+fi
+if ! /opt/steadytext/venv/bin/pip install steadytext; then
+    echo "Failed to install steadytext package" >&2
+    exit 1
+fi
 
 # Set permissions
 chown -R postgres:postgres /opt/steadytext
@@ -114,8 +138,10 @@ systemctl disable pg_steadytext_worker.service || true
 EOF
     
     # Build the RPM
-    rpmbuild --define "_topdir ${PWD}/${BUILD_DIR}" \
-             --define "_builddir ${PWD}" \
+    TOPDIR=$(realpath "${BUILD_DIR}")
+    BUILDDIR=$(realpath .)
+    rpmbuild --define "_topdir ${TOPDIR}" \
+             --define "_builddir ${BUILDDIR}" \
              -bb "${BUILD_DIR}/SPECS/pg_steadytext-pg${PG_VERSION}.spec"
     
     echo "Built RPM for PostgreSQL ${PG_VERSION}"

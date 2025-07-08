@@ -4,7 +4,14 @@
 set -e
 
 # Read version from META.json
-VERSION=$(python3 -c "import json; print(json.load(open('../pg_steadytext/META.json'))['version'])")
+VERSION=$(python3 -c "
+import json, sys
+try:
+    print(json.load(open('../pg_steadytext/META.json'))['version'])
+except (FileNotFoundError, KeyError, json.JSONDecodeError) as e:
+    print(f'Error reading version from META.json: {e}', file=sys.stderr)
+    sys.exit(1)
+") || exit 1
 
 echo "Preparing pg_steadytext v${VERSION} for PGXN"
 
