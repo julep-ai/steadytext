@@ -82,15 +82,17 @@ class QueueWorker:
         schema = params.get("schema", {})
         max_tokens = params.get("max_tokens", 512)
         seed = params.get("seed", 42)
-        
+
         # Validate input
         is_valid, error_msg = SecurityValidator.validate_prompt(prompt)
         if not is_valid:
             raise ValueError(error_msg)
-        
+
         # Generate JSON using daemon connector
-        return self.daemon_client.generate_json(prompt, schema, max_tokens=max_tokens, seed=seed)
-    
+        return self.daemon_client.generate_json(
+            prompt, schema, max_tokens=max_tokens, seed=seed
+        )
+
     def process_generation_regex(self, request_data: Dict[str, Any]) -> str:
         """Process a regex-constrained generation request
         AIDEV-NOTE: Added in v1.1.0 for async structured generation support
@@ -100,15 +102,17 @@ class QueueWorker:
         pattern = params.get("pattern", "")
         max_tokens = params.get("max_tokens", 512)
         seed = params.get("seed", 42)
-        
+
         # Validate input
         is_valid, error_msg = SecurityValidator.validate_prompt(prompt)
         if not is_valid:
             raise ValueError(error_msg)
-        
+
         # Generate text matching regex using daemon connector
-        return self.daemon_client.generate_regex(prompt, pattern, max_tokens=max_tokens, seed=seed)
-    
+        return self.daemon_client.generate_regex(
+            prompt, pattern, max_tokens=max_tokens, seed=seed
+        )
+
     def process_generation_choice(self, request_data: Dict[str, Any]) -> str:
         """Process a choice-constrained generation request
         AIDEV-NOTE: Added in v1.1.0 for async structured generation support
@@ -117,12 +121,12 @@ class QueueWorker:
         params = request_data.get("params", {})
         choices = params.get("choices", [])
         seed = params.get("seed", 42)
-        
+
         # Validate input
         is_valid, error_msg = SecurityValidator.validate_prompt(prompt)
         if not is_valid:
             raise ValueError(error_msg)
-        
+
         # Generate choice using daemon connector
         return self.daemon_client.generate_choice(prompt, choices, seed=seed)
 
@@ -181,7 +185,7 @@ class QueueWorker:
                                 item["id"],
                             ),
                         )
-                    
+
                     # AIDEV-NOTE: Added structured generation types in v1.1.0
                     elif item["request_type"] == "generate_json":
                         result = self.process_generation_json(item)
@@ -200,7 +204,7 @@ class QueueWorker:
                                 item["id"],
                             ),
                         )
-                    
+
                     elif item["request_type"] == "generate_regex":
                         result = self.process_generation_regex(item)
                         cur.execute(
@@ -218,7 +222,7 @@ class QueueWorker:
                                 item["id"],
                             ),
                         )
-                    
+
                     elif item["request_type"] == "generate_choice":
                         result = self.process_generation_choice(item)
                         cur.execute(
