@@ -336,4 +336,73 @@ AIDEV-TODO: Track updates to the inference-sh fork for gemma-3n support
 
 ---
 
+## Async Functions Implementation (v1.1.0)
+
+### AIDEV-NOTE: Async Architecture Overview
+
+The async implementation uses a queue-based approach that allows PostgreSQL to continue processing while AI generation happens in the background:
+
+1. **Queue Table**: `steadytext_queue` stores all async requests with metadata
+2. **Request Functions**: `*_async` functions insert into queue and return UUID immediately
+3. **Background Worker**: Python worker polls queue and processes requests
+4. **Result Retrieval**: Multiple ways to check status and get results
+
+### Key Design Decisions
+
+1. **Why Queue Table?**: 
+   - Native PostgreSQL solution (no external dependencies)
+   - Survives restarts (persistent storage)
+   - Supports LISTEN/NOTIFY for responsive processing
+   - Allows multiple workers with SKIP LOCKED
+
+2. **Request Types**:
+   - `generate`: Basic text generation
+   - `embed`: Embedding generation
+   - `generate_json`: JSON with schema validation
+   - `generate_regex`: Regex-constrained generation
+   - `generate_choice`: Choice-constrained generation
+
+3. **Worker Design**:
+   - Single-threaded Python worker (can run multiple instances)
+   - Uses daemon_connector for all AI operations
+   - Handles retries and error recovery
+   - Updates queue status atomically
+
+### AIDEV-TODO: Future Async Enhancements
+
+1. **Streaming Support**: Add Server-Sent Events (SSE) endpoint for streaming results
+2. **Priority Queue Optimization**: Implement more sophisticated scheduling algorithms
+3. **Worker Pool Management**: Auto-scale workers based on queue depth
+4. **Result Callbacks**: Support PostgreSQL triggers on completion
+5. **Distributed Workers**: Support workers on different machines
+
+### Testing Async Functions
+
+```sql
+-- Quick test of all async functions
+SELECT steadytext_generate_async('Test', 10);
+SELECT steadytext_embed_async('Test');
+SELECT steadytext_generate_json_async('Test', '{"type": "string"}'::jsonb);
+SELECT steadytext_generate_regex_async('Test', '\d+');
+SELECT steadytext_generate_choice_async('Test', ARRAY['a', 'b']);
+
+-- Check all results
+SELECT request_id, request_type, status FROM steadytext_queue 
+WHERE created_at > NOW() - INTERVAL '1 minute';
+```
+
+### Common Async Issues
+
+1. **Worker Not Running**: Queue fills with 'pending' requests
+   - Start worker: `python /path/to/worker.py`
+   - Check worker logs for errors
+
+2. **Slow Processing**: Requests take too long
+   - Check daemon status: `SELECT * FROM steadytext_daemon_health;`
+   - Monitor queue depth: `SELECT COUNT(*) FROM steadytext_queue WHERE status = 'pending';`
+
+3. **Failed Requests**: Requests consistently fail
+   - Check error messages: `SELECT * FROM steadytext_queue WHERE status = 'failed';`
+   - Verify model availability and daemon connection
+
 **AIDEV-NOTE**: This file should be updated whenever architectural decisions change or new patterns are established.
