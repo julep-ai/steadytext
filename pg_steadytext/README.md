@@ -11,6 +11,7 @@
 - **Async Processing**: Queue-based asynchronous text generation (coming soon)
 - **Security**: Input validation and rate limiting
 - **Monitoring**: Health checks and performance statistics
+- **AI Summarization**: Aggregate functions for intelligent text summarization with TimescaleDB support (v1.1.0+)
 
 ## Requirements
 
@@ -139,6 +140,54 @@ SELECT steadytext_generate_choice(
 );
 ```
 
+### AI Summarization (v1.1.0+)
+
+```sql
+-- Summarize a single text
+SELECT ai_summarize_text(
+    'PostgreSQL provides ACID compliance and supports complex queries with JSON.',
+    '{"source": "documentation"}'::jsonb
+);
+
+-- Aggregate summarization
+SELECT 
+    category,
+    ai_summarize(content, jsonb_build_object('importance', importance)) as summary,
+    count(*) as doc_count
+FROM documents
+GROUP BY category;
+
+-- Use with TimescaleDB continuous aggregates
+CREATE MATERIALIZED VIEW hourly_log_summaries
+WITH (timescaledb.continuous) AS
+SELECT 
+    time_bucket('1 hour', timestamp) AS hour,
+    log_level,
+    ai_summarize_partial(
+        message,
+        jsonb_build_object('severity', severity, 'service', service_name)
+    ) AS partial_summary,
+    count(*) as log_count
+FROM application_logs
+GROUP BY hour, log_level;
+
+-- Query continuous aggregate with final summarization
+SELECT 
+    time_bucket('1 day', hour) as day,
+    log_level,
+    ai_summarize_final(partial_summary) as daily_summary,
+    sum(log_count) as total_logs
+FROM hourly_log_summaries
+WHERE hour >= NOW() - INTERVAL '7 days'
+GROUP BY day, log_level;
+
+-- Extract facts from text
+SELECT ai_extract_facts(
+    'PostgreSQL supports JSON, arrays, full-text search, and has built-in replication.',
+    5  -- max facts
+);
+```
+
 ## Architecture
 
 pg_steadytext integrates with SteadyText's existing architecture:
@@ -174,6 +223,14 @@ PostgreSQL Client
 - `steadytext_generate_json(prompt, schema, max_tokens, use_cache, seed)` - Generate JSON conforming to schema
 - `steadytext_generate_regex(prompt, pattern, max_tokens, use_cache, seed)` - Generate text matching regex
 - `steadytext_generate_choice(prompt, choices, max_tokens, use_cache, seed)` - Generate one of the choices
+
+### AI Summarization Functions (v1.1.0+)
+- `ai_summarize(text, metadata)` - Aggregate function for text summarization
+- `ai_summarize_partial(text, metadata)` - Partial aggregate for TimescaleDB continuous aggregates
+- `ai_summarize_final(jsonb)` - Final aggregate for completing partial summaries
+- `ai_summarize_text(text, metadata)` - Convenience function for single-value summarization
+- `ai_extract_facts(text, max_facts)` - Extract structured facts from text
+- `ai_deduplicate_facts(jsonb, similarity_threshold)` - Deduplicate facts using semantic similarity
 
 ### Management Functions
 - `steadytext_daemon_start()` - Start the daemon
