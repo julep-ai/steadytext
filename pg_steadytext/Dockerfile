@@ -11,10 +11,12 @@ ENV STEADYTEXT_USE_FALLBACK_MODEL=${STEADYTEXT_USE_FALLBACK_MODEL}
 
 # Install build dependencies
 # AIDEV-NOTE: This layer is cached and rarely changes
+# AIDEV-NOTE: pgTAP added for PostgreSQL TAP testing framework
 RUN apt-get update && apt-get install -y \
     postgresql-server-dev-17 \
     postgresql-plpython3-17 \
     postgresql-17-pgvector \
+    postgresql-17-pgtap \
     python3-pip \
     python3-dev \
     make \
