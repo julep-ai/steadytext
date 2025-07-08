@@ -1,0 +1,265 @@
+name: Build Distribution Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - 'pg-v*'
+  workflow_dispatch:
+    inputs:
+      postgresql_versions:
+        description: 'PostgreSQL versions to build for (comma-separated, e.g., 14,15,16,17)'
+        required: false
+        default: '14,15,16,17'
+
+jobs:
+  build-packages:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pg_version: [14, 15, 16, 17]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install UV
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          debhelper \
+          devscripts \
+          fakeroot \
+          postgresql-server-dev-${{ matrix.pg_version }} \
+          rpm \
+          rpmbuild \
+          alien
+    
+    - name: Create packaging directories
+      run: |
+        mkdir -p packaging/build/{deb,rpm,pgxn}
+        mkdir -p packaging/output
+    
+    - name: Get version information
+      id: version
+      run: |
+        PG_VERSION=$(jq -r '.version' pg_steadytext/META.json)
+        PY_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
+        echo "pg_version=$PG_VERSION" >> $GITHUB_OUTPUT
+        echo "py_version=$PY_VERSION" >> $GITHUB_OUTPUT
+        echo "PostgreSQL extension version: $PG_VERSION"
+        echo "Python package version: $PY_VERSION"
+    
+    - name: Build Python virtual environment
+      run: |
+        cd packaging/build
+        uv venv venv
+        source venv/bin/activate
+        uv pip install ../../
+    
+    - name: Build Debian package
+      run: |
+        # Create debian package structure
+        PKG_NAME="pg-steadytext-postgresql-${{ matrix.pg_version }}"
+        PKG_DIR="packaging/build/deb/${PKG_NAME}_${{ steps.version.outputs.pg_version }}"
+        
+        mkdir -p $PKG_DIR/{DEBIAN,usr/lib/postgresql/${{ matrix.pg_version }}/lib}
+        mkdir -p $PKG_DIR/usr/share/postgresql/${{ matrix.pg_version }}/extension
+        mkdir -p $PKG_DIR/opt/steadytext/{venv,bin}
+        mkdir -p $PKG_DIR/etc/systemd/system
+        
+        # Copy extension files
+        cp pg_steadytext/pg_steadytext.control $PKG_DIR/usr/share/postgresql/${{ matrix.pg_version }}/extension/
+        cp pg_steadytext/sql/*.sql $PKG_DIR/usr/share/postgresql/${{ matrix.pg_version }}/extension/
+        
+        # Copy Python environment
+        cp -r packaging/build/venv/* $PKG_DIR/opt/steadytext/venv/
+        
+        # Copy worker files
+        cp pg_steadytext/python/*.py $PKG_DIR/opt/steadytext/
+        cp pg_steadytext/pg_steadytext_worker.service $PKG_DIR/etc/systemd/system/
+        
+        # Create control file
+        cat > $PKG_DIR/DEBIAN/control << EOF
+        Package: $PKG_NAME
+        Version: ${{ steps.version.outputs.pg_version }}
+        Section: database
+        Priority: optional
+        Architecture: amd64
+        Depends: postgresql-${{ matrix.pg_version }}, postgresql-plpython3-${{ matrix.pg_version }}, python3 (>= 3.9)
+        Maintainer: SteadyText Team <support@steadytext.ai>
+        Description: SteadyText PostgreSQL extension for AI text generation
+         Provides deterministic text generation and embedding functions
+         for PostgreSQL ${{ matrix.pg_version }}.
+        EOF
+        
+        # Create postinst script
+        cat > $PKG_DIR/DEBIAN/postinst << 'EOF'
+        #!/bin/bash
+        set -e
+        
+        # Reload systemd
+        systemctl daemon-reload
+        
+        # Enable and start worker service
+        systemctl enable pg_steadytext_worker.service
+        systemctl start pg_steadytext_worker.service
+        
+        echo "SteadyText PostgreSQL extension installed successfully"
+        echo "Create extension with: CREATE EXTENSION pg_steadytext;"
+        EOF
+        chmod 755 $PKG_DIR/DEBIAN/postinst
+        
+        # Build the package
+        dpkg-deb --build $PKG_DIR
+        mv packaging/build/deb/*.deb packaging/output/
+    
+    - name: Build RPM package
+      run: |
+        # Convert deb to rpm using alien
+        cd packaging/output
+        for deb in *.deb; do
+          sudo alien -r --scripts $deb
+        done
+        
+        # Alternative: Build native RPM
+        # This would require a proper .spec file
+    
+    - name: Build PGXN package
+      run: |
+        cd pg_steadytext
+        
+        # Create PGXN distribution
+        mkdir -p ../packaging/output/pgxn
+        tar czf ../packaging/output/pgxn/pg_steadytext-${{ steps.version.outputs.pg_version }}.tar.gz \
+          --exclude='*.pyc' \
+          --exclude='__pycache__' \
+          --exclude='.git' \
+          --exclude='test' \
+          --exclude='expected' \
+          .
+        
+        # Create PGXN META.json with additional info
+        jq '. + {
+          "release_status": "stable",
+          "resources": {
+            "homepage": "https://github.com/julep-ai/steadytext",
+            "bugtracker": {
+              "web": "https://github.com/julep-ai/steadytext/issues"
+            },
+            "repository": {
+              "url": "https://github.com/julep-ai/steadytext.git",
+              "web": "https://github.com/julep-ai/steadytext",
+              "type": "git"
+            }
+          }
+        }' META.json > ../packaging/output/pgxn/META.json
+    
+    - name: Generate Pigsty configuration
+      run: |
+        cat > packaging/output/pg_steadytext.pigsty.yml << EOF
+        # Pigsty configuration for SteadyText
+        # Add this to your pigsty config to install SteadyText
+        
+        pg_extensions:
+          - name: pg_steadytext
+            version: ${{ steps.version.outputs.pg_version }}
+            description: "AI-powered text generation for PostgreSQL"
+            repo: https://github.com/julep-ai/steadytext
+            
+        pg_libs: 'pg_steadytext'
+        
+        pg_extensions_config:
+          pg_steadytext:
+            shared_preload_libraries: 'pg_steadytext'
+            pg_steadytext.python_path: '/opt/steadytext/venv/bin/python'
+        EOF
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: packages-pg${{ matrix.pg_version }}
+        path: packaging/output/*
+    
+  create-release:
+    needs: build-packages
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: packages
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: packages/**/*
+        body: |
+          ## SteadyText Release
+          
+          This release includes packages for:
+          - Debian/Ubuntu (.deb)
+          - RHEL/Rocky/Fedora (.rpm)
+          - PGXN distribution
+          - Pigsty configuration
+          
+          ### Installation
+          
+          #### Debian/Ubuntu
+          ```bash
+          sudo dpkg -i pg-steadytext-postgresql-16_*.deb
+          ```
+          
+          #### RHEL/Rocky/Fedora
+          ```bash
+          sudo rpm -i pg-steadytext-postgresql-16-*.rpm
+          ```
+          
+          #### PGXN
+          ```bash
+          pgxn install pg_steadytext
+          ```
+          
+          See [INSTALL_PACKAGES.md](https://github.com/julep-ai/steadytext/blob/main/INSTALL_PACKAGES.md) for detailed instructions.
+        draft: false
+        prerelease: false
+    
+  test-packages:
+    needs: build-packages
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pg_version: [14, 15, 16, 17]
+        os: [ubuntu:22.04, debian:11, rockylinux:9, fedora:39]
+    
+    steps:
+    - name: Download packages
+      uses: actions/download-artifact@v4
+      with:
+        name: packages-pg${{ matrix.pg_version }}
+        path: packages
+    
+    - name: Test package installation
+      run: |
+        docker run --rm -v $(pwd)/packages:/packages ${{ matrix.os }} bash -c "
+          if command -v apt-get &> /dev/null; then
+            apt-get update && apt-get install -y /packages/*.deb || true
+          elif command -v yum &> /dev/null; then
+            yum install -y /packages/*.rpm || true
+          elif command -v dnf &> /dev/null; then
+            dnf install -y /packages/*.rpm || true
+          fi
+        "
