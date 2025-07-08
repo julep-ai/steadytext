@@ -431,29 +431,32 @@ $$ LANGUAGE plpgsql;
 
 ## Phase 5: Testing & Quality Assurance (Throughout)
 
-### 5.1 Unit testing [Complexity: Low, Uncertainty: Low]
+### 5.1 Unit testing [Complexity: Low, Uncertainty: Low] ✅ COMPLETED
 
-#### 5.1.1 Set up pgTAP testing framework
+#### 5.1.1 Set up pgTAP testing framework ✅ COMPLETED
+AIDEV-NOTE: pgTAP has been integrated as of v1.0.3
+- Created comprehensive test suite in test/pgtap/
+- Added run_pgtap_tests.sh script for test execution
+- Updated Makefile with test-pgtap targets
+- Added CI workflow for automated testing
+- Converted existing tests to pgTAP format
+
 ```sql
--- Install pgTAP
-CREATE EXTENSION pgtap;
+-- pgTAP is now installed via Dockerfile and docker-entrypoint.sh
+CREATE EXTENSION IF NOT EXISTS pgtap CASCADE;
 
--- Example test
-BEGIN;
-SELECT plan(3);
+-- Test suite includes:
+-- 00_setup.sql - pgTAP verification
+-- 01_basic.sql - Core functionality
+-- 02_embeddings.sql - Vector operations
+-- 03_async.sql - Queue operations  
+-- 04_structured.sql - JSON/regex/choice
+-- 05_cache_daemon.sql - Cache and daemon
 
--- Test basic generation
-SELECT has_function('steadytext_generate');
-SELECT function_returns('steadytext_generate', ARRAY['text', 'int', 'boolean', 'boolean'], 'text');
-
--- Test generation output
-SELECT ok(
-    length(steadytext_generate('Hello', 10)) > 0,
-    'Generation returns non-empty text'
-);
-
-SELECT finish();
-ROLLBACK;
+-- Run tests with:
+-- make test-pgtap
+-- make test-pgtap-verbose
+-- make test-pgtap-tap (for CI)
 ```
 
 ## Phase 6: Documentation & Deployment

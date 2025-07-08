@@ -1,0 +1,79 @@
+name: pgTAP Tests
+
+on:
+  push:
+    paths:
+      - 'pg_steadytext/**'
+      - '!pg_steadytext/**/*.md'
+  pull_request:
+    paths:
+      - 'pg_steadytext/**'
+      - '!pg_steadytext/**/*.md'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          postgresql-client-17 \
+          postgresql-17-pgtap \
+          postgresql-plpython3-17 \
+          postgresql-17-pgvector \
+          python3-pip
+        
+        pip3 install steadytext pyzmq numpy
+    
+    - name: Build and install extension
+      working-directory: ./pg_steadytext
+      run: |
+        make
+        sudo make install
+    
+    - name: Run pgTAP tests
+      working-directory: ./pg_steadytext
+      env:
+        PGHOST: localhost
+        PGPORT: 5432
+        PGUSER: postgres
+        PGPASSWORD: postgres
+      run: |
+        # Create test database
+        createdb test_steadytext
+        
+        # Install extensions
+        psql -d test_steadytext -c "CREATE EXTENSION plpython3u CASCADE;"
+        psql -d test_steadytext -c "CREATE EXTENSION vector CASCADE;"
+        psql -d test_steadytext -c "CREATE EXTENSION pgtap CASCADE;"
+        psql -d test_steadytext -c "CREATE EXTENSION pg_steadytext CASCADE;"
+        
+        # Run pgTAP tests with TAP output for CI
+        ./run_pgtap_tests.sh --tap | tee test-results.tap
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: pgtap-test-results
+        path: test-results.tap
+
+# AIDEV-NOTE: This workflow runs pgTAP tests for the PostgreSQL extension
+# It uses TAP output format which can be consumed by various CI tools

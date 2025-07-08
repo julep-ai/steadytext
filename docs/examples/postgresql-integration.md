@@ -1698,4 +1698,936 @@ FULL OUTER JOIN daily_stats d ON r.function_name = d.function_name
 ORDER BY calls_last_day DESC;
 ```
 
+## Structured Generation Examples
+
+SteadyText v2.4.1+ supports structured text generation using native llama.cpp grammars. Generate JSON, regex-constrained text, or multiple-choice responses directly in PostgreSQL.
+
+### JSON Generation
+
+```sql
+-- Generate structured user profiles
+CREATE TABLE user_profiles (
+    id SERIAL PRIMARY KEY,
+    user_data JSONB,
+    generated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Function to generate user profiles
+CREATE OR REPLACE FUNCTION generate_user_profile(
+    description TEXT,
+    profile_seed INTEGER DEFAULT 42
+)
+RETURNS JSONB AS $$
+DECLARE
+    schema JSONB;
+    result TEXT;
+    parsed_json JSONB;
+BEGIN
+    -- Define JSON schema
+    schema := '{
+        "type": "object",
+        "properties": {
+            "name": {"type": "string"},
+            "age": {"type": "integer"},
+            "email": {"type": "string"},
+            "occupation": {"type": "string"},
+            "interests": {
+                "type": "array",
+                "items": {"type": "string"}
+            }
+        }
+    }'::jsonb;
+    
+    -- Generate JSON with error handling
+    result := steadytext_generate_json(
+        'Create a user profile: ' || description,
+        schema,
+        max_tokens := 200,
+        seed := profile_seed
+    );
+    
+    IF result IS NOT NULL THEN
+        -- Extract JSON from the output (it contains <json-output>...</json-output>)
+        result := substring(result FROM '<json-output>(.*)</json-output>');
+        parsed_json := result::jsonb;
+    ELSE
+        -- Fallback on generation failure
+        parsed_json := jsonb_build_object(
+            'name', 'Unknown User',
+            'age', 0,
+            'email', 'unknown@example.com',
+            'error', 'Generation failed'
+        );
+    END IF;
+    
+    RETURN parsed_json;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Generate multiple user profiles
+INSERT INTO user_profiles (user_data)
+SELECT generate_user_profile(description, seed)
+FROM (VALUES 
+    ('software engineer who loves hiking', 100),
+    ('data scientist interested in ML', 200),
+    ('product manager with startup experience', 300)
+) AS profiles(description, seed);
+
+-- Generate product catalog with structured data
+CREATE OR REPLACE FUNCTION generate_product_listing(
+    product_type TEXT,
+    listing_seed INTEGER DEFAULT 42
+)
+RETURNS TABLE(
+    name TEXT,
+    price NUMERIC,
+    specs JSONB,
+    description TEXT
+) AS $$
+DECLARE
+    schema JSONB;
+    result TEXT;
+    product_json JSONB;
+BEGIN
+    schema := '{
+        "type": "object",
+        "properties": {
+            "name": {"type": "string"},
+            "price": {"type": "number"},
+            "specs": {
+                "type": "object",
+                "properties": {
+                    "weight": {"type": "string"},
+                    "dimensions": {"type": "string"},
+                    "material": {"type": "string"}
+                }
+            }
+        }
+    }'::jsonb;
+    
+    result := steadytext_generate_json(
+        format('Create a %s product listing', product_type),
+        schema,
+        seed := listing_seed
+    );
+    
+    IF result IS NOT NULL THEN
+        result := substring(result FROM '<json-output>(.*)</json-output>');
+        product_json := result::jsonb;
+        
+        name := product_json->>'name';
+        price := (product_json->>'price')::numeric;
+        specs := product_json->'specs';
+        
+        -- Generate description separately
+        description := steadytext_generate(
+            format('Write a brief description for %s', product_json->>'name'),
+            max_tokens := 100,
+            seed := listing_seed + 1000
+        );
+    END IF;
+    
+    RETURN NEXT;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### Regex-Constrained Generation
+
+```sql
+-- Generate formatted data matching patterns
+CREATE TABLE formatted_data (
+    id SERIAL PRIMARY KEY,
+    data_type TEXT,
+    formatted_value TEXT,
+    pattern_used TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Phone number generation
+INSERT INTO formatted_data (data_type, formatted_value, pattern_used)
+SELECT 
+    'phone',
+    steadytext_generate_regex(
+        'Customer support number: ',
+        '\(\d{3}\) \d{3}-\d{4}',
+        seed := 1000 + generate_series
+    ),
+    '\(\d{3}\) \d{3}-\d{4}'
+FROM generate_series(1, 5);
+
+-- Generate SKUs with specific format
+INSERT INTO formatted_data (data_type, formatted_value, pattern_used)
+SELECT 
+    'sku',
+    steadytext_generate_regex(
+        'Product SKU: ',
+        '[A-Z]{3}-\d{4}-[A-Z]\d{2}',
+        seed := 2000 + generate_series
+    ),
+    '[A-Z]{3}-\d{4}-[A-Z]\d{2}'
+FROM generate_series(1, 10);
+
+-- Generate formatted dates
+CREATE OR REPLACE FUNCTION generate_event_schedule(
+    num_events INTEGER,
+    base_seed INTEGER DEFAULT 42
+)
+RETURNS TABLE(
+    event_name TEXT,
+    event_date TEXT,
+    event_time TEXT,
+    event_code TEXT
+) AS $$
+BEGIN
+    FOR i IN 1..num_events LOOP
+        event_name := steadytext_generate(
+            'Event name: ',
+            max_tokens := 20,
+            seed := base_seed + i
+        );
+        
+        event_date := steadytext_generate_regex(
+            'Date: ',
+            '\d{4}-\d{2}-\d{2}',
+            seed := base_seed + i + 1000
+        );
+        
+        event_time := steadytext_generate_regex(
+            'Time: ',
+            '\d{2}:\d{2}',
+            seed := base_seed + i + 2000
+        );
+        
+        event_code := steadytext_generate_regex(
+            'Code: ',
+            'EVT-[A-Z]{2}\d{3}',
+            seed := base_seed + i + 3000
+        );
+        
+        RETURN NEXT;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### Multiple Choice Generation
+
+```sql
+-- Sentiment analysis with choices
+CREATE TABLE review_sentiments (
+    id SERIAL PRIMARY KEY,
+    review_text TEXT,
+    sentiment TEXT,
+    confidence_level TEXT,
+    analyzed_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Analyze sentiments
+INSERT INTO review_sentiments (review_text, sentiment, confidence_level)
+SELECT 
+    review,
+    steadytext_generate_choice(
+        'Sentiment of this review: ' || review,
+        ARRAY['positive', 'negative', 'neutral'],
+        seed := 5000 + ROW_NUMBER() OVER()
+    ) AS sentiment,
+    steadytext_generate_choice(
+        'Confidence level for sentiment analysis: ' || review,
+        ARRAY['high', 'medium', 'low'],
+        seed := 6000 + ROW_NUMBER() OVER()
+    ) AS confidence_level
+FROM (VALUES 
+    ('This product exceeded my expectations! Highly recommend.'),
+    ('Terrible quality, broke after one day of use.'),
+    ('It works as described, nothing special.')
+) AS reviews(review);
+
+-- Content categorization
+CREATE OR REPLACE FUNCTION categorize_content(
+    content TEXT,
+    categories TEXT[],
+    cat_seed INTEGER DEFAULT 42
+)
+RETURNS TABLE(
+    primary_category TEXT,
+    secondary_category TEXT,
+    content_type TEXT
+) AS $$
+BEGIN
+    primary_category := steadytext_generate_choice(
+        'Primary category for: ' || content,
+        categories,
+        seed := cat_seed
+    );
+    
+    secondary_category := steadytext_generate_choice(
+        'Secondary category for: ' || content,
+        categories,
+        seed := cat_seed + 1000
+    );
+    
+    content_type := steadytext_generate_choice(
+        'Content type: ' || content,
+        ARRAY['article', 'tutorial', 'news', 'opinion', 'guide'],
+        seed := cat_seed + 2000
+    );
+    
+    RETURN NEXT;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## AI Summarization Examples
+
+Leverage AI-powered summarization for intelligent data aggregation and insights extraction.
+
+### Document Summarization
+
+```sql
+-- Create a document repository with AI summaries
+CREATE TABLE documents_with_ai (
+    id SERIAL PRIMARY KEY,
+    title TEXT,
+    content TEXT,
+    summary TEXT,
+    key_facts TEXT[],
+    category TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Populate with AI-generated summaries
+INSERT INTO documents_with_ai (title, content, summary, key_facts, category)
+SELECT 
+    title,
+    content,
+    ai_summarize_text(content, jsonb_build_object('doc_type', 'technical')) AS summary,
+    ai_extract_facts(content, 5) AS key_facts,
+    steadytext_generate_choice(
+        'Document category: ' || title,
+        ARRAY['technical', 'business', 'research', 'tutorial'],
+        seed := 7000 + id
+    ) AS category
+FROM source_documents
+WHERE length(content) > 500;
+
+-- Create materialized view for category summaries
+CREATE MATERIALIZED VIEW category_summaries AS
+SELECT 
+    category,
+    count(*) AS document_count,
+    ai_summarize(
+        content,
+        jsonb_build_object(
+            'category', category,
+            'doc_count', count(*) OVER (PARTITION BY category)
+        )
+    ) AS category_overview,
+    array_agg(DISTINCT key_facts) AS all_key_facts
+FROM documents_with_ai
+GROUP BY category;
+
+-- Real-time log analysis with AI
+CREATE TABLE system_logs (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMP DEFAULT NOW(),
+    service_name TEXT,
+    log_level TEXT,
+    message TEXT,
+    metadata JSONB
+);
+
+-- Create hourly log summaries
+CREATE OR REPLACE VIEW hourly_log_analysis AS
+SELECT 
+    date_trunc('hour', timestamp) AS hour,
+    service_name,
+    log_level,
+    count(*) AS log_count,
+    ai_summarize(
+        message,
+        jsonb_build_object(
+            'service', service_name,
+            'level', log_level,
+            'count', count(*)
+        )
+    ) AS hour_summary,
+    array_agg(DISTINCT 
+        CASE 
+            WHEN log_level IN ('ERROR', 'CRITICAL') 
+            THEN message 
+        END
+    ) FILTER (WHERE log_level IN ('ERROR', 'CRITICAL')) AS critical_messages
+FROM system_logs
+WHERE timestamp > NOW() - INTERVAL '24 hours'
+GROUP BY date_trunc('hour', timestamp), service_name, log_level;
+```
+
+### TimescaleDB Integration
+
+```sql
+-- Enable TimescaleDB (if available)
+CREATE EXTENSION IF NOT EXISTS timescaledb;
+
+-- Create hypertable for time-series data
+CREATE TABLE metrics (
+    time TIMESTAMPTZ NOT NULL,
+    device_id TEXT,
+    metric_name TEXT,
+    value NUMERIC,
+    description TEXT
+);
+
+SELECT create_hypertable('metrics', 'time');
+
+-- Create continuous aggregate with AI summarization
+CREATE MATERIALIZED VIEW daily_metric_summaries
+WITH (timescaledb.continuous) AS
+SELECT 
+    time_bucket('1 day', time) AS day,
+    device_id,
+    metric_name,
+    avg(value) AS avg_value,
+    min(value) AS min_value,
+    max(value) AS max_value,
+    count(*) AS data_points,
+    ai_summarize_partial(
+        description,
+        jsonb_build_object(
+            'metric', metric_name,
+            'device', device_id,
+            'stats', jsonb_build_object(
+                'avg', avg(value),
+                'min', min(value),
+                'max', max(value)
+            )
+        )
+    ) AS partial_summary
+FROM metrics
+GROUP BY day, device_id, metric_name;
+
+-- Query with final summarization
+CREATE OR REPLACE VIEW weekly_insights AS
+SELECT 
+    time_bucket('1 week', day) AS week,
+    device_id,
+    ai_summarize_final(partial_summary) AS weekly_summary,
+    jsonb_agg(
+        jsonb_build_object(
+            'metric', metric_name,
+            'avg', avg_value,
+            'min', min_value,
+            'max', max_value
+        )
+    ) AS metric_stats
+FROM daily_metric_summaries
+WHERE day >= NOW() - INTERVAL '4 weeks'
+GROUP BY week, device_id;
+```
+
+### Intelligent Report Generation
+
+```sql
+-- Generate executive summaries from multiple data sources
+CREATE OR REPLACE FUNCTION generate_executive_report(
+    report_date DATE DEFAULT CURRENT_DATE
+)
+RETURNS TABLE(
+    section TEXT,
+    summary TEXT,
+    key_metrics JSONB,
+    recommendations TEXT[]
+) AS $$
+BEGIN
+    -- Sales summary
+    section := 'Sales Performance';
+    SELECT 
+        ai_summarize_text(
+            string_agg(
+                format('Product %s: %s units sold for $%s', 
+                    product_name, units_sold, revenue),
+                '; '
+            ),
+            jsonb_build_object('report_type', 'sales', 'date', report_date)
+        ),
+        jsonb_agg(
+            jsonb_build_object(
+                'product', product_name,
+                'units', units_sold,
+                'revenue', revenue
+            )
+        )
+    INTO summary, key_metrics
+    FROM sales_data
+    WHERE date = report_date;
+    
+    recommendations := ai_extract_facts(
+        format('Based on sales data: %s. What actions should be taken?', summary),
+        3
+    );
+    
+    RETURN NEXT;
+    
+    -- Customer feedback summary
+    section := 'Customer Feedback';
+    SELECT 
+        ai_summarize(
+            feedback_text,
+            jsonb_build_object(
+                'sentiment', sentiment_score,
+                'category', feedback_category
+            )
+        ),
+        jsonb_build_object(
+            'avg_sentiment', avg(sentiment_score),
+            'total_feedback', count(*),
+            'categories', jsonb_agg(DISTINCT feedback_category)
+        )
+    INTO summary, key_metrics
+    FROM customer_feedback
+    WHERE date_trunc('day', created_at) = report_date
+    GROUP BY date_trunc('day', created_at);
+    
+    recommendations := ai_extract_facts(
+        format('Customer feedback summary: %s. Recommended improvements?', summary),
+        4
+    );
+    
+    RETURN NEXT;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## Async Functions Examples
+
+Build high-performance applications with non-blocking AI operations.
+
+### Basic Async Operations
+
+```sql
+-- Create a task queue for async processing
+CREATE TABLE ai_tasks (
+    id SERIAL PRIMARY KEY,
+    request_id UUID,
+    task_type TEXT,
+    input_data JSONB,
+    status TEXT DEFAULT 'pending',
+    result TEXT,
+    error TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    completed_at TIMESTAMP
+);
+
+-- Function to process multiple prompts asynchronously
+CREATE OR REPLACE FUNCTION process_bulk_content(
+    prompts TEXT[],
+    task_type TEXT DEFAULT 'generation'
+)
+RETURNS TABLE(
+    task_id INTEGER,
+    request_id UUID,
+    prompt TEXT
+) AS $$
+DECLARE
+    prompt_text TEXT;
+    req_id UUID;
+    task_id_val INTEGER;
+BEGIN
+    FOREACH prompt_text IN ARRAY prompts LOOP
+        -- Start async generation
+        req_id := steadytext_generate_async(
+            prompt_text,
+            max_tokens := 200,
+            priority := 5
+        );
+        
+        -- Store in task queue
+        INSERT INTO ai_tasks (request_id, task_type, input_data)
+        VALUES (req_id, task_type, jsonb_build_object('prompt', prompt_text))
+        RETURNING id INTO task_id_val;
+        
+        task_id := task_id_val;
+        request_id := req_id;
+        prompt := prompt_text;
+        
+        RETURN NEXT;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Process results with retry logic
+CREATE OR REPLACE FUNCTION collect_async_results(
+    timeout_seconds INTEGER DEFAULT 30
+)
+RETURNS INTEGER AS $$
+DECLARE
+    pending_task RECORD;
+    result_data RECORD;
+    completed_count INTEGER := 0;
+BEGIN
+    FOR pending_task IN 
+        SELECT id, request_id 
+        FROM ai_tasks 
+        WHERE status = 'pending'
+    LOOP
+        -- Check async status
+        SELECT * INTO result_data
+        FROM steadytext_check_async(pending_task.request_id);
+        
+        IF result_data.status = 'completed' THEN
+            UPDATE ai_tasks
+            SET status = 'completed',
+                result = result_data.result,
+                completed_at = NOW()
+            WHERE id = pending_task.id;
+            
+            completed_count := completed_count + 1;
+        ELSIF result_data.status = 'failed' THEN
+            UPDATE ai_tasks
+            SET status = 'failed',
+                error = result_data.error,
+                completed_at = NOW()
+            WHERE id = pending_task.id;
+        END IF;
+    END LOOP;
+    
+    RETURN completed_count;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### Advanced Async Patterns
+
+```sql
+-- Async document processing pipeline
+CREATE TABLE document_pipeline (
+    id SERIAL PRIMARY KEY,
+    document_id INTEGER,
+    stage TEXT,
+    request_id UUID,
+    result TEXT,
+    next_stage TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Multi-stage async processing
+CREATE OR REPLACE FUNCTION process_document_async(
+    doc_id INTEGER,
+    doc_content TEXT
+)
+RETURNS VOID AS $$
+DECLARE
+    summary_req UUID;
+    facts_req UUID;
+    category_req UUID;
+BEGIN
+    -- Stage 1: Generate summary
+    summary_req := steadytext_generate_async(
+        'Summarize: ' || doc_content,
+        max_tokens := 150,
+        priority := 8
+    );
+    
+    INSERT INTO document_pipeline (document_id, stage, request_id, next_stage)
+    VALUES (doc_id, 'summary', summary_req, 'facts');
+    
+    -- Stage 2: Extract facts (higher priority)
+    facts_req := steadytext_generate_async(
+        'Extract 5 key facts from: ' || doc_content,
+        max_tokens := 100,
+        priority := 9
+    );
+    
+    INSERT INTO document_pipeline (document_id, stage, request_id, next_stage)
+    VALUES (doc_id, 'facts', facts_req, 'category');
+    
+    -- Stage 3: Categorize
+    category_req := steadytext_generate_choice_async(
+        'Category for document: ' || substring(doc_content, 1, 200),
+        ARRAY['technical', 'business', 'research', 'general'],
+        priority := 7
+    );
+    
+    INSERT INTO document_pipeline (document_id, stage, request_id, next_stage)
+    VALUES (doc_id, 'category', category_req, 'complete');
+END;
+$$ LANGUAGE plpgsql;
+
+-- LISTEN/NOTIFY based processing
+CREATE OR REPLACE FUNCTION setup_async_notifications()
+RETURNS VOID AS $$
+BEGIN
+    -- Create notification trigger
+    CREATE OR REPLACE FUNCTION notify_async_complete()
+    RETURNS TRIGGER AS $trigger$
+    BEGIN
+        IF NEW.status = 'completed' AND OLD.status != 'completed' THEN
+            PERFORM pg_notify(
+                'ai_task_complete',
+                json_build_object(
+                    'task_id', NEW.id,
+                    'request_id', NEW.request_id,
+                    'task_type', NEW.task_type
+                )::text
+            );
+        END IF;
+        RETURN NEW;
+    END;
+    $trigger$ LANGUAGE plpgsql;
+    
+    -- Attach trigger
+    DROP TRIGGER IF EXISTS async_complete_notify ON ai_tasks;
+    CREATE TRIGGER async_complete_notify
+        AFTER UPDATE ON ai_tasks
+        FOR EACH ROW
+        EXECUTE FUNCTION notify_async_complete();
+END;
+$$ LANGUAGE plpgsql;
+
+-- Batch embedding generation with progress tracking
+CREATE OR REPLACE FUNCTION generate_embeddings_async(
+    texts TEXT[],
+    batch_size INTEGER DEFAULT 10
+)
+RETURNS TABLE(
+    batch_id INTEGER,
+    request_ids UUID[],
+    text_count INTEGER
+) AS $$
+DECLARE
+    batch_texts TEXT[];
+    batch_requests UUID[];
+    start_idx INTEGER := 1;
+    end_idx INTEGER;
+    batch_num INTEGER := 1;
+BEGIN
+    WHILE start_idx <= array_length(texts, 1) LOOP
+        end_idx := LEAST(start_idx + batch_size - 1, array_length(texts, 1));
+        batch_texts := texts[start_idx:end_idx];
+        
+        -- Generate embeddings for batch
+        batch_requests := steadytext_embed_batch_async(batch_texts);
+        
+        -- Store batch info
+        INSERT INTO embedding_batches (batch_id, request_ids, status)
+        VALUES (batch_num, batch_requests, 'processing');
+        
+        batch_id := batch_num;
+        request_ids := batch_requests;
+        text_count := array_length(batch_texts, 1);
+        
+        RETURN NEXT;
+        
+        start_idx := end_idx + 1;
+        batch_num := batch_num + 1;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Worker management
+CREATE OR REPLACE FUNCTION manage_async_workers()
+RETURNS TABLE(
+    action TEXT,
+    status TEXT,
+    details JSONB
+) AS $$
+DECLARE
+    worker_status RECORD;
+BEGIN
+    -- Check worker status
+    SELECT * INTO worker_status FROM steadytext_worker_status();
+    
+    action := 'check_status';
+    status := worker_status.status;
+    details := to_jsonb(worker_status);
+    RETURN NEXT;
+    
+    -- Start worker if not running
+    IF worker_status.status != 'running' THEN
+        PERFORM steadytext_worker_start();
+        
+        action := 'start_worker';
+        status := 'started';
+        details := jsonb_build_object('message', 'Worker started successfully');
+        RETURN NEXT;
+    END IF;
+    
+    -- Configure worker settings
+    PERFORM steadytext_config_set('worker_batch_size', '20');
+    PERFORM steadytext_config_set('worker_poll_interval_ms', '500');
+    
+    action := 'configure_worker';
+    status := 'configured';
+    details := jsonb_build_object(
+        'batch_size', 20,
+        'poll_interval_ms', 500
+    );
+    RETURN NEXT;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### Real-World Async Use Cases
+
+```sql
+-- Real-time content moderation system
+CREATE TABLE content_moderation_queue (
+    id SERIAL PRIMARY KEY,
+    content_id INTEGER,
+    content_text TEXT,
+    moderation_request_id UUID,
+    moderation_result TEXT,
+    action_taken TEXT,
+    processed_at TIMESTAMP
+);
+
+CREATE OR REPLACE FUNCTION moderate_content_async(
+    content_items JSONB[]
+)
+RETURNS VOID AS $$
+DECLARE
+    item JSONB;
+    req_id UUID;
+BEGIN
+    FOREACH item IN ARRAY content_items LOOP
+        -- Check content appropriateness
+        req_id := steadytext_generate_choice_async(
+            format('Is this content appropriate for all audiences? Content: %s', 
+                   item->>'text'),
+            ARRAY['appropriate', 'needs_review', 'inappropriate'],
+            priority := 10  -- High priority for moderation
+        );
+        
+        INSERT INTO content_moderation_queue (
+            content_id,
+            content_text,
+            moderation_request_id
+        ) VALUES (
+            (item->>'id')::integer,
+            item->>'text',
+            req_id
+        );
+    END LOOP;
+    
+    -- Notify moderation service
+    PERFORM pg_notify('content_moderation', 'new_items_queued');
+END;
+$$ LANGUAGE plpgsql;
+
+-- Async email generation system
+CREATE TABLE email_generation_queue (
+    id SERIAL PRIMARY KEY,
+    recipient_id INTEGER,
+    email_type TEXT,
+    context JSONB,
+    subject_request_id UUID,
+    body_request_id UUID,
+    subject TEXT,
+    body TEXT,
+    status TEXT DEFAULT 'queued',
+    created_at TIMESTAMP DEFAULT NOW(),
+    sent_at TIMESTAMP
+);
+
+CREATE OR REPLACE FUNCTION generate_personalized_emails_async(
+    recipient_data JSONB
+)
+RETURNS INTEGER AS $$
+DECLARE
+    recipient JSONB;
+    subject_req UUID;
+    body_req UUID;
+    email_count INTEGER := 0;
+BEGIN
+    FOR recipient IN SELECT * FROM jsonb_array_elements(recipient_data)
+    LOOP
+        -- Generate subject
+        subject_req := steadytext_generate_async(
+            format('Email subject for %s promotion to %s',
+                   recipient->>'product',
+                   recipient->>'name'),
+            max_tokens := 20,
+            priority := 6
+        );
+        
+        -- Generate body
+        body_req := steadytext_generate_async(
+            format('Professional marketing email about %s for %s who is interested in %s',
+                   recipient->>'product',
+                   recipient->>'name',
+                   recipient->>'interests'),
+            max_tokens := 300,
+            priority := 5
+        );
+        
+        INSERT INTO email_generation_queue (
+            recipient_id,
+            email_type,
+            context,
+            subject_request_id,
+            body_request_id
+        ) VALUES (
+            (recipient->>'id')::integer,
+            'marketing',
+            recipient,
+            subject_req,
+            body_req
+        );
+        
+        email_count := email_count + 1;
+    END LOOP;
+    
+    RETURN email_count;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Process completed emails
+CREATE OR REPLACE FUNCTION process_completed_emails()
+RETURNS INTEGER AS $$
+DECLARE
+    email RECORD;
+    subject_result RECORD;
+    body_result RECORD;
+    processed_count INTEGER := 0;
+BEGIN
+    FOR email IN 
+        SELECT * FROM email_generation_queue 
+        WHERE status = 'queued'
+    LOOP
+        -- Check subject generation
+        SELECT * INTO subject_result
+        FROM steadytext_check_async(email.subject_request_id);
+        
+        -- Check body generation
+        SELECT * INTO body_result
+        FROM steadytext_check_async(email.body_request_id);
+        
+        -- If both completed, update and send
+        IF subject_result.status = 'completed' AND 
+           body_result.status = 'completed' THEN
+            
+            UPDATE email_generation_queue
+            SET subject = subject_result.result,
+                body = body_result.result,
+                status = 'ready_to_send'
+            WHERE id = email.id;
+            
+            processed_count := processed_count + 1;
+            
+            -- Trigger email sending
+            PERFORM pg_notify(
+                'send_email',
+                json_build_object(
+                    'email_id', email.id,
+                    'recipient_id', email.recipient_id
+                )::text
+            );
+        END IF;
+    END LOOP;
+    
+    RETURN processed_count;
+END;
+$$ LANGUAGE plpgsql;
+```
+
 This comprehensive guide demonstrates how to integrate SteadyText with PostgreSQL for building powerful AI-enhanced applications. The examples cover everything from basic setup to advanced workflows, providing a solid foundation for developing production-ready systems that combine structured data with AI-generated content and embeddings.
