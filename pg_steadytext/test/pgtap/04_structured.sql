@@ -310,14 +310,14 @@ BEGIN
 END $$;
 
 -- Clean up test queue entries
+-- Use specific prefixes to avoid deleting legitimate data
 DELETE FROM steadytext_queue 
 WHERE prompt LIKE 'pgTAP%' 
-   OR prompt LIKE '%test%' 
-   OR prompt LIKE '%Test%' 
-   OR prompt LIKE 'Batch test%'
-   OR prompt LIKE 'First prompt%'
-   OR prompt LIKE 'Second prompt%'
-   OR prompt LIKE 'Third prompt%';
+   OR prompt LIKE '__PGTAP_TEST__%'
+   OR prompt LIKE 'Batch test prompt%'
+   OR prompt = 'First prompt'
+   OR prompt = 'Second prompt'
+   OR prompt = 'Third prompt';
 
 SELECT * FROM finish();
 ROLLBACK;

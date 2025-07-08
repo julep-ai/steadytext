@@ -4,9 +4,11 @@ on:
   push:
     paths:
       - 'pg_steadytext/**'
+      - '!pg_steadytext/**/*.md'
   pull_request:
     paths:
       - 'pg_steadytext/**'
+      - '!pg_steadytext/**/*.md'
 
 jobs:
   test:

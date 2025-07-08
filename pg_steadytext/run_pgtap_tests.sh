@@ -67,7 +67,10 @@ run_pgtap_test() {
         if output=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
                         -v ON_ERROR_STOP=1 -q -f "$test_file" 2>&1); then
             # Check if all tests passed
-            if echo "$output" | grep -q "# Looks like you failed"; then
+            if echo "$output" | grep -q "# Looks like you failed" || \
+               echo "$output" | grep -q "^not ok" || \
+               echo "$output" | grep -q "FAILED" || \
+               echo "$output" | grep -q "ERROR:"; then
                 echo -e "${RED}✗ FAILED${NC}"
                 if [ "$VERBOSE" = true ]; then
                     echo "$output"
@@ -169,7 +172,11 @@ if [ "$TAP_OUTPUT" = false ]; then
 fi
 
 # For TAP output, exit with appropriate code
-exit $FAILED_TESTS
+if [ $FAILED_TESTS -eq 0 ]; then
+    exit 0
+else
+    exit 1
+fi
 
 # AIDEV-NOTE: This script provides two modes:
 # 1. Human-readable output (default) with colors and summaries
