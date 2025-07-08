@@ -85,6 +85,45 @@ echo "hello" | uvx steadytext
 
 ---
 
+## 🐘 PostgreSQL Extension
+
+Transform your PostgreSQL database into an AI-powered system with **pg_steadytext** - the production-ready PostgreSQL extension that brings deterministic AI directly to your SQL queries.
+
+### Key Features
+
+- **Native SQL Functions**: Generate text and embeddings using simple SQL commands
+- **Async Processing**: Non-blocking AI operations with queue-based background workers  
+- **AI Summarization**: Aggregate functions for intelligent text summarization with TimescaleDB support
+- **Structured Generation**: Generate JSON, regex-constrained text, and multiple-choice outputs
+- **pgvector Integration**: Seamless compatibility for similarity search and vector operations
+- **Built-in Caching**: PostgreSQL-based frecency cache that mirrors SteadyText's performance
+
+### Quick Example
+
+```sql
+-- Generate text
+SELECT steadytext_generate('Write a product description for wireless headphones');
+
+-- Create embeddings for similarity search
+SELECT steadytext_embed('machine learning') <-> steadytext_embed('artificial intelligence');
+
+-- AI-powered summarization
+SELECT ai_summarize(content) AS summary
+FROM documents
+WHERE created_at > NOW() - INTERVAL '1 day'
+GROUP BY category;
+
+-- Structured JSON generation
+SELECT steadytext_generate_json(
+    'Create a user profile',
+    '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}}'::jsonb
+);
+```
+
+📚 **[Full PostgreSQL Extension Documentation →](pg_steadytext/)**
+
+---
+
 ## 🔧 How It Works
 
 SteadyText achieves determinism via:
@@ -104,8 +143,8 @@ SteadyText is more than just a library. It's a full ecosystem for deterministic 
 
 - **Python Library**: The core `steadytext` library for programmatic use in your applications.
 - **Command-Line Interface (CLI)**: A powerful `st` command to use SteadyText from your shell for scripting and automation.
+- **PostgreSQL Extension (pg_steadytext)**: Production-ready extension with async processing, AI summarization, and structured generation for SQL-native AI operations.
 - **Zsh Plugin**: Supercharge your shell with AI-powered command suggestions and history search.
-- **PostgreSQL Extension**: Run deterministic AI functions directly within your PostgreSQL database.
 - **Cloudflare Worker**: Deploy SteadyText to the edge with a Cloudflare Worker for distributed, low-latency applications.
 
 ### ⚡ Daemon Architecture (Default)
@@ -640,7 +679,19 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 * **Models:** MIT (Qwen3)
 
 ---
-## 📈 What's New in v1.3.3
+## 📈 What's New
+
+### Structured Generation (v2.4.1+)
+- **Native llama.cpp grammar support** for JSON, regex, and choice constraints
+- **PostgreSQL extension integration** - all structured generation features in SQL
+- **Async structured generation** functions for high-performance applications
+
+### PostgreSQL Extension (v1.1.0+)
+- **Production-ready SQL functions** for text generation and embeddings
+- **Async operations** with queue-based background processing
+- **AI summarization** aggregate functions with TimescaleDB support
+- **Structured generation** in SQL (JSON schemas, regex patterns, choices)
+- **Docker support** for easy deployment
 
 ### Daemon Architecture (v1.2.0+)
 - **Persistent model serving** with ZeroMQ for 10-100x faster repeated calls
@@ -659,7 +710,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 - **Quiet by default** - clean output without informational messages
 - **New pipe syntax** - `echo "prompt" | st` for better unix integration
 - **Daemon management** - built-in commands for daemon lifecycle
-
 
 ---
 

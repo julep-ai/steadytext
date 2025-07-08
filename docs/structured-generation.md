@@ -167,3 +167,70 @@ is_active = steadytext.generate_format("Is the user active? ", bool)
 print(is_active)
 # Output: True
 ```
+
+## PostgreSQL Extension Support
+
+All structured generation features are fully supported in the PostgreSQL extension (pg_steadytext) as of v2.4.1. You can use structured generation directly in your SQL queries.
+
+### SQL Functions
+
+The PostgreSQL extension provides the following structured generation functions:
+
+```sql
+-- JSON generation with schema
+steadytext_generate_json(
+    prompt TEXT,
+    schema JSONB,
+    max_tokens INTEGER DEFAULT 512,
+    use_cache BOOLEAN DEFAULT true,
+    seed INTEGER DEFAULT 42
+) RETURNS TEXT
+
+-- Regex-constrained generation
+steadytext_generate_regex(
+    prompt TEXT,
+    pattern TEXT,
+    max_tokens INTEGER DEFAULT 512,
+    use_cache BOOLEAN DEFAULT true,
+    seed INTEGER DEFAULT 42
+) RETURNS TEXT
+
+-- Multiple choice generation
+steadytext_generate_choice(
+    prompt TEXT,
+    choices TEXT[],
+    max_tokens INTEGER DEFAULT 512,
+    use_cache BOOLEAN DEFAULT true,
+    seed INTEGER DEFAULT 42
+) RETURNS TEXT
+```
+
+### PostgreSQL Examples
+
+```sql
+-- Generate structured user data
+SELECT steadytext_generate_json(
+    'Create a user profile for John Doe, age 35, software engineer',
+    '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "integer"}, "occupation": {"type": "string"}}}'::jsonb
+);
+
+-- Generate formatted phone numbers
+SELECT steadytext_generate_regex(
+    'Customer service: ',
+    '\(\d{3}\) \d{3}-\d{4}'
+);
+
+-- Sentiment classification
+SELECT steadytext_generate_choice(
+    'Sentiment of "This product is amazing!": ',
+    ARRAY['positive', 'negative', 'neutral']
+);
+```
+
+All functions support async variants as well:
+- `steadytext_generate_json_async()`
+- `steadytext_generate_regex_async()`
+- `steadytext_generate_choice_async()`
+
+For more PostgreSQL-specific examples, see the [PostgreSQL Integration Examples](examples/postgresql-integration.md#structured-generation-examples).
+```
