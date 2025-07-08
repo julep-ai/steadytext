@@ -229,6 +229,83 @@ The extension uses several optimizations:
 - Rate limiting support (configure in `steadytext_rate_limits` table)
 - Configurable resource limits
 
+## Testing
+
+### Running Tests
+
+The extension includes comprehensive test suites using both PostgreSQL regression tests and pgTAP.
+
+#### pgTAP Tests (Recommended)
+
+pgTAP provides a TAP (Test Anything Protocol) testing framework for PostgreSQL.
+
+```bash
+# Install pgTAP (if not already installed)
+sudo apt-get install postgresql-17-pgtap  # Adjust version as needed
+
+# Run all pgTAP tests
+make test-pgtap
+
+# Run with verbose output
+make test-pgtap-verbose
+
+# Run with TAP output for CI integration
+make test-pgtap-tap
+
+# Run specific test file
+./run_pgtap_tests.sh test/pgtap/01_basic.sql
+```
+
+#### Legacy Regression Tests
+
+```bash
+# Run traditional regression tests
+make test
+
+# Run all test suites
+make test-all
+```
+
+#### Test Coverage
+
+The test suite covers:
+- Basic extension functionality
+- Text generation and determinism
+- Embedding generation and normalization  
+- Async queue operations
+- Structured generation (JSON, regex, choice)
+- Cache management and eviction
+- Daemon integration
+- Streaming text generation
+- Input validation and error handling
+
+### Writing New Tests
+
+Create new pgTAP tests in `test/pgtap/` following the naming convention `NN_description.sql`:
+
+```sql
+-- test/pgtap/99_custom.sql
+BEGIN;
+SELECT plan(3);  -- Number of tests
+
+-- Test function exists
+SELECT has_function('my_function');
+
+-- Test behavior
+SELECT is(my_function('input'), 'expected', 'Description');
+
+-- Test error handling
+SELECT throws_ok(
+    $$ SELECT my_function(NULL) $$,
+    'P0001',
+    'Error message',
+    'Should fail with null input'
+);
+
+SELECT * FROM finish();
+ROLLBACK;
+```
+
 ## Troubleshooting
 
 ### Common Issues

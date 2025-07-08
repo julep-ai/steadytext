@@ -67,6 +67,39 @@ test: install
 	@echo "Running regression tests..."
 	$(pg_regress_installcheck) $(REGRESS_OPTS) $(REGRESS)
 
+.PHONY: test-pgtap
+test-pgtap: install
+	@echo "Running pgTAP tests..."
+	@if [ -x ./run_pgtap_tests.sh ]; then \
+		./run_pgtap_tests.sh; \
+	else \
+		echo "ERROR: run_pgtap_tests.sh not found or not executable"; \
+		exit 1; \
+	fi
+
+.PHONY: test-pgtap-verbose
+test-pgtap-verbose: install
+	@echo "Running pgTAP tests (verbose)..."
+	@if [ -x ./run_pgtap_tests.sh ]; then \
+		./run_pgtap_tests.sh --verbose; \
+	else \
+		echo "ERROR: run_pgtap_tests.sh not found or not executable"; \
+		exit 1; \
+	fi
+
+.PHONY: test-pgtap-tap
+test-pgtap-tap: install
+	@if [ -x ./run_pgtap_tests.sh ]; then \
+		./run_pgtap_tests.sh --tap; \
+	else \
+		echo "ERROR: run_pgtap_tests.sh not found or not executable"; \
+		exit 1; \
+	fi
+
+.PHONY: test-all
+test-all: test test-pgtap test-python
+	@echo "All tests completed!"
+
 .PHONY: test-python
 test-python:
 	@echo "Testing Python modules..."
@@ -139,6 +172,10 @@ help:
 	@echo "  make install      - Install the extension"
 	@echo "  make check-deps   - Check dependencies"
 	@echo "  make test         - Run regression tests"
+	@echo "  make test-pgtap   - Run pgTAP tests"
+	@echo "  make test-pgtap-verbose - Run pgTAP tests with verbose output"
+	@echo "  make test-pgtap-tap - Run pgTAP tests with TAP output (for CI)"
+	@echo "  make test-all     - Run all tests (regression, pgTAP, Python)"
 	@echo "  make test-python  - Run Python unit tests"
 	@echo "  make clean        - Clean build artifacts"
 	@echo "  make dist         - Create distribution package"

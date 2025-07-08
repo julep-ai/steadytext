@@ -81,6 +81,112 @@ This document summarizes the critical fixes implemented in the pg_steadytext Pos
 4. Validate daemon failover behavior
 5. Check input validation edge cases
 
+## pgTAP Testing Framework (v1.0.3)
+
+### AIDEV-NOTE: pgTAP Implementation
+
+The extension now uses pgTAP (PostgreSQL Test Anything Protocol) for comprehensive testing. This provides:
+
+1. **TAP Output**: Standard test output format for CI/CD integration
+2. **Rich Assertions**: Specialized PostgreSQL testing functions
+3. **Transaction Safety**: Each test runs in a transaction and rolls back
+4. **Better Coverage**: More thorough testing of edge cases
+
+### Test Organization
+
+```
+test/pgtap/
+├── 00_setup.sql        # Verify pgTAP installation
+├── 01_basic.sql        # Core functionality tests
+├── 02_embeddings.sql   # Embedding and vector tests
+├── 03_async.sql        # Async queue tests
+├── 04_structured.sql   # JSON/regex/choice tests
+└── 05_cache_daemon.sql # Cache and daemon tests
+```
+
+### Running pgTAP Tests
+
+```bash
+# Install pgTAP (if not in Docker)
+sudo apt-get install postgresql-17-pgtap
+
+# Run all tests
+make test-pgtap
+
+# Run with verbose output
+make test-pgtap-verbose
+
+# Run for CI (TAP output)
+make test-pgtap-tap
+
+# Run specific test
+./run_pgtap_tests.sh test/pgtap/01_basic.sql
+```
+
+### Writing New pgTAP Tests
+
+```sql
+-- test/pgtap/99_new_feature.sql
+BEGIN;
+SELECT plan(5);  -- Number of tests
+
+-- Test function exists
+SELECT has_function('public', 'new_function', 'Function should exist');
+
+-- Test return type
+SELECT function_returns('public', 'new_function', ARRAY['text'], 'text', 
+    'Function should return text');
+
+-- Test behavior
+SELECT is(new_function('input'), 'expected', 'Should return expected value');
+
+-- Test error handling
+SELECT throws_ok(
+    $$ SELECT new_function(NULL) $$,
+    'P0001',
+    'Input cannot be null',
+    'Should fail with null input'
+);
+
+-- Test performance (optional)
+SELECT lives_ok(
+    $$ SELECT new_function('test') $$,
+    'Function should complete without error'
+);
+
+SELECT * FROM finish();
+ROLLBACK;
+```
+
+### AIDEV-NOTE: Key pgTAP Functions
+
+- `plan(n)` - Declare number of tests
+- `has_function()` - Check function exists
+- `function_returns()` - Check return type
+- `has_table()` - Check table exists
+- `has_column()` - Check column exists
+- `has_index()` - Check index exists
+- `is()` - Exact equality
+- `isnt()` - Inequality
+- `ok()` - Boolean assertion
+- `matches()` - Regex matching
+- `throws_ok()` - Exception testing
+- `lives_ok()` - No exception testing
+- `results_eq()` - Compare query results
+- `columns_are()` - Check column names
+
+### CI Integration
+
+The extension includes a GitHub Actions workflow for pgTAP tests:
+
+```yaml
+# .github/workflows/test-pgtap.yml
+- Runs on push/PR to pg_steadytext/
+- Sets up PostgreSQL 17 with required extensions
+- Runs tests with TAP output
+- Uploads test results as artifacts
+```
+
 ## Recent Fixes (v1.0.1)
 
 ### 1. Removed thinking_mode Parameter
