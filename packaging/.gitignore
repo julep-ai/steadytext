@@ -1,0 +1,18 @@
+# Build artifacts
+build/
+*.deb
+*.rpm
+*.zip
+
+# Temporary files
+*.tmp
+*.log
+.DS_Store
+
+# RPM build directories
+BUILD/
+BUILDROOT/
+RPMS/
+SOURCES/
+SPECS/
+SRPMS/
