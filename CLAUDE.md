@@ -887,6 +887,56 @@ steadytext_check_async_batch(request_ids[]) → TABLE
 AIDEV-TODO: Add tests for PostgreSQL structured generation functions
 AIDEV-TODO: Consider adding support for Pydantic models in PostgreSQL (would need JSON serialization)
 
+## Distribution Packaging (v1.2.0+)
+
+AIDEV-NOTE: SteadyText includes comprehensive packaging scripts for multiple Linux distributions with minimal maintenance overhead.
+
+### Package Types
+
+**Supported Formats:**
+- **Debian/Ubuntu** (.deb) - For apt-based systems with multiple PostgreSQL versions
+- **RHEL/Rocky/Fedora** (.rpm) - For yum/dnf-based systems with multiple PostgreSQL versions
+- **PGXN** - PostgreSQL Extension Network compatible packages
+- **Pigsty** - Configuration for Pigsty PostgreSQL distribution
+
+### Packaging Architecture
+
+**Key Components:**
+- `packaging/build-deb.sh` - Builds Debian packages for PostgreSQL 14-17
+- `packaging/build-rpm.sh` - Builds RPM packages for PostgreSQL 14-17
+- `packaging/pgxn-upload.sh` - Prepares PGXN distribution with Pigsty config
+- `packaging/test-builds.sh` - Validates built packages
+- `.github/workflows/build-packages.yml` - Automated CI/CD for releases
+
+**Version Management:**
+- Extension version read from `pg_steadytext/META.json`
+- Python version read from `pyproject.toml`
+- No manual version updates needed in packaging scripts
+
+### Building Packages
+
+```bash
+# Build all packages
+./build-packages.sh
+
+# Build specific type
+./build-packages.sh deb
+./build-packages.sh rpm
+./build-packages.sh pgxn
+```
+
+**Package Contents:**
+- PostgreSQL extension files (.control, .sql)
+- Python support modules in `/opt/steadytext/`
+- Systemd service for async worker
+- Virtual environment with SteadyText installed
+- Documentation and license files
+
+AIDEV-NOTE: Packages handle Python dependencies via virtual environments to avoid system conflicts
+AIDEV-NOTE: Post-install scripts automatically set up the Python environment and systemd service
+AIDEV-TODO: Consider adding support for Alpine Linux (apk) packages
+AIDEV-TODO: Add package signing for security-conscious deployments
+
 ## Development Workflow
 
 ### Additional Process Guidance
