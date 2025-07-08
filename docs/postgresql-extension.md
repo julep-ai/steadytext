@@ -797,6 +797,462 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
+## AI Summarization (v1.1.0+)
+
+The PostgreSQL extension includes powerful AI summarization aggregate functions that work seamlessly with TimescaleDB continuous aggregates.
+
+### Core Summarization Functions
+
+#### `ai_summarize_text()`
+
+Summarize a single text with optional metadata.
+
+```sql
+ai_summarize_text(
+    text_input TEXT,
+    metadata JSONB DEFAULT NULL,
+    max_tokens INTEGER DEFAULT 150,
+    seed INTEGER DEFAULT 42
+) RETURNS TEXT
+```
+
+**Examples:**
+
+```sql
+-- Simple text summarization
+SELECT ai_summarize_text(
+    'PostgreSQL is an advanced open-source relational database with ACID compliance, 
+     JSON support, and extensibility through custom functions and types.',
+    '{"source": "documentation"}'::jsonb
+);
+
+-- Summarize with custom parameters
+SELECT ai_summarize_text(
+    content,
+    jsonb_build_object('importance', importance, 'category', category),
+    max_tokens := 200,
+    seed := 123
+) AS summary
+FROM documents
+WHERE length(content) > 1000;
+```
+
+#### `ai_summarize()` Aggregate Function
+
+Intelligently summarize multiple texts into a coherent summary.
+
+```sql
+-- Basic aggregate summarization
+SELECT 
+    category,
+    ai_summarize(content) AS category_summary,
+    count(*) AS doc_count
+FROM documents
+GROUP BY category;
+
+-- With metadata
+SELECT 
+    department,
+    ai_summarize(
+        report_text,
+        jsonb_build_object('priority', priority, 'date', report_date)
+    ) AS department_summary
+FROM reports
+WHERE report_date >= CURRENT_DATE - INTERVAL '7 days'
+GROUP BY department;
+```
+
+### Partial Aggregation for TimescaleDB
+
+The extension supports partial aggregation for use with TimescaleDB continuous aggregates:
+
+#### `ai_summarize_partial()` and `ai_summarize_final()`
+
+```sql
+-- Create continuous aggregate with partial summarization
+CREATE MATERIALIZED VIEW hourly_log_summaries
+WITH (timescaledb.continuous) AS
+SELECT 
+    time_bucket('1 hour', timestamp) AS hour,
+    log_level,
+    service_name,
+    ai_summarize_partial(
+        log_message,
+        jsonb_build_object(
+            'severity', severity,
+            'service', service_name,
+            'error_code', error_code
+        )
+    ) AS partial_summary,
+    count(*) AS log_count
+FROM application_logs
+GROUP BY hour, log_level, service_name;
+
+-- Query with final summarization
+SELECT 
+    time_bucket('1 day', hour) as day,
+    log_level,
+    ai_summarize_final(partial_summary) as daily_summary,
+    sum(log_count) as total_logs
+FROM hourly_log_summaries
+WHERE hour >= NOW() - INTERVAL '7 days'
+GROUP BY day, log_level
+ORDER BY day DESC;
+```
+
+### Fact Extraction
+
+#### `ai_extract_facts()`
+
+Extract key facts from text content.
+
+```sql
+ai_extract_facts(
+    text_input TEXT,
+    max_facts INTEGER DEFAULT 5,
+    seed INTEGER DEFAULT 42
+) RETURNS TEXT[]
+```
+
+**Examples:**
+
+```sql
+-- Extract facts from a document
+SELECT ai_extract_facts(
+    'PostgreSQL supports JSON, arrays, full-text search, window functions, 
+     CTEs, and has built-in replication. It also offers ACID compliance 
+     and supports multiple programming languages for stored procedures.',
+    max_facts := 7
+);
+-- Returns: {
+--   "PostgreSQL supports JSON",
+--   "PostgreSQL supports arrays",
+--   "PostgreSQL has full-text search",
+--   "PostgreSQL has window functions",
+--   "PostgreSQL supports CTEs",
+--   "PostgreSQL has built-in replication",
+--   "PostgreSQL offers ACID compliance"
+-- }
+
+-- Extract facts from multiple documents
+SELECT 
+    doc_id,
+    title,
+    ai_extract_facts(content, 3) AS key_facts
+FROM technical_docs
+WHERE category = 'database'
+LIMIT 10;
+```
+
+### Real-World Use Cases
+
+#### Log Analysis Dashboard
+
+```sql
+-- Real-time error summarization
+CREATE OR REPLACE VIEW error_summaries AS
+SELECT 
+    date_trunc('hour', timestamp) AS error_hour,
+    service_name,
+    ai_summarize(
+        error_message,
+        jsonb_build_object(
+            'count', count(*),
+            'unique_errors', count(DISTINCT error_code)
+        )
+    ) AS error_summary,
+    array_agg(DISTINCT error_code) AS error_codes
+FROM error_logs
+WHERE timestamp >= NOW() - INTERVAL '24 hours'
+GROUP BY error_hour, service_name
+ORDER BY error_hour DESC;
+```
+
+#### Document Intelligence
+
+```sql
+-- Automatic document categorization and summarization
+WITH doc_summaries AS (
+    SELECT 
+        document_id,
+        ai_summarize_text(content) AS summary,
+        ai_extract_facts(content, 5) AS key_facts
+    FROM documents
+    WHERE created_at >= CURRENT_DATE
+)
+SELECT 
+    d.document_id,
+    d.title,
+    ds.summary,
+    ds.key_facts,
+    steadytext_generate_choice(
+        'Category for document: ' || ds.summary,
+        ARRAY['technical', 'business', 'legal', 'marketing', 'other']
+    ) AS suggested_category
+FROM documents d
+JOIN doc_summaries ds ON d.document_id = ds.document_id;
+```
+
+## Async Functions (v1.1.0+)
+
+The PostgreSQL extension includes asynchronous functions for non-blocking AI operations, perfect for high-throughput applications.
+
+### Overview
+
+Async functions return a UUID immediately and process requests in the background using a queue-based architecture with priority support.
+
+### Core Async Functions
+
+#### Generation Functions
+
+```sql
+-- Async text generation
+steadytext_generate_async(
+    prompt TEXT,
+    max_tokens INTEGER DEFAULT 512,
+    use_cache BOOLEAN DEFAULT true,
+    priority INTEGER DEFAULT 5,
+    seed INTEGER DEFAULT 42
+) RETURNS UUID
+
+-- Async JSON generation
+steadytext_generate_json_async(
+    prompt TEXT,
+    schema JSONB,
+    max_tokens INTEGER DEFAULT 512,
+    use_cache BOOLEAN DEFAULT true,
+    seed INTEGER DEFAULT 42
+) RETURNS UUID
+
+-- Async regex generation
+steadytext_generate_regex_async(
+    prompt TEXT,
+    pattern TEXT,
+    max_tokens INTEGER DEFAULT 512,
+    use_cache BOOLEAN DEFAULT true,
+    seed INTEGER DEFAULT 42
+) RETURNS UUID
+
+-- Async choice generation
+steadytext_generate_choice_async(
+    prompt TEXT,
+    choices TEXT[],
+    use_cache BOOLEAN DEFAULT true,
+    seed INTEGER DEFAULT 42
+) RETURNS UUID
+```
+
+#### Embedding Functions
+
+```sql
+-- Async embedding generation
+steadytext_embed_async(
+    text_input TEXT,
+    use_cache BOOLEAN DEFAULT true,
+    priority INTEGER DEFAULT 5
+) RETURNS UUID
+```
+
+#### Batch Operations
+
+```sql
+-- Batch text generation
+steadytext_generate_batch_async(
+    prompts TEXT[],
+    max_tokens INTEGER DEFAULT 512,
+    use_cache BOOLEAN DEFAULT true
+) RETURNS UUID[]
+
+-- Batch embedding generation
+steadytext_embed_batch_async(
+    texts TEXT[],
+    use_cache BOOLEAN DEFAULT true
+) RETURNS UUID[]
+```
+
+### Result Management
+
+#### `steadytext_check_async()`
+
+Check the status of an async request.
+
+```sql
+steadytext_check_async(request_id UUID)
+RETURNS TABLE(
+    status TEXT,           -- 'pending', 'processing', 'completed', 'failed'
+    result TEXT,          -- Generated text (NULL if not completed)
+    error TEXT,           -- Error message (NULL if successful)
+    created_at TIMESTAMP,
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    processing_time_ms INTEGER
+)
+```
+
+#### `steadytext_get_async_result()`
+
+Wait for and retrieve the result of an async request.
+
+```sql
+steadytext_get_async_result(
+    request_id UUID,
+    timeout_seconds INTEGER DEFAULT 30
+) RETURNS TEXT
+-- Returns NULL on timeout or error
+```
+
+#### `steadytext_cancel_async()`
+
+Cancel a pending async request.
+
+```sql
+steadytext_cancel_async(request_id UUID) RETURNS BOOLEAN
+```
+
+#### `steadytext_check_async_batch()`
+
+Check multiple async requests at once.
+
+```sql
+steadytext_check_async_batch(request_ids UUID[])
+RETURNS TABLE(
+    request_id UUID,
+    status TEXT,
+    result TEXT,
+    error TEXT
+)
+```
+
+### Usage Examples
+
+#### Basic Async Generation
+
+```sql
+-- Start async generation
+SELECT request_id FROM steadytext_generate_async(
+    'Write a comprehensive guide to PostgreSQL performance tuning',
+    max_tokens := 1024
+);
+
+-- Check status
+SELECT * FROM steadytext_check_async('your-request-id'::uuid);
+
+-- Wait for result
+SELECT steadytext_get_async_result('your-request-id'::uuid, 60);
+```
+
+#### Batch Processing Pattern
+
+```sql
+-- Process multiple documents asynchronously
+WITH async_requests AS (
+    SELECT 
+        doc_id,
+        steadytext_generate_async(
+            'Summarize: ' || content,
+            max_tokens := 200
+        ) AS request_id
+    FROM documents
+    WHERE needs_summary = true
+    LIMIT 100
+)
+-- Store request mappings
+INSERT INTO document_summary_requests (doc_id, request_id, requested_at)
+SELECT doc_id, request_id, NOW()
+FROM async_requests;
+
+-- Later: Collect results
+UPDATE documents d
+SET summary = r.result,
+    summarized_at = NOW()
+FROM (
+    SELECT 
+        dsr.doc_id,
+        steadytext_get_async_result(dsr.request_id, 30) AS result
+    FROM document_summary_requests dsr
+    WHERE dsr.completed_at IS NULL
+) r
+WHERE d.doc_id = r.doc_id
+  AND r.result IS NOT NULL;
+```
+
+#### Priority Queue Example
+
+```sql
+-- High priority requests
+SELECT steadytext_generate_async(
+    'URGENT: ' || request_text,
+    priority := 10  -- Higher priority
+) FROM urgent_requests;
+
+-- Normal priority requests
+SELECT steadytext_generate_async(
+    request_text,
+    priority := 5   -- Default priority
+) FROM normal_requests;
+```
+
+#### LISTEN/NOTIFY Integration
+
+```sql
+-- Set up notification channel
+LISTEN steadytext_async_complete;
+
+-- Process completed requests
+CREATE OR REPLACE FUNCTION process_completed_requests()
+RETURNS void AS $$
+DECLARE
+    notification RECORD;
+BEGIN
+    -- Get completed notifications
+    FOR notification IN 
+        SELECT request_id::uuid 
+        FROM pg_notification 
+        WHERE channel = 'steadytext_async_complete'
+    LOOP
+        -- Process completed request
+        UPDATE processed_texts
+        SET result = (
+            SELECT result 
+            FROM steadytext_check_async(notification.request_id)
+            WHERE status = 'completed'
+        ),
+        processed_at = NOW()
+        WHERE request_id = notification.request_id;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### Background Worker Configuration
+
+The async functions use a background worker that can be configured:
+
+```sql
+-- Start the background worker
+SELECT steadytext_worker_start();
+
+-- Check worker status
+SELECT * FROM steadytext_worker_status();
+
+-- Stop the worker
+SELECT steadytext_worker_stop();
+
+-- Configure worker settings
+SELECT steadytext_config_set('worker_batch_size', '10');
+SELECT steadytext_config_set('worker_poll_interval_ms', '1000');
+```
+
+### Performance Considerations
+
+1. **Queue Management**: The queue table (`steadytext_queue`) should be regularly monitored and old completed requests cleaned up.
+
+2. **Priority Levels**: Use priority levels (1-10) wisely. Higher numbers get processed first.
+
+3. **Batch Operations**: Batch operations are more efficient than individual async calls for large datasets.
+
+4. **Result Polling**: Use LISTEN/NOTIFY instead of polling for better performance in real-time applications.
+
 ## Troubleshooting
 
 ### Common Issues

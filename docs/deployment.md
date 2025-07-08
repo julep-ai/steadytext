@@ -777,56 +777,368 @@ az webapp create \
 
 ## PostgreSQL Extension Deployment
 
+The pg_steadytext extension brings production-ready AI capabilities directly to PostgreSQL with features including async operations, AI summarization, and structured generation (v2.4.1+).
+
+### Key Features
+
+- **Native SQL Functions**: Text generation and embeddings
+- **Async Operations** (v1.1.0+): Non-blocking AI operations with queue-based processing
+- **AI Summarization**: Aggregate functions with TimescaleDB support
+- **Structured Generation** (v2.4.1+): JSON schemas, regex patterns, and choice constraints
+- **Docker Support**: Production-ready containerization
+
 ### 1. Standalone PostgreSQL
 
 ```bash
 # Install PostgreSQL and dependencies
-sudo apt install postgresql-15 postgresql-server-dev-15 python3-dev
+sudo apt install postgresql-15 postgresql-server-dev-15 python3-dev python3-pip
+sudo apt install postgresql-15-pgvector  # For pgvector extension
 
-# Install pg_steadytext
-cd pg_steadytext
-sudo ./install.sh
+# Install Python dependencies system-wide (for PostgreSQL)
+sudo pip3 install steadytext>=2.1.0 pyzmq numpy
+
+# Clone and install pg_steadytext
+git clone https://github.com/julep-ai/steadytext.git
+cd steadytext/pg_steadytext
+make && sudo make install
 
 # Configure PostgreSQL
 sudo -u postgres psql << EOF
 CREATE DATABASE steadytext_db;
 \c steadytext_db
-CREATE EXTENSION plpython3u;
-CREATE EXTENSION vector;
-CREATE EXTENSION pg_steadytext;
+CREATE EXTENSION plpython3u CASCADE;
+CREATE EXTENSION pgvector CASCADE;
+CREATE EXTENSION pg_steadytext CASCADE;
+
+-- Verify installation
+SELECT steadytext_version();
+SELECT * FROM steadytext_config;
 EOF
+
+# Start the daemon for better performance
+sudo -u postgres psql steadytext_db -c "SELECT steadytext_daemon_start();"
 ```
 
-### 2. Docker PostgreSQL
+### 2. Docker PostgreSQL (Recommended)
 
-```dockerfile
-# Dockerfile.postgres
-FROM postgres:15
+The pg_steadytext repository includes a production-ready Dockerfile:
 
-# Install dependencies
-RUN apt-get update && apt-get install -y \
-    postgresql-plpython3-15 \
-    python3-pip \
-    build-essential
+```bash
+# Clone the repository
+git clone https://github.com/julep-ai/steadytext.git
+cd steadytext/pg_steadytext
 
-# Install Python packages
-RUN pip3 install steadytext pyzmq numpy
+# Build the Docker image
+docker build -t pg_steadytext .
 
-# Copy extension files
-COPY pg_steadytext /tmp/pg_steadytext
-RUN cd /tmp/pg_steadytext && ./install.sh
+# Or build with fallback model support (for compatibility)
+docker build --build-arg STEADYTEXT_USE_FALLBACK_MODEL=true -t pg_steadytext .
 
-# Initialize script
-COPY init.sql /docker-entrypoint-initdb.d/
+# Run the container
+docker run -d \
+  --name pg_steadytext \
+  -p 5432:5432 \
+  -e POSTGRES_PASSWORD=mysecretpassword \
+  -e POSTGRES_DB=steadytext_db \
+  -v steadytext_data:/var/lib/postgresql/data \
+  pg_steadytext
+
+# Test the installation
+docker exec -it pg_steadytext psql -U postgres steadytext_db -c "SELECT steadytext_version();"
+docker exec -it pg_steadytext psql -U postgres steadytext_db -c "SELECT steadytext_generate('Hello Docker!');"
 ```
 
-### 3. Managed PostgreSQL (RDS/CloudSQL)
+#### Docker Compose Setup
 
-Most managed PostgreSQL services don't support custom extensions. Options:
+Create `docker-compose.yml`:
 
-1. **Use separate daemon**: Run SteadyText daemon separately
-2. **API wrapper**: Create REST API that PostgreSQL can call
-3. **Self-managed**: Use EC2/GCE with PostgreSQL
+```yaml
+version: '3.8'
+
+services:
+  postgres-steadytext:
+    build: 
+      context: ./pg_steadytext
+      args:
+        - STEADYTEXT_USE_FALLBACK_MODEL=true
+    container_name: pg_steadytext
+    environment:
+      - POSTGRES_PASSWORD=mysecretpassword
+      - POSTGRES_DB=steadytext_db
+      - POSTGRES_USER=steadytext
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U steadytext && psql -U steadytext steadytext_db -c 'SELECT steadytext_version();'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+```
+
+#### Production Docker Configuration
+
+For production deployments, use environment variables and resource limits:
+
+```yaml
+# docker-compose.prod.yml
+version: '3.8'
+
+services:
+  postgres-steadytext:
+    image: pg_steadytext:latest
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 16G
+        reservations:
+          cpus: '2.0'
+          memory: 8G
+    environment:
+      # PostgreSQL settings
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+      - POSTGRES_DB=steadytext_prod
+      - POSTGRES_SHARED_BUFFERS=4GB
+      - POSTGRES_WORK_MEM=256MB
+      - POSTGRES_MAX_CONNECTIONS=200
+      
+      # SteadyText settings
+      - STEADYTEXT_GENERATION_CACHE_CAPACITY=4096
+      - STEADYTEXT_EMBEDDING_CACHE_CAPACITY=8192
+      - STEADYTEXT_USE_FALLBACK_MODEL=false
+      - STEADYTEXT_DAEMON_HOST=0.0.0.0
+      - STEADYTEXT_DAEMON_PORT=5557
+      
+      # Worker settings for async operations
+      - STEADYTEXT_WORKER_BATCH_SIZE=20
+      - STEADYTEXT_WORKER_POLL_INTERVAL_MS=500
+    secrets:
+      - postgres_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - postgres_logs:/var/log/postgresql
+    networks:
+      - steadytext_network
+
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+
+networks:
+  steadytext_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  postgres_logs:
+```
+
+### 3. Kubernetes Deployment
+
+Deploy pg_steadytext on Kubernetes:
+
+```yaml
+# postgres-steadytext-deployment.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-steadytext
+spec:
+  serviceName: postgres-steadytext
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-steadytext
+  template:
+    metadata:
+      labels:
+        app: postgres-steadytext
+    spec:
+      containers:
+      - name: postgres
+        image: pg_steadytext:latest
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
+        - name: POSTGRES_DB
+          value: steadytext_db
+        - name: STEADYTEXT_GENERATION_CACHE_CAPACITY
+          value: "4096"
+        resources:
+          requests:
+            memory: "8Gi"
+            cpu: "2"
+          limits:
+            memory: "16Gi"
+            cpu: "4"
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-storage
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 100Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-steadytext
+spec:
+  ports:
+  - port: 5432
+  selector:
+    app: postgres-steadytext
+```
+
+### 4. Feature Configuration
+
+#### Async Operations (v1.1.0+)
+
+Configure and start the background worker for async operations:
+
+```sql
+-- Start the background worker
+SELECT steadytext_worker_start();
+
+-- Configure worker settings
+SELECT steadytext_config_set('worker_batch_size', '20');
+SELECT steadytext_config_set('worker_poll_interval_ms', '500');
+SELECT steadytext_config_set('worker_max_retries', '3');
+
+-- Check worker status
+SELECT * FROM steadytext_worker_status();
+
+-- Example async usage
+SELECT request_id FROM steadytext_generate_async('Write a story', priority := 10);
+```
+
+#### AI Summarization Setup
+
+For TimescaleDB continuous aggregates:
+
+```sql
+-- Enable TimescaleDB (if using)
+CREATE EXTENSION IF NOT EXISTS timescaledb;
+
+-- Create tables for summarization
+CREATE TABLE logs (
+    timestamp TIMESTAMPTZ NOT NULL,
+    service TEXT,
+    message TEXT
+);
+
+SELECT create_hypertable('logs', 'timestamp');
+
+-- Create continuous aggregate with AI summarization
+CREATE MATERIALIZED VIEW hourly_summaries
+WITH (timescaledb.continuous) AS
+SELECT 
+    time_bucket('1 hour', timestamp) AS hour,
+    service,
+    ai_summarize_partial(message, jsonb_build_object('service', service)) AS partial_summary
+FROM logs
+GROUP BY hour, service;
+```
+
+#### Structured Generation (v2.4.1+)
+
+Enable structured generation features:
+
+```sql
+-- Test structured generation
+SELECT steadytext_generate_json(
+    'Create a user profile',
+    '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}}'::jsonb
+);
+
+SELECT steadytext_generate_regex(
+    'Phone: ',
+    '\d{3}-\d{3}-\d{4}'
+);
+
+SELECT steadytext_generate_choice(
+    'Sentiment:',
+    ARRAY['positive', 'negative', 'neutral']
+);
+```
+
+### 5. Managed PostgreSQL Alternatives
+
+Most managed PostgreSQL services (RDS, CloudSQL, Azure Database) don't support custom extensions. Alternative approaches:
+
+#### Option 1: Separate Daemon Service
+
+Run SteadyText daemon separately and connect via foreign data wrapper:
+
+```sql
+-- Create foreign server
+CREATE EXTENSION postgres_fdw;
+
+CREATE SERVER steadytext_server
+FOREIGN DATA WRAPPER postgres_fdw
+OPTIONS (host 'steadytext-daemon.example.com', port '5432', dbname 'steadytext');
+
+-- Create user mapping
+CREATE USER MAPPING FOR postgres
+SERVER steadytext_server
+OPTIONS (user 'steadytext', password 'secret');
+
+-- Import functions
+IMPORT FOREIGN SCHEMA public
+LIMIT TO (steadytext_generate, steadytext_embed)
+FROM SERVER steadytext_server
+INTO public;
+```
+
+#### Option 2: HTTP API Wrapper
+
+Create a REST API that PostgreSQL can call:
+
+```sql
+-- Using pg_http extension
+CREATE EXTENSION pg_http;
+
+CREATE OR REPLACE FUNCTION steadytext_generate_api(prompt TEXT)
+RETURNS TEXT AS $$
+DECLARE
+    response http_response;
+    result TEXT;
+BEGIN
+    response := http_post(
+        'https://api.steadytext.example.com/generate',
+        jsonb_build_object('prompt', prompt)::text,
+        'application/json'
+    );
+    
+    IF response.status = 200 THEN
+        result := response.content::jsonb->>'text';
+        RETURN result;
+    ELSE
+        RETURN NULL;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### Option 3: Self-Managed Instance
+
+Deploy PostgreSQL on EC2/GCE/Azure VM with full control over extensions.
 
 ## Production Configuration
 
