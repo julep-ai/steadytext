@@ -13,11 +13,30 @@ on:
         default: '14,15,16,17'
 
 jobs:
+  setup-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      pg_versions: ${{ steps.set-matrix.outputs.pg_versions }}
+    steps:
+    - name: Set PostgreSQL versions matrix
+      id: set-matrix
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.postgresql_versions }}" ]; then
+          # Convert comma-separated string to JSON array
+          PG_VERSIONS=$(echo "${{ github.event.inputs.postgresql_versions }}" | jq -R -c 'split(",") | map(tonumber)')
+        else
+          # Default versions
+          PG_VERSIONS='[14,15,16,17]'
+        fi
+        echo "pg_versions=$PG_VERSIONS" >> $GITHUB_OUTPUT
+        echo "Building for PostgreSQL versions: $PG_VERSIONS"
+
   build-packages:
+    needs: setup-matrix
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        pg_version: [14, 15, 16, 17]
+        pg_version: ${{ fromJson(needs.setup-matrix.outputs.pg_versions) }}
     
     steps:
     - name: Checkout code
@@ -33,6 +52,13 @@ jobs:
         curl -LsSf https://astral.sh/uv/install.sh | sh
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
     
+    - name: Add PostgreSQL APT repository
+      run: |
+        # Add the PostgreSQL APT repository for latest versions
+        sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+        wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+        sudo apt-get update
+    
     - name: Install system dependencies
       run: |
         sudo apt-get update
@@ -43,7 +69,6 @@ jobs:
           fakeroot \
           postgresql-server-dev-${{ matrix.pg_version }} \
           rpm \
-          rpmbuild \
           alien
     
     - name: Create packaging directories
@@ -242,7 +267,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        pg_version: [14, 15, 16, 17]
+        pg_version: ${{ fromJson(needs.setup-matrix.outputs.pg_versions) }}
         os: [ubuntu:22.04, debian:11, rockylinux:9, fedora:39]
     
     steps:
