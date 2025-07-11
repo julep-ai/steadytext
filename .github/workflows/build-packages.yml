@@ -31,6 +31,80 @@ jobs:
         echo "pg_versions=$PG_VERSIONS" >> $GITHUB_OUTPUT
         echo "Building for PostgreSQL versions: $PG_VERSIONS"
 
+  build-shared-packages:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Get version information
+      id: version
+      run: |
+        PG_VERSION=$(jq -r '.version' pg_steadytext/META.json)
+        PY_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
+        echo "pg_version=$PG_VERSION" >> $GITHUB_OUTPUT
+        echo "py_version=$PY_VERSION" >> $GITHUB_OUTPUT
+        echo "PostgreSQL extension version: $PG_VERSION"
+        echo "Python package version: $PY_VERSION"
+    
+    - name: Create output directory
+      run: mkdir -p packaging/output
+    
+    - name: Build PGXN package
+      run: |
+        cd pg_steadytext
+        
+        # Create PGXN distribution
+        tar czf ../packaging/output/pg_steadytext-${{ steps.version.outputs.pg_version }}.tar.gz \
+          --exclude='*.pyc' \
+          --exclude='__pycache__' \
+          --exclude='.git' \
+          --exclude='test' \
+          --exclude='expected' \
+          .
+        
+        # Create PGXN META.json with additional info
+        jq '. + {
+          "release_status": "stable",
+          "resources": {
+            "homepage": "https://github.com/julep-ai/steadytext",
+            "bugtracker": {
+              "web": "https://github.com/julep-ai/steadytext/issues"
+            },
+            "repository": {
+              "url": "https://github.com/julep-ai/steadytext.git",
+              "web": "https://github.com/julep-ai/steadytext",
+              "type": "git"
+            }
+          }
+        }' META.json > ../packaging/output/META.json
+    
+    - name: Generate Pigsty configuration
+      run: |
+        cat > packaging/output/pg_steadytext.pigsty.yml << EOF
+        # Pigsty configuration for SteadyText
+        # Add this to your pigsty config to install SteadyText
+        
+        pg_extensions:
+          - name: pg_steadytext
+            version: ${{ steps.version.outputs.pg_version }}
+            description: "AI-powered text generation for PostgreSQL"
+            repo: https://github.com/julep-ai/steadytext
+            
+        pg_libs: 'pg_steadytext'
+        
+        pg_extensions_config:
+          pg_steadytext:
+            shared_preload_libraries: 'pg_steadytext'
+            pg_steadytext.python_path: '/opt/steadytext/venv/bin/python'
+        EOF
+    
+    - name: Upload shared artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: shared-packages
+        path: packaging/output/*
+
   build-packages:
     needs: setup-matrix
     runs-on: ubuntu-latest
@@ -168,56 +242,6 @@ jobs:
         # Alternative: Build native RPM
         # This would require a proper .spec file
     
-    - name: Build PGXN package
-      run: |
-        cd pg_steadytext
-        
-        # Create PGXN distribution
-        mkdir -p ../packaging/output/pgxn
-        tar czf ../packaging/output/pgxn/pg_steadytext-${{ steps.version.outputs.pg_version }}.tar.gz \
-          --exclude='*.pyc' \
-          --exclude='__pycache__' \
-          --exclude='.git' \
-          --exclude='test' \
-          --exclude='expected' \
-          .
-        
-        # Create PGXN META.json with additional info
-        jq '. + {
-          "release_status": "stable",
-          "resources": {
-            "homepage": "https://github.com/julep-ai/steadytext",
-            "bugtracker": {
-              "web": "https://github.com/julep-ai/steadytext/issues"
-            },
-            "repository": {
-              "url": "https://github.com/julep-ai/steadytext.git",
-              "web": "https://github.com/julep-ai/steadytext",
-              "type": "git"
-            }
-          }
-        }' META.json > ../packaging/output/pgxn/META.json
-    
-    - name: Generate Pigsty configuration
-      run: |
-        cat > packaging/output/pg_steadytext.pigsty.yml << EOF
-        # Pigsty configuration for SteadyText
-        # Add this to your pigsty config to install SteadyText
-        
-        pg_extensions:
-          - name: pg_steadytext
-            version: ${{ steps.version.outputs.pg_version }}
-            description: "AI-powered text generation for PostgreSQL"
-            repo: https://github.com/julep-ai/steadytext
-            
-        pg_libs: 'pg_steadytext'
-        
-        pg_extensions_config:
-          pg_steadytext:
-            shared_preload_libraries: 'pg_steadytext'
-            pg_steadytext.python_path: '/opt/steadytext/venv/bin/python'
-        EOF
-    
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -225,7 +249,7 @@ jobs:
         path: packaging/output/*
     
   create-release:
-    needs: build-packages
+    needs: [build-packages, build-shared-packages]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     
@@ -270,7 +294,7 @@ jobs:
         prerelease: false
     
   test-packages:
-    needs: build-packages
+    needs: [build-packages, setup-matrix]
     runs-on: ubuntu-latest
     strategy:
       matrix:
