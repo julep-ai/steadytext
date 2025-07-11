@@ -61,9 +61,9 @@ COPY sql/ ./sql/
 # AIDEV-NOTE: Python files are most likely to change
 COPY python/ ./python/
 
-# Copy diagnostic script
-COPY diagnose_pg_model.py /usr/local/bin/diagnose_pg_model
-RUN chmod +x /usr/local/bin/diagnose_pg_model || true
+# Copy diagnostic script (optional - skip if not available)
+# COPY diagnose_pg_model.py /usr/local/bin/diagnose_pg_model
+# RUN chmod +x /usr/local/bin/diagnose_pg_model || true
 
 # Build and install the extension
 # AIDEV-NOTE: This layer rebuilds only when source files change

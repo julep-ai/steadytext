@@ -1408,38 +1408,8 @@ AS $$
     return "Unable to generate summary"
 $$;
 
--- Serialization functions for distributed aggregation
-CREATE OR REPLACE FUNCTION ai_summarize_serialize(
-    state jsonb
-) RETURNS bytea
-LANGUAGE plpython3u
-IMMUTABLE PARALLEL SAFE
-AS $$
-    import json
-    
-    if state is None:
-        return None
-    
-    # Convert to JSON string then to bytes
-    json_str = state if isinstance(state, str) else json.dumps(state)
-    return json_str.encode('utf-8')
-$$;
-
-CREATE OR REPLACE FUNCTION ai_summarize_deserialize(
-    state bytea
-) RETURNS jsonb
-LANGUAGE plpython3u
-IMMUTABLE PARALLEL SAFE
-AS $$
-    import json
-    
-    if state is None:
-        return None
-    
-    # Convert bytes to string then parse JSON
-    json_str = state.decode('utf-8')
-    return json_str
-$$;
+-- AIDEV-NOTE: Serialization functions removed because they are only allowed for STYPE = internal.
+-- Since we use STYPE = jsonb, PostgreSQL handles serialization automatically for parallel processing.
 
 -- Create the main aggregate
 CREATE AGGREGATE ai_summarize(text, jsonb) (
@@ -1447,8 +1417,6 @@ CREATE AGGREGATE ai_summarize(text, jsonb) (
     STYPE = jsonb,
     FINALFUNC = ai_summarize_finalize,
     COMBINEFUNC = ai_summarize_combine,
-    SERIALFUNC = ai_summarize_serialize,
-    DESERIALFUNC = ai_summarize_deserialize,
     PARALLEL = SAFE
 );
 
@@ -1457,8 +1425,6 @@ CREATE AGGREGATE ai_summarize_partial(text, jsonb) (
     SFUNC = ai_summarize_accumulate,
     STYPE = jsonb,
     COMBINEFUNC = ai_summarize_combine,
-    SERIALFUNC = ai_summarize_serialize,
-    DESERIALFUNC = ai_summarize_deserialize,
     PARALLEL = SAFE
 );
 
@@ -1567,3 +1533,5 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO PUBLIC;
 -- 5. Proper handling of invalid JSON inputs
 -- 6. Zero-norm vector protection in similarity calculations
 -- 7. Graceful fallback when parsing fails
+-- 8. FIXED: Removed serialization functions to resolve "serialization functions may be 
+--    specified only when the aggregate transition data type is internal" error
