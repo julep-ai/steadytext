@@ -7,7 +7,7 @@ NOTICE:  pg_steadytext Python environment initialized successfully
 SELECT steadytext_version();
  steadytext_version 
 --------------------
- 1.0.0
+ 1.2.0
 (1 row)
 
 -- Test configuration
