@@ -50,7 +50,7 @@
       "web": "https://github.com/julep-ai/steadytext",
       "type": "git"
     },
-    "documentation": {
+    "x_documentation": {
       "web": "https://github.com/julep-ai/steadytext/blob/main/pg_steadytext/README.md"
     }
   },
@@ -72,7 +72,7 @@
     "semantic search",
     "qwen"
   ],
-  "features": {
+  "x_features": {
     "deterministic_generation": "Always returns the same output for the same input",
     "builtin_caching": "Frecency-based cache with PostgreSQL storage",
     "daemon_integration": "Integrates with SteadyText's ZeroMQ daemon",
