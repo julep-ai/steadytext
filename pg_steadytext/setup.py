@@ -33,7 +33,7 @@ def get_pg_python_path():
 # Package metadata
 setup(
     name="pg_steadytext",
-    version="1.0.0",
+    version="1.2.0",
     description="PostgreSQL extension for SteadyText - Python modules",
     author="Julep AI",
     author_email="noreply@julep.ai",

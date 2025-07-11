@@ -8,7 +8,7 @@ from .cache_manager import CacheManager
 from .security import SecurityValidator, RateLimiter
 from .config import ConfigManager
 
-__version__ = "1.0.0"
+__version__ = "1.2.0"
 __all__ = [
     "SteadyTextConnector",
     "CacheManager",
