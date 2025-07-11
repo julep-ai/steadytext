@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://steadytext.dev/version_history/">
+        <link rel="canonical" href="https://steadytext.dev/why-steadytext/">
       
       
-        <link rel="prev" href="../benchmarks/">
+        <link rel="prev" href="../quick-start/">
       
       
-        <link rel="next" href="../contributing/">
+        <link rel="next" href="../architecture/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -24,7 +24,7 @@
     
     
       
-        <title>Version History - SteadyText Documentation</title>
+        <title>Why SteadyText - SteadyText Documentation</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#version-history" class="md-skip">
+        <a href="#why-steadytext" class="md-skip">
           Skip to content
         </a>
       
@@ -110,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Version History
+              Why SteadyText
             
           </span>
         </div>
@@ -262,9 +262,11 @@
   
   
   
+    
   
-    <li class="md-tabs__item">
-      <a href="../why-steadytext/" class="md-tabs__link">
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
         
   
   
@@ -439,12 +441,10 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
+      <li class="md-tabs__item">
         <a href="../faq/" class="md-tabs__link">
           
   
@@ -571,10 +571,32 @@
       
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../why-steadytext/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Why SteadyText
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -585,6 +607,122 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-problem-non-deterministic-ai" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Problem: Non-Deterministic AI
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-solution-deterministic-generation" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Solution: Deterministic Generation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#technical-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      Technical Architecture
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Technical Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#local-first-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      Local-First Design
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#postgresql-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      PostgreSQL Integration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#caching-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Caching Strategy
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#use-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Use Cases
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-characteristics" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance Characteristics
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#design-principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      Design Principles
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Next Steps
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1639,31 +1777,28 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" checked>
         
           
-          <label class="md-nav__link" for="__nav_12" id="__nav_12_label" tabindex="">
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_12" >
+        
+          
+          <label class="md-nav__link" for="__nav_12" id="__nav_12_label" tabindex="0">
             
   
   
@@ -1676,7 +1811,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_12">
             <span class="md-nav__icon md-icon"></span>
             Reference
@@ -1733,32 +1868,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    Version History
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../version_history/" class="md-nav__link">
         
   
   
@@ -1769,176 +1882,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#detailed-release-notes" class="md-nav__link">
-    <span class="md-ellipsis">
-      Detailed Release Notes
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Detailed Release Notes">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#version-241-native-grammar-support" class="md-nav__link">
-    <span class="md-ellipsis">
-      Version 2.4.1 - Native Grammar Support
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Version 2.4.1 - Native Grammar Support">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#grammar-based-structured-generation" class="md-nav__link">
-    <span class="md-ellipsis">
-      🔧 Grammar-Based Structured Generation
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#postgresql-structured-generation" class="md-nav__link">
-    <span class="md-ellipsis">
-      🐘 PostgreSQL Structured Generation
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#version-230-structured-generation" class="md-nav__link">
-    <span class="md-ellipsis">
-      Version 2.3.0 - Structured Generation
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Version 2.3.0 - Structured Generation">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#structured-generation" class="md-nav__link">
-    <span class="md-ellipsis">
-      ✨ Structured Generation
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#version-210-custom-seeds-postgresql-extension" class="md-nav__link">
-    <span class="md-ellipsis">
-      Version 2.1.0+ - Custom Seeds &amp; PostgreSQL Extension
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Version 2.1.0+ - Custom Seeds &amp; PostgreSQL Extension">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#custom-seed-support" class="md-nav__link">
-    <span class="md-ellipsis">
-      🎯 Custom Seed Support
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#postgresql-extension-pg_steadytext" class="md-nav__link">
-    <span class="md-ellipsis">
-      🐘 PostgreSQL Extension (pg_steadytext)
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#technical-improvements" class="md-nav__link">
-    <span class="md-ellipsis">
-      🔧 Technical Improvements
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#documentation-updates" class="md-nav__link">
-    <span class="md-ellipsis">
-      📖 Documentation Updates
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#breaking-changes" class="md-nav__link">
-    <span class="md-ellipsis">
-      🔄 Breaking Changes
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#bug-fixes" class="md-nav__link">
-    <span class="md-ellipsis">
-      🐛 Bug Fixes
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#requirements" class="md-nav__link">
-    <span class="md-ellipsis">
-      📋 Requirements
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1992,214 +1935,100 @@
   
 
 
-<h1 id="version-history">Version History<a class="headerlink" href="#version-history" title="Permanent link">&para;</a></h1>
-<p>This document outlines the major versions of SteadyText and the key features introduced in each.</p>
-<p><strong>Latest Version</strong>: 2.4.1 - Structured Generation with Native Grammar Support</p>
-<table>
-<thead>
-<tr>
-<th style="text-align: left;">Version</th>
-<th style="text-align: left;">Key Features</th>
-<th style="text-align: left;">Default Generation Model</th>
-<th style="text-align: left;">Default Embedding Model</th>
-<th style="text-align: left;">Python Versions</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: left;"><strong>2.4.x</strong></td>
-<td style="text-align: left;">- <strong>Native Grammar Support</strong>: Replaced Outlines with llama.cpp's native GBNF grammars for structured generation.<br>- <strong>PostgreSQL Structured Generation</strong>: Added <code>steadytext_generate_json()</code>, <code>steadytext_generate_regex()</code>, <code>steadytext_generate_choice()</code> SQL functions.<br>- <strong>Better Compatibility</strong>: Fixes issues with Gemma-3n and other models.</td>
-<td style="text-align: left;"><code>ggml-org/gemma-3n-E2B-it-GGUF</code> (gemma-3n-E2B-it-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>Qwen/Qwen3-Embedding-0.6B-GGUF</code> (Qwen3-Embedding-0.6B-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>&gt;=3.10, &lt;3.14</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><strong>2.3.x</strong></td>
-<td style="text-align: left;">- <strong>Structured Generation</strong>: Added support for JSON, Regex, and Choice-constrained generation via <code>outlines</code>.<br>- <strong>New API parameters</strong>: <code>schema</code>, <code>regex</code>, <code>choices</code> added to <code>generate()</code>.<br>- <strong>New convenience functions</strong>: <code>generate_json()</code>, <code>generate_regex()</code>, <code>generate_choice()</code>.</td>
-<td style="text-align: left;"><code>ggml-org/gemma-3n-E2B-it-GGUF</code> (gemma-3n-E2B-it-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>Qwen/Qwen3-Embedding-0.6B-GGUF</code> (Qwen3-Embedding-0.6B-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>&gt;=3.10, &lt;3.14</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><strong>2.1.x</strong></td>
-<td style="text-align: left;">- <strong>Custom Seeds</strong>: Added seed parameter to all generation and embedding functions.<br>- <strong>PostgreSQL Extension</strong>: Released pg_steadytext extension.<br>- <strong>Enhanced Reproducibility</strong>: Full control over deterministic generation.</td>
-<td style="text-align: left;"><code>ggml-org/gemma-3n-E2B-it-GGUF</code> (gemma-3n-E2B-it-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>Qwen/Qwen3-Embedding-0.6B-GGUF</code> (Qwen3-Embedding-0.6B-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>&gt;=3.10, &lt;3.14</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><strong>2.0.x</strong></td>
-<td style="text-align: left;">- <strong>Daemon Mode</strong>: Persistent model serving with ZeroMQ.<br>- <strong>Gemma-3n Models</strong>: Switched to <code>gemma-3n</code> for generation.<br>- <strong>Thinking Mode Deprecated</strong>: Removed thinking mode.</td>
-<td style="text-align: left;"><code>ggml-org/gemma-3n-E2B-it-GGUF</code> (gemma-3n-E2B-it-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>Qwen/Qwen3-Embedding-0.6B-GGUF</code> (Qwen3-Embedding-0.6B-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>&gt;=3.10, &lt;3.14</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><strong>1.x</strong></td>
-<td style="text-align: left;">- <strong>Model Switching</strong>: Added support for switching models via environment variables and a model registry.<br>- <strong>Qwen3 Models</strong>: Switched to <code>qwen3-1.7b</code> for generation.<br>- <strong>Indexing</strong>: Added support for FAISS indexing.</td>
-<td style="text-align: left;"><code>Qwen/Qwen3-1.7B-GGUF</code> (Qwen3-1.7B-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>Qwen/Qwen3-Embedding-0.6B-GGUF</code> (Qwen3-Embedding-0.6B-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>&gt;=3.10, &lt;3.14</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><strong>0.x</strong></td>
-<td style="text-align: left;">- <strong>Initial Release</strong>: Deterministic text generation and embedding.</td>
-<td style="text-align: left;"><code>Qwen/Qwen1.5-0.5B-Chat-GGUF</code> (qwen1_5-0_5b-chat-q4_k_m.gguf)</td>
-<td style="text-align: left;"><code>Qwen/Qwen1.5-0.5B-Chat-GGUF</code> (qwen1_5-0_5b-chat-q8_0.gguf)</td>
-<td style="text-align: left;"><code>&gt;=3.10</code></td>
-</tr>
-</tbody>
-</table>
-<h2 id="detailed-release-notes">Detailed Release Notes<a class="headerlink" href="#detailed-release-notes" title="Permanent link">&para;</a></h2>
-<h3 id="version-241-native-grammar-support">Version 2.4.1 - Native Grammar Support<a class="headerlink" href="#version-241-native-grammar-support" title="Permanent link">&para;</a></h3>
-<p><strong>Release Date</strong>: July 2025</p>
-<h4 id="grammar-based-structured-generation">🔧 Grammar-Based Structured Generation<a class="headerlink" href="#grammar-based-structured-generation" title="Permanent link">&para;</a></h4>
-<p><strong>Major Improvement</strong>: Replaced Outlines with llama.cpp's native GBNF (Grammatical Backus-Naur Form) grammar support.</p>
-<p><strong>Benefits</strong>:
-- <strong>Better Compatibility</strong>: Fixes vocabulary processing errors with Gemma-3n, Qwen1.5, Phi-2, and Llama 3.x models
-- <strong>Improved Performance</strong>: Native integration with llama.cpp eliminates external library overhead
-- <strong>No API Changes</strong>: Existing structured generation code continues to work unchanged
-- <strong>Deterministic Output</strong>: Grammar-based generation maintains SteadyText's determinism guarantees</p>
-<p><strong>Technical Details</strong>:
-- New <code>core/grammar.py</code> module converts JSON schemas, regex patterns, and choice lists to GBNF
-- <code>StructuredGenerator</code> now uses llama-cpp-python's <code>grammar</code> parameter directly
-- Removed <code>outlines</code> dependency, simplifying the dependency tree</p>
-<h4 id="postgresql-structured-generation">🐘 PostgreSQL Structured Generation<a class="headerlink" href="#postgresql-structured-generation" title="Permanent link">&para;</a></h4>
-<p><strong>New Feature</strong>: Added structured generation support to the PostgreSQL extension.</p>
-<p><strong>New SQL Functions</strong>:
-- <code>steadytext_generate_json(prompt, schema)</code> - Generate JSON conforming to a schema
-- <code>steadytext_generate_regex(prompt, pattern)</code> - Generate text matching a regex
-- <code>steadytext_generate_choice(prompt, choices)</code> - Generate one of the provided choices</p>
-<p><strong>Example Usage</strong>:
-<div class="language-sql highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1">-- Generate structured JSON</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">steadytext_generate_json</span><span class="p">(</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="s1">&#39;Create a person named Alice&#39;</span><span class="p">,</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="s1">&#39;{&quot;type&quot;: &quot;object&quot;, &quot;properties&quot;: {&quot;name&quot;: {&quot;type&quot;: &quot;string&quot;}, &quot;age&quot;: {&quot;type&quot;: &quot;integer&quot;}}}&#39;</span><span class="p">::</span><span class="n">jsonb</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">);</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1">-- Generate text matching a pattern</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">steadytext_generate_regex</span><span class="p">(</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="s1">&#39;My phone number is&#39;</span><span class="p">,</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="s1">&#39;\d{3}-\d{3}-\d{4}&#39;</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">);</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="c1">-- Generate from choices</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">steadytext_generate_choice</span><span class="p">(</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span><span class="s1">&#39;Is Python good?&#39;</span><span class="p">,</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;yes&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;no&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;maybe&#39;</span><span class="p">]</span>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="p">);</span>
-</span></code></pre></div></p>
-<h3 id="version-230-structured-generation">Version 2.3.0 - Structured Generation<a class="headerlink" href="#version-230-structured-generation" title="Permanent link">&para;</a></h3>
-<p><strong>Release Date</strong>: July 2025</p>
-<h4 id="structured-generation">✨ Structured Generation<a class="headerlink" href="#structured-generation" title="Permanent link">&para;</a></h4>
-<p><strong>Major Feature</strong>: Introduced structured generation capabilities powered by the <a href="https://github.com/outlines-dev/outlines">Outlines</a> library.</p>
+<h1 id="why-steadytext">Why SteadyText<a class="headerlink" href="#why-steadytext" title="Permanent link">&para;</a></h1>
+<p>Understanding the technical rationale behind deterministic AI.</p>
+<h2 id="the-problem-non-deterministic-ai">The Problem: Non-Deterministic AI<a class="headerlink" href="#the-problem-non-deterministic-ai" title="Permanent link">&para;</a></h2>
+<p>Traditional AI models produce different outputs for the same input, causing:</p>
 <ul>
-<li><strong>JSON Generation</strong>: Generate JSON that conforms to a JSON schema or a Pydantic model.</li>
-<li><code>steadytext.generate(prompt, schema=MyPydanticModel)</code></li>
-<li><code>steadytext.generate_json(prompt, schema={"type": "object", ...})</code></li>
-<li><strong>Regex-Constrained Generation</strong>: Force output to match a regular expression.</li>
-<li><code>steadytext.generate(prompt, regex=r"\d{3}-\d{3}-\d{4}")</code></li>
-<li><strong>Multiple Choice</strong>: Force model to choose from a list of options.</li>
-<li><code>steadytext.generate(prompt, choices=["A", "B", "C"])</code></li>
+<li><strong>Flaky tests</strong>: Tests that pass locally but fail in CI</li>
+<li><strong>Debugging difficulties</strong>: Cannot reproduce issues reliably</li>
+<li><strong>Caching challenges</strong>: Results cannot be cached effectively</li>
+<li><strong>API dependencies</strong>: External services introduce latency and failure points</li>
 </ul>
-<p><strong>Use Cases</strong>:
-- Reliable data extraction
-- Building robust function-calling systems
-- Creating predictable application logic
-- Generating structured data for databases</p>
-<h3 id="version-210-custom-seeds-postgresql-extension">Version 2.1.0+ - Custom Seeds &amp; PostgreSQL Extension<a class="headerlink" href="#version-210-custom-seeds-postgresql-extension" title="Permanent link">&para;</a></h3>
-<p><strong>Release Date</strong>: June 2025</p>
-<h4 id="custom-seed-support">🎯 Custom Seed Support<a class="headerlink" href="#custom-seed-support" title="Permanent link">&para;</a></h4>
-<p><strong>Major Enhancement</strong>: Added comprehensive custom seed support across all SteadyText APIs.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Traditional approach - unpredictable</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">test_ai_feature</span><span class="p">():</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">result</span> <span class="o">=</span> <span class="n">ai_generate</span><span class="p">(</span><span class="s2">&quot;Summarize this&quot;</span><span class="p">)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="k">assert</span> <span class="s2">&quot;summary&quot;</span> <span class="ow">in</span> <span class="n">result</span>  <span class="c1"># May randomly fail</span>
+</span></code></pre></div>
+<h2 id="the-solution-deterministic-generation">The Solution: Deterministic Generation<a class="headerlink" href="#the-solution-deterministic-generation" title="Permanent link">&para;</a></h2>
+<p>SteadyText ensures identical inputs always produce identical outputs by:</p>
+<ol>
+<li><strong>Fixed random seeds</strong>: All randomness is seeded with deterministic values</li>
+<li><strong>Greedy decoding</strong>: Always selecting the highest probability token</li>
+<li><strong>Quantized models</strong>: Consistent numerical precision across platforms</li>
+<li><strong>Aggressive caching</strong>: Deterministic outputs enable perfect caching</li>
+</ol>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># SteadyText approach - predictable</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">test_ai_feature</span><span class="p">():</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="n">result</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="s2">&quot;Summarize this&quot;</span><span class="p">)</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="k">assert</span> <span class="n">result</span> <span class="o">==</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="s2">&quot;Summarize this&quot;</span><span class="p">)</span>  <span class="c1"># Always true</span>
+</span></code></pre></div>
+<h2 id="technical-architecture">Technical Architecture<a class="headerlink" href="#technical-architecture" title="Permanent link">&para;</a></h2>
+<h3 id="local-first-design">Local-First Design<a class="headerlink" href="#local-first-design" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Python API</strong>: All functions now accept optional <code>seed: int = DEFAULT_SEED</code> parameter</li>
-<li><code>steadytext.generate(prompt, seed=123)</code></li>
-<li><code>steadytext.generate_iter(prompt, seed=456)</code></li>
-<li>
-<p><code>steadytext.embed(text, seed=789)</code></p>
-</li>
-<li>
-<p><strong>CLI Support</strong>: Added <code>--seed</code> flag to all commands</p>
-</li>
-<li><code>st generate "prompt" --seed 123</code></li>
-<li><code>st embed "text" --seed 456</code></li>
-<li>
-<p><code>st vector similarity "text1" "text2" --seed 789</code></p>
-</li>
-<li>
-<p><strong>Daemon Integration</strong>: Seeds are properly passed through daemon protocol</p>
-</li>
-<li><strong>Fallback Behavior</strong>: Deterministic fallbacks now respect custom seeds</li>
-<li><strong>Cache Keys</strong>: Seeds are included in cache keys to prevent collisions</li>
+<li><strong>No network calls</strong>: Models run entirely on your infrastructure</li>
+<li><strong>No API keys</strong>: Self-contained system with no external dependencies</li>
+<li><strong>Predictable latency</strong>: Consistent sub-millisecond response times</li>
+<li><strong>Data locality</strong>: AI processing happens where your data lives</li>
 </ul>
-<p><strong>Use Cases</strong>:
-- <strong>Reproducible Research</strong>: Document and reproduce exact results
-- <strong>A/B Testing</strong>: Generate controlled variations of content
-- <strong>Experimental Design</strong>: Systematic exploration of model behavior
-- <strong>Content Variations</strong>: Create different versions while maintaining quality</p>
-<h4 id="postgresql-extension-pg_steadytext">🐘 PostgreSQL Extension (pg_steadytext)<a class="headerlink" href="#postgresql-extension-pg_steadytext" title="Permanent link">&para;</a></h4>
-<p><strong>New Release</strong>: Complete PostgreSQL extension for SteadyText integration.</p>
-<p><strong>Core Features</strong>:
-- <strong>SQL Functions</strong>: Native PostgreSQL functions for text generation and embeddings
-  - <code>steadytext_generate(prompt, max_tokens, use_cache, seed)</code>
-  - <code>steadytext_embed(text, use_cache, seed)</code>
-  - <code>steadytext_daemon_start()</code>, <code>steadytext_daemon_status()</code>, <code>steadytext_daemon_stop()</code></p>
+<h3 id="postgresql-integration">PostgreSQL Integration<a class="headerlink" href="#postgresql-integration" title="Permanent link">&para;</a></h3>
+<p>The PostgreSQL extension enables AI operations directly in SQL:</p>
+<div class="language-sql highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1">-- AI as a native database function</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">SELECT</span><span class="w"> </span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="n">id</span><span class="p">,</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="n">steadytext_generate</span><span class="p">(</span><span class="s1">&#39;Summarize: &#39;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">content</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">summary</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="k">FROM</span><span class="w"> </span><span class="n">documents</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="k">CURRENT_DATE</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">7</span><span class="p">;</span>
+</span></code></pre></div>
+<p>Benefits:
+- <strong>Transactional consistency</strong>: AI operations participate in ACID transactions
+- <strong>Backup integration</strong>: AI results included in standard database backups
+- <strong>Security model</strong>: Leverages existing PostgreSQL authentication and permissions
+- <strong>Performance</strong>: Eliminates round-trips between application and database</p>
+<h3 id="caching-strategy">Caching Strategy<a class="headerlink" href="#caching-strategy" title="Permanent link">&para;</a></h3>
+<p>Deterministic outputs enable sophisticated caching:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Cache key includes all parameters affecting output</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">cache_key</span> <span class="o">=</span> <span class="nb">hash</span><span class="p">(</span><span class="n">prompt</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span> <span class="o">+</span> <span class="n">model_params</span><span class="p">)</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Perfect cache hits for repeated queries</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="k">if</span> <span class="n">cache_key</span> <span class="ow">in</span> <span class="n">cache</span><span class="p">:</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="k">return</span> <span class="n">cache</span><span class="p">[</span><span class="n">cache_key</span><span class="p">]</span>  <span class="c1"># &lt;1ms response</span>
+</span></code></pre></div>
+<p>Cache features:
+- <strong>Frecency-based eviction</strong>: Balances recency and frequency
+- <strong>Distributed backends</strong>: Support for SQLite, D1, and memory caches
+- <strong>Size limits</strong>: Configurable capacity and memory constraints</p>
+<h2 id="use-cases">Use Cases<a class="headerlink" href="#use-cases" title="Permanent link">&para;</a></h2>
+<p>SteadyText excels in scenarios requiring predictable AI:</p>
+<ol>
+<li><strong>Automated testing</strong>: Reliable assertions on AI-generated content</li>
+<li><strong>Data pipelines</strong>: Reproducible ETL operations with AI components</li>
+<li><strong>Content generation</strong>: Consistent outputs for documentation and reports</li>
+<li><strong>Semantic search</strong>: Stable embeddings for similarity matching</li>
+<li><strong>Log analysis</strong>: Deterministic summarization of system events</li>
+</ol>
+<h2 id="performance-characteristics">Performance Characteristics<a class="headerlink" href="#performance-characteristics" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Vector Integration</strong>: Full compatibility with pgvector extension</li>
-<li><strong>Built-in Caching</strong>: PostgreSQL-based frecency cache with eviction</li>
-<li><strong>Daemon Support</strong>: Integrates with SteadyText's ZeroMQ daemon for performance</li>
-<li><strong>Configuration Management</strong>: SQL-based configuration with <code>steadytext_config</code> table</li>
+<li><strong>Inference latency</strong>: &lt;100ms for most generation tasks</li>
+<li><strong>Embedding speed</strong>: ~1ms per text with caching</li>
+<li><strong>Memory usage</strong>: 2-4GB for model storage</li>
+<li><strong>Cache hit rate</strong>: &gt;90% in typical workloads</li>
 </ul>
-<p><strong>Installation</strong>:
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Install Python dependencies</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>pip3<span class="w"> </span>install<span class="w"> </span>steadytext&gt;<span class="o">=</span><span class="m">2</span>.1.0
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Build and install extension</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/julep-ai/steadytext.git
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="nb">cd</span><span class="w"> </span>steadytext/pg_steadytext
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>make<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>sudo<span class="w"> </span>make<span class="w"> </span>install
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="c1"># Enable in PostgreSQL</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>psql<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;CREATE EXTENSION pg_steadytext CASCADE;&quot;</span>
-</span></code></pre></div></p>
-<p><strong>Docker Support</strong>:
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Standard build</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>pg_steadytext<span class="w"> </span>.
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># With fallback model for compatibility</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>docker<span class="w"> </span>build<span class="w"> </span>--build-arg<span class="w"> </span><span class="nv">STEADYTEXT_USE_FALLBACK_MODEL</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span>-t<span class="w"> </span>pg_steadytext<span class="w"> </span>.
-</span></code></pre></div></p>
-<h4 id="technical-improvements">🔧 Technical Improvements<a class="headerlink" href="#technical-improvements" title="Permanent link">&para;</a></h4>
+<h2 id="design-principles">Design Principles<a class="headerlink" href="#design-principles" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Determinism by default</strong>: Same input → same output, always</li>
+<li><strong>Zero configuration</strong>: Works out of the box without setup</li>
+<li><strong>Local execution</strong>: No external dependencies or network calls</li>
+<li><strong>SQL-native</strong>: AI as a first-class database primitive</li>
+<li><strong>Production-ready</strong>: Designed for reliability over novelty</li>
+</ol>
+<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Validation</strong>: Added <code>validate_seed()</code> function for input validation</li>
-<li><strong>Environment Setup</strong>: Enhanced <code>set_deterministic_environment()</code> with custom seeds</li>
-<li><strong>Error Handling</strong>: Improved error messages and fallback behavior</li>
-<li><strong>Documentation</strong>: Comprehensive documentation and examples</li>
+<li><a href="../quick-start/">Quick Start Guide</a> - Get running in minutes</li>
+<li><a href="../postgresql-extension/">PostgreSQL Extension</a> - Database integration</li>
+<li><a href="../api/">API Reference</a> - Complete function documentation</li>
+<li><a href="../examples/">Examples</a> - Real-world usage patterns</li>
 </ul>
-<h4 id="documentation-updates">📖 Documentation Updates<a class="headerlink" href="#documentation-updates" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>API Documentation</strong>: Updated all function signatures with seed parameters</li>
-<li><strong>CLI Reference</strong>: Added <code>--seed</code> flag documentation for all commands</li>
-<li><strong>Examples</strong>: New comprehensive examples for custom seed usage</li>
-<li><strong>PostgreSQL Guide</strong>: Complete integration guide for pg_steadytext</li>
-<li><strong>Migration Guide</strong>: Instructions for upgrading from previous versions</li>
-</ul>
-<h4 id="breaking-changes">🔄 Breaking Changes<a class="headerlink" href="#breaking-changes" title="Permanent link">&para;</a></h4>
-<p><strong>None</strong> - Version 2.1.0+ is fully backward compatible with 2.0.x. All existing code continues to work unchanged, with new seed parameters being optional.</p>
-<h4 id="bug-fixes">🐛 Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permanent link">&para;</a></h4>
-<ul>
-<li>Fixed cache key generation to include seed for proper isolation</li>
-<li>Improved daemon protocol to handle seed parameters correctly</li>
-<li>Enhanced fallback behavior to be deterministic with custom seeds</li>
-<li>Resolved edge cases in streaming generation with custom seeds</li>
-</ul>
-<h4 id="requirements">📋 Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>Python</strong>: 3.10+ (unchanged)</li>
-<li><strong>PostgreSQL</strong>: 14+ (for pg_steadytext extension)</li>
-<li><strong>Dependencies</strong>: All existing dependencies remain compatible</li>
-</ul>
-<hr />
 
 
 
