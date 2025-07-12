@@ -379,8 +379,8 @@ CREATE AGGREGATE ai_summarize(text, jsonb) (
     STYPE = jsonb,
     FINALFUNC = ai_summarize_finalize,
     COMBINEFUNC = ai_summarize_combine,
-    SERIALFUNC = ai_summarize_serialize,
-    DESERIALFUNC = ai_summarize_deserialize,
+    -- SERIALFUNC = ai_summarize_serialize,
+    -- DESERIALFUNC = ai_summarize_deserialize,
     PARALLEL = SAFE
 );
 
@@ -389,8 +389,8 @@ CREATE AGGREGATE ai_summarize_partial(text, jsonb) (
     SFUNC = ai_summarize_accumulate,
     STYPE = jsonb,
     COMBINEFUNC = ai_summarize_combine,
-    SERIALFUNC = ai_summarize_serialize,
-    DESERIALFUNC = ai_summarize_deserialize,
+    -- SERIALFUNC = ai_summarize_serialize,
+    -- DESERIALFUNC = ai_summarize_deserialize,
     PARALLEL = SAFE
 );
 
