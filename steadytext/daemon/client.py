@@ -320,6 +320,56 @@ class DaemonClient:
                 logger.error(f"Daemon embed error: {e}")
                 raise
 
+    def rerank(
+        self,
+        query: str,
+        documents: Union[str, List[str]],
+        task: str = "Given a web search query, retrieve relevant passages that answer the query",
+        return_scores: bool = True,
+        seed: int = DEFAULT_SEED,
+    ) -> Union[List[Tuple[str, float]], List[str]]:
+        """Rerank documents via daemon.
+        
+        AIDEV-NOTE: Sends reranking request to daemon server which uses
+        the Qwen3-Reranker model to score query-document pairs.
+        """
+        if not self.connect():
+            raise ConnectionError("Daemon not available")
+
+        assert self.socket is not None  # Type guard for mypy
+        try:
+            params = {
+                "query": query,
+                "documents": documents,
+                "task": task,
+                "return_scores": return_scores,
+                "seed": seed,
+            }
+            request = Request(method="rerank", params=params)
+            self.socket.send(request.to_json().encode())
+            response_data = self.socket.recv()
+            response = Response.from_json(response_data)
+
+            if response.error:
+                raise RuntimeError(f"Daemon error: {response.error}")
+
+            # AIDEV-NOTE: Result is already properly formatted from the server
+            # Either List[Tuple[str, float]] or List[str] depending on return_scores
+            return response.result
+
+        except Exception as e:
+            if (
+                zmq
+                and hasattr(zmq, "error")
+                and hasattr(zmq.error, "Again")
+                and isinstance(e, zmq.error.Again)
+            ):
+                logger.warning("Daemon request timed out")
+                raise ConnectionError("Daemon request timed out")
+            else:
+                logger.error(f"Daemon rerank error: {e}")
+                raise
+
     def shutdown(self) -> bool:
         """Request daemon shutdown."""
         if not self.connect():

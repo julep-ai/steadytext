@@ -4,6 +4,7 @@ import logging
 
 from .commands.generate import generate
 from .commands.embed import embed
+from .commands.rerank import rerank
 from .commands.cache import cache
 from .commands.models import models
 from .commands.vector import vector
@@ -95,6 +96,7 @@ def cli(ctx, version, quiet, verbose, size, seed, wait, schema, regex, choices):
 # Register commands
 cli.add_command(generate)
 cli.add_command(embed)
+cli.add_command(rerank)
 cli.add_command(cache)
 cli.add_command(models)
 cli.add_command(vector)

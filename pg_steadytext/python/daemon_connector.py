@@ -18,6 +18,7 @@ try:
     from steadytext import (
         generate,
         embed,
+        rerank,
         generate_iter,
         generate_json,
         generate_regex,
@@ -539,6 +540,95 @@ class SteadyTextConnector:
                 logger.error(f"Direct choice generation also failed: {e2}")
                 # Return deterministic choice
                 return choices[abs(hash(prompt)) % len(choices)] if choices else ""
+
+    def rerank(
+        self,
+        query: str,
+        documents: List[str],
+        task: str = "Given a web search query, retrieve relevant passages that answer the query",
+        return_scores: bool = True,
+        seed: int = 42,
+    ) -> List:
+        """
+        Rerank documents by relevance to a query using SteadyText.
+
+        AIDEV-NOTE: Uses the Qwen3-Reranker model to score query-document pairs.
+        Falls back to simple word overlap scoring if model unavailable.
+
+        Args:
+            query: Search query text
+            documents: List of documents to rerank
+            task: Task description for reranking
+            return_scores: If True, return (document, score) tuples; if False, just documents
+            seed: Random seed for deterministic reranking (default: 42)
+
+        Returns:
+            List of (document, score) tuples if return_scores=True,
+            otherwise list of documents sorted by relevance
+        """
+        if not documents:
+            return []
+
+        if not STEADYTEXT_AVAILABLE:
+            # Fallback reranking using simple word overlap
+            return self._fallback_rerank(query, documents, return_scores)
+
+        try:
+            # Try using daemon first
+            with use_daemon():
+                result = rerank(
+                    query=query,
+                    documents=documents,
+                    task=task,
+                    return_scores=return_scores,
+                    seed=seed,
+                )
+                return result
+        except Exception as e:
+            logger.warning(f"Daemon reranking failed: {e}, using direct reranking")
+
+            # Fall back to direct reranking
+            try:
+                result = rerank(
+                    query=query,
+                    documents=documents,
+                    task=task,
+                    return_scores=return_scores,
+                    seed=seed,
+                )
+                return result
+            except Exception as e2:
+                logger.error(f"Direct reranking also failed: {e2}")
+                return self._fallback_rerank(query, documents, return_scores)
+
+    def _fallback_rerank(
+        self, query: str, documents: List[str], return_scores: bool
+    ) -> List:
+        """
+        Fallback reranking using simple word overlap scoring.
+        
+        AIDEV-NOTE: Provides deterministic reranking when model is unavailable.
+        """
+        query_words = set(query.lower().split())
+        
+        # Score each document
+        scored_docs = []
+        for doc in documents:
+            doc_words = set(doc.lower().split())
+            if query_words:
+                overlap = len(query_words.intersection(doc_words))
+                score = overlap / len(query_words)
+            else:
+                score = 0.0
+            scored_docs.append((doc, score))
+        
+        # Sort by score descending
+        scored_docs.sort(key=lambda x: x[1], reverse=True)
+        
+        if return_scores:
+            return scored_docs
+        else:
+            return [doc for doc, _ in scored_docs]
 
     def _fallback_generate(self, prompt: str, max_tokens: int) -> str:
         """

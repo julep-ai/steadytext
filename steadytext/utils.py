@@ -26,8 +26,10 @@ if not logger.handlers:
 # AIDEV-NOTE: Switched from Qwen3 to Gemma-3n for generation and are using Qwen3-Embedding-0.6B for embeddings. Users can override the models via environment variables. The ggml-org repository is used for the latest GGUF versions.
 DEFAULT_GENERATION_MODEL_REPO = "ggml-org/gemma-3n-E2B-it-GGUF"
 DEFAULT_EMBEDDING_MODEL_REPO = "Qwen/Qwen3-Embedding-0.6B-GGUF"
+DEFAULT_RERANKING_MODEL_REPO = "QuantFactory/Qwen3-Reranker-4B-GGUF"
 GENERATION_MODEL_FILENAME = "gemma-3n-E2B-it-Q8_0.gguf"
 EMBEDDING_MODEL_FILENAME = "Qwen3-Embedding-0.6B-Q8_0.gguf"
+RERANKING_MODEL_FILENAME = "Qwen3-Reranker-4B.Q8_0.gguf"
 
 # AIDEV-NOTE: Model registry for validated alternative models
 # Each entry contains repo_id and filename for known working models
@@ -52,6 +54,12 @@ MODEL_REGISTRY = {
     "qwen3-1.7b": {
         "repo": "lmstudio-community/qwen3-1.7b-llama-cpp-python-GGUF",
         "filename": "qwen3-1.7b-q8_0.gguf",
+        "verified": True,
+    },
+    # Reranking models
+    "qwen3-reranker-4b": {
+        "repo": "QuantFactory/Qwen3-Reranker-4B-GGUF",
+        "filename": "Qwen3-Reranker-4B.Q8_0.gguf",
         "verified": True,
     },
 }
@@ -86,6 +94,12 @@ EMBEDDING_MODEL_REPO = os.environ.get(
 )
 EMBEDDING_MODEL_FILENAME = os.environ.get(
     "STEADYTEXT_EMBEDDING_MODEL_FILENAME", EMBEDDING_MODEL_FILENAME
+)
+RERANKING_MODEL_REPO = os.environ.get(
+    "STEADYTEXT_RERANKING_MODEL_REPO", DEFAULT_RERANKING_MODEL_REPO
+)
+RERANKING_MODEL_FILENAME = os.environ.get(
+    "STEADYTEXT_RERANKING_MODEL_FILENAME", RERANKING_MODEL_FILENAME
 )
 
 # --- Determinism & Seeds ---
@@ -136,6 +150,7 @@ MODEL_MAX_CONTEXT_WINDOWS = {
     "gemma-3n-4b": 8192,
     "qwen2.5-3b": 32768,
     "qwen3-1.7b": 8192,
+    "qwen3-reranker-4b": 8192,
 }
 
 

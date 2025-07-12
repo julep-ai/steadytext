@@ -100,6 +100,33 @@ SteadyText v2.0+ uses Gemma-3n models for generation and Qwen3 for embeddings.
 - AIDEV-NOTE: The default generation model is `gemma-3n-E2B-it-GGUF`.
 - AIDEV-NOTE: The default embedding model is `Qwen3-Embedding-0.6B-GGUF`.
 
+## Reranking Support (v1.3.0+)
+
+SteadyText v1.3.0+ includes document reranking functionality using the Qwen3-Reranker-4B model.
+
+### Key Components
+
+**core/reranker.py**
+- DeterministicReranker class following the same patterns as generation/embedding
+- Uses yes/no token logits for binary relevance scoring
+- Fallback to simple word overlap scoring when model unavailable
+
+**Reranking Features:**
+- Query-document relevance scoring
+- Batch document reranking
+- Custom task descriptions for domain-specific reranking
+- Caching support via dedicated reranking cache
+- CLI command: `st rerank`
+- PostgreSQL functions: `steadytext_rerank()` and async variants
+
+### AIDEV Considerations
+
+- AIDEV-NOTE: The default reranking model is `Qwen3-Reranker-4B-GGUF`.
+- AIDEV-NOTE: Reranking uses a specific prompt format with system/user/assistant tags.
+- AIDEV-NOTE: Scores are derived from yes/no token probabilities.
+- AIDEV-TODO: Consider adding support for cross-encoder models.
+- AIDEV-TODO: Add streaming support for large document sets.
+
 ## Cache Management
 
 SteadyText v1.3+ uses a centralized cache management system with pluggable backends (v2.2.0+).

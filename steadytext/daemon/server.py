@@ -24,6 +24,7 @@ except ImportError:
 
 from ..core.generator import DeterministicGenerator
 from ..core.embedder import core_embed
+from ..core.reranker import core_rerank
 from ..cache_manager import get_generation_cache
 from ..utils import (
     logger,
@@ -238,6 +239,28 @@ class DaemonServer:
         # AIDEV-NOTE: Convert numpy array to list for JSON serialization
         return embedding.tolist()
 
+    def _handle_rerank(self, params: Dict[str, Any]) -> Any:
+        """Handle reranking request.
+        
+        AIDEV-NOTE: Reranking results are cached based on query-document-task tuples.
+        """
+        query = params.get("query", "")
+        documents = params.get("documents", [])
+        task = params.get("task", "Given a web search query, retrieve relevant passages that answer the query")
+        return_scores = params.get("return_scores", True)
+        seed = params.get("seed", DEFAULT_SEED)
+        
+        result = core_rerank(
+            query=query,
+            documents=documents,
+            task=task,
+            return_scores=return_scores,
+            seed=seed,
+        )
+        
+        # AIDEV-NOTE: Result is already JSON-serializable (list of tuples or list of strings)
+        return result
+
     def _create_error_response(
         self, request_id: str, error: Exception
     ) -> ErrorResponse:
@@ -270,6 +293,10 @@ class DaemonServer:
                 return None  # Signal to handle streaming
             elif request.method == "embed":
                 result = self._handle_embed(request.params)
+                assert request.id is not None  # Set in Request.__post_init__
+                return Response(id=request.id, result=result)  # type: ignore[call-arg]
+            elif request.method == "rerank":
+                result = self._handle_rerank(request.params)
                 assert request.id is not None  # Set in Request.__post_init__
                 return Response(id=request.id, result=result)  # type: ignore[call-arg]
             else:

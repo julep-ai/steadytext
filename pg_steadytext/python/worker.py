@@ -6,6 +6,7 @@ AIDEV-NOTE: This worker processes async generation and embedding requests
 import time
 import logging
 import signal
+import json
 from typing import Optional, Dict, Any
 
 import psycopg2  # type: ignore
@@ -130,6 +131,40 @@ class QueueWorker:
         # Generate choice using daemon connector
         return self.daemon_client.generate_choice(prompt, choices, seed=seed)
 
+    def process_rerank(self, request_data: Dict[str, Any]) -> list:
+        """Process a rerank request
+        AIDEV-NOTE: Added in v1.3.0 for async rerank support
+        """
+        params = request_data.get("params", {})
+        query = params.get("query", "")
+        documents = params.get("documents", [])
+        task = params.get("task", "Given a web search query, retrieve relevant passages that answer the query")
+        return_scores = params.get("return_scores", True)
+        seed = params.get("seed", 42)
+        
+        # Validate input
+        if not query or not query.strip():
+            raise ValueError("Query cannot be empty")
+        if not documents:
+            raise ValueError("Documents list cannot be empty")
+        
+        # Rerank using daemon connector
+        result = self.daemon_client.rerank(
+            query=query,
+            documents=documents,
+            task=task,
+            return_scores=return_scores,
+            seed=seed
+        )
+        
+        # Convert result to JSON-serializable format
+        if return_scores:
+            # Result is list of (document, score) tuples
+            return [[doc, float(score)] for doc, score in result]
+        else:
+            # Result is just list of documents
+            return result
+
     def process_queue_item(self, item: Dict[str, Any]) -> None:
         """Process a single queue item"""
         conn = self.connect_db()
@@ -236,6 +271,24 @@ class QueueWorker:
                         """,
                             (
                                 result,
+                                int((time.time() - start_time) * 1000),
+                                item["id"],
+                            ),
+                        )
+
+                    elif item["request_type"] == "rerank":
+                        result = self.process_rerank(item)
+                        cur.execute(
+                            """
+                            UPDATE steadytext_queue 
+                            SET status = 'completed',
+                                result = %s::jsonb,
+                                completed_at = NOW(),
+                                processing_time_ms = %s
+                            WHERE id = %s
+                        """,
+                            (
+                                json.dumps(result),  # Convert to JSON string
                                 int((time.time() - start_time) * 1000),
                                 item["id"],
                             ),
