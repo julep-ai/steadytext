@@ -138,25 +138,28 @@ class QueueWorker:
         params = request_data.get("params", {})
         query = params.get("query", "")
         documents = params.get("documents", [])
-        task = params.get("task", "Given a web search query, retrieve relevant passages that answer the query")
+        task = params.get(
+            "task",
+            "Given a web search query, retrieve relevant passages that answer the query",
+        )
         return_scores = params.get("return_scores", True)
         seed = params.get("seed", 42)
-        
+
         # Validate input
         if not query or not query.strip():
             raise ValueError("Query cannot be empty")
         if not documents:
             raise ValueError("Documents list cannot be empty")
-        
+
         # Rerank using daemon connector
         result = self.daemon_client.rerank(
             query=query,
             documents=documents,
             task=task,
             return_scores=return_scores,
-            seed=seed
+            seed=seed,
         )
-        
+
         # Convert result to JSON-serializable format
         if return_scores:
             # Result is list of (document, score) tuples

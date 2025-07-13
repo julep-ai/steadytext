@@ -7,4 +7,13 @@ from .vector import vector
 from .index import index
 from .completion import completion
 
-__all__ = ["generate", "embed", "rerank", "cache", "models", "vector", "index", "completion"]
+__all__ = [
+    "generate",
+    "embed",
+    "rerank",
+    "cache",
+    "models",
+    "vector",
+    "index",
+    "completion",
+]

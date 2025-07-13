@@ -329,7 +329,7 @@ class DaemonClient:
         seed: int = DEFAULT_SEED,
     ) -> Union[List[Tuple[str, float]], List[str]]:
         """Rerank documents via daemon.
-        
+
         AIDEV-NOTE: Sends reranking request to daemon server which uses
         the Qwen3-Reranker model to score query-document pairs.
         """

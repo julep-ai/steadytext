@@ -606,11 +606,11 @@ class SteadyTextConnector:
     ) -> List:
         """
         Fallback reranking using simple word overlap scoring.
-        
+
         AIDEV-NOTE: Provides deterministic reranking when model is unavailable.
         """
         query_words = set(query.lower().split())
-        
+
         # Score each document
         scored_docs = []
         for doc in documents:
@@ -621,10 +621,10 @@ class SteadyTextConnector:
             else:
                 score = 0.0
             scored_docs.append((doc, score))
-        
+
         # Sort by score descending
         scored_docs.sort(key=lambda x: x[1], reverse=True)
-        
+
         if return_scores:
             return scored_docs
         else:

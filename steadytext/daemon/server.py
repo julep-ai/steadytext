@@ -241,15 +241,18 @@ class DaemonServer:
 
     def _handle_rerank(self, params: Dict[str, Any]) -> Any:
         """Handle reranking request.
-        
+
         AIDEV-NOTE: Reranking results are cached based on query-document-task tuples.
         """
         query = params.get("query", "")
         documents = params.get("documents", [])
-        task = params.get("task", "Given a web search query, retrieve relevant passages that answer the query")
+        task = params.get(
+            "task",
+            "Given a web search query, retrieve relevant passages that answer the query",
+        )
         return_scores = params.get("return_scores", True)
         seed = params.get("seed", DEFAULT_SEED)
-        
+
         result = core_rerank(
             query=query,
             documents=documents,
@@ -257,7 +260,7 @@ class DaemonServer:
             return_scores=return_scores,
             seed=seed,
         )
-        
+
         # AIDEV-NOTE: Result is already JSON-serializable (list of tuples or list of strings)
         return result
 

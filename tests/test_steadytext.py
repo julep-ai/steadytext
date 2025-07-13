@@ -82,7 +82,7 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
                 # Try a simple generation to see if generator model is available
                 gen_result = steadytext.generate("test", max_new_tokens=1)
                 gen_ok = gen_result is not None and len(gen_result) > 0
-                
+
                 # Try a simple embedding to see if embedding model is available
                 emb_result = steadytext.embed("test")
                 emb_ok = emb_result is not None

@@ -261,23 +261,23 @@ def rerank(
     seed: int = DEFAULT_SEED,
 ) -> Union[List[Tuple[str, float]], List[str]]:
     """Rerank documents based on relevance to a query.
-    
+
     Uses the Qwen3-Reranker model to score query-document pairs and returns
     documents sorted by relevance. Falls back to simple word overlap scoring
     when the model is unavailable.
-    
+
     Args:
         query: The search query
         documents: Single document or list of documents to rerank
         task: Task description for the reranking (affects scoring)
         return_scores: If True, return (document, score) tuples; if False, just documents
         seed: Random seed for determinism
-        
+
     Returns:
         If return_scores=True: List of (document, score) tuples sorted by score descending
         If return_scores=False: List of documents sorted by relevance descending
         Empty list if no documents provided or on error
-        
+
     Examples:
         # Basic reranking with scores
         results = rerank("What is Python?", [
@@ -286,10 +286,10 @@ def rerank(
             "Java is also a programming language"
         ])
         # Returns: [("Python is a programming language", 0.95), ...]
-        
+
         # Get just sorted documents
         docs = rerank("climate change", documents, return_scores=False)
-        
+
         # Custom task description
         results = rerank(
             "symptoms of flu",
@@ -312,7 +312,7 @@ def rerank(
             except ConnectionError:
                 # Fall back to direct reranking
                 logger.debug("Daemon not available, falling back to direct reranking")
-    
+
     try:
         result = core_rerank(
             query=query,
@@ -322,9 +322,7 @@ def rerank(
             seed=seed,
         )
         if result is None:
-            logger.error(
-                "Reranking failed - model not available or invalid input"
-            )
+            logger.error("Reranking failed - model not available or invalid input")
             return []
         return result
     except Exception as e:
