@@ -47,6 +47,7 @@ class CacheManager:
     _instance: Optional["CacheManager"] = None
     _generation_cache: Optional[DiskBackedFrecencyCache] = None
     _embedding_cache: Optional[DiskBackedFrecencyCache] = None
+    _reranking_cache: Optional[DiskBackedFrecencyCache] = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -115,12 +116,45 @@ class CacheManager:
             )
         return self._embedding_cache
 
+    def get_reranking_cache(self) -> DiskBackedFrecencyCache:
+        """Get the shared reranking cache instance."""
+        # AIDEV-NOTE: Check if cache initialization should be skipped
+        if _os.environ.get("STEADYTEXT_SKIP_CACHE_INIT") == "1":
+            # Return a dummy cache that does nothing
+            return _DummyCache()
+
+        if self._reranking_cache is None:
+            # AIDEV-NOTE: Support configurable cache backend
+            backend_type = _os.environ.get("STEADYTEXT_CACHE_BACKEND")
+
+            # Collect backend-specific configuration
+            backend_kwargs = {}
+            if backend_type == "d1":
+                backend_kwargs["api_url"] = _os.environ.get("STEADYTEXT_D1_API_URL")
+                backend_kwargs["api_key"] = _os.environ.get("STEADYTEXT_D1_API_KEY")
+
+            self._reranking_cache = DiskBackedFrecencyCache(
+                capacity=int(
+                    _os.environ.get("STEADYTEXT_RERANKING_CACHE_CAPACITY", "256")
+                ),
+                cache_name="reranking_cache",
+                max_size_mb=float(
+                    _os.environ.get("STEADYTEXT_RERANKING_CACHE_MAX_SIZE_MB", "25.0")
+                ),
+                cache_dir=Path(get_cache_dir()) / "caches",
+                backend_type=backend_type,
+                **backend_kwargs,
+            )
+        return self._reranking_cache
+
     def clear_all_caches(self):
         """Clear all cache instances. Used for testing."""
         if self._generation_cache is not None:
             self._generation_cache.clear()
         if self._embedding_cache is not None:
             self._embedding_cache.clear()
+        if self._reranking_cache is not None:
+            self._reranking_cache.clear()
 
     def get_cache_stats(self) -> dict:
         """Get statistics for all caches."""
@@ -152,6 +186,18 @@ class CacheManager:
             # Fallback if len() fails
             stats["embedding"] = {"error": str(e)}
 
+        try:
+            if self._reranking_cache is not None:
+                cache_stats = self._reranking_cache.get_stats()
+                stats["reranking"] = {
+                    "size": len(self._reranking_cache),
+                    "capacity": self._reranking_cache.capacity,
+                    **cache_stats,
+                }
+        except Exception as e:
+            # Fallback if len() fails
+            stats["reranking"] = {"error": str(e)}
+
         return stats
 
 
@@ -175,6 +221,14 @@ def get_embedding_cache() -> DiskBackedFrecencyCache:
     if _cache_manager is None:
         _cache_manager = CacheManager()
     return _cache_manager.get_embedding_cache()
+
+
+def get_reranking_cache() -> DiskBackedFrecencyCache:
+    """Get the global reranking cache instance."""
+    global _cache_manager
+    if _cache_manager is None:
+        _cache_manager = CacheManager()
+    return _cache_manager.get_reranking_cache()
 
 
 def get_cache_manager() -> CacheManager:

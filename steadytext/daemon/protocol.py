@@ -16,7 +16,7 @@ from dataclasses import dataclass, asdict
 class Request:
     """Request message structure."""
 
-    method: str  # "generate", "generate_iter", "embed", "ping", "shutdown"
+    method: str  # "generate", "generate_iter", "embed", "rerank", "ping", "shutdown"
     params: Dict[str, Any]
     id: Optional[str] = None
 

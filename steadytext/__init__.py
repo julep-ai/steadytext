@@ -16,6 +16,7 @@ from .core.generator import (
     core_generate_iter as _generate_iter,
 )
 from .core.embedder import core_embed
+from .core.reranker import core_rerank
 from .utils import (
     logger,
     DEFAULT_SEED,
@@ -252,6 +253,85 @@ def embed(
         return None
 
 
+def rerank(
+    query: str,
+    documents: Union[str, List[str]],
+    task: str = "Given a web search query, retrieve relevant passages that answer the query",
+    return_scores: bool = True,
+    seed: int = DEFAULT_SEED,
+) -> Union[List[Tuple[str, float]], List[str]]:
+    """Rerank documents based on relevance to a query.
+    
+    Uses the Qwen3-Reranker model to score query-document pairs and returns
+    documents sorted by relevance. Falls back to simple word overlap scoring
+    when the model is unavailable.
+    
+    Args:
+        query: The search query
+        documents: Single document or list of documents to rerank
+        task: Task description for the reranking (affects scoring)
+        return_scores: If True, return (document, score) tuples; if False, just documents
+        seed: Random seed for determinism
+        
+    Returns:
+        If return_scores=True: List of (document, score) tuples sorted by score descending
+        If return_scores=False: List of documents sorted by relevance descending
+        Empty list if no documents provided or on error
+        
+    Examples:
+        # Basic reranking with scores
+        results = rerank("What is Python?", [
+            "Python is a programming language",
+            "Snakes are reptiles",
+            "Java is also a programming language"
+        ])
+        # Returns: [("Python is a programming language", 0.95), ...]
+        
+        # Get just sorted documents
+        docs = rerank("climate change", documents, return_scores=False)
+        
+        # Custom task description
+        results = rerank(
+            "symptoms of flu",
+            medical_documents,
+            task="Given a medical query, find relevant clinical information"
+        )
+    """
+    # AIDEV-NOTE: Use daemon by default for reranking unless explicitly disabled
+    if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
+        client = get_daemon_client()
+        if client is not None:
+            try:
+                return client.rerank(
+                    query=query,
+                    documents=documents,
+                    task=task,
+                    return_scores=return_scores,
+                    seed=seed,
+                )
+            except ConnectionError:
+                # Fall back to direct reranking
+                logger.debug("Daemon not available, falling back to direct reranking")
+    
+    try:
+        result = core_rerank(
+            query=query,
+            documents=documents,
+            task=task,
+            return_scores=return_scores,
+            seed=seed,
+        )
+        if result is None:
+            logger.error(
+                "Reranking failed - model not available or invalid input"
+            )
+            return []
+        return result
+    except Exception as e:
+        logger.error(f"Error during reranking: {e}")
+        return []
+
+
 def preload_models(verbose: bool = False, size: Optional[str] = None):
     """Preload models to ensure they're available for generation and embedding.
 
@@ -300,6 +380,7 @@ __all__ = [
     "generate",
     "generate_iter",
     "embed",
+    "rerank",
     "preload_models",
     "get_model_cache_dir",
     "use_daemon",
