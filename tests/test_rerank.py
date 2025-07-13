@@ -142,7 +142,7 @@ class TestReranking:
 class TestDeterministicReranker:
     """Test the DeterministicReranker class directly."""
     
-    @patch("steadytext.core.reranker.get_model_instance")
+    @patch("steadytext.core.reranker.get_generator_model_instance")
     def test_reranker_initialization(self, mock_get_model):
         """Test reranker initialization."""
         mock_model = Mock()
@@ -157,7 +157,7 @@ class TestDeterministicReranker:
     
     def test_reranker_fallback(self):
         """Test reranker fallback when model unavailable."""
-        with patch("steadytext.core.reranker.get_model_instance", return_value=None):
+        with patch("steadytext.core.reranker.get_generator_model_instance", return_value=None):
             reranker = DeterministicReranker()
             
             results = reranker.rerank(

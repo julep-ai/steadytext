@@ -13,7 +13,7 @@ from typing import List, Optional, Tuple, Union, cast
 import numpy as np
 
 from ..cache_manager import get_cache_manager
-from ..models.loader import get_model_instance
+from ..models.loader import get_generator_model_instance
 from ..utils import (
     DEFAULT_SEED,
     RERANKING_MODEL_REPO,
@@ -133,12 +133,11 @@ class DeterministicReranker:
             filename = RERANKING_MODEL_FILENAME
             
         # AIDEV-NOTE: Load with logits enabled for extracting yes/no token probabilities
-        self.model = get_model_instance(
+        self.model = get_generator_model_instance(
             force_reload=force_reload,
             enable_logits=True,  # Need logits for yes/no scoring
             repo_id=repo_id,
             filename=filename,
-            context_window=self._context_window,
         )
         
         self._current_model_key = f"{repo_id}::{filename}"
