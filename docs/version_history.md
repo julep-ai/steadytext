@@ -10,7 +10,8 @@ This document outlines the major versions of SteadyText and the key features int
 | **2.3.x** | - **Structured Generation**: Added support for JSON, Regex, and Choice-constrained generation via `outlines`.<br>- **New API parameters**: `schema`, `regex`, `choices` added to `generate()`.<br>- **New convenience functions**: `generate_json()`, `generate_regex()`, `generate_choice()`. | `ggml-org/gemma-3n-E2B-it-GGUF` (gemma-3n-E2B-it-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `>=3.10, <3.14` |
 | **2.1.x** | - **Custom Seeds**: Added seed parameter to all generation and embedding functions.<br>- **PostgreSQL Extension**: Released pg_steadytext extension.<br>- **Enhanced Reproducibility**: Full control over deterministic generation. | `ggml-org/gemma-3n-E2B-it-GGUF` (gemma-3n-E2B-it-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `>=3.10, <3.14` |
 | **2.0.x** | - **Daemon Mode**: Persistent model serving with ZeroMQ.<br>- **Gemma-3n Models**: Switched to `gemma-3n` for generation.<br>- **Thinking Mode Deprecated**: Removed thinking mode. | `ggml-org/gemma-3n-E2B-it-GGUF` (gemma-3n-E2B-it-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `>=3.10, <3.14` |
-| **1.x** | - **Model Switching**: Added support for switching models via environment variables and a model registry.<br>- **Qwen3 Models**: Switched to `qwen3-1.7b` for generation.<br>- **Indexing**: Added support for FAISS indexing. | `Qwen/Qwen3-1.7B-GGUF` (Qwen3-1.7B-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `>=3.10, <3.14` |
+| **1.3.x** | - **Document Reranking**: Added `Qwen3-Reranker-4B` model for query-document relevance scoring.<br>- **Centralized Cache**: Unified cache system with SQLite backend.<br>- **CLI Improvements**: Streaming by default, quiet output, new pipe syntax. | `Qwen/Qwen3-1.7B-GGUF` (Qwen3-1.7B-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `>=3.10, <3.14` |
+| **1.0-1.2** | - **Model Switching**: Added support for switching models via environment variables and a model registry.<br>- **Qwen3 Models**: Switched to `qwen3-1.7b` for generation.<br>- **Indexing**: Added support for FAISS indexing. | `Qwen/Qwen3-1.7B-GGUF` (Qwen3-1.7B-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `>=3.10, <3.14` |
 | **0.x** | - **Initial Release**: Deterministic text generation and embedding.                                                                      | `Qwen/Qwen1.5-0.5B-Chat-GGUF` (qwen1_5-0_5b-chat-q4_k_m.gguf) | `Qwen/Qwen1.5-0.5B-Chat-GGUF` (qwen1_5-0_5b-chat-q8_0.gguf) | `>=3.10`        |
 
 ## Detailed Release Notes
@@ -182,6 +183,75 @@ docker build --build-arg STEADYTEXT_USE_FALLBACK_MODEL=true -t pg_steadytext .
 
 - **Python**: 3.10+ (unchanged)
 - **PostgreSQL**: 14+ (for pg_steadytext extension)
+- **Dependencies**: All existing dependencies remain compatible
+
+---
+
+### Version 1.3.0 - Document Reranking & Cache Improvements
+
+**Release Date**: May 2025
+
+#### 🔍 Document Reranking
+
+**Major Feature**: Added document reranking functionality powered by the Qwen3-Reranker-4B model.
+
+**Key Features**:
+- **Binary Relevance Scoring**: Uses yes/no token logits for accurate relevance assessment
+- **Python API**: New `steadytext.rerank()` function with customizable task descriptions
+- **CLI Command**: `st rerank` for command-line reranking operations
+- **PostgreSQL Functions**: Complete set of SQL functions including async variants
+- **Fallback Support**: Simple word overlap scoring when model unavailable
+- **Task Customization**: Domain-specific reranking with custom task descriptions
+
+**Example Usage**:
+```python
+# Python API
+results = steadytext.rerank(
+    "Python programming",
+    ["Python is a language", "Cats are cute", "Python snakes"],
+    task="code documentation search"
+)
+
+# CLI
+st rerank "machine learning" doc1.txt doc2.txt --top-k 5 --json
+
+# PostgreSQL
+SELECT * FROM steadytext_rerank(
+    'customer complaint',
+    ARRAY(SELECT ticket_text FROM support_tickets)
+);
+```
+
+#### 🗄️ Centralized Cache System
+
+**Major Improvement**: Unified cache management across all access modes.
+
+- **SQLite Backend**: Thread-safe and process-safe with WAL mode
+- **Shared Cache Files**: Consistent caching between daemon and direct access
+- **Dedicated Reranking Cache**: Separate cache for reranking results
+- **Environment Configuration**:
+  - `STEADYTEXT_RERANKING_CACHE_CAPACITY` (default: 256)
+  - `STEADYTEXT_RERANKING_CACHE_MAX_SIZE_MB` (default: 25.0)
+
+#### 📺 CLI Improvements
+
+**Enhanced User Experience**:
+- **Streaming by Default**: See output as it's generated (use `--wait` to disable)
+- **Quiet by Default**: Clean output without informational messages (use `--verbose` for details)
+- **New Pipe Syntax**: `echo "prompt" | st` for better Unix integration
+- **Daemon Management**: Built-in commands for daemon lifecycle control
+
+#### 🔧 Technical Improvements
+
+- **Cache Manager Singleton**: Centralized cache access point
+- **Daemon Integration**: Reranking support in ZeroMQ daemon protocol
+- **PostgreSQL Extensions**: New migration script for v1.2.0 to v1.3.0
+- **Performance**: Optimized reranking with result caching
+
+#### 📋 Requirements
+
+- **Python**: 3.10+ (unchanged)
+- **Models**: New Qwen3-Reranker-4B-GGUF model (auto-downloads on first use)
 - **Dependencies**: All existing dependencies remain compatible
 
 ---

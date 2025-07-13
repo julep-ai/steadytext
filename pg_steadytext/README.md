@@ -188,6 +188,39 @@ SELECT ai_extract_facts(
 );
 ```
 
+### Document Reranking (v1.3.0+)
+
+```sql
+-- Rerank documents by relevance to query
+SELECT * FROM steadytext_rerank(
+    'Python programming',
+    ARRAY[
+        'Python is a programming language',
+        'Cats are cute animals',
+        'Python snakes are found in Asia'
+    ]
+);
+
+-- Get only reranked documents (no scores)
+SELECT * FROM steadytext_rerank_docs_only(
+    'machine learning',
+    ARRAY(SELECT content FROM documents WHERE category = 'tech')
+);
+
+-- Get top 5 most relevant documents
+SELECT * FROM steadytext_rerank_top_k(
+    'customer complaint',
+    ARRAY(SELECT ticket_text FROM support_tickets),
+    5
+);
+
+-- Batch reranking for multiple queries
+SELECT * FROM steadytext_rerank_batch(
+    ARRAY['query1', 'query2', 'query3'],
+    ARRAY['doc1', 'doc2', 'doc3']
+);
+```
+
 ### Async Functions (v1.1.0+)
 
 ```sql
@@ -258,6 +291,14 @@ PostgreSQL Client
 - `ai_summarize_text(text, metadata)` - Convenience function for single-value summarization
 - `ai_extract_facts(text, max_facts)` - Extract structured facts from text
 - `ai_deduplicate_facts(jsonb, similarity_threshold)` - Deduplicate facts using semantic similarity
+
+### Document Reranking Functions (v1.3.0+)
+- `steadytext_rerank(query, documents)` - Rerank documents with relevance scores
+- `steadytext_rerank_docs_only(query, documents)` - Rerank and return only documents
+- `steadytext_rerank_top_k(query, documents, k)` - Return top K reranked documents
+- `steadytext_rerank_async(query, documents)` - Async reranking operation
+- `steadytext_rerank_batch(queries, documents)` - Batch reranking for multiple queries
+- `steadytext_rerank_batch_async(queries, documents)` - Async batch reranking
 
 ### Management Functions
 - `steadytext_daemon_start()` - Start the daemon

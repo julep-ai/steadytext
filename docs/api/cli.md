@@ -513,6 +513,98 @@ See [Vector Operations](#vector) for detailed usage.
 
 ---
 
+## rerank
+
+Rerank documents based on relevance to a query (v1.3.0+).
+
+### Usage
+
+```bash
+st rerank [OPTIONS] QUERY [DOCUMENTS...]
+steadytext rerank [OPTIONS] QUERY [DOCUMENTS...]
+```
+
+### Options
+
+| Option | Short | Type | Default | Description |
+|--------|-------|------|---------|-------------|
+| `--file` | `-f` | path | | Read documents from file (one per line) |
+| `--stdin` | | flag | `false` | Read documents from stdin |
+| `--top-k` | `-k` | int | | Return only top K results |
+| `--json` | `-j` | flag | `false` | Output as JSON with scores |
+| `--task` | `-t` | string | `"text retrieval for user question"` | Task description for better results |
+| `--seed` | | int | `42` | Random seed for deterministic reranking |
+
+### Examples
+
+=== "Basic Reranking"
+
+    ```bash
+    # Rerank files
+    st rerank "Python programming" doc1.txt doc2.txt doc3.txt
+    
+    # With custom seed
+    st rerank "Python programming" doc1.txt doc2.txt doc3.txt --seed 123
+    ```
+
+=== "From File"
+
+    ```bash
+    # Documents in file (one per line)
+    st rerank "machine learning" --file documents.txt
+    
+    # Top 5 results with custom seed
+    st rerank "deep learning" --file papers.txt --top-k 5 --seed 456
+    ```
+
+=== "From Stdin"
+
+    ```bash
+    # Pipe documents
+    cat documents.txt | st rerank "search query" --stdin
+    
+    # From command output
+    find . -name "*.md" -exec cat {} \; | st rerank "installation guide" --stdin --top-k 3
+    ```
+
+=== "JSON Output"
+
+    ```bash
+    # Get scores with documents
+    st rerank "Python" doc1.txt doc2.txt --json
+    # Output:
+    # [
+    #   {"document": "Python is a programming language...", "score": 0.95},
+    #   {"document": "Cats are cute animals...", "score": 0.12}
+    # ]
+    ```
+
+=== "Custom Task"
+
+    ```bash
+    # Customer support prioritization
+    st rerank "billing issue" --file tickets.txt --task "support ticket prioritization"
+    
+    # Legal document search with custom seed
+    st rerank "contract breach" --file legal_docs.txt \
+        --task "legal document retrieval for case research" \
+        --seed 789
+    ```
+
+### Notes
+
+!!! info "Reranking Model"
+    Uses the Qwen3-Reranker-4B model for binary relevance scoring based on yes/no token logits.
+
+!!! tip "Task Descriptions"
+    Custom task descriptions help the model understand your specific reranking context:
+    - `"support ticket prioritization"` for customer service
+    - `"code snippet relevance"` for programming searches
+    - `"academic paper retrieval"` for research
+    - `"product search ranking"` for e-commerce
+
+---
+
 ## cache
 
 Manage result caches.
