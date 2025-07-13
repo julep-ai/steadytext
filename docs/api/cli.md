@@ -515,7 +515,7 @@ See [Vector Operations](#vector) for detailed usage.
 
 ## rerank
 
-Rerank documents based on relevance to a query (v1.3.0+).
+Rerank documents based on relevance to a query (v2.3.0+).
 
 ### Usage
 

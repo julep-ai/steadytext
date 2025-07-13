@@ -18,7 +18,7 @@ pg_steadytext extends PostgreSQL with:
 
 - **PostgreSQL**: 14+ (tested on 14, 15, 16, 17)
 - **Python**: 3.8+ (matches plpython3u version)
-- **SteadyText**: 2.1.0+ (for daemon support and custom seeds)
+- **SteadyText**: 2.3.0+ (for reranking support, daemon, and custom seeds)
 - **Extensions**:
   - `plpython3u` (required for Python integration)
   - `pgvector` (required for embedding storage)
@@ -30,7 +30,7 @@ pg_steadytext extends PostgreSQL with:
 
 ```bash
 # Install Python dependencies
-pip3 install steadytext>=2.1.0 pyzmq numpy
+pip3 install steadytext>=2.3.0 pyzmq numpy
 
 # Install omni-python (if not available via package manager)
 git clone https://github.com/omnigres/omnigres.git
@@ -332,6 +332,153 @@ SELECT steadytext_generate_choice(
     ARRAY['technology', 'business', 'health', 'sports', 'entertainment'],
     seed := 456
 );
+```
+
+### Document Reranking (v1.3.0+)
+
+PostgreSQL extension v1.3.0+ includes document reranking functionality powered by the Qwen3-Reranker-4B model.
+
+#### `steadytext_rerank()`
+
+Rerank documents by relevance to a query.
+
+```sql
+steadytext_rerank(
+    query TEXT,
+    documents TEXT[],
+    task TEXT DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    use_cache BOOLEAN DEFAULT true,
+    seed INTEGER DEFAULT 42
+) RETURNS TABLE(document TEXT, score FLOAT)
+```
+
+**Examples:**
+
+```sql
+-- Basic reranking
+SELECT * FROM steadytext_rerank(
+    'Python programming',
+    ARRAY[
+        'Python is a programming language',
+        'Cats are cute animals',
+        'Python snakes are found in Asia'
+    ]
+);
+
+-- Custom task description
+SELECT * FROM steadytext_rerank(
+    'customer complaint about delivery',
+    ARRAY(SELECT ticket_text FROM support_tickets WHERE created_at > NOW() - INTERVAL '7 days'),
+    task := 'support ticket prioritization'
+);
+
+-- Integration with search results
+WITH search_results AS (
+    SELECT content, ts_rank(search_vector, query) AS text_score
+    FROM documents, plainto_tsquery('english', 'machine learning') query
+    WHERE search_vector @@ query
+    LIMIT 20
+)
+SELECT r.document, r.score as ai_score, s.text_score
+FROM search_results s,
+     LATERAL steadytext_rerank(
+         'machine learning',
+         ARRAY_AGG(s.content),
+         seed := 456
+     ) r
+WHERE s.content = r.document
+ORDER BY r.score DESC
+LIMIT 5;
+```
+
+#### `steadytext_rerank_docs_only()`
+
+Get reranked documents without scores.
+
+```sql
+steadytext_rerank_docs_only(
+    query TEXT,
+    documents TEXT[],
+    task TEXT DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    use_cache BOOLEAN DEFAULT true,
+    seed INTEGER DEFAULT 42
+) RETURNS TABLE(document TEXT)
+```
+
+**Example:**
+
+```sql
+-- Get reranked documents for display
+SELECT * FROM steadytext_rerank_docs_only(
+    'machine learning',
+    ARRAY(SELECT content FROM documents WHERE category = 'tech')
+);
+```
+
+#### `steadytext_rerank_top_k()`
+
+Get top K most relevant documents.
+
+```sql
+steadytext_rerank_top_k(
+    query TEXT,
+    documents TEXT[],
+    k INTEGER,
+    task TEXT DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    use_cache BOOLEAN DEFAULT true,
+    seed INTEGER DEFAULT 42
+) RETURNS TABLE(document TEXT, score FLOAT)
+```
+
+**Example:**
+
+```sql
+-- Get top 5 most relevant support tickets
+SELECT * FROM steadytext_rerank_top_k(
+    'refund request',
+    ARRAY(SELECT ticket_text FROM support_tickets),
+    5
+);
+```
+
+#### `steadytext_rerank_batch()`
+
+Batch reranking for multiple queries.
+
+```sql
+steadytext_rerank_batch(
+    queries TEXT[],
+    documents TEXT[],
+    task TEXT DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    use_cache BOOLEAN DEFAULT true,
+    seed INTEGER DEFAULT 42
+) RETURNS TABLE(query_idx INTEGER, doc_idx INTEGER, score FLOAT)
+```
+
+**Example:**
+
+```sql
+-- Rerank documents for multiple queries
+SELECT * FROM steadytext_rerank_batch(
+    ARRAY['Python programming', 'machine learning', 'data science'],
+    ARRAY['Python is great', 'ML algorithms', 'Data analysis with Python']
+);
+```
+
+#### Async Reranking Functions
+
+All reranking functions have async counterparts:
+
+```sql
+-- Queue async reranking
+SELECT request_id FROM steadytext_rerank_async(
+    'search query',
+    ARRAY(SELECT content FROM documents)
+);
+
+-- Check status and get results
+SELECT * FROM steadytext_check_async(request_id);
+SELECT * FROM steadytext_get_async_result(request_id, timeout_seconds := 30);
 ```
 
 ## Management Functions
