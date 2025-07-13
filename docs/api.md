@@ -243,6 +243,74 @@ vec = steadytext.embed(["Hello", "world"])
 vec = steadytext.embed(["Hello", "world"], seed=789)
 ```
 
+### Document Reranking (v2.3.0+)
+
+#### `steadytext.rerank()`
+
+```python
+def rerank(
+    query: str,
+    documents: Union[str, List[str]],
+    task: str = "Given a web search query, retrieve relevant passages that answer the query",
+    return_scores: bool = True,
+    seed: int = DEFAULT_SEED
+) -> Union[List[Tuple[str, float]], List[str]]
+```
+
+Rerank documents based on their relevance to a query using the Qwen3-Reranker-4B model.
+
+**Parameters:**
+- `query` (str): The search query to rerank documents against
+- `documents` (Union[str, List[str]]): Single document or list of documents to rerank
+- `task` (str): Description of the reranking task for better results (default: "Given a web search query, retrieve relevant passages that answer the query")
+- `return_scores` (bool): If True, return (document, score) tuples; if False, just documents (default: True)
+- `seed` (int): Random seed for deterministic reranking (default: 42)
+
+**Returns:**
+- If `return_scores=True`: List[Tuple[str, float]] - List of (document, score) tuples sorted by relevance (highest score first)
+- If `return_scores=False`: List[str] - List of documents sorted by relevance (highest score first)
+
+**Example:**
+```python
+# Basic reranking
+documents = [
+    "Python is a programming language",
+    "Cats are cute animals",
+    "Python snakes are found in Asia"
+]
+results = steadytext.rerank("Python programming", documents)
+# Returns documents sorted by relevance to "Python programming"
+
+# With custom task description
+results = steadytext.rerank(
+    "customer support issue",
+    support_tickets,
+    task="support ticket prioritization",
+    seed=123
+)
+
+# Domain-specific reranking
+legal_results = steadytext.rerank(
+    "contract breach",
+    legal_documents,
+    task="legal document retrieval for case research"
+)
+
+# Get just documents without scores
+sorted_docs = steadytext.rerank(
+    "machine learning",
+    documents,
+    return_scores=False
+)
+# Returns: ["ML document 1", "ML document 2", ...]
+```
+
+**Notes:**
+- Uses yes/no token logits for binary relevance scoring
+- Falls back to simple word overlap scoring when model is unavailable
+- Results are cached for identical query-document pairs
+- Task descriptions help the model understand the reranking context
+
 ### Utility Functions
 
 #### `steadytext.preload_models()`
@@ -310,6 +378,11 @@ print(f"Models are stored in: {cache_dir}")
 
 - **`STEADYTEXT_EMBEDDING_CACHE_CAPACITY`**: Maximum number of cache entries (default: 512)
 - **`STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB`**: Maximum cache file size in MB (default: 100.0)
+
+### Reranking Cache (v2.3.0+)
+
+- **`STEADYTEXT_RERANKING_CACHE_CAPACITY`**: Maximum number of cache entries (default: 256)
+- **`STEADYTEXT_RERANKING_CACHE_MAX_SIZE_MB`**: Maximum cache file size in MB (default: 25.0)
 
 ### Model Downloads
 

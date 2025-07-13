@@ -317,11 +317,12 @@ Size shortcuts: `small` (2B, default), `large` (4B)
 
 ## Version History
 
-| Version | Key Features                                                                                                                            | Default Generation Model                               | Default Embedding Model                                | Python Versions |
-| :------ | :-------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------- | :----------------------------------------------------- | :-------------- |
-| **2.x** | - **Daemon Mode**: Persistent model serving with ZeroMQ.<br>- **Gemma-3n Models**: Switched to `gemma-3n` for generation.<br>- **Thinking Mode Deprecated**: Removed thinking mode. | `ggml-org/gemma-3n-E2B-it-GGUF` (gemma-3n-E2B-it-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `>=3.10, <3.14` |
-| **1.x** | - **Model Switching**: Added support for switching models via environment variables and a model registry.<br>- **Qwen3 Models**: Switched to `qwen3-1.7b` for generation.<br>- **Indexing**: Added support for FAISS indexing. | `Qwen/Qwen3-1.7B-GGUF` (Qwen3-1.7B-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `>=3.10, <3.14` |
-| **0.x** | - **Initial Release**: Deterministic text generation and embedding.                                                                      | `Qwen/Qwen1.5-0.5B-Chat-GGUF` (qwen1_5-0_5b-chat-q4_k_m.gguf) | `Qwen/Qwen1.5-0.5B-Chat-GGUF` (qwen1_5-0_5b-chat-q8_0.gguf) | `>=3.10`        |
+| Version | Key Features                                                                                                                            | Default Generation Model                               | Default Embedding Model                                | Default Reranking Model | Python Versions |
+| :------ | :-------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------- | :----------------------------------------------------- | :---------------------- | :-------------- |
+| **2.x** | - **Daemon Mode**: Persistent model serving with ZeroMQ.<br>- **Gemma-3n Models**: Switched to `gemma-3n` for generation.<br>- **Thinking Mode Deprecated**: Removed thinking mode.<br>- **Document Reranking**: Reranking functionality with `Qwen3-Reranker-4B` model (since v2.3.0). | `ggml-org/gemma-3n-E2B-it-GGUF` (gemma-3n-E2B-it-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `Qwen/Qwen3-Reranker-4B-GGUF` (Qwen3-Reranker-4B-Q8_0.gguf) | `>=3.10, <3.14` |
+| **1.x** | - **Model Switching**: Added support for switching models via environment variables.<br>- **Centralized Cache**: Unified cache system.<br>- **CLI Improvements**: Streaming by default, quiet output. | `Qwen/Qwen3-1.7B-GGUF` (Qwen3-1.7B-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | - | `>=3.10, <3.14` |
+| **1.0-1.2** | - **Model Switching**: Added support for switching models via environment variables and a model registry.<br>- **Qwen3 Models**: Switched to `qwen3-1.7b` for generation.<br>- **Indexing**: Added support for FAISS indexing. | `Qwen/Qwen3-1.7B-GGUF` (Qwen3-1.7B-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | - | `>=3.10, <3.14` |
+| **0.x** | - **Initial Release**: Deterministic text generation and embedding.                                                                      | `Qwen/Qwen1.5-0.5B-Chat-GGUF` (qwen1_5-0_5b-chat-q4_k_m.gguf) | `Qwen/Qwen1.5-0.5B-Chat-GGUF` (qwen1_5-0_5b-chat-q8_0.gguf) | - | `>=3.10`        |
 
 ### Breaking Changes in v2.0.0+
 
@@ -331,7 +332,12 @@ Size shortcuts: `small` (2B, default), `large` (4B)
 * **Reduced context:** Default context window reduced from 3072 to 2048 tokens
 * **Reduced output:** Default max tokens reduced from 1024 to 512
 
-### Previous Changes in v1.3.0+
+### Breaking Changes in v2.3.0+
+
+* **Document Reranking:** Added reranking functionality with the Qwen3-Reranker-4B model
+* **Reranking API:** New `steadytext.rerank()` function and `st rerank` CLI command
+
+### Other Notable Changes
 
 * **Daemon enabled by default:** Use `STEADYTEXT_DISABLE_DAEMON=1` to opt-out
 * **Streaming by default:** CLI streams output by default, use `--wait` to disable
@@ -442,6 +448,10 @@ st models preload
 # Get embeddings
 echo "machine learning" | st embed
 
+# Document reranking (v2.3.0+)
+st rerank "what is Python?" document1.txt document2.txt document3.txt
+st rerank "search query" --file documents.txt --top-k 5 --json
+
 # Vector operations
 st vector similarity "cat" "dog"
 st vector search "Python" candidate1.txt candidate2.txt candidate3.txt
@@ -495,6 +505,15 @@ steadytext.generate_iter(prompt: str, seed: int = 42)
 
 # Embeddings (uses daemon by default)
 steadytext.embed(text: str | List[str], seed: int = 42) -> np.ndarray
+
+# Document reranking (v2.3.0+)
+steadytext.rerank(
+    query: str,
+    documents: Union[str, List[str]],
+    task: str = "Given a web search query, retrieve relevant passages that answer the query",
+    return_scores: bool = True,
+    seed: int = 42
+) -> Union[List[Tuple[str, float]], List[str]]
 
 # Daemon management
 from steadytext.daemon import use_daemon
@@ -693,19 +712,27 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 - **Structured generation** in SQL (JSON schemas, regex patterns, choices)
 - **Docker support** for easy deployment
 
+### Document Reranking (v2.3.0+)
+- **Reranking support** using Qwen3-Reranker-4B model for query-document relevance scoring
+- **Python API** - `steadytext.rerank()` function with customizable task descriptions
+- **CLI command** - `st rerank` for command-line reranking operations
+- **PostgreSQL functions** - SQL functions for reranking with async support (PostgreSQL extension v1.3.0+)
+- **Fallback scoring** - simple word overlap when model unavailable
+- **Dedicated cache** - separate frecency cache for reranking results
+
 ### Daemon Architecture (v1.2.0+)
 - **Persistent model serving** with ZeroMQ for 10-100x faster repeated calls
 - **Automatic fallback** to direct model loading when daemon unavailable
 - **Zero configuration** - daemon starts automatically on first use
 - **Background operation** - daemon runs silently in the background
 
-### Centralized Cache System (v1.3.0+)
+### Centralized Cache System
 - **Unified caching** - consistent behavior between daemon and direct access
 - **Thread-safe SQLite backend** for reliable concurrent access
 - **Shared cache files** across all access modes
 - **Cache integration** with daemon server for optimal performance
 
-### Improved CLI Experience (v1.3.0+)
+### Improved CLI Experience
 - **Streaming by default** - see output as it's generated
 - **Quiet by default** - clean output without informational messages
 - **New pipe syntax** - `echo "prompt" | st` for better unix integration
