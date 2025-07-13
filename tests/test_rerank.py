@@ -1,4 +1,5 @@
 # AIDEV-NOTE: Tests for reranking functionality
+import os
 import pytest
 import numpy as np
 from unittest.mock import Mock, patch
@@ -45,13 +46,19 @@ class TestReranking:
         
         with patch("steadytext.core.reranker.get_reranker") as mock_get_reranker:
             mock_instance = Mock()
-            # When return_scores=True (which is the default), return tuples
-            # The rerank method in DeterministicReranker converts to list when return_scores=False
-            mock_instance.rerank.return_value = [
-                ("Climate change affects weather patterns", 0.8),
-                ("Global warming is real", 0.6),
-                ("Pizza is delicious", 0.1)
-            ]
+            # Mock the rerank method to handle return_scores parameter correctly
+            def mock_rerank(*args, **kwargs):
+                results = [
+                    ("Climate change affects weather patterns", 0.8),
+                    ("Global warming is real", 0.6),
+                    ("Pizza is delicious", 0.1)
+                ]
+                if kwargs.get('return_scores', True):
+                    return results
+                else:
+                    return [doc for doc, _ in results]
+            
+            mock_instance.rerank = mock_rerank
             mock_get_reranker.return_value = mock_instance
             
             results = rerank(query, documents, return_scores=False)
@@ -152,24 +159,34 @@ class TestDeterministicReranker:
     
     def test_reranker_initialization(self):
         """Test reranker initialization."""
-        with patch("steadytext.core.reranker.get_generator_model_instance") as mock_get_model:
-            mock_model = Mock()
-            # Mock tokenize method to return different token IDs for yes and no
-            def tokenize_side_effect(text, add_bos=False):
-                if b"yes" in text:
-                    return [123]
-                elif b"no" in text:
-                    return [456]
-                return []
-            
-            mock_model.tokenize.side_effect = tokenize_side_effect
-            mock_get_model.return_value = mock_model
-            
-            reranker = DeterministicReranker()
-            
-            assert reranker.model is not None
-            assert reranker._yes_token_id == 123
-            assert reranker._no_token_id == 456
+        # Ensure STEADYTEXT_SKIP_MODEL_LOAD is not set
+        original_skip = os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD")
+        if original_skip:
+            del os.environ["STEADYTEXT_SKIP_MODEL_LOAD"]
+        
+        try:
+            with patch("steadytext.core.reranker.get_generator_model_instance") as mock_get_model:
+                mock_model = Mock()
+                # Mock tokenize method to return different token IDs for yes and no
+                def tokenize_side_effect(text, add_bos=False):
+                    if b"yes" in text:
+                        return [123]
+                    elif b"no" in text:
+                        return [456]
+                    return []
+                
+                mock_model.tokenize.side_effect = tokenize_side_effect
+                mock_get_model.return_value = mock_model
+                
+                reranker = DeterministicReranker()
+                
+                assert reranker.model is not None
+                assert reranker._yes_token_id == 123
+                assert reranker._no_token_id == 456
+        finally:
+            # Restore original environment variable
+            if original_skip:
+                os.environ["STEADYTEXT_SKIP_MODEL_LOAD"] = original_skip
     
     def test_reranker_fallback(self):
         """Test reranker fallback when model unavailable."""
