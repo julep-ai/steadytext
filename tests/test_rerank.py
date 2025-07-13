@@ -19,14 +19,14 @@ class TestReranking:
         ]
         
         # Since model might not be available in tests, we test the API
-        with patch("steadytext.core.reranker.DeterministicReranker") as mock_reranker:
+        with patch("steadytext.core.reranker.get_reranker") as mock_get_reranker:
             mock_instance = Mock()
             mock_instance.rerank.return_value = [
                 ("Python is a programming language", 0.95),
                 ("Java is also a programming language", 0.3),
                 ("Snakes are reptiles", 0.1)
             ]
-            mock_reranker.return_value = mock_instance
+            mock_get_reranker.return_value = mock_instance
             
             results = rerank(query, documents, return_scores=True)
             
@@ -43,14 +43,16 @@ class TestReranking:
             "Climate change affects weather patterns"
         ]
         
-        with patch("steadytext.core.reranker.DeterministicReranker") as mock_reranker:
+        with patch("steadytext.core.reranker.get_reranker") as mock_get_reranker:
             mock_instance = Mock()
+            # When return_scores=True (which is the default), return tuples
+            # The rerank method in DeterministicReranker converts to list when return_scores=False
             mock_instance.rerank.return_value = [
-                "Climate change affects weather patterns",
-                "Global warming is real",
-                "Pizza is delicious"
+                ("Climate change affects weather patterns", 0.8),
+                ("Global warming is real", 0.6),
+                ("Pizza is delicious", 0.1)
             ]
-            mock_reranker.return_value = mock_instance
+            mock_get_reranker.return_value = mock_instance
             
             results = rerank(query, documents, return_scores=False)
             
@@ -74,18 +76,24 @@ class TestReranking:
     
     def test_rerank_empty_documents(self):
         """Test reranking with empty document list."""
-        results = rerank("test query", [])
-        assert results == []
+        with patch("steadytext.core.reranker.get_reranker") as mock_get_reranker:
+            mock_instance = Mock()
+            # Should return empty list for empty input
+            mock_instance.rerank.return_value = []
+            mock_get_reranker.return_value = mock_instance
+            
+            results = rerank("test query", [])
+            assert results == []
     
     def test_rerank_single_document(self):
         """Test reranking with single document."""
         query = "test"
         document = "This is a test document"
         
-        with patch("steadytext.core.reranker.DeterministicReranker") as mock_reranker:
+        with patch("steadytext.core.reranker.get_reranker") as mock_get_reranker:
             mock_instance = Mock()
             mock_instance.rerank.return_value = [(document, 1.0)]
-            mock_reranker.return_value = mock_instance
+            mock_get_reranker.return_value = mock_instance
             
             results = rerank(query, document, return_scores=True)
             
@@ -98,13 +106,13 @@ class TestReranking:
         documents = ["Patient has high temperature", "Weather is hot today"]
         task = "Find medical information relevant to the symptom query"
         
-        with patch("steadytext.core.reranker.DeterministicReranker") as mock_reranker:
+        with patch("steadytext.core.reranker.get_reranker") as mock_get_reranker:
             mock_instance = Mock()
             mock_instance.rerank.return_value = [
                 ("Patient has high temperature", 0.9),
                 ("Weather is hot today", 0.2)
             ]
-            mock_reranker.return_value = mock_instance
+            mock_get_reranker.return_value = mock_instance
             
             results = rerank(query, documents, task=task, return_scores=True)
             
@@ -123,14 +131,14 @@ class TestReranking:
         documents = ["doc1", "doc2", "doc3"]
         
         # Mock to return consistent results
-        with patch("steadytext.core.reranker.DeterministicReranker") as mock_reranker:
+        with patch("steadytext.core.reranker.get_reranker") as mock_get_reranker:
             mock_instance = Mock()
             mock_instance.rerank.return_value = [
                 ("doc1", 0.8),
                 ("doc2", 0.6),
                 ("doc3", 0.4)
             ]
-            mock_reranker.return_value = mock_instance
+            mock_get_reranker.return_value = mock_instance
             
             # Call multiple times with same seed
             results1 = rerank(query, documents, seed=42)
@@ -142,18 +150,26 @@ class TestReranking:
 class TestDeterministicReranker:
     """Test the DeterministicReranker class directly."""
     
-    @patch("steadytext.core.reranker.get_generator_model_instance")
-    def test_reranker_initialization(self, mock_get_model):
+    def test_reranker_initialization(self):
         """Test reranker initialization."""
-        mock_model = Mock()
-        mock_model.tokenize.side_effect = lambda text, add_bos=False: [123] if "yes" in text.decode() else [456]
-        mock_get_model.return_value = mock_model
-        
-        reranker = DeterministicReranker()
-        
-        assert reranker.model is not None
-        assert reranker._yes_token_id == 123
-        assert reranker._no_token_id == 456
+        with patch("steadytext.core.reranker.get_generator_model_instance") as mock_get_model:
+            mock_model = Mock()
+            # Mock tokenize method to return different token IDs for yes and no
+            def tokenize_side_effect(text, add_bos=False):
+                if b"yes" in text:
+                    return [123]
+                elif b"no" in text:
+                    return [456]
+                return []
+            
+            mock_model.tokenize.side_effect = tokenize_side_effect
+            mock_get_model.return_value = mock_model
+            
+            reranker = DeterministicReranker()
+            
+            assert reranker.model is not None
+            assert reranker._yes_token_id == 123
+            assert reranker._no_token_id == 456
     
     def test_reranker_fallback(self):
         """Test reranker fallback when model unavailable."""

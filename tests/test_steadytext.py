@@ -77,11 +77,17 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
             steadytext.preload_models(verbose=True)
 
             # Determine accessibility based on whether models actually loaded
+            # Test by trying to use the public API
             try:
-                gen_ok = steadytext.get_generator_model_instance() is not None
-                emb_ok = steadytext.get_embedding_model_instance() is not None
-            except AttributeError:
-                # Handle case where model access functions are not available
+                # Try a simple generation to see if generator model is available
+                gen_result = steadytext.generate("test", max_new_tokens=1)
+                gen_ok = gen_result is not None and len(gen_result) > 0
+                
+                # Try a simple embedding to see if embedding model is available
+                emb_result = steadytext.embed("test")
+                emb_ok = emb_result is not None
+            except Exception:
+                # Handle any errors during model testing
                 gen_ok = False
                 emb_ok = False
             MODELS_ARE_ACCESSIBLE_FOR_TESTING = gen_ok and emb_ok
