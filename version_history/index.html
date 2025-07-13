@@ -1829,14 +1829,23 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#version-230-structured-generation" class="md-nav__link">
+  <a href="#version-230-document-reranking-structured-generation" class="md-nav__link">
     <span class="md-ellipsis">
-      Version 2.3.0 - Structured Generation
+      Version 2.3.0 - Document Reranking &amp; Structured Generation
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Version 2.3.0 - Structured Generation">
+    <nav class="md-nav" aria-label="Version 2.3.0 - Document Reranking &amp; Structured Generation">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#document-reranking" class="md-nav__link">
+    <span class="md-ellipsis">
+      🔍 Document Reranking
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#structured-generation" class="md-nav__link">
@@ -2002,6 +2011,7 @@
 <th style="text-align: left;">Key Features</th>
 <th style="text-align: left;">Default Generation Model</th>
 <th style="text-align: left;">Default Embedding Model</th>
+<th style="text-align: left;">Default Reranking Model</th>
 <th style="text-align: left;">Python Versions</th>
 </tr>
 </thead>
@@ -2011,13 +2021,15 @@
 <td style="text-align: left;">- <strong>Native Grammar Support</strong>: Replaced Outlines with llama.cpp's native GBNF grammars for structured generation.<br>- <strong>PostgreSQL Structured Generation</strong>: Added <code>steadytext_generate_json()</code>, <code>steadytext_generate_regex()</code>, <code>steadytext_generate_choice()</code> SQL functions.<br>- <strong>Better Compatibility</strong>: Fixes issues with Gemma-3n and other models.</td>
 <td style="text-align: left;"><code>ggml-org/gemma-3n-E2B-it-GGUF</code> (gemma-3n-E2B-it-Q8_0.gguf)</td>
 <td style="text-align: left;"><code>Qwen/Qwen3-Embedding-0.6B-GGUF</code> (Qwen3-Embedding-0.6B-Q8_0.gguf)</td>
+<td style="text-align: left;"><code>Qwen/Qwen3-Reranker-4B-GGUF</code> (Qwen3-Reranker-4B-Q8_0.gguf)</td>
 <td style="text-align: left;"><code>&gt;=3.10, &lt;3.14</code></td>
 </tr>
 <tr>
 <td style="text-align: left;"><strong>2.3.x</strong></td>
-<td style="text-align: left;">- <strong>Structured Generation</strong>: Added support for JSON, Regex, and Choice-constrained generation via <code>outlines</code>.<br>- <strong>New API parameters</strong>: <code>schema</code>, <code>regex</code>, <code>choices</code> added to <code>generate()</code>.<br>- <strong>New convenience functions</strong>: <code>generate_json()</code>, <code>generate_regex()</code>, <code>generate_choice()</code>.</td>
+<td style="text-align: left;">- <strong>Document Reranking</strong>: Added reranking functionality with <code>Qwen3-Reranker-4B</code> model.<br>- <strong>Structured Generation</strong>: Added support for JSON, Regex, and Choice-constrained generation via <code>outlines</code>.<br>- <strong>New API parameters</strong>: <code>schema</code>, <code>regex</code>, <code>choices</code> added to <code>generate()</code>.<br>- <strong>New convenience functions</strong>: <code>generate_json()</code>, <code>generate_regex()</code>, <code>generate_choice()</code>.</td>
 <td style="text-align: left;"><code>ggml-org/gemma-3n-E2B-it-GGUF</code> (gemma-3n-E2B-it-Q8_0.gguf)</td>
 <td style="text-align: left;"><code>Qwen/Qwen3-Embedding-0.6B-GGUF</code> (Qwen3-Embedding-0.6B-Q8_0.gguf)</td>
+<td style="text-align: left;"><code>Qwen/Qwen3-Reranker-4B-GGUF</code> (Qwen3-Reranker-4B-Q8_0.gguf)</td>
 <td style="text-align: left;"><code>&gt;=3.10, &lt;3.14</code></td>
 </tr>
 <tr>
@@ -2025,6 +2037,7 @@
 <td style="text-align: left;">- <strong>Custom Seeds</strong>: Added seed parameter to all generation and embedding functions.<br>- <strong>PostgreSQL Extension</strong>: Released pg_steadytext extension.<br>- <strong>Enhanced Reproducibility</strong>: Full control over deterministic generation.</td>
 <td style="text-align: left;"><code>ggml-org/gemma-3n-E2B-it-GGUF</code> (gemma-3n-E2B-it-Q8_0.gguf)</td>
 <td style="text-align: left;"><code>Qwen/Qwen3-Embedding-0.6B-GGUF</code> (Qwen3-Embedding-0.6B-Q8_0.gguf)</td>
+<td style="text-align: left;">-</td>
 <td style="text-align: left;"><code>&gt;=3.10, &lt;3.14</code></td>
 </tr>
 <tr>
@@ -2032,13 +2045,15 @@
 <td style="text-align: left;">- <strong>Daemon Mode</strong>: Persistent model serving with ZeroMQ.<br>- <strong>Gemma-3n Models</strong>: Switched to <code>gemma-3n</code> for generation.<br>- <strong>Thinking Mode Deprecated</strong>: Removed thinking mode.</td>
 <td style="text-align: left;"><code>ggml-org/gemma-3n-E2B-it-GGUF</code> (gemma-3n-E2B-it-Q8_0.gguf)</td>
 <td style="text-align: left;"><code>Qwen/Qwen3-Embedding-0.6B-GGUF</code> (Qwen3-Embedding-0.6B-Q8_0.gguf)</td>
+<td style="text-align: left;">-</td>
 <td style="text-align: left;"><code>&gt;=3.10, &lt;3.14</code></td>
 </tr>
 <tr>
 <td style="text-align: left;"><strong>1.x</strong></td>
-<td style="text-align: left;">- <strong>Model Switching</strong>: Added support for switching models via environment variables and a model registry.<br>- <strong>Qwen3 Models</strong>: Switched to <code>qwen3-1.7b</code> for generation.<br>- <strong>Indexing</strong>: Added support for FAISS indexing.</td>
+<td style="text-align: left;">- <strong>Model Switching</strong>: Added support for switching models via environment variables.<br>- <strong>Centralized Cache</strong>: Unified cache system with SQLite backend.<br>- <strong>CLI Improvements</strong>: Streaming by default, quiet output, new pipe syntax.</td>
 <td style="text-align: left;"><code>Qwen/Qwen3-1.7B-GGUF</code> (Qwen3-1.7B-Q8_0.gguf)</td>
 <td style="text-align: left;"><code>Qwen/Qwen3-Embedding-0.6B-GGUF</code> (Qwen3-Embedding-0.6B-Q8_0.gguf)</td>
+<td style="text-align: left;">-</td>
 <td style="text-align: left;"><code>&gt;=3.10, &lt;3.14</code></td>
 </tr>
 <tr>
@@ -2046,6 +2061,7 @@
 <td style="text-align: left;">- <strong>Initial Release</strong>: Deterministic text generation and embedding.</td>
 <td style="text-align: left;"><code>Qwen/Qwen1.5-0.5B-Chat-GGUF</code> (qwen1_5-0_5b-chat-q4_k_m.gguf)</td>
 <td style="text-align: left;"><code>Qwen/Qwen1.5-0.5B-Chat-GGUF</code> (qwen1_5-0_5b-chat-q8_0.gguf)</td>
+<td style="text-align: left;">-</td>
 <td style="text-align: left;"><code>&gt;=3.10</code></td>
 </tr>
 </tbody>
@@ -2089,8 +2105,20 @@
 </span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;yes&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;no&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;maybe&#39;</span><span class="p">]</span>
 </span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="p">);</span>
 </span></code></pre></div></p>
-<h3 id="version-230-structured-generation">Version 2.3.0 - Structured Generation<a class="headerlink" href="#version-230-structured-generation" title="Permanent link">&para;</a></h3>
+<h3 id="version-230-document-reranking-structured-generation">Version 2.3.0 - Document Reranking &amp; Structured Generation<a class="headerlink" href="#version-230-document-reranking-structured-generation" title="Permanent link">&para;</a></h3>
 <p><strong>Release Date</strong>: July 2025</p>
+<h4 id="document-reranking">🔍 Document Reranking<a class="headerlink" href="#document-reranking" title="Permanent link">&para;</a></h4>
+<p><strong>Major Feature</strong>: Added document reranking functionality powered by the Qwen3-Reranker-4B model.</p>
+<ul>
+<li><strong>Python API</strong>: New <code>steadytext.rerank()</code> function with customizable task descriptions</li>
+<li><code>steadytext.rerank(query, documents, task="custom search task")</code></li>
+<li>Support for both single document and list of documents</li>
+<li>Optional score returning with <code>return_scores</code> parameter</li>
+<li><strong>CLI Command</strong>: <code>st rerank</code> for command-line reranking operations</li>
+<li><code>st rerank "query" doc1.txt doc2.txt --top-k 5</code></li>
+<li><strong>Fallback Support</strong>: Simple word overlap scoring when model unavailable</li>
+<li><strong>Dedicated Cache</strong>: Separate frecency cache for reranking results</li>
+</ul>
 <h4 id="structured-generation">✨ Structured Generation<a class="headerlink" href="#structured-generation" title="Permanent link">&para;</a></h4>
 <p><strong>Major Feature</strong>: Introduced structured generation capabilities powered by the <a href="https://github.com/outlines-dev/outlines">Outlines</a> library.</p>
 <ul>
@@ -2199,6 +2227,7 @@
 <li><strong>PostgreSQL</strong>: 14+ (for pg_steadytext extension)</li>
 <li><strong>Dependencies</strong>: All existing dependencies remain compatible</li>
 </ul>
+<hr />
 <hr />
 
 
