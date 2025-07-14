@@ -6,7 +6,7 @@
 
 - **Deterministic Text Generation**: Always returns the same output for the same input
 - **Vector Embeddings**: Generate 1024-dimensional embeddings compatible with pgvector
-- **Built-in Caching**: PostgreSQL-based frecency cache that mirrors SteadyText's cache
+- **Built-in Caching**: PostgreSQL-based frecency cache with automatic pg_cron eviction (v1.4.0+)
 - **Daemon Integration**: Seamlessly integrates with SteadyText's ZeroMQ daemon
 - **Async Processing**: Queue-based asynchronous generation and embedding with background workers
 - **Security**: Input validation and rate limiting
@@ -305,12 +305,73 @@ PostgreSQL Client
 - `steadytext_daemon_status()` - Check daemon health
 - `steadytext_daemon_stop()` - Stop the daemon
 - `steadytext_cache_stats()` - Get cache statistics
+- `steadytext_cache_stats_extended()` - Extended cache stats with eviction analysis (v1.4.0+)
 - `steadytext_cache_clear()` - Clear the cache
+- `steadytext_cache_evict_by_frecency(target_entries, target_size_mb)` - Manual cache eviction (v1.4.0+)
+- `steadytext_cache_analyze_usage()` - Analyze cache usage patterns (v1.4.0+)
+- `steadytext_cache_preview_eviction(count)` - Preview entries to be evicted (v1.4.0+)
+- `steadytext_cache_warmup(count)` - Warm up cache with frequent entries (v1.4.0+)
 - `steadytext_version()` - Get extension version
 
 ### Configuration Functions
 - `steadytext_config_get(key)` - Get configuration value
 - `steadytext_config_set(key, value)` - Set configuration value
+
+## Cache Management (v1.4.0+)
+
+pg_steadytext includes sophisticated cache management with automatic eviction based on frecency (frequency + recency) scores.
+
+### Automatic Cache Eviction
+
+The extension can automatically evict cache entries using pg_cron to maintain size and entry limits:
+
+```sql
+-- Install pg_cron if not already installed
+CREATE EXTENSION pg_cron;
+
+-- Set up automatic cache eviction (runs every 5 minutes by default)
+SELECT steadytext_setup_cache_eviction_cron();
+
+-- Configure cache limits
+SELECT steadytext_config_set('cache_max_entries', '10000');
+SELECT steadytext_config_set('cache_max_size_mb', '1000');
+SELECT steadytext_config_set('cache_eviction_interval', '300'); -- seconds
+
+-- Disable automatic eviction if needed
+SELECT steadytext_disable_cache_eviction_cron();
+```
+
+### Manual Cache Management
+
+```sql
+-- View extended cache statistics
+SELECT * FROM steadytext_cache_stats_extended();
+
+-- Manually evict entries to meet targets
+SELECT * FROM steadytext_cache_evict_by_frecency(
+    target_entries := 5000,
+    target_size_mb := 500
+);
+
+-- Analyze cache usage patterns
+SELECT * FROM steadytext_cache_analyze_usage();
+
+-- Preview which entries would be evicted
+SELECT * FROM steadytext_cache_preview_eviction(20);
+
+-- Warm up cache with frequently accessed entries
+SELECT * FROM steadytext_cache_warmup(100);
+```
+
+### Frecency Algorithm
+
+The cache uses a frecency score that combines:
+- **Frequency**: How often an entry is accessed (access_count)
+- **Recency**: How recently it was accessed (exponential decay over time)
+
+Score = `access_count * exp(-time_since_last_access_days)`
+
+Entries with higher access counts and recent access times are protected from eviction.
 
 ## Performance
 
@@ -318,7 +379,7 @@ The extension uses several optimizations:
 - Prepared statements for repeated queries
 - In-memory configuration caching
 - Connection pooling to the daemon
-- Frecency-based cache eviction
+- Frecency-based cache eviction with automatic pg_cron scheduling
 - Indexes on cache keys and frecency scores
 
 ## Security
@@ -373,7 +434,7 @@ The test suite covers:
 - Embedding generation and normalization  
 - Async queue operations
 - Structured generation (JSON, regex, choice)
-- Cache management and eviction
+- Cache management and automatic pg_cron eviction
 - Daemon integration
 - Streaming text generation
 - Input validation and error handling

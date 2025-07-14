@@ -511,4 +511,63 @@ WHERE created_at > NOW() - INTERVAL '1 minute';
    - Check error messages: `SELECT * FROM steadytext_queue WHERE status = 'failed';`
    - Verify model availability and daemon connection
 
+## Cache Eviction with pg_cron (v1.4.0+)
+
+### AIDEV-NOTE: Automatic Cache Eviction Architecture
+
+The v1.4.0 update adds automatic cache eviction using pg_cron to maintain cache size and entry limits:
+
+1. **Frecency-Based Eviction**:
+   - Uses exponential decay formula: `access_count * exp(-days_since_access)`
+   - Protects high-access entries (configurable minimum access count)
+   - Protects recent entries (configurable minimum age)
+
+2. **Configuration Parameters**:
+   - `cache_eviction_enabled`: Enable/disable automatic eviction
+   - `cache_eviction_interval`: How often to run eviction (seconds)
+   - `cache_max_entries`: Maximum cache entries before eviction
+   - `cache_max_size_mb`: Maximum cache size in MB
+   - `cache_eviction_batch_size`: Entries to evict per batch
+   - `cache_min_access_count`: Minimum accesses to protect from eviction
+   - `cache_min_age_hours`: Minimum age to protect from eviction
+
+3. **Key Functions**:
+   - `steadytext_cache_evict_by_frecency()`: Core eviction logic
+   - `steadytext_cache_scheduled_eviction()`: Called by pg_cron
+   - `steadytext_setup_cache_eviction_cron()`: Set up cron job
+   - `steadytext_cache_stats_extended()`: Enhanced statistics
+   - `steadytext_cache_analyze_usage()`: Usage pattern analysis
+
+4. **Implementation Details**:
+   - Batch deletion to avoid long locks
+   - Audit logging for eviction events
+   - Performance metrics tracking
+   - Graceful handling when pg_cron not installed
+
+### Testing Cache Eviction
+
+```sql
+-- Fill cache with test data
+SELECT steadytext_generate('Test prompt ' || i) 
+FROM generate_series(1, 1000) i;
+
+-- Check eviction candidates
+SELECT * FROM steadytext_cache_preview_eviction(10);
+
+-- Run manual eviction
+SELECT * FROM steadytext_cache_evict_by_frecency(
+    target_entries := 500
+);
+
+-- Set up automatic eviction
+CREATE EXTENSION pg_cron;
+SELECT steadytext_setup_cache_eviction_cron();
+```
+
+AIDEV-TODO: Future cache enhancements:
+- Adaptive eviction thresholds based on hit rates
+- Different eviction strategies (LRU, LFU, ARC)
+- Cache partitioning by model or use case
+- Integration with PostgreSQL's shared buffer cache
+
 **AIDEV-NOTE**: This file should be updated whenever architectural decisions change or new patterns are established.
