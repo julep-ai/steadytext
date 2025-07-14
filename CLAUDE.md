@@ -842,6 +842,16 @@ uv cache clean
 AIDEV-TODO: Consider adding UV-specific CI/CD configurations for faster builds
 AIDEV-NOTE: UV's automatic virtual environment management eliminates common "forgot to activate venv" issues
 
+## Dependency Management and Optional Dependencies
+
+AIDEV-NOTE: The project includes optional dependencies that may pull in large packages like torch/nvidia:
+- `lighteval` (in benchmark extras) depends on `accelerate` → `torch` → nvidia CUDA packages
+- UV correctly includes all dependencies (including optional) in `uv.lock` for reproducibility
+- These packages are NOT installed during regular installation unless explicitly requested
+- Use `uv sync` for minimal installation (no extras)
+- Use `uv sync --extra benchmark` only when running benchmarks
+- The code gracefully handles missing optional dependencies (e.g., lighteval)
+
 ## PostgreSQL Extension (pg_steadytext)
 
 ### Known Issues and Fixes
