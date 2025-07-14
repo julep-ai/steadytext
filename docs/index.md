@@ -92,7 +92,7 @@ SteadyText is more than just a library. It's a full ecosystem for deterministic 
 
 - **Python Library**: The core `steadytext` library for programmatic use in your applications.
 - **Command-Line Interface (CLI)**: A powerful `st` command to use SteadyText from your shell for scripting and automation.
-- **Zsh Plugin**: Supercharge your shell with AI-powered command suggestions and history search.
+- **Shell Integration**: [Tab completion and AI-powered command suggestions](shell-integration.md) for bash, zsh, and fish.
 - **PostgreSQL Extension**: Run deterministic AI functions directly within your PostgreSQL database.
 - **Cloudflare Worker**: Deploy SteadyText to the edge with a Cloudflare Worker for distributed, low-latency applications.
 
@@ -116,7 +116,7 @@ st daemon status
 echo "hello" | st  # Instant response!
 ```
 
-### FAISS Indexing
+### FAISS Indexing (v1.3.3+)
 
 Create and search vector indexes for retrieval-augmented generation:
 
@@ -129,6 +129,28 @@ st index search docs.faiss "query text" --top-k 5
 
 # Use with generation (automatic with default.faiss)
 echo "explain this error" | st --index-file docs.faiss
+```
+
+### Document Reranking (v2.5.1+)
+
+Reorder search results by relevance using the Qwen3-Reranker-4B model:
+
+```python
+import steadytext
+
+# Basic reranking
+docs = ["Python tutorial", "Cat photos", "Python snakes"]
+ranked = steadytext.rerank("Python programming", docs)
+# Returns documents sorted by relevance
+
+# CLI usage
+st rerank "machine learning" doc1.txt doc2.txt doc3.txt
+
+# PostgreSQL integration
+SELECT * FROM steadytext_rerank(
+    'customer complaint',
+    ARRAY(SELECT ticket_text FROM support_tickets)
+);
 ```
 
 ---
@@ -152,6 +174,7 @@ pip install steadytext
 * Generation: `Gemma-3n-E2B-it-Q8_0.gguf` (2.0GB) - Gemma-3n-2B (default)
 * Generation: `Gemma-3n-E4B-it-Q8_0.gguf` (4.2GB) - Gemma-3n-4B (optional)
 * Embeddings: `Qwen3-Embedding-0.6B-Q8_0.gguf` (610MB)
+* Reranking: `Qwen3-Reranker-4B-Q8_0.gguf` (4.2GB)
 
 !!! note "Version Stability"
     Each major version will use a fixed set of models only, so that only forced upgrades from pip will change the models (and the deterministic output)
@@ -193,7 +216,7 @@ def ai_tool(prompt):
     print(steadytext.generate(prompt))
 ```
 
-📂 **[More examples →](examples/)**
+📂 **[More examples →](examples/index.md)**
 
 ---
 
@@ -203,9 +226,13 @@ def ai_tool(prompt):
 # Text generation
 steadytext.generate(prompt: str) -> str
 steadytext.generate(prompt, return_logprobs=True)
+steadytext.generate(prompt, schema=MyModel)  # Structured output
 
 # Streaming generation
 steadytext.generate_iter(prompt: str)
+
+# Document reranking
+steadytext.rerank(query: str, documents: List[str]) -> List[Tuple[str, float]]
 
 # Embeddings
 steadytext.embed(text: str | List[str]) -> np.ndarray
@@ -214,7 +241,7 @@ steadytext.embed(text: str | List[str]) -> np.ndarray
 steadytext.preload_models(verbose=True)
 ```
 
-📚 **[Full API Documentation →](api/)**
+📚 **[Full API Documentation →](api/index.md)**
 
 ---
 

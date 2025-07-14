@@ -158,6 +158,7 @@ steadytext.EMBEDDING_DIMENSION = 1024      # Embedding vector dimensions
 # Current models (v2.0.0+)
 DEFAULT_GENERATION_MODEL = "gemma-3n-2b"
 DEFAULT_EMBEDDING_MODEL = "qwen3-embedding"
+DEFAULT_RERANKING_MODEL = "qwen3-reranker-4b"
 
 # Model sizes
 MODEL_SIZES = {

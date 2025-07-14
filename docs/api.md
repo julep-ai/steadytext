@@ -243,7 +243,7 @@ vec = steadytext.embed(["Hello", "world"])
 vec = steadytext.embed(["Hello", "world"], seed=789)
 ```
 
-### Document Reranking (v2.3.0+)
+### Document Reranking (v2.3.0+) {#document-reranking-v130}
 
 #### `steadytext.rerank()`
 

@@ -537,7 +537,7 @@ SELECT qa_system('What is the main topic?');
 
 ## Next Steps
 
-- [PostgreSQL Extension Guide →](../postgresql-extension-hero.md)
+- [PostgreSQL Extension Guide →](../postgresql-extension.md)
 - [Simple Examples →](../examples/index.md)
 - [API Reference →](../api/index.md)
 

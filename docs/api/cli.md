@@ -23,6 +23,8 @@ Two commands are available:
 ```bash
 st --version     # Show version
 st --help        # Show help
+st --quiet       # Silence informational output (default)
+st --verbose     # Enable informational output
 ```
 
 ---
@@ -50,6 +52,8 @@ steadytext generate [OPTIONS] PROMPT
 | `--wait` | `-w` | flag | `false` | Wait for complete output (disable streaming) |
 | `--json` | `-j` | flag | `false` | Output as JSON with metadata |
 | `--logprobs` | `-l` | flag | `false` | Include log probabilities |
+| `--quiet` | | flag | `true` | Silence informational output (default) |
+| `--verbose` | | flag | `false` | Enable informational output |
 | `--eos-string` | `-e` | string | `"[EOS]"` | Custom end-of-sequence string |
 | `--max-new-tokens` | | int | `512` | Maximum number of tokens to generate |
 | `--seed` | | int | `42` | Random seed for deterministic generation |
@@ -411,7 +415,7 @@ steadytext models [OPTIONS]
 
 ---
 
-## vector
+## vector {#vector-operations}
 
 Perform vector operations on embeddings.
 
@@ -509,7 +513,7 @@ steadytext vector COMMAND [OPTIONS]
     st vector arithmetic "tokyo" "italy" --subtract "japan" --seed 888 --json
     ```
 
-See [Vector Operations](#vector) for detailed usage.
+See [Vector Operations](#vector-operations) for detailed usage.
 
 ---
 
@@ -612,37 +616,70 @@ Manage result caches.
 ### Usage
 
 ```bash
-st cache [OPTIONS]
-steadytext cache [OPTIONS]
+st cache COMMAND [OPTIONS]
+steadytext cache COMMAND [OPTIONS]
 ```
 
-### Options
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `status` | Show detailed cache statistics |
+| `clear` | Clear cache entries |
+| `path` | Display cache directory paths |
+
+### Clear Options
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--clear` | `-c` | Clear all caches |
-| `--status` | `-s` | Show cache status |
-| `--generation-only` |  | Target only generation cache |
-| `--embedding-only` |  | Target only embedding cache |
+| `--generation` | `-g` | Clear only generation cache |
+| `--embedding` | `-e` | Clear only embedding cache |
+| `--reranking` | `-r` | Clear only reranking cache |
+| `--all` | `-a` | Clear all caches (default) |
 
 ### Examples
 
 === "Cache Status"
 
     ```bash
-    st cache --status
-    # Generation Cache: 45 entries, 12.3MB
-    # Embedding Cache: 128 entries, 34.7MB
+    st cache status
+    # Generation Cache:
+    #   Entries: 45
+    #   Size: 12.3 MB
+    #   Hit Rate: 78.5%
+    # Embedding Cache:
+    #   Entries: 128
+    #   Size: 34.7 MB
+    #   Hit Rate: 92.1%
+    # Reranking Cache:
+    #   Entries: 23
+    #   Size: 4.1 MB
+    #   Hit Rate: 65.3%
     ```
 
 === "Clear Caches"
 
     ```bash
-    st cache --clear
+    # Clear all caches
+    st cache clear
     # Cleared all caches
-
-    st cache --clear --generation-only
+    
+    # Clear specific cache
+    st cache clear --generation
     # Cleared generation cache only
+    
+    st cache clear --embedding --reranking
+    # Cleared embedding and reranking caches
+    ```
+
+=== "Cache Paths"
+
+    ```bash
+    st cache path
+    # Cache Directory: /home/user/.cache/steadytext/caches
+    # Generation: /home/user/.cache/steadytext/caches/generation_cache.db
+    # Embedding: /home/user/.cache/steadytext/caches/embedding_cache.db
+    # Reranking: /home/user/.cache/steadytext/caches/reranking_cache.db
     ```
 
 ---
@@ -837,6 +874,72 @@ steadytext index COMMAND [OPTIONS]
     # Dimension: 1024
     # Size: 5.2MB
     ```
+
+---
+
+## completion
+
+Generate shell completion scripts for bash, zsh, and fish.
+
+### Usage
+
+```bash
+st completion [OPTIONS]
+steadytext completion [OPTIONS]
+```
+
+### Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--shell` | choice | auto-detect | Shell type: bash, zsh, fish |
+| `--install` | flag | `false` | Install completion script automatically |
+
+### Examples
+
+=== "Auto Install"
+
+    ```bash
+    # Install for current shell
+    st completion --install
+    
+    # Restart shell or source profile
+    exec $SHELL
+    ```
+
+=== "Manual Install"
+
+    ```bash
+    # Bash
+    st completion --shell bash > ~/.bash_completion.d/steadytext
+    source ~/.bash_completion.d/steadytext
+    
+    # Zsh
+    st completion --shell zsh > ~/.zsh/completions/_steadytext
+    autoload -U compinit && compinit
+    
+    # Fish
+    st completion --shell fish > ~/.config/fish/completions/steadytext.fish
+    ```
+
+=== "Check Installation"
+
+    ```bash
+    # Test completion
+    st <TAB><TAB>
+    # Should show: generate embed models vector rerank cache daemon index completion
+    
+    st generate --<TAB><TAB>
+    # Should show all generate options
+    ```
+
+### Features
+
+- Command name completion
+- Option name completion
+- Option value completion for enums
+- File path completion for path arguments
+- Dynamic completion for model names
 
 ---
 

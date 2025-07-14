@@ -541,7 +541,7 @@ END $$;
 
 - [Log Analysis Example →](../examples/log-analysis.md)
 - [Production Deployment →](../deployment/production.md)
-- [PostgreSQL Extension Docs →](../postgresql-extension-hero.md)
+- [PostgreSQL Extension Docs →](../postgresql-extension.md)
 
 ---
 

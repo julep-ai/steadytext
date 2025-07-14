@@ -221,11 +221,11 @@ LIMIT 5;
 
 ## Next Steps
 
-- **[API Reference](api/)** - Complete function documentation with seed parameters
+- **[API Reference](api/index.md)** - Complete function documentation with seed parameters
 - **[Custom Seeds Guide](examples/custom-seeds.md)** - Comprehensive seed usage examples
 - **[PostgreSQL Integration](postgresql-extension.md)** - Complete PostgreSQL extension guide
 - **[CLI Reference](api/cli.md)** - Command-line interface with `--seed` flag details
-- **[Examples](examples/)** - Real-world usage patterns
+- **[Examples](examples/index.md)** - Real-world usage patterns
 
 ## Need Help?
 

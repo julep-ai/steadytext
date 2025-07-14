@@ -467,7 +467,7 @@ END $$;
 
 ## Next Steps
 
-- [PostgreSQL Extension Setup →](../postgresql-extension-hero.md)
+- [PostgreSQL Extension Setup →](../postgresql-extension.md)
 - [Customer Intelligence Examples →](../examples/customer-intelligence.md)
 - [Performance Tuning →](../examples/performance-tuning.md)
 

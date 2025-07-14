@@ -149,7 +149,7 @@ SteadyText's core guarantee is 100% deterministic outputs:
 4. **Quantized Models**: 8-bit precision ensures consistency
 5. **Fallback Support**: Deterministic even without models
 
-## Hardware & Methodology
+## Hardware & Methodology {#hardware--methodology}
 
 ### Test Environment
 
@@ -157,7 +157,7 @@ SteadyText's core guarantee is 100% deterministic outputs:
 - **RAM**: 32GB DDR4
 - **OS**: Linux 6.14.11 (Fedora 42)
 - **Python**: 3.13.2
-- **Models**: Gemma-3n-E2B-it-Q8_0.gguf (v2.0.0+), Qwen3-Embedding-0.6B-Q8_0.gguf
+- **Models**: Gemma-3n-E2B-it-Q8_0.gguf (v2.0.0+), Qwen3-Embedding-0.6B-Q8_0.gguf, Qwen3-Reranker-4B-Q8_0.gguf
 
 ### Benchmark Methodology
 

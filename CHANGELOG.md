@@ -2,6 +2,17 @@
 
 ## Version 2.5.1 (2025-07-14)
 
+### New Features
+- **Document Reranking:** Added powerful document reranking capabilities using the Qwen3-Reranker-4B model
+  - New `rerank()` function for reordering documents by relevance to a query
+  - CLI command `st rerank` with support for multiple input formats
+  - PostgreSQL extension functions: `steadytext_rerank()`, `steadytext_rerank_docs_only()`, `steadytext_rerank_top_k()`
+  - Async variants of all reranking functions for non-blocking operations
+  - Custom task descriptions for domain-specific reranking
+  - Deterministic scoring with custom seed support
+  - Automatic caching of reranking results
+  - Fallback to word overlap scoring when model unavailable
+
 ### Dependencies
 - **Upgrade to Official llama-cpp-python:** Replaced `llama-cpp-python-bundled>=0.3.9` with official `llama-cpp-python>=0.3.12`
   - Provides better compatibility and performance with the latest GGUF models
@@ -20,10 +31,12 @@
   - How to use `uv sync` for minimal installation vs. full installation with extras
   - Graceful handling of missing optional dependencies in the codebase
   - Torch/nvidia dependency chain through optional packages
+- **Comprehensive Reranking Documentation:** Added detailed guide for document reranking in `docs/reranking.md`
 
 ### Internal Changes
 - Updated UV lock file to reflect the new dependency versions
 - Enhanced project documentation for better developer experience
+- Added dedicated reranking cache to the cache manager system
 
 ## Version 2.4.1 (2025-07-04)
 
@@ -185,3 +198,55 @@
 ## Version 1.3.5 (2025-06-23)
 
 - Minor bug fixes and performance improvements.
+
+## Version 1.3.3 (2025-06-20)
+
+### New Features
+- **Vector Index Support:** Added FAISS-based vector indexing for RAG applications
+  - CLI commands: `st index create`, `st index search`, `st index info`
+  - Deterministic text chunking with chonkie
+  - Automatic context retrieval when `default.faiss` exists
+  - Integration with text generation via `--index-file` flag
+  - Caching of index search results for deterministic retrieval
+- **SQLite Concurrent Cache:** Replaced pickle-based cache with SQLite for thread-safe operations
+  - WAL mode for optimal concurrent performance
+  - Automatic migration from legacy pickle format
+  - Microsecond precision timestamps for accurate frecency ordering
+  - Graceful handling of corrupted databases
+- **CLI Enhancements:**
+  - Added `--quiet` flag to suppress informational output
+  - Added `--eos-string` parameter for custom end-of-sequence strings
+  - Added shell completion support via `st completion --install`
+  - Added `cache path` and `cache status` commands
+  - Added `models list` command to show available models
+  - Multiple text input support for embed command
+
+### PostgreSQL Extension Updates
+- **AI Summarization Aggregate Functions:** 
+  - `ai_summarize()` aggregate for intelligent text summarization
+  - `ai_summarize_partial()` and `ai_summarize_final()` for TimescaleDB continuous aggregates
+  - `ai_extract_facts()` for structured fact extraction
+  - `ai_deduplicate_facts()` for semantic deduplication
+- **Async Function Support:** Added async variants of all generation and embedding functions
+  - Queue-based processing with priority support
+  - LISTEN/NOTIFY integration
+  - Batch operations for efficiency
+- **Performance Improvements:**
+  - Functions marked as PARALLEL SAFE, LEAKPROOF, and IMMUTABLE
+  - Better query optimization with PostgreSQL planner
+
+### Internal Changes
+- Thread-local database connections for cache performance
+- Comprehensive concurrent access test coverage
+- Enhanced error handling and recovery mechanisms
+
+## Version 1.4.0 (2025-06-22)
+
+### PostgreSQL Extension Features
+- **Automatic Cache Eviction with pg_cron:** Added scheduled cache management
+  - `steadytext_setup_cache_eviction()` function for automatic configuration
+  - `steadytext_evict_cache()` for manual eviction with custom parameters
+  - Configurable eviction intervals, age limits, and size targets
+  - Integration with pg_cron for scheduled execution
+  - Monitoring support via cron.job and cron.job_run_details tables
+  - Performance index for optimal frecency-based queries

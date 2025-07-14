@@ -232,5 +232,5 @@ All functions support async variants as well:
 - `steadytext_generate_regex_async()`
 - `steadytext_generate_choice_async()`
 
-For more PostgreSQL-specific examples, see the [PostgreSQL Integration Examples](examples/postgresql-integration.md#structured-generation-examples).
+For more PostgreSQL-specific examples, see the [PostgreSQL Structured Generation](postgresql-extension-structured.md).
 ```

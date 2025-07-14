@@ -52,7 +52,7 @@ Yes! SteadyText is designed for production use:
 - **Battle-tested**: Used in production environments
 - **PostgreSQL integration**: Database-native AI
 
-## Installation & Setup
+## Installation & Setup {#installation--setup}
 
 ### How do I install SteadyText?
 

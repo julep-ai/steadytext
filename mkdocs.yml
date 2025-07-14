@@ -47,6 +47,8 @@ nav:
     - Embeddings: api/embedding.md
     - Structured Generation: structured-generation.md
     - CLI Reference: api/cli.md
+    - Configuration: api/configuration.md
+    - Full API Reference: api.md
   - Examples:
     - Overview: examples/index.md
     - Basic Usage: examples/basic-usage.md
@@ -57,12 +59,28 @@ nav:
     - Data Pipelines: examples/data-pipelines.md
     - Content Management: examples/content-management.md
     - Customer Intelligence: examples/customer-intelligence.md
-  - PostgreSQL Extension: postgresql-extension.md
+    - PostgreSQL Examples:
+      - Overview: examples/postgresql-integration.md
+      - Blog & CMS: examples/postgresql-blog-cms.md
+      - E-commerce: examples/postgresql-ecommerce.md
+      - Semantic Search: examples/postgresql-search.md
+      - Real-time Apps: examples/postgresql-realtime.md
+      - Analytics: examples/postgresql-analytics.md
+  - PostgreSQL Extension:
+    - Overview: postgresql-extension.md
+    - Function Reference: postgresql-extension-reference.md
+    - Advanced Features: postgresql-extension-advanced.md
+    - AI Integration: postgresql-extension-ai.md
+    - Async Operations: postgresql-extension-async.md
+    - Structured Generation: postgresql-extension-structured.md
+    - Document Reranking: postgresql-extension-reranking.md
+    - Troubleshooting: postgresql-extension-troubleshooting.md
   - Deployment:
     - Overview: deployment.md
     - Production: deployment/production.md
     - Cloudflare Edge: deployment/cloudflare.md
   - Migration Guide:
+    - Overview: migration-guide.md
     - From OpenAI: migration/from-openai.md
     - From LangChain: migration/from-langchain.md
     - From Embeddings APIs: migration/from-embeddings-api.md
@@ -75,13 +93,16 @@ nav:
     - Daemon Usage: examples/daemon-usage.md
     - Error Handling: examples/error-handling.md
     - Performance Tuning: examples/performance-tuning.md
-    - PostgreSQL Integration: examples/postgresql-integration.md
     - Model Switching: model-switching.md
     - EOS String Implementation: eos-string-implementation.md
+    - Reranking: reranking.md
+    - Shell Integration: shell-integration.md
+    - Vector Indexing: vector-indexing.md
   - Reference:
     - FAQ: faq.md
     - Benchmarks: benchmarks.md
     - Version History: version_history.md
+    - Troubleshooting: troubleshooting.md
   - Contributing: contributing.md
 
 markdown_extensions:

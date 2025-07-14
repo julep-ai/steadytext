@@ -13,13 +13,29 @@ SteadyText uses seeds to control randomness, allowing you to:
 ## Table of Contents
 
 - [Understanding Seeds](#understanding-seeds)
-- [Text Generation with Seeds](#text-generation-with-seeds)
-- [Streaming with Seeds](#streaming-with-seeds)
-- [Embeddings with Seeds](#embeddings-with-seeds)
-- [Seed Strategies](#seed-strategies)
-- [CLI Seed Usage](#cli-seed-usage)
+  - [What is a Seed?](#what-is-a-seed)
+  - [Seed Behavior](#seed-behavior)
+- [Basic Seed Usage](#basic-seed-usage)
+  - [Simple Text Generation](#simple-text-generation)
+  - [Embedding Generation](#embedding-generation)
+- [Reproducible Research](#reproducible-research)
+  - [Research Workflow Example](#research-workflow-example)
+- [A/B Testing with Seeds](#ab-testing-with-seeds)
+  - [Content Comparison Framework](#content-comparison-framework)
+  - [Email Campaign Testing](#email-campaign-testing)
+- [Content Variations](#content-variations)
+  - [Style and Tone Variations](#style-and-tone-variations)
+  - [Multi-Language Content](#multi-language-content)
+- [Embedding Experiments](#embedding-experiments)
+  - [Semantic Similarity Analysis](#semantic-similarity-analysis)
+  - [Domain-Specific Embedding Clusters](#domain-specific-embedding-clusters)
+- [CLI Workflows](#cli-workflows)
+  - [Batch Processing Scripts](#batch-processing-scripts)
+  - [Reproducible Research Pipeline](#reproducible-research-pipeline)
+- [Advanced Patterns](#advanced-patterns)
+  - [Seed Scheduling and Management](#seed-scheduling-and-management)
+  - [Conditional Seed Strategies](#conditional-seed-strategies)
 - [Best Practices](#best-practices)
-- [Troubleshooting](#troubleshooting)
 
 ## Understanding Seeds
 
@@ -173,4 +189,1152 @@ class ReproducibleResearch:
                     seed=result["seed"],
                     **result["kwargs"]
                 )
-                if np.allclose(regenerated, result["embedding"], atol=1e-6):\n                    print(f"✓ Seed {result['seed']}: Embedding verified")\n                else:\n                    print(f"✗ Seed {result['seed']}: Embedding FAILED")\n\n# Usage example\nresearch = ReproducibleResearch(base_seed=100)\n\n# Conduct research with automatic seed management\nresearch_prompts = [\n    "Explain the benefits of renewable energy",\n    "Describe the future of artificial intelligence",\n    "Summarize the importance of biodiversity"\n]\n\nfor prompt in research_prompts:\n    result = research.generate_with_logging(prompt, max_new_tokens=200)\n    print(f"Generated {len(result)} characters for: {prompt[:50]}...")\n\n# Generate embeddings for analysis\nembedding_texts = ["AI", "machine learning", "deep learning"]\nfor text in embedding_texts:\n    embedding = research.embed_with_logging(text)\n    print(f"Generated embedding for: {text}")\n\n# Save results for reproducibility\nresearch.save_results("research_results.json")\nprint("Results saved to research_results.json")\n\n# Later: verify reproducibility\nresearch.load_and_verify("research_results.json")\n```\n\n## A/B Testing with Seeds\n\n### Content Comparison Framework\n\n```python\nimport steadytext\nfrom typing import List, Dict, Any\n\nclass ABTester:\n    def __init__(self):\n        self.variants = {}\n    \n    def create_variants(self, prompt: str, variant_seeds: List[int], **kwargs) -> Dict[str, str]:\n        """Create multiple variants of the same prompt using different seeds."""\n        variants = {}\n        for i, seed in enumerate(variant_seeds):\n            variant_name = f"variant_{chr(65 + i)}"  # A, B, C, etc.\n            variants[variant_name] = steadytext.generate(\n                prompt, \n                seed=seed, \n                **kwargs\n            )\n        return variants\n    \n    def compare_variants(self, prompt: str, seeds: List[int], **kwargs) -> Dict[str, Any]:\n        """Generate and compare multiple variants."""\n        variants = self.create_variants(prompt, seeds, **kwargs)\n        \n        analysis = {\n            "prompt": prompt,\n            "seeds": seeds,\n            "variants": variants,\n            "stats": {\n                variant: {\n                    "length": len(text),\n                    "word_count": len(text.split()),\n                    "seed": seeds[i]\n                }\n                for i, (variant, text) in enumerate(variants.items())\n            }\n        }\n        \n        return analysis\n    \n    def batch_compare(self, prompts: List[str], seeds: List[int], **kwargs) -> List[Dict[str, Any]]:\n        """Compare variants for multiple prompts."""\n        return [self.compare_variants(prompt, seeds, **kwargs) for prompt in prompts]\n\n# Usage example\ntester = ABTester()\n\n# Define test variants with specific seeds\ntest_seeds = [100, 200, 300, 400, 500]\n\n# Single prompt A/B test\nresult = tester.compare_variants(\n    "Write a compelling product description for a smartwatch",\n    seeds=test_seeds[:3],  # Test 3 variants\n    max_new_tokens=150\n)\n\nprint("=== A/B Test Results ===")\nfor variant, text in result["variants"].items():\n    stats = result["stats"][variant]\n    print(f"\\n{variant.upper()} (seed {stats['seed']}):")\n    print(f"Length: {stats['length']} chars, {stats['word_count']} words")\n    print(f"Text: {text[:100]}...")\n\n# Batch testing for multiple prompts\nmarketing_prompts = [\n    "Create an email subject line for a summer sale",\n    "Write a social media post about a new product launch",\n    "Compose a customer testimonial request"\n]\n\nbatch_results = tester.batch_compare(\n    marketing_prompts, \n    seeds=[42, 123, 456],\n    max_new_tokens=100\n)\n\nprint("\\n=== Batch A/B Test Results ===")\nfor i, result in enumerate(batch_results):\n    print(f"\\nPrompt {i+1}: {result['prompt'][:50]}...")\n    for variant, text in result["variants"].items():\n        seed = result["stats"][variant]["seed"]\n        print(f"  {variant} (seed {seed}): {text[:80]}...")\n```\n\n### Email Campaign Testing\n\n```python\nimport steadytext\nimport random\n\ndef generate_email_variants(subject_base: str, body_base: str, num_variants: int = 5):\n    """Generate email variants for A/B testing."""\n    # Use consistent seed ranges for reproducibility\n    seeds = [1000 + i * 100 for i in range(num_variants)]\n    \n    variants = []\n    for i, seed in enumerate(seeds):\n        subject = steadytext.generate(\n            f"Create an engaging email subject line based on: {subject_base}",\n            seed=seed,\n            max_new_tokens=20\n        ).strip()\n        \n        body = steadytext.generate(\n            f"Write a compelling email body for: {body_base}",\n            seed=seed,\n            max_new_tokens=200\n        ).strip()\n        \n        variants.append({\n            "variant_id": f"V{i+1}",\n            "seed": seed,\n            "subject": subject,\n            "body": body\n        })\n    \n    return variants\n\n# Generate email campaign variants\nvariants = generate_email_variants(\n    subject_base="New product launch announcement",\n    body_base="Introducing our revolutionary AI-powered smartwatch with health monitoring"\n)\n\nprint("=== Email Campaign Variants ===")\nfor variant in variants:\n    print(f"\\n{variant['variant_id']} (seed {variant['seed']}):\")\n    print(f"Subject: {variant['subject']}")\n    print(f"Body: {variant['body'][:100]}...")\n```\n\n## Content Variations\n\n### Style and Tone Variations\n\n```python\nimport steadytext\n\ndef generate_style_variations(base_content: str, styles: Dict[str, int]):\n    \"\"\"Generate content in different styles using specific seeds.\"\"\"\n    variations = {}\n    \n    for style_name, seed in styles.items():\n        prompt = f"Rewrite the following content in a {style_name} style: {base_content}"\n        variation = steadytext.generate(\n            prompt,\n            seed=seed,\n            max_new_tokens=250\n        )\n        variations[style_name] = {\n            "seed": seed,\n            "content": variation\n        }\n    \n    return variations\n\n# Define styles with consistent seeds\nstyles = {\n    "professional": 2000,\n    "casual": 2100,\n    "technical": 2200,\n    "creative": 2300,\n    "humorous": 2400\n}\n\nbase_content = "Our new software helps businesses manage their data more efficiently."\n\nvariations = generate_style_variations(base_content, styles)\n\nprint("=== Style Variations ===")\nfor style, data in variations.items():\n    print(f"\\n{style.upper()} (seed {data['seed']}):")\n    print(data['content'])\n```\n\n### Multi-Language Content\n\n```python\nimport steadytext\n\ndef generate_multilingual_content(english_content: str, languages: Dict[str, int]):\n    \"\"\"Generate content adapted for different languages/cultures using seeds.\"\"\"\n    adaptations = {}\n    \n    for language, seed in languages.items():\n        prompt = f\"Adapt this content for {language} audience, keeping cultural context in mind: {english_content}\"\n        adaptation = steadytext.generate(\n            prompt,\n            seed=seed,\n            max_new_tokens=200\n        )\n        adaptations[language] = {\n            "seed": seed,\n            "content": adaptation\n        }\n    \n    return adaptations\n\n# Define languages with seeds\nlanguages = {\n    "Spanish": 3000,\n    "French": 3100,\n    "German": 3200,\n    "Japanese": 3300,\n    "Brazilian Portuguese": 3400\n}\n\nenglish_content = "Join our community of innovators and discover cutting-edge technology solutions."\n\nadaptations = generate_multilingual_content(english_content, languages)\n\nprint("=== Multilingual Adaptations ===")\nfor language, data in adaptations.items():\n    print(f"\\n{language} (seed {data['seed']}):")\n    print(data['content'])\n```\n\n## Embedding Experiments\n\n### Semantic Similarity Analysis\n\n```python\nimport steadytext\nimport numpy as np\nfrom sklearn.cluster import KMeans\nimport matplotlib.pyplot as plt\n\ndef analyze_embedding_variations(text: str, seeds: List[int]):\n    \"\"\"Analyze how different seeds affect embeddings for the same text.\"\"\"\n    embeddings = []\n    for seed in seeds:\n        emb = steadytext.embed(text, seed=seed)\n        embeddings.append(emb)\n    \n    embeddings = np.array(embeddings)\n    \n    # Calculate pairwise similarities\n    similarities = []\n    for i in range(len(embeddings)):\n        for j in range(i+1, len(embeddings)):\n            sim = np.dot(embeddings[i], embeddings[j])\n            similarities.append(sim)\n    \n    analysis = {\n        "text": text,\n        "seeds": seeds,\n        "embeddings": embeddings,\n        "pairwise_similarities": similarities,\n        "mean_similarity": np.mean(similarities),\n        "std_similarity": np.std(similarities),\n        "min_similarity": np.min(similarities),\n        "max_similarity": np.max(similarities)\n    }\n    \n    return analysis\n\n# Analyze embedding variations\ntest_text = "artificial intelligence and machine learning"\ntest_seeds = [4000, 4100, 4200, 4300, 4400]\n\nanalysis = analyze_embedding_variations(test_text, test_seeds)\n\nprint(f"=== Embedding Variation Analysis ===")\nprint(f"Text: {analysis['text']}")\nprint(f"Seeds tested: {analysis['seeds']}")\nprint(f"Mean similarity: {analysis['mean_similarity']:.4f}")\nprint(f"Std similarity: {analysis['std_similarity']:.4f}")\nprint(f"Range: {analysis['min_similarity']:.4f} - {analysis['max_similarity']:.4f}")\n\n# Detailed similarity matrix\nprint("\\nSimilarity Matrix:")\nembeddings = analysis['embeddings']\nfor i, seed_i in enumerate(test_seeds):\n    row = []\n    for j, seed_j in enumerate(test_seeds):\n        if i == j:\n            sim = 1.0\n        else:\n            sim = np.dot(embeddings[i], embeddings[j])\n        row.append(f"{sim:.3f}")\n    print(f"Seed {seed_i}: {' '.join(row)}")\n```\n\n### Domain-Specific Embedding Clusters\n\n```python\nimport steadytext\nimport numpy as np\nfrom sklearn.cluster import KMeans\nfrom collections import defaultdict\n\ndef create_domain_embeddings(domains: Dict[str, List[str]], seed_base: int = 5000):\n    \"\"\"Create embeddings for different domains using consistent seeding.\"\"\"\n    domain_embeddings = defaultdict(list)\n    \n    for domain, texts in domains.items():\n        domain_seed = seed_base + hash(domain) % 1000  # Consistent seed per domain\n        \n        for text in texts:\n            embedding = steadytext.embed(text, seed=domain_seed)\n            domain_embeddings[domain].append({\n                "text": text,\n                "embedding": embedding,\n                "seed": domain_seed\n            })\n    \n    return dict(domain_embeddings)\n\n# Define domain-specific texts\ndomains = {\n    "technology": [\n        "artificial intelligence",\n        "machine learning",\n        "deep learning",\n        "neural networks",\n        "computer vision"\n    ],\n    "healthcare": [\n        "medical diagnosis",\n        "patient care",\n        "clinical trials",\n        "pharmaceutical research",\n        "telemedicine"\n    ],\n    "finance": [\n        "investment strategy",\n        "risk management",\n        "financial planning",\n        "market analysis",\n        "portfolio optimization"\n    ]\n}\n\n# Generate embeddings\ndomain_embeddings = create_domain_embeddings(domains)\n\n# Analyze domain clustering\nall_embeddings = []\nall_labels = []\nall_texts = []\n\nfor domain, items in domain_embeddings.items():\n    for item in items:\n        all_embeddings.append(item['embedding'])\n        all_labels.append(domain)\n        all_texts.append(item['text'])\n\nall_embeddings = np.array(all_embeddings)\n\n# Perform clustering\nkmeans = KMeans(n_clusters=3, random_state=42)\ncluster_labels = kmeans.fit_predict(all_embeddings)\n\nprint("=== Domain Clustering Results ===")\nfor i, (text, true_domain, predicted_cluster) in enumerate(zip(all_texts, all_labels, cluster_labels)):\n    print(f"{text:25} | True: {true_domain:10} | Cluster: {predicted_cluster}")\n\n# Calculate clustering accuracy\nfrom sklearn.metrics import adjusted_rand_score\nlabel_to_int = {label: i for i, label in enumerate(set(all_labels))}\ntrue_labels_int = [label_to_int[label] for label in all_labels]\n\naccuracy = adjusted_rand_score(true_labels_int, cluster_labels)\nprint(f"\\nClustering accuracy (ARI): {accuracy:.3f}")\n```\n\n## CLI Workflows\n\n### Batch Processing Scripts\n\n```bash\n#!/bin/bash\n# batch_generation.sh - Generate content variants using CLI\n\n# Define seeds for different variants\nSEEDS=(1000 2000 3000 4000 5000)\nPROMPT="Write a brief product description for a smartwatch"\n\necho "=== Batch Generation with Different Seeds ==="\n\nfor i in "${!SEEDS[@]}"; do\n    seed=${SEEDS[$i]}\n    variant_name="variant_$(echo $i | tr '0-4' 'A-E')"  # A, B, C, D, E\n    \n    echo \"\"\n    echo \"$variant_name (seed $seed):\"\n    echo \"$PROMPT\" | st --seed $seed --max-new-tokens 100\n    echo \"---\"\ndone\n```\n\n```bash\n#!/bin/bash\n# embedding_comparison.sh - Compare embeddings with different seeds\n\nTEXT=\"artificial intelligence\"\nSEEDS=(6000 6100 6200)\n\necho \"=== Embedding Comparison ===\"\necho \"Text: $TEXT\"\n\nfor seed in \"${SEEDS[@]}\"; do\n    echo \"\"\n    echo \"Seed $seed:\"\n    st embed \"$TEXT\" --seed $seed --format json | jq '.[:5]'  # Show first 5 dimensions\ndone\n```\n\n### Reproducible Research Pipeline\n\n```bash\n#!/bin/bash\n# research_pipeline.sh - Complete research workflow with seeds\n\nRESEARCH_DIR=\"./research_$(date +%Y%m%d_%H%M%S)\"\nBASE_SEED=7000\n\nmkdir -p \"$RESEARCH_DIR\"\ncd \"$RESEARCH_DIR\"\n\necho \"=== Research Pipeline Started ===\" | tee research.log\necho \"Base seed: $BASE_SEED\" | tee -a research.log\necho \"Directory: $RESEARCH_DIR\" | tee -a research.log\n\n# Generate research questions\necho \"Generating research questions...\" | tee -a research.log\necho \"Generate 5 research questions about AI ethics\" | \\\n    st --seed $BASE_SEED --max-new-tokens 200 > questions.txt\n\n# Generate detailed explanations\necho \"Generating detailed explanations...\" | tee -a research.log\ncounter=0\nwhile IFS= read -r question; do\n    if [[ -n \"$question\" && \"$question\" != *\"Generate\"* ]]; then\n        seed=$((BASE_SEED + 100 + counter * 10))\n        echo \"Processing: $question (seed $seed)\" | tee -a research.log\n        echo \"$question\" | st --seed $seed --max-new-tokens 300 > \"explanation_$counter.txt\"\n        counter=$((counter + 1))\n    fi\ndone < questions.txt\n\n# Generate embeddings for analysis\necho \"Generating embeddings...\" | tee -a research.log\nfor file in explanation_*.txt; do\n    if [[ -f \"$file\" ]]; then\n        seed=$((BASE_SEED + 500))\n        echo \"Creating embedding for $file (seed $seed)\" | tee -a research.log\n        cat \"$file\" | st embed --seed $seed --format json > \"${file%.txt}_embedding.json\"\n    fi\ndone\n\necho \"Research pipeline completed. Results in: $RESEARCH_DIR\" | tee -a research.log\necho \"Files generated:\" | tee -a research.log\nls -la | tee -a research.log\n```\n\n## Advanced Patterns\n\n### Seed Scheduling and Management\n\n```python\nimport steadytext\nfrom typing import Iterator, List, Dict, Any\nimport hashlib\n\nclass SeedManager:\n    \"\"\"Advanced seed management for complex workflows.\"\"\"\n    \n    def __init__(self, base_seed: int = 42):\n        self.base_seed = base_seed\n        self.used_seeds = set()\n        self.seed_history = []\n    \n    def get_deterministic_seed(self, context: str) -> int:\n        \"\"\"Generate deterministic seed based on context string.\"\"\"\n        # Create reproducible seed from context\n        context_hash = hashlib.md5(context.encode()).hexdigest()\n        seed = self.base_seed + int(context_hash[:8], 16) % 10000\n        \n        self.used_seeds.add(seed)\n        self.seed_history.append({\n            "context": context,\n            "seed": seed,\n            "method": "deterministic"\n        })\n        \n        return seed\n    \n    def get_sequential_seed(self, increment: int = 1) -> int:\n        \"\"\"Get next seed in sequence.\"\"\"\n        seed = self.base_seed + len(self.seed_history) * increment\n        \n        self.used_seeds.add(seed)\n        self.seed_history.append({\n            "context": f"sequential_{len(self.seed_history)}\",\n            "seed": seed,\n            "method": "sequential"\n        })\n        \n        return seed\n    \n    def get_category_seed(self, category: str, item_id: int = 0) -> int:\n        \"\"\"Get seed for specific category and item.\"\"\"\n        category_base = hash(category) % 1000\n        seed = self.base_seed + category_base * 100 + item_id\n        \n        self.used_seeds.add(seed)\n        self.seed_history.append({\n            "context": f"{category}_{item_id}\",\n            "seed": seed,\n            "method": "category\",\n            \"category\": category,\n            \"item_id\": item_id\n        })\n        \n        return seed\n    \n    def generate_with_context(self, prompt: str, context: str, **kwargs) -> str:\n        \"\"\"Generate text with context-based seed.\"\"\"\n        seed = self.get_deterministic_seed(context)\n        return steadytext.generate(prompt, seed=seed, **kwargs)\n    \n    def embed_with_context(self, text: str, context: str, **kwargs):\n        \"\"\"Generate embedding with context-based seed.\"\"\"\n        seed = self.get_deterministic_seed(context)\n        return steadytext.embed(text, seed=seed, **kwargs)\n    \n    def export_seed_history(self) -> List[Dict[str, Any]]:\n        \"\"\"Export seed usage history for reproducibility.\"\"\"\n        return self.seed_history.copy()\n\n# Usage example\nmanager = SeedManager(base_seed=10000)\n\n# Context-based generation\ncontents = [\n    (\"Write a technical blog post about AI\", \"blog_technical_ai\"),\n    (\"Create a social media post about innovation\", \"social_innovation\"),\n    (\"Generate a product description\", \"product_smartwatch\")\n]\n\nresults = []\nfor prompt, context in contents:\n    result = manager.generate_with_context(\n        prompt, \n        context, \n        max_new_tokens=150\n    )\n    results.append({\n        \"context\": context,\n        \"prompt\": prompt,\n        \"result\": result\n    })\n\n# Category-based generation\ncategories = [\"marketing\", \"technical\", \"creative\"]\nfor category in categories:\n    for i in range(3):  # 3 items per category\n        seed = manager.get_category_seed(category, i)\n        prompt = f\"Write a {category} message about our new product\"\n        result = steadytext.generate(prompt, seed=seed, max_new_tokens=100)\n        print(f\"{category}_{i} (seed {seed}): {result[:50]}...\")\n\n# Export history for reproducibility\nhistory = manager.export_seed_history()\nprint(f\"\\nGenerated {len(history)} items with managed seeds\")\nfor entry in history[-5:]:  # Show last 5 entries\n    print(f\"Context: {entry['context']}, Seed: {entry['seed']}, Method: {entry['method']}\")\n```\n\n### Conditional Seed Strategies\n\n```python\nimport steadytext\nfrom enum import Enum\nfrom typing import Optional, Callable\n\nclass SeedStrategy(Enum):\n    DETERMINISTIC = \"deterministic\"  # Same input always gives same seed\n    SEQUENTIAL = \"sequential\"        # Incrementing seed sequence\n    RANDOM_BOUNDED = \"random_bounded\" # Random within bounds\n    CONTENT_BASED = \"content_based\"   # Seed based on content analysis\n\nclass ConditionalSeedGenerator:\n    \"\"\"Generate seeds based on content and context conditions.\"\"\"\n    \n    def __init__(self, base_seed: int = 42):\n        self.base_seed = base_seed\n        self.counters = {}\n    \n    def analyze_content(self, content: str) -> Dict[str, Any]:\n        \"\"\"Analyze content to determine appropriate seed strategy.\"\"\"\n        word_count = len(content.split())\n        has_technical_terms = any(term in content.lower() for term in \n                                ['algorithm', 'neural', 'machine', 'ai', 'data'])\n        has_creative_intent = any(term in content.lower() for term in \n                             ['story', 'creative', 'imagine', 'artistic'])\n        \n        return {\n            \"word_count\": word_count,\n            \"is_technical\": has_technical_terms,\n            \"is_creative\": has_creative_intent,\n            \"is_short\": word_count < 10,\n            \"is_long\": word_count > 50\n        }\n    \n    def determine_strategy(self, content: str, context: Optional[str] = None) -> SeedStrategy:\n        \"\"\"Determine best seed strategy based on content analysis.\"\"\"\n        analysis = self.analyze_content(content)\n        \n        if analysis[\"is_creative\"]:\n            return SeedStrategy.RANDOM_BOUNDED  # More variation for creative content\n        elif analysis[\"is_technical\"]:\n            return SeedStrategy.DETERMINISTIC   # Consistency for technical content\n        elif analysis[\"is_short\"]:\n            return SeedStrategy.CONTENT_BASED   # Content-based for short prompts\n        else:\n            return SeedStrategy.SEQUENTIAL      # Sequential for general content\n    \n    def generate_seed(self, content: str, strategy: Optional[SeedStrategy] = None, \n                     context: Optional[str] = None) -> int:\n        \"\"\"Generate seed using specified or determined strategy.\"\"\"\n        if strategy is None:\n            strategy = self.determine_strategy(content, context)\n        \n        if strategy == SeedStrategy.DETERMINISTIC:\n            # Hash-based deterministic seed\n            content_hash = hash(content) % 10000\n            return self.base_seed + content_hash\n        \n        elif strategy == SeedStrategy.SEQUENTIAL:\n            # Sequential counter per context\n            key = context or \"default\"\n            if key not in self.counters:\n                self.counters[key] = 0\n            self.counters[key] += 1\n            return self.base_seed + self.counters[key] * 100\n        \n        elif strategy == SeedStrategy.RANDOM_BOUNDED:\n            # Bounded random based on content\n            content_hash = abs(hash(content))\n            random_offset = content_hash % 1000\n            return self.base_seed + 5000 + random_offset\n        \n        elif strategy == SeedStrategy.CONTENT_BASED:\n            # Seed based on content characteristics\n            analysis = self.analyze_content(content)\n            seed_offset = (\n                analysis[\"word_count\"] * 10 +\n                (100 if analysis[\"is_technical\"] else 0) +\n                (200 if analysis[\"is_creative\"] else 0)\n            )\n            return self.base_seed + seed_offset\n        \n        return self.base_seed\n    \n    def smart_generate(self, content: str, context: Optional[str] = None, **kwargs) -> str:\n        \"\"\"Generate text with automatically chosen seed strategy.\"\"\"\n        strategy = self.determine_strategy(content, context)\n        seed = self.generate_seed(content, strategy, context)\n        \n        print(f\"Strategy: {strategy.value}, Seed: {seed}\")\n        return steadytext.generate(content, seed=seed, **kwargs)\n\n# Usage example\ngenerator = ConditionalSeedGenerator(base_seed=20000)\n\n# Test different content types\ntest_prompts = [\n    \"Write a creative story about a robot\",  # Should use RANDOM_BOUNDED\n    \"Explain the neural network algorithm\",  # Should use DETERMINISTIC\n    \"Hello\",                                 # Should use CONTENT_BASED\n    \"Generate a comprehensive technical report about machine learning applications in healthcare\"  # Should use SEQUENTIAL\n]\n\nprint(\"=== Conditional Seed Strategy Results ===\")\nfor prompt in test_prompts:\n    print(f\"\\nPrompt: {prompt}\")\n    result = generator.smart_generate(prompt, max_new_tokens=50)\n    print(f\"Result: {result[:80]}...\")\n```\n\n## Best Practices\n\n### 1. Documentation and Reproducibility\n\n```python\n# Always document your seeds\nCONSTANT_SEEDS = {\n    \"BASELINE_RESEARCH\": 42,\n    \"VARIATION_A\": 100,\n    \"VARIATION_B\": 200,\n    \"CREATIVE_CONTENT\": 300,\n    \"TECHNICAL_CONTENT\": 400,\n    \"PRODUCTION_DEFAULT\": 500\n}\n\n# Use descriptive seed values\ndef generate_with_purpose(prompt: str, purpose: str):\n    seed = CONSTANT_SEEDS.get(purpose.upper(), CONSTANT_SEEDS[\"BASELINE_RESEARCH\"])\n    return steadytext.generate(prompt, seed=seed)\n```\n\n### 2. Seed Range Management\n\n```python\n# Organize seeds by ranges to avoid conflicts\nSEED_RANGES = {\n    \"research\": (1000, 1999),\n    \"production\": (2000, 2999),\n    \"testing\": (3000, 3999),\n    \"experiments\": (4000, 4999),\n    \"benchmarks\": (5000, 5999)\n}\n\ndef get_range_seed(category: str, offset: int = 0) -> int:\n    if category not in SEED_RANGES:\n        raise ValueError(f\"Unknown category: {category}\")\n    \n    start, end = SEED_RANGES[category]\n    seed = start + offset\n    \n    if seed > end:\n        raise ValueError(f\"Seed {seed} exceeds range for {category} ({start}-{end})\")\n    \n    return seed\n```\n\n### 3. Testing and Validation\n\n```python\ndef validate_reproducibility(prompt: str, seed: int, iterations: int = 5):\n    \"\"\"Validate that a prompt+seed combination is truly reproducible.\"\"\"\n    results = []\n    for i in range(iterations):\n        result = steadytext.generate(prompt, seed=seed)\n        results.append(result)\n    \n    # Check if all results are identical\n    is_reproducible = all(result == results[0] for result in results)\n    \n    print(f\"Reproducibility test for seed {seed}: {'PASS' if is_reproducible else 'FAIL'}\")\n    if not is_reproducible:\n        print(\"Different results found:\")\n        for i, result in enumerate(results):\n            print(f\"  Iteration {i+1}: {result[:50]}...\")\n    \n    return is_reproducible\n\n# Test key seeds\nfor purpose, seed in CONSTANT_SEEDS.items():\n    validate_reproducibility(\"Test prompt for validation\", seed)\n```\n\nThis comprehensive guide demonstrates the power and flexibility of custom seeds in SteadyText. By using seeds strategically, you can achieve reproducible research, conduct effective A/B testing, generate controlled variations, and build robust content generation pipelines.\n
+                if np.allclose(regenerated, result["embedding"], atol=1e-6):
+                    print(f"✓ Seed {result['seed']}: Embedding verified")
+                else:
+                    print(f"✗ Seed {result['seed']}: Embedding FAILED")
+
+# Usage example
+research = ReproducibleResearch(base_seed=100)
+
+# Conduct research with automatic seed management
+research_prompts = [
+    "Explain the benefits of renewable energy",
+    "Describe the future of artificial intelligence",
+    "Summarize the importance of biodiversity"
+]
+
+for prompt in research_prompts:
+    result = research.generate_with_logging(prompt, max_new_tokens=200)
+    print(f"Generated {len(result)} characters for: {prompt[:50]}...")
+
+# Generate embeddings for analysis
+embedding_texts = ["AI", "machine learning", "deep learning"]
+for text in embedding_texts:
+    embedding = research.embed_with_logging(text)
+    print(f"Generated embedding for: {text}")
+
+# Save results for reproducibility
+research.save_results("research_results.json")
+print("Results saved to research_results.json")
+
+# Later: verify reproducibility
+research.load_and_verify("research_results.json")
+```
+
+## A/B Testing with Seeds
+
+A/B testing is a powerful technique for comparing different variations of content. With SteadyText's deterministic seeds, you can create reproducible variations for testing.
+
+### Content Comparison Framework
+
+Create a framework for systematic A/B testing of generated content.
+
+```python
+import steadytext
+import json
+from datetime import datetime
+
+class ABTestFramework:
+    def __init__(self, base_prompt, variations=5, base_seed=42):
+        self.base_prompt = base_prompt
+        self.variations = variations
+        self.base_seed = base_seed
+        self.results = []
+    
+    def generate_variations(self):
+        """Generate multiple variations of content using different seeds."""
+        for i in range(self.variations):
+            seed = self.base_seed + i
+            content = steadytext.generate(self.base_prompt, seed=seed)
+            
+            self.results.append({
+                "variation_id": f"variant_{chr(65+i)}",  # A, B, C, etc.
+                "seed": seed,
+                "content": content,
+                "metrics": {
+                    "length": len(content),
+                    "word_count": len(content.split()),
+                    "timestamp": datetime.now().isoformat()
+                }
+            })
+        
+        return self.results
+    
+    def compare_variations(self):
+        """Compare all generated variations."""
+        print(f"Generated {len(self.results)} variations for: {self.base_prompt[:50]}...")
+        print("-" * 80)
+        
+        for result in self.results:
+            print(f"\n{result['variation_id']} (seed: {result['seed']}):")
+            print(f"Length: {result['metrics']['length']} chars")
+            print(f"Words: {result['metrics']['word_count']}")
+            print(f"Preview: {result['content'][:100]}...")
+    
+    def save_test_results(self, filename):
+        """Save A/B test results for analysis."""
+        with open(filename, 'w') as f:
+            json.dump({
+                "test_config": {
+                    "base_prompt": self.base_prompt,
+                    "variations": self.variations,
+                    "base_seed": self.base_seed
+                },
+                "results": self.results
+            }, f, indent=2)
+
+# Example usage
+ab_test = ABTestFramework(
+    base_prompt="Write a compelling email subject line for our new product launch",
+    variations=3
+)
+
+ab_test.generate_variations()
+ab_test.compare_variations()
+ab_test.save_test_results("ab_test_results.json")
+```
+
+### Email Campaign Testing
+
+Test different email variations with consistent seeding for reproducibility.
+
+```python
+import steadytext
+
+class EmailCampaignTester:
+    def __init__(self, campaign_name, target_audience):
+        self.campaign_name = campaign_name
+        self.target_audience = target_audience
+        self.templates = {}
+    
+    def generate_email_variant(self, tone, seed):
+        """Generate email content with specific tone and seed."""
+        prompt = f"""Write a marketing email for {self.campaign_name} targeting {self.target_audience}.
+        Tone: {tone}
+        Include: subject line, greeting, body, and call-to-action."""
+        
+        return steadytext.generate(prompt, seed=seed, max_new_tokens=400)
+    
+    def create_campaign_variants(self):
+        """Create multiple email variants with different tones."""
+        tones = ["professional", "friendly", "urgent", "casual", "exclusive"]
+        
+        for i, tone in enumerate(tones):
+            seed = 1000 + i  # Consistent seed for each tone
+            self.templates[tone] = {
+                "seed": seed,
+                "content": self.generate_email_variant(tone, seed),
+                "tone": tone
+            }
+        
+        return self.templates
+    
+    def test_personalization(self, template_tone, customer_names):
+        """Test personalization with consistent results."""
+        base_template = self.templates[template_tone]
+        personalized = []
+        
+        for i, name in enumerate(customer_names):
+            # Use customer-specific seed for personalization
+            customer_seed = base_template["seed"] + hash(name) % 1000
+            
+            prompt = f"Personalize this email for {name}: {base_template['content'][:200]}..."
+            personalized_content = steadytext.generate(prompt, seed=customer_seed, max_new_tokens=100)
+            
+            personalized.append({
+                "customer": name,
+                "seed": customer_seed,
+                "preview": personalized_content[:100] + "..."
+            })
+        
+        return personalized
+
+# Example usage
+tester = EmailCampaignTester("Summer Sale 2024", "young professionals")
+variants = tester.create_campaign_variants()
+
+# Test personalization
+customers = ["Alice Johnson", "Bob Smith", "Carol Davis"]
+personalized = tester.test_personalization("friendly", customers)
+
+for p in personalized:
+    print(f"Email for {p['customer']} (seed: {p['seed']}):")
+    print(p['preview'])
+    print()
+```
+
+## Content Variations
+
+Generate content in different styles, tones, and languages using seed-based variations.
+
+### Style and Tone Variations
+
+Use different seeds to generate content with various stylistic approaches.
+
+```python
+import steadytext
+
+class StyleVariationGenerator:
+    def __init__(self, base_content):
+        self.base_content = base_content
+        self.styles = {
+            "formal": 2000,
+            "casual": 2001,
+            "technical": 2002,
+            "creative": 2003,
+            "minimalist": 2004
+        }
+    
+    def generate_style_variant(self, style):
+        """Generate content in a specific style."""
+        if style not in self.styles:
+            raise ValueError(f"Unknown style: {style}")
+        
+        seed = self.styles[style]
+        prompt = f"Rewrite this in a {style} style: {self.base_content}"
+        
+        return steadytext.generate(prompt, seed=seed, max_new_tokens=300)
+    
+    def generate_all_styles(self):
+        """Generate content in all available styles."""
+        results = {}
+        
+        for style in self.styles:
+            results[style] = {
+                "seed": self.styles[style],
+                "content": self.generate_style_variant(style)
+            }
+        
+        return results
+    
+    def compare_lengths(self, results):
+        """Compare the length of different style variants."""
+        for style, data in results.items():
+            word_count = len(data["content"].split())
+            print(f"{style.capitalize()}: {word_count} words (seed: {data['seed']})")
+
+# Example usage
+base_text = "Our company provides innovative solutions for modern businesses."
+generator = StyleVariationGenerator(base_text)
+
+all_styles = generator.generate_all_styles()
+generator.compare_lengths(all_styles)
+
+# Show samples
+for style, data in all_styles.items():
+    print(f"\n{style.upper()} (seed: {data['seed']}):")
+    print(data["content"][:150] + "...")
+```
+
+### Multi-Language Content
+
+Adapt content for different languages and cultural contexts using seeds.
+
+```python
+import steadytext
+
+class MultilingualContentGenerator:
+    def __init__(self, source_content, source_language="English"):
+        self.source_content = source_content
+        self.source_language = source_language
+        # Assign consistent seeds for each language
+        self.language_seeds = {
+            "Spanish": 3000,
+            "French": 3001,
+            "German": 3002,
+            "Italian": 3003,
+            "Portuguese": 3004,
+            "Japanese": 3005,
+            "Chinese": 3006
+        }
+    
+    def translate_content(self, target_language):
+        """Generate content adapted for target language."""
+        if target_language not in self.language_seeds:
+            raise ValueError(f"Unsupported language: {target_language}")
+        
+        seed = self.language_seeds[target_language]
+        prompt = f"""Translate and culturally adapt this {self.source_language} content to {target_language}:
+        
+        {self.source_content}
+        
+        Maintain the tone and intent while making it natural for {target_language} speakers."""
+        
+        return steadytext.generate(prompt, seed=seed, max_new_tokens=400)
+    
+    def create_multilingual_set(self):
+        """Create content in all supported languages."""
+        translations = {
+            self.source_language: {
+                "seed": 2999,  # Original content seed
+                "content": self.source_content
+            }
+        }
+        
+        for language in self.language_seeds:
+            translations[language] = {
+                "seed": self.language_seeds[language],
+                "content": self.translate_content(language)
+            }
+        
+        return translations
+    
+    def verify_consistency(self, language, expected_seed):
+        """Verify that content generation is consistent for a language."""
+        result1 = self.translate_content(language)
+        result2 = self.translate_content(language)
+        
+        return result1 == result2  # Should be True due to same seed
+
+# Example usage
+content = "Welcome to our platform! We're excited to help you achieve your goals."
+generator = MultilingualContentGenerator(content)
+
+# Generate all translations
+translations = generator.create_multilingual_set()
+
+# Verify consistency
+print("Consistency check:")
+for lang in ["Spanish", "French", "German"]:
+    is_consistent = generator.verify_consistency(lang, generator.language_seeds[lang])
+    print(f"{lang}: {'✓' if is_consistent else '✗'}")
+```
+
+## Embedding Experiments
+
+Explore how seeds affect embeddings and use them for various analysis tasks.
+
+### Semantic Similarity Analysis
+
+Analyze how different seeds affect the semantic representation of text.
+
+```python
+import steadytext
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+
+class SemanticAnalyzer:
+    def __init__(self):
+        self.embeddings = {}
+    
+    def analyze_seed_impact(self, text, seeds):
+        """Analyze how different seeds affect embeddings of the same text."""
+        results = []
+        
+        for seed in seeds:
+            embedding = steadytext.embed(text, seed=seed)
+            self.embeddings[f"{text}_seed{seed}"] = embedding
+            results.append({
+                "seed": seed,
+                "embedding": embedding,
+                "norm": np.linalg.norm(embedding)
+            })
+        
+        # Calculate pairwise similarities
+        embeddings_matrix = np.array([r["embedding"] for r in results])
+        similarity_matrix = cosine_similarity(embeddings_matrix)
+        
+        return {
+            "text": text,
+            "seeds": seeds,
+            "embeddings": results,
+            "similarity_matrix": similarity_matrix
+        }
+    
+    def compare_semantic_drift(self, texts, base_seed=42, num_seeds=5):
+        """Compare how much embeddings drift across seeds for different texts."""
+        drift_analysis = []
+        
+        for text in texts:
+            seeds = [base_seed + i for i in range(num_seeds)]
+            embeddings = []
+            
+            for seed in seeds:
+                emb = steadytext.embed(text, seed=seed)
+                embeddings.append(emb)
+            
+            # Calculate average embedding and deviations
+            avg_embedding = np.mean(embeddings, axis=0)
+            deviations = [np.linalg.norm(emb - avg_embedding) for emb in embeddings]
+            
+            drift_analysis.append({
+                "text": text,
+                "avg_deviation": np.mean(deviations),
+                "max_deviation": np.max(deviations),
+                "min_deviation": np.min(deviations)
+            })
+        
+        return drift_analysis
+    
+    def find_stable_pairs(self, text1, text2, num_seeds=10):
+        """Find seed pairs that maintain relative similarity."""
+        base_similarity = np.dot(
+            steadytext.embed(text1, seed=42),
+            steadytext.embed(text2, seed=42)
+        )
+        
+        stable_pairs = []
+        
+        for i in range(num_seeds):
+            seed1 = 100 + i
+            seed2 = 200 + i
+            
+            emb1 = steadytext.embed(text1, seed=seed1)
+            emb2 = steadytext.embed(text2, seed=seed2)
+            similarity = np.dot(emb1, emb2)
+            
+            if abs(similarity - base_similarity) < 0.05:  # Within 5% of base
+                stable_pairs.append({
+                    "seed_pair": (seed1, seed2),
+                    "similarity": similarity,
+                    "difference": similarity - base_similarity
+                })
+        
+        return stable_pairs
+
+# Example usage
+analyzer = SemanticAnalyzer()
+
+# Analyze seed impact
+result = analyzer.analyze_seed_impact("artificial intelligence", seeds=[42, 123, 456, 789])
+print(f"Similarity matrix for '{result['text']}':")
+print(result["similarity_matrix"])
+
+# Compare drift across different texts
+texts = ["AI", "machine learning", "deep learning", "neural networks"]
+drift = analyzer.compare_semantic_drift(texts)
+for d in drift:
+    print(f"{d['text']}: avg deviation = {d['avg_deviation']:.4f}")
+```
+
+### Domain-Specific Embedding Clusters
+
+Create consistent embeddings for domain-specific text clustering.
+
+```python
+import steadytext
+import numpy as np
+from collections import defaultdict
+
+class DomainEmbeddingManager:
+    def __init__(self):
+        # Assign seed ranges to different domains
+        self.domain_seeds = {
+            "medical": 5000,
+            "legal": 5100,
+            "technical": 5200,
+            "financial": 5300,
+            "educational": 5400
+        }
+        self.embeddings = defaultdict(dict)
+    
+    def embed_domain_text(self, text, domain):
+        """Embed text using domain-specific seed."""
+        if domain not in self.domain_seeds:
+            raise ValueError(f"Unknown domain: {domain}")
+        
+        seed = self.domain_seeds[domain]
+        embedding = steadytext.embed(text, seed=seed)
+        
+        self.embeddings[domain][text] = embedding
+        return embedding
+    
+    def create_domain_clusters(self, domain, texts):
+        """Create embeddings for multiple texts in a domain."""
+        clusters = []
+        
+        for i, text in enumerate(texts):
+            # Use domain seed + index for consistency within domain
+            seed = self.domain_seeds[domain] + i
+            embedding = steadytext.embed(text, seed=seed)
+            
+            clusters.append({
+                "text": text,
+                "embedding": embedding,
+                "seed": seed
+            })
+        
+        return clusters
+    
+    def cross_domain_similarity(self, text):
+        """Compare how the same text is embedded across domains."""
+        results = {}
+        
+        for domain in self.domain_seeds:
+            embedding = self.embed_domain_text(text, domain)
+            results[domain] = embedding
+        
+        # Calculate cross-domain similarities
+        similarities = {}
+        domains = list(results.keys())
+        
+        for i in range(len(domains)):
+            for j in range(i + 1, len(domains)):
+                d1, d2 = domains[i], domains[j]
+                sim = np.dot(results[d1], results[d2])
+                similarities[f"{d1}-{d2}"] = sim
+        
+        return similarities
+    
+    def find_domain_keywords(self, domain, candidate_words):
+        """Find words that cluster well within a domain."""
+        domain_embeddings = []
+        
+        for word in candidate_words:
+            emb = self.embed_domain_text(word, domain)
+            domain_embeddings.append(emb)
+        
+        # Calculate centroid
+        centroid = np.mean(domain_embeddings, axis=0)
+        
+        # Find words closest to centroid
+        distances = []
+        for i, word in enumerate(candidate_words):
+            dist = np.linalg.norm(domain_embeddings[i] - centroid)
+            distances.append((word, dist))
+        
+        # Sort by distance (closest first)
+        distances.sort(key=lambda x: x[1])
+        
+        return distances[:10]  # Top 10 domain keywords
+
+# Example usage
+manager = DomainEmbeddingManager()
+
+# Create domain-specific clusters
+medical_terms = ["diagnosis", "treatment", "patient", "symptoms", "medication"]
+medical_clusters = manager.create_domain_clusters("medical", medical_terms)
+
+legal_terms = ["contract", "litigation", "defendant", "jurisdiction", "statute"]
+legal_clusters = manager.create_domain_clusters("legal", legal_terms)
+
+# Analyze cross-domain similarity
+similarities = manager.cross_domain_similarity("analysis")
+print("Cross-domain similarities for 'analysis':")
+for pair, sim in similarities.items():
+    print(f"{pair}: {sim:.3f}")
+
+# Find domain keywords
+candidates = ["research", "study", "analysis", "report", "findings", "evidence", 
+              "data", "results", "conclusion", "methodology"]
+medical_keywords = manager.find_domain_keywords("medical", candidates)
+print("\nTop medical domain keywords:")
+for word, dist in medical_keywords[:5]:
+    print(f"{word}: {dist:.3f}")
+```
+
+## CLI Workflows
+
+Use SteadyText's CLI with custom seeds for batch processing and automation.
+
+### Batch Processing Scripts
+
+Create shell scripts for processing multiple items with different seeds.
+
+```bash
+#!/bin/bash
+# batch_generate.sh - Generate multiple variations with different seeds
+
+# Configuration
+BASE_PROMPT="Write a product description for"
+PRODUCTS=("laptop" "smartphone" "headphones" "smartwatch" "tablet")
+BASE_SEED=1000
+
+# Create output directory
+mkdir -p output/product_descriptions
+
+# Generate descriptions for each product with multiple seeds
+for i in "${!PRODUCTS[@]}"; do
+    product="${PRODUCTS[$i]}"
+    
+    # Generate 3 variations per product
+    for variation in 0 1 2; do
+        seed=$((BASE_SEED + i * 10 + variation))
+        output_file="output/product_descriptions/${product}_v${variation}.txt"
+        
+        echo "Generating description for $product (seed: $seed)..."
+        echo "$BASE_PROMPT $product" | st generate --seed $seed > "$output_file"
+    done
+done
+
+# Generate comparison report
+echo "Product Description Variations Report" > output/report.txt
+echo "====================================" >> output/report.txt
+echo "" >> output/report.txt
+
+for product in "${PRODUCTS[@]}"; do
+    echo "## $product" >> output/report.txt
+    for v in 0 1 2; do
+        echo "### Variation $v:" >> output/report.txt
+        head -n 3 "output/product_descriptions/${product}_v${v}.txt" >> output/report.txt
+        echo "" >> output/report.txt
+    done
+done
+```
+
+### Reproducible Research Pipeline
+
+Build complete research workflows with seed management.
+
+```python
+#!/usr/bin/env python3
+# research_pipeline.py - Reproducible research pipeline with SteadyText
+
+import subprocess
+import json
+import hashlib
+from datetime import datetime
+from pathlib import Path
+
+class ResearchPipeline:
+    def __init__(self, project_name, base_seed=42):
+        self.project_name = project_name
+        self.base_seed = base_seed
+        self.output_dir = Path(f"research_{project_name}")
+        self.output_dir.mkdir(exist_ok=True)
+        
+        # Initialize metadata
+        self.metadata = {
+            "project": project_name,
+            "base_seed": base_seed,
+            "start_time": datetime.now().isoformat(),
+            "experiments": []
+        }
+    
+    def run_experiment(self, name, prompts, seeds_per_prompt=3):
+        """Run an experiment with multiple prompts and seeds."""
+        experiment_data = {
+            "name": name,
+            "timestamp": datetime.now().isoformat(),
+            "prompts": [],
+            "results": []
+        }
+        
+        for prompt_idx, prompt in enumerate(prompts):
+            prompt_hash = hashlib.md5(prompt.encode()).hexdigest()[:8]
+            
+            for seed_offset in range(seeds_per_prompt):
+                seed = self.base_seed + prompt_idx * 100 + seed_offset
+                
+                # Run generation via CLI
+                result = subprocess.run(
+                    ["st", "generate", "--seed", str(seed), "--json"],
+                    input=prompt,
+                    capture_output=True,
+                    text=True
+                )
+                
+                if result.returncode == 0:
+                    output = json.loads(result.stdout)
+                    
+                    experiment_data["results"].append({
+                        "prompt": prompt,
+                        "prompt_hash": prompt_hash,
+                        "seed": seed,
+                        "output": output["text"],
+                        "metadata": output.get("metadata", {})
+                    })
+                else:
+                    print(f"Error generating for seed {seed}: {result.stderr}")
+        
+        # Save experiment data
+        exp_file = self.output_dir / f"experiment_{name}.json"
+        with open(exp_file, 'w') as f:
+            json.dump(experiment_data, f, indent=2)
+        
+        self.metadata["experiments"].append(name)
+        return experiment_data
+    
+    def generate_embeddings(self, texts, name="embeddings"):
+        """Generate embeddings for a list of texts."""
+        embeddings_data = {
+            "name": name,
+            "timestamp": datetime.now().isoformat(),
+            "embeddings": []
+        }
+        
+        for idx, text in enumerate(texts):
+            seed = self.base_seed + 10000 + idx
+            
+            # Run embedding via CLI
+            result = subprocess.run(
+                ["st", "embed", "--seed", str(seed), "--json"],
+                input=text,
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode == 0:
+                output = json.loads(result.stdout)
+                embeddings_data["embeddings"].append({
+                    "text": text,
+                    "seed": seed,
+                    "embedding": output["embedding"][:10],  # Store first 10 dims
+                    "shape": output["shape"]
+                })
+        
+        # Save embeddings data
+        emb_file = self.output_dir / f"embeddings_{name}.json"
+        with open(emb_file, 'w') as f:
+            json.dump(embeddings_data, f, indent=2)
+        
+        return embeddings_data
+    
+    def finalize(self):
+        """Finalize the research pipeline and save metadata."""
+        self.metadata["end_time"] = datetime.now().isoformat()
+        
+        # Save metadata
+        meta_file = self.output_dir / "metadata.json"
+        with open(meta_file, 'w') as f:
+            json.dump(self.metadata, f, indent=2)
+        
+        # Create summary report
+        report = [
+            f"# Research Pipeline Report: {self.project_name}",
+            f"Generated on: {self.metadata['end_time']}",
+            f"Base seed: {self.metadata['base_seed']}",
+            "",
+            "## Experiments Conducted:",
+            ""
+        ]
+        
+        for exp in self.metadata["experiments"]:
+            report.append(f"- {exp}")
+        
+        report_file = self.output_dir / "REPORT.md"
+        with open(report_file, 'w') as f:
+            f.write('\n'.join(report))
+        
+        print(f"Research pipeline completed. Results in: {self.output_dir}")
+
+# Example usage
+if __name__ == "__main__":
+    # Initialize pipeline
+    pipeline = ResearchPipeline("climate_study", base_seed=2024)
+    
+    # Run text generation experiments
+    climate_prompts = [
+        "Explain the greenhouse effect in simple terms",
+        "Describe renewable energy solutions",
+        "What are the impacts of deforestation?"
+    ]
+    
+    pipeline.run_experiment("climate_basics", climate_prompts)
+    
+    # Generate embeddings for key terms
+    key_terms = [
+        "climate change",
+        "global warming",
+        "carbon footprint",
+        "sustainability",
+        "renewable energy"
+    ]
+    
+    pipeline.generate_embeddings(key_terms, "climate_terms")
+    
+    # Finalize and generate report
+    pipeline.finalize()
+```
+
+## Advanced Patterns
+
+Advanced techniques for seed management in complex applications.
+
+### Seed Scheduling and Management
+
+Implement sophisticated seed management for large-scale applications.
+
+```python
+import hashlib
+import time
+from datetime import datetime, timedelta
+from typing import Dict, List, Tuple
+
+class SeedScheduler:
+    def __init__(self, base_seed=42):
+        self.base_seed = base_seed
+        self.seed_registry = {}
+        self.time_based_seeds = {}
+        self.usage_stats = {}
+    
+    def register_task(self, task_name: str, seed_range: Tuple[int, int]):
+        """Register a task with a specific seed range."""
+        if task_name in self.seed_registry:
+            raise ValueError(f"Task {task_name} already registered")
+        
+        start, end = seed_range
+        # Check for overlaps
+        for existing_task, (existing_start, existing_end) in self.seed_registry.items():
+            if start <= existing_end and end >= existing_start:
+                raise ValueError(f"Seed range overlaps with task {existing_task}")
+        
+        self.seed_registry[task_name] = seed_range
+        self.usage_stats[task_name] = {"count": 0, "last_used": None}
+    
+    def get_task_seed(self, task_name: str, sub_id: str = None) -> int:
+        """Get a seed for a specific task and optional sub-identifier."""
+        if task_name not in self.seed_registry:
+            raise ValueError(f"Task {task_name} not registered")
+        
+        start, end = self.seed_registry[task_name]
+        
+        if sub_id:
+            # Hash the sub_id to get a consistent offset
+            hash_val = int(hashlib.md5(sub_id.encode()).hexdigest(), 16)
+            seed = start + (hash_val % (end - start))
+        else:
+            # Use sequential seeds
+            count = self.usage_stats[task_name]["count"]
+            seed = start + (count % (end - start))
+            self.usage_stats[task_name]["count"] += 1
+        
+        self.usage_stats[task_name]["last_used"] = datetime.now()
+        return seed
+    
+    def create_time_based_seed(self, task_name: str, interval: timedelta) -> int:
+        """Create seeds that change based on time intervals."""
+        current_time = datetime.now()
+        
+        if task_name in self.time_based_seeds:
+            last_time, last_seed = self.time_based_seeds[task_name]
+            if current_time - last_time < interval:
+                return last_seed
+        
+        # Generate new seed for this time period
+        time_bucket = int(current_time.timestamp() // interval.total_seconds())
+        seed = self.get_task_seed(task_name, f"time_{time_bucket}")
+        
+        self.time_based_seeds[task_name] = (current_time, seed)
+        return seed
+    
+    def get_user_seed(self, user_id: str, feature: str) -> int:
+        """Get a consistent seed for a user-feature combination."""
+        combined_id = f"{user_id}_{feature}"
+        return self.get_task_seed("user_features", combined_id)
+    
+    def export_seed_map(self) -> Dict:
+        """Export the current seed mapping for documentation."""
+        return {
+            "base_seed": self.base_seed,
+            "registry": self.seed_registry,
+            "usage_stats": {
+                task: {
+                    "count": stats["count"],
+                    "last_used": stats["last_used"].isoformat() if stats["last_used"] else None
+                }
+                for task, stats in self.usage_stats.items()
+            }
+        }
+
+# Example usage
+scheduler = SeedScheduler(base_seed=1000)
+
+# Register different tasks with non-overlapping seed ranges
+scheduler.register_task("content_generation", (1000, 2000))
+scheduler.register_task("embeddings", (2000, 3000))
+scheduler.register_task("user_features", (3000, 4000))
+scheduler.register_task("ab_testing", (4000, 5000))
+
+# Get seeds for different purposes
+content_seed = scheduler.get_task_seed("content_generation", "article_123")
+embedding_seed = scheduler.get_task_seed("embeddings", "doc_456")
+user_seed = scheduler.get_user_seed("user_789", "recommendations")
+
+# Time-based seeds (changes every hour)
+hourly_seed = scheduler.create_time_based_seed("ab_testing", timedelta(hours=1))
+
+print(f"Content seed: {content_seed}")
+print(f"Embedding seed: {embedding_seed}")
+print(f"User seed: {user_seed}")
+print(f"Hourly seed: {hourly_seed}")
+
+# Export seed map for documentation
+seed_map = scheduler.export_seed_map()
+print("\nSeed Map:")
+print(json.dumps(seed_map, indent=2))
+```
+
+### Conditional Seed Strategies
+
+Use different seeding strategies based on content characteristics.
+
+```python
+import steadytext
+import re
+from enum import Enum
+from typing import Optional
+
+class ContentType(Enum):
+    TECHNICAL = "technical"
+    CREATIVE = "creative"
+    BUSINESS = "business"
+    CASUAL = "casual"
+    ACADEMIC = "academic"
+
+class ConditionalSeedStrategy:
+    def __init__(self, base_seed=42):
+        self.base_seed = base_seed
+        
+        # Define seed offsets for different content types
+        self.content_type_offsets = {
+            ContentType.TECHNICAL: 0,
+            ContentType.CREATIVE: 1000,
+            ContentType.BUSINESS: 2000,
+            ContentType.CASUAL: 3000,
+            ContentType.ACADEMIC: 4000
+        }
+        
+        # Define seed modifiers for content characteristics
+        self.modifiers = {
+            "short": 0,
+            "medium": 100,
+            "long": 200,
+            "formal": 0,
+            "informal": 50,
+            "urgent": 300,
+            "evergreen": 400
+        }
+    
+    def detect_content_type(self, text: str) -> ContentType:
+        """Detect content type based on text characteristics."""
+        text_lower = text.lower()
+        
+        # Simple heuristics for content type detection
+        technical_keywords = ["algorithm", "function", "database", "api", "code"]
+        creative_keywords = ["story", "imagine", "creative", "artistic", "design"]
+        business_keywords = ["revenue", "market", "strategy", "customer", "roi"]
+        academic_keywords = ["research", "study", "hypothesis", "analysis", "theory"]
+        
+        scores = {
+            ContentType.TECHNICAL: sum(1 for kw in technical_keywords if kw in text_lower),
+            ContentType.CREATIVE: sum(1 for kw in creative_keywords if kw in text_lower),
+            ContentType.BUSINESS: sum(1 for kw in business_keywords if kw in text_lower),
+            ContentType.ACADEMIC: sum(1 for kw in academic_keywords if kw in text_lower),
+            ContentType.CASUAL: 1  # Default score
+        }
+        
+        return max(scores, key=scores.get)
+    
+    def determine_length_category(self, text: str) -> str:
+        """Determine if content should be short, medium, or long."""
+        word_count = len(text.split())
+        
+        if word_count < 50:
+            return "short"
+        elif word_count < 200:
+            return "medium"
+        else:
+            return "long"
+    
+    def determine_formality(self, text: str) -> str:
+        """Determine if content should be formal or informal."""
+        informal_indicators = ["you're", "don't", "can't", "won't", "!", "?"]
+        informal_count = sum(1 for indicator in informal_indicators if indicator in text)
+        
+        return "informal" if informal_count > 2 else "formal"
+    
+    def calculate_seed(self, 
+                      text: str, 
+                      override_type: Optional[ContentType] = None,
+                      urgency: bool = False,
+                      evergreen: bool = False) -> int:
+        """Calculate appropriate seed based on content characteristics."""
+        # Determine content type
+        content_type = override_type or self.detect_content_type(text)
+        
+        # Get base offset for content type
+        seed = self.base_seed + self.content_type_offsets[content_type]
+        
+        # Add modifiers based on characteristics
+        seed += self.modifiers[self.determine_length_category(text)]
+        seed += self.modifiers[self.determine_formality(text)]
+        
+        if urgency:
+            seed += self.modifiers["urgent"]
+        elif evergreen:
+            seed += self.modifiers["evergreen"]
+        
+        return seed
+    
+    def generate_with_strategy(self, 
+                             prompt: str,
+                             override_type: Optional[ContentType] = None,
+                             **kwargs) -> str:
+        """Generate content using conditional seed strategy."""
+        seed = self.calculate_seed(prompt, override_type, 
+                                 kwargs.get("urgency", False),
+                                 kwargs.get("evergreen", False))
+        
+        # Remove our custom kwargs before passing to generate
+        generate_kwargs = {k: v for k, v in kwargs.items() 
+                         if k not in ["urgency", "evergreen"]}
+        
+        return steadytext.generate(prompt, seed=seed, **generate_kwargs)
+    
+    def batch_generate_variants(self, base_prompt: str) -> Dict[str, str]:
+        """Generate variants for different content types."""
+        variants = {}
+        
+        for content_type in ContentType:
+            seed = self.calculate_seed(base_prompt, override_type=content_type)
+            prompt = f"Write this in a {content_type.value} style: {base_prompt}"
+            
+            variants[content_type.value] = {
+                "seed": seed,
+                "content": steadytext.generate(prompt, seed=seed, max_new_tokens=200)
+            }
+        
+        return variants
+
+# Example usage
+strategy = ConditionalSeedStrategy(base_seed=5000)
+
+# Test content type detection and seed calculation
+test_prompts = [
+    "Explain how REST APIs work",
+    "Write a creative story about the future",
+    "Analyze market trends for Q4",
+    "Hey, what's up with the weather today?",
+    "Examine the hypothesis that climate change affects biodiversity"
+]
+
+for prompt in test_prompts:
+    content_type = strategy.detect_content_type(prompt)
+    seed = strategy.calculate_seed(prompt)
+    print(f"Prompt: {prompt[:50]}...")
+    print(f"Detected type: {content_type.value}, Seed: {seed}")
+    print()
+
+# Generate with strategy
+technical_prompt = "Explain machine learning algorithms"
+result = strategy.generate_with_strategy(
+    technical_prompt,
+    override_type=ContentType.TECHNICAL,
+    max_new_tokens=150
+)
+print(f"Technical generation (seed: {strategy.calculate_seed(technical_prompt)}):")
+print(result[:200] + "...")
+
+# Generate variants for different styles
+base_prompt = "Describe the benefits of cloud computing"
+variants = strategy.batch_generate_variants(base_prompt)
+
+print("\nContent variants:")
+for style, data in variants.items():
+    print(f"\n{style.upper()} (seed: {data['seed']}):")
+    print(data['content'][:150] + "...")
+```
+
+## Best Practices
+
+Follow these best practices to make the most of custom seeds in SteadyText.
+
+### 1. Documentation and Reproducibility
+
+Always document your seed choices and their purposes for future reference.
+
+```python
+# Good: Document seed usage
+SEED_DOCUMENTATION = {
+    "default": 42,
+    "testing": {
+        "unit_tests": 100,
+        "integration_tests": 200,
+        "performance_tests": 300
+    },
+    "production": {
+        "content_generation": 1000,
+        "embeddings": 2000,
+        "personalization": 3000
+    },
+    "experiments": {
+        "ab_test_2024_q1": 4000,
+        "feature_rollout_v2": 5000
+    }
+}
+
+# Create a seed manifest file
+import json
+with open("seeds.json", "w") as f:
+    json.dump(SEED_DOCUMENTATION, f, indent=2)
+```
+
+### 2. Seed Range Management
+
+Organize seeds into ranges to avoid conflicts and maintain clarity.
+
+```python
+class SeedRanges:
+    # Reserve ranges for different purposes
+    TESTING = range(0, 1000)
+    DEVELOPMENT = range(1000, 2000)
+    PRODUCTION = range(2000, 10000)
+    USER_SPECIFIC = range(10000, 20000)
+    TIME_BASED = range(20000, 30000)
+    EXPERIMENTAL = range(30000, 40000)
+    
+    @staticmethod
+    def validate_seed(seed, purpose):
+        """Ensure seed is in correct range for its purpose."""
+        ranges = {
+            "test": SeedRanges.TESTING,
+            "dev": SeedRanges.DEVELOPMENT,
+            "prod": SeedRanges.PRODUCTION,
+            "user": SeedRanges.USER_SPECIFIC,
+            "time": SeedRanges.TIME_BASED,
+            "exp": SeedRanges.EXPERIMENTAL
+        }
+        
+        if purpose in ranges and seed in ranges[purpose]:
+            return True
+        return False
+```
+
+### 3. Testing and Validation
+
+Regularly validate that your seed-based workflows remain reproducible.
+
+```python
+import steadytext
+import hashlib
+
+def validate_seed_reproducibility(test_cases):
+    """Validate that seeds produce consistent results."""
+    failures = []
+    
+    for test in test_cases:
+        prompt = test["prompt"]
+        seed = test["seed"]
+        expected_hash = test.get("expected_hash")
+        
+        # Generate twice with same seed
+        result1 = steadytext.generate(prompt, seed=seed)
+        result2 = steadytext.generate(prompt, seed=seed)
+        
+        # Check consistency
+        if result1 != result2:
+            failures.append(f"Inconsistent results for seed {seed}")
+        
+        # Check against expected hash if provided
+        if expected_hash:
+            actual_hash = hashlib.md5(result1.encode()).hexdigest()
+            if actual_hash != expected_hash:
+                failures.append(f"Hash mismatch for seed {seed}")
+    
+    return len(failures) == 0, failures
+
+# Test cases
+test_cases = [
+    {"prompt": "Hello", "seed": 42, "expected_hash": "abc123..."},
+    {"prompt": "Test prompt", "seed": 100},
+    {"prompt": "Another test", "seed": 200}
+]
+
+is_valid, errors = validate_seed_reproducibility(test_cases)
+if not is_valid:
+    print("Validation failed:", errors)
+```
+
+This comprehensive guide demonstrates the power and flexibility of custom seeds in SteadyText. By using seeds strategically, you can achieve reproducible research, conduct effective A/B testing, generate controlled variations, and build robust content generation pipelines.

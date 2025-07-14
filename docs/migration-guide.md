@@ -20,6 +20,125 @@ This guide helps you migrate between different versions of SteadyText and from o
 
 ## Version Migration
 
+### v2.4.1 to v2.5.1
+
+**Major Changes**: Document reranking support and dependency updates.
+
+#### New Features Added
+
+1. **Document Reranking**:
+   ```python
+   # New in v2.5.1
+   import steadytext
+   
+   docs = ["doc1", "doc2", "doc3"]
+   ranked = steadytext.rerank("query", docs)
+   # Returns: [(doc, score), ...] sorted by relevance
+   ```
+
+2. **Updated Dependencies**:
+   ```bash
+   # Old: llama-cpp-python-bundled>=0.3.9
+   # New: llama-cpp-python>=0.3.12
+   ```
+
+#### Migration Steps
+
+1. **Update dependencies**:
+   ```bash
+   pip install --upgrade steadytext
+   ```
+
+2. **Use reranking for better search**:
+   ```python
+   # Before: Simple similarity search
+   results = search_index(query)
+   
+   # After: Add reranking step
+   results = search_index(query, top_k=20)
+   documents = [r['text'] for r in results]
+   reranked = steadytext.rerank(query, documents)
+   ```
+
+### v2.0.x to v2.4.x
+
+**Major Changes**: Structured generation with grammars, context window management.
+
+#### Structured Generation Changes
+
+v2.4.0 introduced structured generation, v2.4.1 switched from Outlines to GBNF:
+
+```python
+# v2.0.x - No structured generation
+text = steadytext.generate("Create a user")
+
+# v2.4.x - With structured generation
+from pydantic import BaseModel
+
+class User(BaseModel):
+    name: str
+    age: int
+
+# Using schema
+text = steadytext.generate("Create a user John, age 30", schema=User)
+# Returns: "...<json-output>{"name": "John", "age": 30}</json-output>"
+
+# Using regex
+phone = steadytext.generate("Phone: ", regex=r"\d{3}-\d{3}-\d{4}")
+
+# Using choices
+sentiment = steadytext.generate("Sentiment: ", choices=["positive", "negative"])
+```
+
+#### Context Window Management (v2.3.0)
+
+```python
+# v2.0.x - Fixed context window
+text = steadytext.generate(very_long_prompt)  # May fail silently
+
+# v2.3.x - Dynamic context management
+try:
+    text = steadytext.generate(very_long_prompt)
+except ContextLengthExceededError as e:
+    print(f"Input too long: {e.input_tokens} > {e.max_tokens}")
+    
+# Override context window
+os.environ["STEADYTEXT_MAX_CONTEXT_WINDOW"] = "8192"
+```
+
+### v1.x to v2.0.x
+
+**Breaking Changes**: New model family, removed thinking mode.
+
+#### Model Migration
+
+```python
+# v1.x - Qwen models with thinking mode
+text = steadytext.generate("Hello", thinking_mode=True)
+
+# v2.0.x - Gemma-3n models, no thinking mode
+text = steadytext.generate("Hello")  # thinking_mode removed
+text = steadytext.generate("Hello", size="large")  # Use size parameter
+```
+
+#### Removed Parameters
+
+```python
+# v1.x
+text = steadytext.generate(
+    prompt="Hello",
+    thinking_mode=True,  # REMOVED
+    model="qwen3-1.7b"   # CHANGED
+)
+
+# v2.0.x
+text = steadytext.generate(
+    prompt="Hello",
+    size="small",        # NEW: "small" (2B) or "large" (4B)
+    max_new_tokens=512   # NEW: configurable length
+)
+```
+
 ### v2.0.x to v2.1.x
 
 **Major Breaking Change**: Deterministic fallback behavior removed.

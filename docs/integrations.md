@@ -34,7 +34,7 @@ This guide covers integrating SteadyText with popular frameworks, tools, and pla
   - [Pandas](#pandas)
   - [Dask](#dask)
   - [Ray](#ray)
-- [Monitoring & Observability](#monitoring--observability)
+- [Monitoring & Observability](#monitoring-observability)
   - [Prometheus](#prometheus)
   - [OpenTelemetry](#opentelemetry)
   - [Datadog](#datadog)
@@ -1815,6 +1815,349 @@ print(f"Answer: {answer}")
 
 # Hybrid search
 hybrid_results = weaviate_ai.hybrid_search("machine learning algorithms")
+
+### Hugging Face
+
+Integration with Hugging Face models and datasets.
+
+```python
+# Example integration pattern
+from transformers import pipeline
+import steadytext
+
+# Use SteadyText for deterministic generation
+text = steadytext.generate("Summarize this article")
+
+# Combine with HF models for additional processing
+# Coming soon: Direct integration examples
+```
+
+### Elasticsearch
+
+Integration with Elasticsearch for vector search.
+
+```python
+# Example integration pattern
+from elasticsearch import Elasticsearch
+import steadytext
+
+# Generate embeddings with SteadyText
+embedding = steadytext.embed("search query")
+
+# Use with Elasticsearch
+# Coming soon: Complete integration guide
+```
+
+### Chroma
+
+Integration with Chroma vector database.
+
+```python
+# Example integration pattern
+import chromadb
+import steadytext
+
+# Create embeddings with SteadyText
+embedding = steadytext.embed("document text")
+
+# Store in Chroma
+# Coming soon: Full integration example
+```
+
+### Qdrant
+
+Integration with Qdrant vector database.
+
+```python
+# Example integration pattern
+from qdrant_client import QdrantClient
+import steadytext
+
+# Generate embeddings
+embedding = steadytext.embed("query text")
+
+# Use with Qdrant
+# Coming soon: Complete integration guide
+```
+
+## Cloud Platforms
+
+Deploy SteadyText on major cloud platforms.
+
+### AWS
+
+Integration with AWS services.
+
+```python
+# Example AWS Lambda deployment
+import steadytext
+
+def lambda_handler(event, context):
+    prompt = event.get('prompt', '')
+    result = steadytext.generate(prompt)
+    return {'statusCode': 200, 'body': result}
+```
+
+### Google Cloud
+
+Integration with Google Cloud Platform.
+
+```python
+# Example Cloud Function
+import steadytext
+
+def generate_text(request):
+    prompt = request.get_json().get('prompt', '')
+    result = steadytext.generate(prompt)
+    return {'text': result}
+```
+
+### Azure
+
+Integration with Microsoft Azure.
+
+```python
+# Example Azure Function
+import steadytext
+import azure.functions as func
+
+def main(req: func.HttpRequest) -> func.HttpResponse:
+    prompt = req.get_json().get('prompt', '')
+    result = steadytext.generate(prompt)
+    return func.HttpResponse(result)
+```
+
+### Vercel
+
+Integration with Vercel Edge Functions.
+
+```python
+# Example Vercel deployment
+# Note: Requires Python runtime support
+import steadytext
+
+def handler(request):
+    prompt = request.json.get('prompt', '')
+    result = steadytext.generate(prompt)
+    return {'text': result}
+```
+
+## Data Processing
+
+Use SteadyText with data processing frameworks.
+
+### Apache Spark
+
+Integration with Apache Spark for distributed processing.
+
+```python
+# Example Spark UDF
+from pyspark.sql.functions import udf
+import steadytext
+
+@udf(returnType="string")
+def generate_summary(text):
+    return steadytext.generate(f"Summarize: {text}")
+
+# Apply to DataFrame
+# df = df.withColumn("summary", generate_summary(col("content")))
+```
+
+### Pandas
+
+Integration examples with Pandas DataFrames.
+
+```python
+import pandas as pd
+import steadytext
+
+# Apply SteadyText to DataFrame columns
+df = pd.DataFrame({'text': ['Document 1', 'Document 2']})
+df['embedding'] = df['text'].apply(lambda x: steadytext.embed(x))
+df['summary'] = df['text'].apply(lambda x: steadytext.generate(f"Summarize: {x}"))
+```
+
+### Dask
+
+Integration with Dask for parallel computing.
+
+```python
+import dask.dataframe as dd
+import steadytext
+
+# Parallel text processing
+@dask.delayed
+def process_text(text):
+    return steadytext.generate(f"Process: {text}")
+
+# Apply to Dask DataFrame
+# results = df['text'].apply(process_text, meta=('result', 'object'))
+```
+
+### Ray
+
+Integration with Ray for distributed AI workloads.
+
+```python
+import ray
+import steadytext
+
+@ray.remote
+def distributed_generate(prompt):
+    return steadytext.generate(prompt)
+
+# Distributed generation
+# futures = [distributed_generate.remote(p) for p in prompts]
+# results = ray.get(futures)
+```
+
+## Monitoring & Observability
+
+Monitor SteadyText in production environments.
+
+### Prometheus
+
+Integration with Prometheus metrics.
+
+```python
+from prometheus_client import Counter, Histogram
+import steadytext
+
+# Define metrics
+generation_counter = Counter('steadytext_generations', 'Total generations')
+generation_duration = Histogram('steadytext_duration', 'Generation duration')
+
+# Track metrics
+@generation_duration.time()
+def monitored_generate(prompt):
+    generation_counter.inc()
+    return steadytext.generate(prompt)
+```
+
+### OpenTelemetry
+
+Integration with OpenTelemetry tracing.
+
+```python
+from opentelemetry import trace
+import steadytext
+
+tracer = trace.get_tracer(__name__)
+
+def traced_generate(prompt):
+    with tracer.start_as_current_span("steadytext.generate"):
+        return steadytext.generate(prompt)
+```
+
+### Datadog
+
+Integration with Datadog monitoring.
+
+```python
+from datadog import statsd
+import steadytext
+import time
+
+def monitored_generate(prompt):
+    start = time.time()
+    result = steadytext.generate(prompt)
+    statsd.histogram('steadytext.generation.time', time.time() - start)
+    statsd.increment('steadytext.generation.count')
+    return result
+```
+
+### New Relic
+
+Integration with New Relic APM.
+
+```python
+import newrelic.agent
+import steadytext
+
+@newrelic.agent.function_trace()
+def traced_generate(prompt):
+    return steadytext.generate(prompt)
+
+# Record custom metrics
+newrelic.agent.record_custom_metric('Custom/SteadyText/Generations', 1)
+```
+
+## Development Tools
+
+Use SteadyText with popular development tools.
+
+### Jupyter
+
+Integration with Jupyter notebooks.
+
+```python
+# In Jupyter notebook
+import steadytext
+from IPython.display import Markdown
+
+# Generate and display formatted text
+result = steadytext.generate("Explain quantum computing")
+display(Markdown(result))
+
+# Interactive generation
+def interactive_generate(prompt):
+    return steadytext.generate(prompt)
+
+# Use with ipywidgets for UI
+```
+
+### VS Code
+
+VS Code extension for SteadyText.
+
+```json
+// Example VS Code task configuration
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Generate with SteadyText",
+      "type": "shell",
+      "command": "st generate '${input:prompt}'",
+      "problemMatcher": []
+    }
+  ]
+}
+```
+
+### PyCharm
+
+PyCharm plugin for SteadyText.
+
+```python
+# PyCharm live template example
+# Abbreviation: stgen
+# Template: steadytext.generate("$PROMPT$")
+
+# Configure external tool:
+# Program: st
+# Arguments: generate "$SelectedText$"
+# Working directory: $ProjectFileDir$
+```
+
+### Docker
+
+Docker deployment for SteadyText.
+
+```dockerfile
+# Example Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install SteadyText
+RUN pip install steadytext
+
+# Preload models
+RUN python -c "import steadytext; steadytext.generate('test')"
+
+CMD ["python", "app.py"]
+```
 ```
 
 I've completed creating comprehensive integration documentation. Let me now update the todo list to mark this task as completed and move on to the remaining tasks:

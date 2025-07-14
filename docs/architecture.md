@@ -306,6 +306,13 @@ MODEL_REGISTRY = {
             'filename': 'qwen3-embedding-0.6b-q8_0.gguf',
             'dimension': 1024
         }
+    },
+    'reranking': {
+        'default': {
+            'repo': 'Qwen/Qwen3-Reranker-4B-GGUF',
+            'filename': 'qwen3-reranker-4b-q8_0.gguf',
+            'input_length': 8192
+        }
     }
 }
 ```
