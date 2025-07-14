@@ -2,10 +2,12 @@
 # AIDEV-NOTE: This Makefile builds and installs the pg_steadytext extension
 
 EXTENSION = pg_steadytext
-EXTVERSION = 1.2.0
+EXTVERSION = 1.4.0
 
 # SQL scripts
-DATA = sql/$(EXTENSION)--$(EXTVERSION).sql
+DATA = sql/$(EXTENSION)--1.2.0.sql \
+       sql/$(EXTENSION)--1.2.0--1.3.0.sql \
+       sql/$(EXTENSION)--1.3.0--1.4.0.sql
 # AIDEV-NOTE: Do not use DATA_built here - it causes duplicate installation attempts
 
 # Python modules to install

@@ -160,6 +160,11 @@ CREATE EXTENSION IF NOT EXISTS omni_python;
 
 -- Enable pg_steadytext
 CREATE EXTENSION IF NOT EXISTS pg_steadytext;
+
+-- Optional: Enable pg_cron for automatic cache eviction (v1.4.0+)
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+-- After enabling pg_cron, set up automatic cache eviction:
+-- SELECT steadytext_setup_cache_eviction_cron();
 ```
 
 ### Method 3: Using pgxn (PostgreSQL Extension Network)

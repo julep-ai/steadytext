@@ -2,7 +2,7 @@
   "name": "pg_steadytext",
   "abstract": "Deterministic text generation and embeddings for PostgreSQL",
   "description": "PostgreSQL extension that wraps the SteadyText library to provide deterministic AI text generation and embeddings with built-in caching, queue management, and integration with pgvector for semantic search.",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "maintainer": [
     "SteadyText Community <singh@diwank.name>"
   ],
@@ -12,9 +12,9 @@
   "provides": {
     "pg_steadytext": {
       "abstract": "Deterministic text generation and embedding functions for PostgreSQL",
-      "file": "sql/pg_steadytext--1.3.0.sql",
+      "file": "sql/pg_steadytext--1.4.0.sql",
       "docfile": "README.md",
-      "version": "1.3.0"
+      "version": "1.4.0"
     }
   },
   "prereqs": {
@@ -27,7 +27,8 @@
       "recommends": {
         "omni_python": "0",
         "omni_worker": "0",
-        "pgmq": "0"
+        "pgmq": "0",
+        "pg_cron": "1.4.0"
       }
     },
     "develop": {
@@ -74,7 +75,7 @@
   ],
   "x_features": {
     "deterministic_generation": "Always returns the same output for the same input",
-    "builtin_caching": "Frecency-based cache with PostgreSQL storage",
+    "builtin_caching": "Frecency-based cache with PostgreSQL storage and automatic pg_cron eviction",
     "daemon_integration": "Integrates with SteadyText's ZeroMQ daemon",
     "vector_embeddings": "1024-dimensional embeddings with pgvector support",
     "async_processing": "Queue-based async text generation",
