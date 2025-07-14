@@ -7,7 +7,7 @@
 # - Uses yes/no token logits for binary relevance judgments
 
 import os
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, cast
 
 import numpy as np
 
@@ -284,6 +284,9 @@ class DeterministicReranker:
 
             # If not in cache, compute score
             if score is None:
+                # Track whether we used the model successfully
+                model_success = False
+                
                 if (
                     self.model is None
                     or self._yes_token_id is None
@@ -316,40 +319,63 @@ class DeterministicReranker:
                             temperature=0.0,
                             seed=seed,
                             logprobs=True,
-                            top_logprobs=100,  # Get top 100 to ensure we capture yes/no
                         )
+                        logger.debug(f"Reranker model response: {response}")
 
                         if response and "choices" in response and response["choices"]:
                             choice = response["choices"][0]
-                            if "logprobs" in choice and choice["logprobs"]:
-                                # Get the logprobs for the generated token
-                                token_logprobs = choice["logprobs"]["top_logprobs"][0]
-
-                                # Find logprobs for yes/no tokens
-                                yes_logprob = -float("inf")
-                                no_logprob = -float("inf")
-
-                                for token_id, logprob in token_logprobs.items():
-                                    if int(token_id) == self._yes_token_id:
-                                        yes_logprob = logprob
-                                    elif int(token_id) == self._no_token_id:
-                                        no_logprob = logprob
-
-                                # Convert log probabilities to probabilities
-                                yes_prob = np.exp(yes_logprob)
-                                no_prob = np.exp(no_logprob)
-
-                                # Normalize to get a score between 0 and 1
-                                total_prob = yes_prob + no_prob
-                                if total_prob > 0:
-                                    score = yes_prob / total_prob
+                            # Check the generated text directly
+                            if "text" in choice:
+                                generated_text = choice["text"].strip().lower()
+                                logger.debug(f"Reranker generated text: '{generated_text}'")
+                                if generated_text in ["yes", "no"]:
+                                    score = 1.0 if generated_text == "yes" else 0.0
+                                    model_success = True
+                                    logger.debug(f"Reranking score from text: {score:.3f}")
                                 else:
-                                    score = 0.5  # Default to neutral if both are 0
-
-                                logger.debug(
-                                    f"Reranking score: {score:.3f} "
-                                    f"(yes_prob={yes_prob:.3f}, no_prob={no_prob:.3f})"
-                                )
+                                    logger.warning(f"Unexpected text generated: '{generated_text}'")
+                                    score = _fallback_rerank_score(query, doc, seed)
+                            elif "logprobs" in choice and choice["logprobs"]:
+                                # AIDEV-NOTE: When logprobs=True, the format is different
+                                # We need to look at the token_logprobs array
+                                logprobs_data = choice["logprobs"]
+                                
+                                # Get the logprobs for all tokens at the first position
+                                if "token_logprobs" in logprobs_data and logprobs_data["token_logprobs"]:
+                                    # This contains the log probability of the generated token
+                                    generated_token_logprob = logprobs_data["token_logprobs"][0]
+                                    
+                                    # Get the generated token
+                                    generated_token = None
+                                    if "tokens" in logprobs_data and logprobs_data["tokens"]:
+                                        generated_token = logprobs_data["tokens"][0]
+                                    
+                                    # Check if the generated token is "yes" or "no"
+                                    # We'll use the generated token's probability directly
+                                    if generated_token:
+                                        generated_text = generated_token.strip().lower()
+                                        if generated_text in ["yes", "no"]:
+                                            # If "yes" was generated, score is high; if "no", score is low
+                                            score = 1.0 if generated_text == "yes" else 0.0
+                                            logger.debug(
+                                                f"Reranking generated '{generated_text}', score: {score:.3f}"
+                                            )
+                                        else:
+                                            # Unexpected token generated, use fallback
+                                            logger.warning(
+                                                f"Unexpected token generated: '{generated_text}', using fallback"
+                                            )
+                                            score = _fallback_rerank_score(query, doc, seed)
+                                    else:
+                                        logger.warning(
+                                            "No generated token found, using fallback"
+                                        )
+                                        score = _fallback_rerank_score(query, doc, seed)
+                                else:
+                                    logger.warning(
+                                        "No token_logprobs in response, using fallback"
+                                    )
+                                    score = _fallback_rerank_score(query, doc, seed)
                             else:
                                 logger.warning(
                                     "No logprobs in model response, using fallback"
@@ -365,10 +391,11 @@ class DeterministicReranker:
                         logger.error(f"Error during reranking: {e}")
                         score = _fallback_rerank_score(query, doc, seed)
 
-                # Cache the result
-                if cache is not None and score is not None:
+                # Cache the result only if model was successful
+                if cache is not None and score is not None and model_success:
                     try:
-                        cache.put(cache_key, score)
+                        cache.set(cache_key, score)
+                        logger.debug(f"Cached reranking score: {score}")
                     except Exception as e:
                         logger.warning(f"Error caching reranking result: {e}")
 
@@ -396,7 +423,8 @@ def get_reranker() -> DeterministicReranker:
     global _reranker_instance
     if _reranker_instance is None:
         _reranker_instance = DeterministicReranker()
-    return _reranker_instance
+    # AIDEV-NOTE: Cast since we know it's not None after initialization
+    return cast(DeterministicReranker, _reranker_instance)
 
 
 # AIDEV-NOTE: Core reranking function that wraps the reranker class
