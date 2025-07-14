@@ -21,8 +21,17 @@ INSERT INTO steadytext_config (key, value, description) VALUES
     ('cache_max_size_mb', '1000', 'Maximum cache size in MB before eviction'),
     ('cache_eviction_batch_size', '100', 'Number of entries to evict in each batch'),
     ('cache_min_access_count', '2', 'Minimum access count to protect from eviction'),
-    ('cache_min_age_hours', '1', 'Minimum age in hours to protect from eviction')
+    ('cache_min_age_hours', '1', 'Minimum age in hours to protect from eviction'),
+    ('cron_host', 'localhost', 'Database host for pg_cron connections'),
+    ('cron_port', '5432', 'Database port for pg_cron connections')
 ON CONFLICT (key) DO NOTHING;
+
+-- AIDEV-SECTION: CACHE_PERFORMANCE_INDEXES
+-- Add indexes for optimal frecency-based eviction performance
+-- This index supports the ORDER BY frecency_score query in eviction
+CREATE INDEX IF NOT EXISTS idx_steadytext_cache_frecency_eviction 
+ON steadytext_cache (access_count, last_accessed)
+WHERE created_at < NOW() - INTERVAL '1 hour';
 
 -- AIDEV-SECTION: CACHE_STATISTICS_FUNCTIONS
 -- Enhanced cache statistics function with size calculations
@@ -95,6 +104,8 @@ DECLARE
     v_max_entries INT;
     v_max_size_mb FLOAT;
     v_should_evict BOOLEAN := FALSE;
+    v_loop_count INT := 0;
+    v_max_loop_count INT := 1000; -- Safety limit to prevent infinite loops
 BEGIN
     -- Get current cache stats
     SELECT 
@@ -130,6 +141,12 @@ BEGIN
     
     -- Perform eviction if needed
     WHILE v_should_evict LOOP
+        -- Safety check to prevent infinite loops
+        v_loop_count := v_loop_count + 1;
+        IF v_loop_count > v_max_loop_count THEN
+            RAISE WARNING 'Cache eviction loop exceeded maximum iterations (%), breaking to prevent infinite loop', v_max_loop_count;
+            EXIT;
+        END IF;
         WITH eviction_batch AS (
             DELETE FROM steadytext_cache
             WHERE id IN (
@@ -335,6 +352,8 @@ DECLARE
     v_interval INT;
     v_cron_expression TEXT;
     v_job_id BIGINT;
+    v_host TEXT;
+    v_port INT;
 BEGIN
     -- Check if pg_cron is available
     IF NOT EXISTS (
@@ -343,47 +362,81 @@ BEGIN
         RETURN 'Error: pg_cron extension is not installed. Please install pg_cron first.';
     END IF;
     
-    -- Get eviction interval from config
+    -- Get configuration values
     SELECT value::INT INTO v_interval
     FROM steadytext_config
     WHERE key = 'cache_eviction_interval';
     
+    SELECT value INTO v_host
+    FROM steadytext_config
+    WHERE key = 'cron_host';
+    
+    SELECT value::INT INTO v_port
+    FROM steadytext_config
+    WHERE key = 'cron_port';
+    
+    -- Set defaults if not configured
     v_interval := COALESCE(v_interval, 300); -- Default 5 minutes
+    v_host := COALESCE(v_host, 'localhost');
+    v_port := COALESCE(v_port, 5432);
+    
+    -- Validate configuration values
+    IF v_interval < 60 THEN
+        RETURN 'Error: cache_eviction_interval must be at least 60 seconds';
+    END IF;
+    
+    IF v_host = '' OR v_host IS NULL THEN
+        RETURN 'Error: cron_host cannot be empty';
+    END IF;
+    
+    IF v_port < 1 OR v_port > 65535 THEN
+        RETURN 'Error: cron_port must be between 1 and 65535';
+    END IF;
     
     -- Convert seconds to cron expression
     -- For intervals less than an hour, use minute-based scheduling
     IF v_interval < 3600 THEN
-        v_cron_expression := '*/' || (v_interval / 60)::TEXT || ' * * * *';
+        -- Ensure minimum 1-minute interval to avoid invalid cron expressions
+        v_cron_expression := '*/' || GREATEST(1, v_interval / 60)::TEXT || ' * * * *';
     ELSE
         -- For longer intervals, use hourly scheduling
-        v_cron_expression := '0 */' || (v_interval / 3600)::TEXT || ' * * *';
+        -- Ensure minimum 1-hour interval to avoid invalid cron expressions
+        v_cron_expression := '0 */' || GREATEST(1, v_interval / 3600)::TEXT || ' * * *';
     END IF;
     
     -- Remove existing job if any
     DELETE FROM cron.job 
     WHERE jobname = 'steadytext_cache_eviction';
     
-    -- Schedule the job
-    INSERT INTO cron.job (
-        schedule, 
-        command, 
-        nodename, 
-        nodeport, 
-        database, 
-        username,
-        jobname
-    ) VALUES (
-        v_cron_expression,
-        'SELECT steadytext_cache_scheduled_eviction();',
-        'localhost',
-        5432,
-        current_database(),
-        current_user,
-        'steadytext_cache_eviction'
-    ) RETURNING jobid INTO v_job_id;
-    
-    RETURN 'Cache eviction cron job scheduled with ID ' || v_job_id || 
-           ' using schedule: ' || v_cron_expression;
+    -- Schedule the job with error handling
+    BEGIN
+        INSERT INTO cron.job (
+            schedule, 
+            command, 
+            nodename, 
+            nodeport, 
+            database, 
+            username,
+            jobname
+        ) VALUES (
+            v_cron_expression,
+            'SELECT steadytext_cache_scheduled_eviction();',
+            v_host,
+            v_port,
+            current_database(),
+            current_user,
+            'steadytext_cache_eviction'
+        ) RETURNING jobid INTO v_job_id;
+        
+        RETURN 'Cache eviction cron job scheduled with ID ' || v_job_id || 
+               ' using schedule: ' || v_cron_expression ||
+               ' on host: ' || v_host || ':' || v_port;
+    EXCEPTION
+        WHEN OTHERS THEN
+            RETURN 'Error scheduling cron job: ' || SQLERRM || 
+                   ' (schedule: ' || v_cron_expression || 
+                   ', host: ' || v_host || ':' || v_port || ')';
+    END;
 END;
 $$;
 
