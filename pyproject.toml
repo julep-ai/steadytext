@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "steadytext"
-version = "2.5.0"
+version = "2.5.1"
 description = "Deterministic text generation and embedding with zero configuration"
 readme = "README.md"
 authors = [
@@ -57,7 +57,7 @@ benchmark = [
     "tabulate",
     "matplotlib",
     "pandas",
-    "lighteval",
+    # "lighteval",
 ]
 d1 = [
     "httpx>=0.25.0",

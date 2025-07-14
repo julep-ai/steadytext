@@ -1,5 +1,30 @@
 # Changelog
 
+## Version 2.5.1 (2025-07-14)
+
+### Dependencies
+- **Upgrade to Official llama-cpp-python:** Replaced `llama-cpp-python-bundled>=0.3.9` with official `llama-cpp-python>=0.3.12`
+  - Provides better compatibility and performance with the latest GGUF models
+  - Removes dependency on the bundled fork which may have compatibility issues
+  - Maintains all existing functionality without API changes
+
+### Bug Fixes
+- **Temporarily Disable lighteval Dependency:** Commented out `lighteval` from benchmark extras to avoid pulling in large torch/nvidia CUDA packages
+  - Prevents unnecessary installation of ~6GB+ of PyTorch and CUDA packages for users not running benchmarks
+  - Optional dependency chain: lighteval → accelerate → torch → nvidia CUDA packages
+  - Will be re-enabled once lighteval dependency management is improved
+
+### Documentation
+- **Enhanced Dependency Management Guide:** Added comprehensive documentation in `CLAUDE.md` explaining:
+  - Optional dependency management patterns and best practices
+  - How to use `uv sync` for minimal installation vs. full installation with extras
+  - Graceful handling of missing optional dependencies in the codebase
+  - Torch/nvidia dependency chain through optional packages
+
+### Internal Changes
+- Updated UV lock file to reflect the new dependency versions
+- Enhanced project documentation for better developer experience
+
 ## Version 2.4.1 (2025-07-04)
 
 ### Bug Fixes & Improvements
