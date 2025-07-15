@@ -102,7 +102,7 @@ def generate(
         # Returns: "Let me create...<json-output>{"name": "John", "age": 30}</json-output>"
 
         # Generate with regex pattern
-        phone = generate("My phone is", regex=r"\d{3}-\d{3}-\d{4}")
+        phone = generate("My phone is", regex=r"\\d{3}-\\d{3}-\\d{4}")
 
         # Generate with choices
         answer = generate("Is Python good?", choices=["yes", "no", "maybe"])
