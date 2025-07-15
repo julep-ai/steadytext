@@ -123,9 +123,11 @@ SteadyText v1.3.0+ includes document reranking functionality using the Qwen3-Rer
 
 - AIDEV-NOTE: The default reranking model is `Qwen3-Reranker-4B-GGUF`.
 - AIDEV-NOTE: Reranking uses a specific prompt format with system/user/assistant tags.
-- AIDEV-NOTE: Scores are derived from yes/no token probabilities.
+- AIDEV-NOTE: Scores are binary (1.0 for "yes", 0.0 for "no") based on generated token.
+- AIDEV-NOTE: Fixed in v2.4.1 - removed unsupported top_logprobs parameter from model call.
 - AIDEV-TODO: Consider adding support for cross-encoder models.
 - AIDEV-TODO: Add streaming support for large document sets.
+- AIDEV-TODO: Improve scoring to use actual token probabilities instead of binary.
 
 ## Cache Management
 

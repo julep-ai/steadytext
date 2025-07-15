@@ -5,7 +5,8 @@ AIDEV-NOTE: Fixed "Never Fails" - embed() now catches TypeErrors & returns zero 
 """
 
 # Version of the steadytext package - should match pyproject.toml
-__version__ = "2.4.0"
+# AIDEV-NOTE: Always update this when bumping the lib version
+__version__ = "2.5.2"
 
 # Import core functions and classes for public API
 import os
@@ -101,7 +102,7 @@ def generate(
         # Returns: "Let me create...<json-output>{"name": "John", "age": 30}</json-output>"
 
         # Generate with regex pattern
-        phone = generate("My phone is", regex=r"\d{3}-\d{3}-\d{4}")
+        phone = generate("My phone is", regex=r"\\d{3}-\\d{3}-\\d{4}")
 
         # Generate with choices
         answer = generate("Is Python good?", choices=["yes", "no", "maybe"])

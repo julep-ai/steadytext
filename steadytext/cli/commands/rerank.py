@@ -44,6 +44,10 @@ def rerank(query, documents, output_json, scores, task, top_k, doc_file, seed):
 
     DOCUMENTS can be provided as arguments or read from stdin/file.
 
+    Note: This command works best with complete sentences or passages rather than
+    single words. The reranker evaluates whether documents answer the query, which
+    requires sufficient context.
+
     Examples:
         st rerank "What is Python?" "Python is a programming language" "Snakes are reptiles"
 
@@ -54,6 +58,9 @@ def rerank(query, documents, output_json, scores, task, top_k, doc_file, seed):
         st rerank "medical symptoms" "doc1" "doc2" --task "Find relevant medical information"
 
         st rerank "search query" "doc1" "doc2" "doc3" --top-k 2 --json
+
+        # Works better with full sentences:
+        echo -e "An apple a day keeps the doctor away\\nOranges are citrus fruits" | st rerank "healthy fruits"
     """
     import time
     from ... import rerank as do_rerank
