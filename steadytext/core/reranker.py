@@ -322,9 +322,6 @@ class DeterministicReranker:
 
             # If not in cache, compute score
             if score is None:
-                # Track whether we used the model successfully
-                model_success = False
-
                 if (
                     self.model is None
                     or self._yes_token_id is None
@@ -376,13 +373,11 @@ class DeterministicReranker:
                                 # Be more flexible with matching - handle variations
                                 if generated_text.startswith("yes"):
                                     score = 1.0
-                                    model_success = True
                                     logger.debug(
                                         f"Reranking score from text (YES): {score:.3f}"
                                     )
                                 elif generated_text.startswith("no"):
                                     score = 0.0
-                                    model_success = True
                                     logger.debug(
                                         f"Reranking score from text (NO): {score:.3f}"
                                     )
@@ -419,13 +414,11 @@ class DeterministicReranker:
                                         # Be more flexible with matching - handle variations
                                         if generated_text.startswith("yes"):
                                             score = 1.0
-                                            model_success = True
                                             logger.debug(
                                                 f"Reranking generated '{generated_text}' from logprobs, score: {score:.3f}"
                                             )
                                         elif generated_text.startswith("no"):
                                             score = 0.0
-                                            model_success = True
                                             logger.debug(
                                                 f"Reranking generated '{generated_text}' from logprobs, score: {score:.3f}"
                                             )
@@ -462,8 +455,9 @@ class DeterministicReranker:
                         logger.error(f"Error during reranking: {e}")
                         score = _fallback_rerank_score(query, doc, seed)
 
-                # Cache the result only if model was successful
-                if cache is not None and score is not None and model_success:
+                # AIDEV-NOTE: Cache all valid scores (both model-generated and fallback) for performance
+                # This ensures repeated queries don't need to recompute fallback scores
+                if cache is not None and score is not None:
                     try:
                         cache.set(cache_key, score)
                         logger.debug(f"Cached reranking score: {score}")
