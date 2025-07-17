@@ -85,6 +85,16 @@ echo "hello" | uvx steadytext
 
 ---
 
+## 📜 License Notice
+
+The default generation models (Gemma-3n family) are subject to Google's [Gemma Terms of Use](https://ai.google.dev/gemma/terms). By using SteadyText with these models, you agree to comply with these terms.
+
+For details, see [LICENSE-GEMMA.txt](LICENSE-GEMMA.txt) in this repository.
+
+**Note:** Alternative models (like Qwen) are available with different licenses. Set `STEADYTEXT_USE_FALLBACK_MODEL=true` to use Qwen models instead.
+
+---
+
 ## 🐘 PostgreSQL Extension
 
 Transform your PostgreSQL database into an AI-powered system with **pg_steadytext** - the production-ready PostgreSQL extension that brings deterministic AI directly to your SQL queries.

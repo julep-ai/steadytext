@@ -99,6 +99,9 @@ SteadyText v2.0+ uses Gemma-3n models for generation and Qwen3 for embeddings.
 
 - AIDEV-NOTE: The default generation model is `gemma-3n-E2B-it-GGUF`.
 - AIDEV-NOTE: The default embedding model is `Qwen3-Embedding-0.6B-GGUF`.
+- AIDEV-NOTE: Gemma models are subject to Google's Gemma Terms of Use - license compliance added in v2.5.3
+- AIDEV-NOTE: License notice is displayed when downloading Gemma models
+- AIDEV-NOTE: LICENSE-GEMMA.txt must be updated with actual terms from https://ai.google.dev/gemma/terms
 
 ## Reranking Support (v1.3.0+)
 

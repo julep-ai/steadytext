@@ -114,6 +114,9 @@ def generate(
 ):
     """Generate text from a prompt (streams by default).
 
+    Default generation model (Gemma-3n) is subject to Google's Gemma Terms of Use.
+    See LICENSE-GEMMA.txt or https://ai.google.dev/gemma/terms for details.
+
     Examples:
         echo "write a hello world function" | st  # Streams output
         echo "quick task" | st --wait            # Waits for full output

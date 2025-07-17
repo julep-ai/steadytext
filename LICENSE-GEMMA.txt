@@ -1,0 +1,20 @@
+GEMMA TERMS OF USE
+
+IMPORTANT: This is a placeholder file. The actual Gemma Terms of Use must be obtained from:
+https://ai.google.dev/gemma/terms
+
+The Gemma family of models are subject to Google's Gemma Terms of Use. By using the
+Gemma-3n models in SteadyText, you agree to comply with these terms.
+
+Please visit the above URL to review the complete terms and conditions.
+
+Key points typically covered in the Gemma Terms of Use:
+- Permitted uses of the models
+- Prohibited uses and restrictions
+- Attribution requirements
+- Intellectual property rights
+- Disclaimers and limitations of liability
+- Distribution and modification rights
+
+NOTE TO MAINTAINERS: Replace this placeholder with the actual Gemma Terms of Use text
+obtained from the official source.
