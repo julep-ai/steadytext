@@ -54,7 +54,7 @@ from .commands.completion import completion
 )
 def cli(ctx, version, quiet, verbose, size, seed, wait, schema, regex, choices):
     """SteadyText: Deterministic text generation and embedding CLI.
-    
+
     Default generation model (Gemma-3n) is subject to Google's Gemma Terms of Use.
     See LICENSE-GEMMA.txt or https://ai.google.dev/gemma/terms for details.
     """

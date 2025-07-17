@@ -30,7 +30,7 @@ MODELS = {
 @click.group()
 def models():
     """Manage SteadyText models.
-    
+
     Note: Gemma models are subject to Google's Gemma Terms of Use.
     See LICENSE-GEMMA.txt or https://ai.google.dev/gemma/terms for details.
     """
@@ -207,7 +207,9 @@ def list():
         click.echo(f"    Repository: {model_info['repo']}")
         click.echo(f"    Filename: {model_info['filename']}")
         if "gemma" in model_name.lower():
-            click.echo(f"    License: Gemma Terms of Use (https://ai.google.dev/gemma/terms)")
+            click.echo(
+                "    License: Gemma Terms of Use (https://ai.google.dev/gemma/terms)"
+            )
 
 
 @models.command()
