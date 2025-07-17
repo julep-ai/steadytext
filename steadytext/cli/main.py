@@ -53,7 +53,11 @@ from .commands.completion import completion
     help="Comma-separated list of allowed choices for structured output",
 )
 def cli(ctx, version, quiet, verbose, size, seed, wait, schema, regex, choices):
-    """SteadyText: Deterministic text generation and embedding CLI."""
+    """SteadyText: Deterministic text generation and embedding CLI.
+    
+    Default generation model (Gemma-3n) is subject to Google's Gemma Terms of Use.
+    See LICENSE-GEMMA.txt or https://ai.google.dev/gemma/terms for details.
+    """
     # Handle verbosity - verbose overrides quiet
     if verbose:
         quiet = False
