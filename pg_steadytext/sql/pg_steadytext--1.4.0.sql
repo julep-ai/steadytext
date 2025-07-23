@@ -198,6 +198,9 @@ except Exception as e:
 
 python_module_dir = os.path.join(pg_lib_dir, 'pg_steadytext', 'python')
 
+# Save pg_lib_dir in GD for use in error messages
+GD['pg_lib_dir'] = pg_lib_dir
+
 # Verify the directory exists
 if not os.path.exists(python_module_dir):
     plpy.error(f"Python module directory not found: {python_module_dir}")
@@ -206,6 +209,31 @@ if not os.path.exists(python_module_dir):
 if python_module_dir not in sys.path:
     sys.path.insert(0, python_module_dir)
     site.addsitedir(python_module_dir)  # Process .pth files if any
+
+# AIDEV-NOTE: Add site-packages directory for locally installed Python packages
+site_packages_dir = os.path.join(pg_lib_dir, 'pg_steadytext', 'site-packages')
+if os.path.exists(site_packages_dir) and site_packages_dir not in sys.path:
+    sys.path.insert(0, site_packages_dir)
+    site.addsitedir(site_packages_dir)
+    plpy.notice(f"Added site-packages to path: {site_packages_dir}")
+
+# AIDEV-NOTE: Add common Python package locations
+# These are common locations where pip might install packages
+common_paths = [
+    # User site-packages
+    site.getusersitepackages(),
+    # System-wide site-packages
+    '/usr/local/lib/python3.10/dist-packages',
+    '/usr/local/lib/python3.11/dist-packages',
+    '/usr/local/lib/python3.12/dist-packages',
+    '/usr/lib/python3/dist-packages',
+    # Virtual environment (if activated)
+    os.path.join(sys.prefix, 'lib', f'python{sys.version_info.major}.{sys.version_info.minor}', 'site-packages'),
+]
+
+for path in common_paths:
+    if path and os.path.exists(path) and path not in sys.path:
+        sys.path.append(path)
 
 # Log Python path for debugging
 plpy.notice(f"Python path: {sys.path}")
@@ -237,7 +265,34 @@ for package, description in required_packages.items():
         missing_packages.append(f"{package} ({description})")
 
 if missing_packages:
-    plpy.warning(f"Missing required packages: {', '.join(missing_packages)}. Run: pip3 install steadytext pyzmq numpy")
+    pg_lib_dir = GD.get('pg_lib_dir', '/usr/lib/postgresql/17/lib')
+    site_packages_dir = os.path.join(pg_lib_dir, 'pg_steadytext', 'site-packages')
+    
+    error_msg = f"""
+=================================================================
+Missing required Python packages: {', '.join(missing_packages)}
+
+The pg_steadytext extension requires these packages to function.
+
+To fix this, run ONE of the following commands:
+
+1. Install via make (recommended):
+   cd /path/to/pg_steadytext
+   sudo make install
+
+2. Install to PostgreSQL's site-packages:
+   sudo pip3 install --target={site_packages_dir} steadytext pyzmq numpy
+
+3. Install system-wide:
+   sudo pip3 install steadytext pyzmq numpy
+
+4. Install to user directory:
+   pip3 install --user steadytext pyzmq numpy
+
+After installation, restart PostgreSQL and try again.
+=================================================================
+"""
+    plpy.error(error_msg)
 
 # Try to import our modules and cache them in GD
 try:
@@ -262,8 +317,34 @@ try:
     plpy.notice(f"pg_steadytext Python environment initialized successfully from {python_module_dir}")
 except ImportError as e:
     GD['steadytext_initialized'] = False
-    plpy.error(f"Failed to import pg_steadytext modules from {python_module_dir}: {e}")
-    plpy.error(f"Make sure the extension is properly installed with 'make install'")
+    pg_lib_dir = GD.get('pg_lib_dir', '/usr/lib/postgresql/17/lib')
+    site_packages_dir = os.path.join(pg_lib_dir, 'pg_steadytext', 'site-packages')
+    
+    error_msg = f"""
+=================================================================
+Failed to import pg_steadytext modules from {python_module_dir}
+
+Error: {str(e)}
+
+This usually means the extension files are installed but Python
+module files are missing or there's an import error.
+
+To fix this:
+
+1. Ensure all Python module files are present in:
+   {python_module_dir}
+
+2. Check that required packages are installed:
+   sudo pip3 install --target={site_packages_dir} steadytext pyzmq numpy
+
+3. Or reinstall the extension:
+   cd /path/to/pg_steadytext
+   sudo make install
+
+After fixing, restart PostgreSQL and try again.
+=================================================================
+"""
+    plpy.error(error_msg)
 except Exception as e:
     GD['steadytext_initialized'] = False
     plpy.error(f"Unexpected error during initialization: {e}")

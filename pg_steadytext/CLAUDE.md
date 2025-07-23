@@ -570,4 +570,54 @@ AIDEV-TODO: Future cache enhancements:
 - Cache partitioning by model or use case
 - Integration with PostgreSQL's shared buffer cache
 
+## Python Package Installation (v1.4.0+)
+
+### AIDEV-NOTE: Automatic Python Package Installation
+
+As of v1.4.0+, the Makefile includes automatic Python package installation to address the common issue where PostgreSQL's plpython3u cannot find required packages:
+
+1. **Makefile Changes**:
+   - Added `install-python-deps` target that installs packages to `$(pkglibdir)/pg_steadytext/site-packages`
+   - The `install` target now depends on `install-python-deps`
+   - Packages are installed using `pip install --target` to a PostgreSQL-specific directory
+   - Graceful fallback with helpful error messages if installation fails
+
+2. **Python Path Enhancement**:
+   - `_steadytext_init_python()` now adds multiple paths to sys.path:
+     - Extension's site-packages directory (`pg_steadytext/site-packages`)
+     - User site-packages (from `site.getusersitepackages()`)
+     - Common system-wide locations (`/usr/local/lib/python*/dist-packages`)
+     - Virtual environment paths (if applicable)
+
+3. **Improved Error Messages**:
+   - Detailed installation instructions when packages are missing
+   - Specific commands for different installation scenarios
+   - Clear guidance on troubleshooting steps
+   - Error messages include the exact paths where packages should be installed
+
+4. **Installation Testing**:
+   - Added `test_installation.sh` script to verify proper installation
+   - Checks for extension files, Python modules, and package visibility
+   - Tests actual functionality in PostgreSQL
+   - Provides clear diagnostic output
+
+### Usage
+
+```bash
+# Install extension with automatic Python package installation
+sudo make install
+
+# If Python packages fail to install automatically:
+sudo pip3 install --target=$(pg_config --pkglibdir)/pg_steadytext/site-packages steadytext pyzmq numpy
+
+# Test the installation
+./test_installation.sh
+```
+
+AIDEV-TODO: Future enhancements for package management:
+- Support for virtual environments dedicated to PostgreSQL
+- Conda environment detection and support
+- Package version checking and upgrade capabilities
+- Integration with PostgreSQL package management extensions
+
 **AIDEV-NOTE**: This file should be updated whenever architectural decisions change or new patterns are established.

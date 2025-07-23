@@ -30,17 +30,16 @@ For detailed installation instructions, see [INSTALL.md](INSTALL.md).
 ### Quick Install
 
 ```bash
-# Install Python dependencies
-pip3 install steadytext pyzmq numpy
-
-# Clone and install the extension
+# Clone and install the extension (Python dependencies are installed automatically)
 git clone https://github.com/julep-ai/steadytext.git
 cd steadytext/pg_steadytext
-make && sudo make install
+sudo make install
 
 # In PostgreSQL
 CREATE EXTENSION pg_steadytext CASCADE;
 ```
+
+The `make install` command automatically installs the required Python packages (steadytext, pyzmq, numpy) to a location where PostgreSQL can find them.
 
 ### Docker Install (Recommended)
 

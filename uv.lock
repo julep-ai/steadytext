@@ -716,7 +716,7 @@ wheels = [
 
 [[package]]
 name = "llama-cpp-python"
-version = "0.3.12"
+version = "0.3.14"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "diskcache" },
@@ -724,7 +724,7 @@ dependencies = [
     { name = "numpy" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/50/4e/ffbdca966c91607c4490eeff649aeff0b042a203954aa649a0687cf2d8d1/llama_cpp_python-0.3.12.tar.gz", hash = "sha256:0c977101a46ce6fa363e63a0b33413f29deab9772be24a6c551458fc386f4725", size = 49766307, upload-time = "2025-07-06T05:02:48.617Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/84/ac/9d0c433b850ec32860c677d09a077e7e9a332c1dbe1443db5acc9d47d162/llama_cpp_python-0.3.14.tar.gz", hash = "sha256:c7ffd71685923a911206a40e972c1ec739aa21032100fdc8618316571b173507", size = 50972897, upload-time = "2025-07-18T16:48:52.329Z" }
 
 [[package]]
 name = "markdown"
@@ -1723,7 +1723,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.27.2" },
     { name = "httpx", marker = "extra == 'd1'", specifier = ">=0.25.0" },
     { name = "huggingface-hub", specifier = ">=0.32.0" },
-    { name = "llama-cpp-python", specifier = ">=0.3.12" },
+    { name = "llama-cpp-python", specifier = ">=0.3.14" },
     { name = "matplotlib", marker = "extra == 'benchmark'" },
     { name = "numpy", specifier = ">=1.21.0" },
     { name = "pandas", marker = "extra == 'benchmark'" },
