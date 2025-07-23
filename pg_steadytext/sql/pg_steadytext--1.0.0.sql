@@ -4,8 +4,8 @@
 -- AIDEV-NOTE: This SQL script creates the core schema for the pg_steadytext extension
 -- It mirrors SteadyText's cache structure and adds PostgreSQL-specific features
 
--- Complain if script is sourced in psql, rather than via CREATE EXTENSION
-\echo Use "CREATE EXTENSION pg_steadytext" to load this file. \quit
+-- This file should be loaded via CREATE EXTENSION pg_steadytext
+-- Do not source directly in psql
 
 -- Create schema for internal objects (optional, can use public)
 -- CREATE SCHEMA IF NOT EXISTS _steadytext;

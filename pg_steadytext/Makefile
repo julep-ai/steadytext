@@ -60,40 +60,56 @@ install-python:
 
 # AIDEV-NOTE: Install Python dependencies for PostgreSQL
 # This creates a local site-packages directory within the extension
+# As of v1.4.0+, this step is optional and only runs if packages are not already found
 install-python-deps:
-	@echo "Installing Python dependencies for pg_steadytext..."
-	@echo "Creating site-packages directory: $(DESTDIR)$(PYTHON_SITEDIR)"
-	@mkdir -p '$(DESTDIR)$(PYTHON_SITEDIR)'
-	@echo "Installing required packages..."
+	@echo "Checking Python dependencies for pg_steadytext..."
+	@# Check if steadytext package is already available
 	@if command -v $(PYTHON) >/dev/null 2>&1; then \
-		echo "Using Python: $$($(PYTHON) --version)"; \
-		echo "Installing to: $(DESTDIR)$(PYTHON_SITEDIR)"; \
-		if [ -z "$(DESTDIR)" ]; then \
-			echo "Installing Python packages (this may require sudo for system-wide installation)..."; \
-			$(PYTHON) -m pip install --target='$(PYTHON_SITEDIR)' steadytext pyzmq numpy || \
-			(echo ""; \
-			 echo "================================================================="; \
-			 echo "Failed to install Python packages to $(PYTHON_SITEDIR)"; \
-			 echo ""; \
-			 echo "Please try one of these options:"; \
-			 echo "1. Run with sudo: sudo make install"; \
-			 echo "2. Install packages manually:"; \
-			 echo "   sudo $(PYTHON) -m pip install steadytext pyzmq numpy"; \
-			 echo "3. Install to user directory:"; \
-			 echo "   $(PYTHON) -m pip install --user steadytext pyzmq numpy"; \
-			 echo "================================================================="; \
-			 exit 1); \
+		STEADYTEXT_FOUND=true; \
+		if [ -d "$(PYTHON_SITEDIR)" ]; then \
+			PYTHONPATH="$(PYTHON_SITEDIR):$$PYTHONPATH" $(PYTHON) -c "import steadytext" 2>/dev/null || \
+			$(PYTHON) -c "import steadytext" 2>/dev/null || \
+			STEADYTEXT_FOUND=false; \
 		else \
-			echo "Installing to DESTDIR (packaging mode)..."; \
-			$(PYTHON) -m pip install --target='$(DESTDIR)$(PYTHON_SITEDIR)' \
-				--no-deps --ignore-installed steadytext pyzmq numpy 2>/dev/null || \
-			echo "Note: pip install failed in packaging mode, packages should be installed at runtime"; \
+			$(PYTHON) -c "import steadytext" 2>/dev/null || \
+			STEADYTEXT_FOUND=false; \
+		fi; \
+		if [ "$$STEADYTEXT_FOUND" = "true" ]; then \
+			echo "SteadyText is already installed - skipping pip install"; \
+		else \
+			echo "Some Python dependencies missing - proceeding with installation..."; \
+			echo "Creating site-packages directory: $(DESTDIR)$(PYTHON_SITEDIR)"; \
+			mkdir -p '$(DESTDIR)$(PYTHON_SITEDIR)'; \
+			echo "Installing required packages..."; \
+			echo "Using Python: $$($(PYTHON) --version)"; \
+			echo "Installing to: $(DESTDIR)$(PYTHON_SITEDIR)"; \
+			if [ -z "$(DESTDIR)" ]; then \
+				echo "Installing Python packages (this may require sudo for system-wide installation)..."; \
+				$(PYTHON) -m pip install --target='$(PYTHON_SITEDIR)' steadytext pyzmq numpy || \
+				(echo ""; \
+				 echo "================================================================="; \
+				 echo "Failed to install Python packages to $(PYTHON_SITEDIR)"; \
+				 echo ""; \
+				 echo "Please try one of these options:"; \
+				 echo "1. Run with sudo: sudo make install"; \
+				 echo "2. Install packages manually:"; \
+				 echo "   sudo $(PYTHON) -m pip install steadytext pyzmq numpy"; \
+				 echo "3. Install to user directory:"; \
+				 echo "   $(PYTHON) -m pip install --user steadytext pyzmq numpy"; \
+				 echo "================================================================="; \
+				 exit 1); \
+			else \
+				echo "Installing to DESTDIR (packaging mode)..."; \
+				$(PYTHON) -m pip install --target='$(DESTDIR)$(PYTHON_SITEDIR)' \
+					--no-deps --ignore-installed steadytext pyzmq numpy 2>/dev/null || \
+				echo "Note: pip install failed in packaging mode, packages should be installed at runtime"; \
+			fi; \
 		fi; \
 	else \
 		echo "ERROR: Python3 not found. Please install Python 3.8+"; \
 		exit 1; \
 	fi
-	@echo "Python dependencies installation complete."
+	@echo "Python dependencies check complete."
 
 # Check dependencies before installation
 check-deps:
