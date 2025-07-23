@@ -353,8 +353,19 @@ try:
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
     
-    host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
-    port = json.loads(port_rv[0]["value"]) if port_rv else 5555
+    # Parse host - handle both quoted and unquoted formats
+    host_val = host_rv[0]["value"] if host_rv else "localhost"
+    try:
+        host = json.loads(host_val) if host_val.startswith('"') else host_val
+    except:
+        host = host_val
+    
+    # Parse port
+    port_val = port_rv[0]["value"] if port_rv else "5555"
+    try:
+        port = int(port_val)
+    except:
+        port = 5555
     
     # Connect to daemon and generate using cached module
     connector = daemon_connector.SteadyTextConnector(host, port)
@@ -456,8 +467,19 @@ try:
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
     
-    host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
-    port = json.loads(port_rv[0]["value"]) if port_rv else 5555
+    # Parse host - handle both quoted and unquoted formats
+    host_val = host_rv[0]["value"] if host_rv else "localhost"
+    try:
+        host = json.loads(host_val) if host_val.startswith('"') else host_val
+    except:
+        host = host_val
+    
+    # Parse port
+    port_val = port_rv[0]["value"] if port_rv else "5555"
+    try:
+        port = int(port_val)
+    except:
+        port = 5555
     
     # Connect and generate embedding using cached module
     connector = daemon_connector.SteadyTextConnector(host, port)
@@ -508,8 +530,19 @@ try:
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
     
-    host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
-    port = json.loads(port_rv[0]["value"]) if port_rv else 5555
+    # Parse host - handle both quoted and unquoted formats
+    host_val = host_rv[0]["value"] if host_rv else "localhost"
+    try:
+        host = json.loads(host_val) if host_val.startswith('"') else host_val
+    except:
+        host = host_val
+    
+    # Parse port
+    port_val = port_rv[0]["value"] if port_rv else "5555"
+    try:
+        port = int(port_val)
+    except:
+        port = 5555
     
     # Check if daemon is already running by trying to start it
     # SteadyText daemon start command is idempotent
@@ -572,8 +605,19 @@ try:
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
     
-    host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
-    port = json.loads(port_rv[0]["value"]) if port_rv else 5555
+    # Parse host - handle both quoted and unquoted formats
+    host_val = host_rv[0]["value"] if host_rv else "localhost"
+    try:
+        host = json.loads(host_val) if host_val.startswith('"') else host_val
+    except:
+        host = host_val
+    
+    # Parse port
+    port_val = port_rv[0]["value"] if port_rv else "5555"
+    try:
+        port = int(port_val)
+    except:
+        port = 5555
     
     # Try to connect using cached module
     try:
@@ -800,8 +844,19 @@ try:
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
     
-    host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
-    port = json.loads(port_rv[0]["value"]) if port_rv else 5555
+    # Parse host - handle both quoted and unquoted formats
+    host_val = host_rv[0]["value"] if host_rv else "localhost"
+    try:
+        host = json.loads(host_val) if host_val.startswith('"') else host_val
+    except:
+        host = host_val
+    
+    # Parse port
+    port_val = port_rv[0]["value"] if port_rv else "5555"
+    try:
+        port = int(port_val)
+    except:
+        port = 5555
     
     # Connect and generate JSON using cached module
     connector = daemon_connector.SteadyTextConnector(host, port)
@@ -910,8 +965,19 @@ try:
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
     
-    host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
-    port = json.loads(port_rv[0]["value"]) if port_rv else 5555
+    # Parse host - handle both quoted and unquoted formats
+    host_val = host_rv[0]["value"] if host_rv else "localhost"
+    try:
+        host = json.loads(host_val) if host_val.startswith('"') else host_val
+    except:
+        host = host_val
+    
+    # Parse port
+    port_val = port_rv[0]["value"] if port_rv else "5555"
+    try:
+        port = int(port_val)
+    except:
+        port = 5555
     
     # Connect and generate regex-constrained text using cached module
     connector = daemon_connector.SteadyTextConnector(host, port)
@@ -1023,8 +1089,19 @@ try:
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
     
-    host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
-    port = json.loads(port_rv[0]["value"]) if port_rv else 5555
+    # Parse host - handle both quoted and unquoted formats
+    host_val = host_rv[0]["value"] if host_rv else "localhost"
+    try:
+        host = json.loads(host_val) if host_val.startswith('"') else host_val
+    except:
+        host = host_val
+    
+    # Parse port
+    port_val = port_rv[0]["value"] if port_rv else "5555"
+    try:
+        port = int(port_val)
+    except:
+        port = 5555
     
     # Connect and generate choice-constrained text using cached module
     connector = daemon_connector.SteadyTextConnector(host, port)
