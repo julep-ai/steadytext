@@ -82,16 +82,8 @@ For manual installation on a running PostgreSQL server:
 ```bash
 sudo apt-get update
 sudo apt-get install -y postgresql-plpython3-$(pg_config --version | awk '{print $2}' | sed 's/\..*//')
-sudo apt-get install -y postgresql-$(pg_config --version | awk '{print $2}' | sed 's/\..*//')-omni-python || echo "omni-python not in apt, will install from source"
+sudo apt-get install -y postgresql-$(pg_config --version | awk '{print $2}' | sed 's/\..*//')-pgvector
 sudo apt-get install -y python3 python3-pip python3-dev git make gcc
-
-# If omni-python is not available via apt, install it from source:
-if ! dpkg -l | grep -q postgresql.*omni-python; then
-    git clone https://github.com/omnigres/omnigres.git
-    cd omnigres/extensions/omni_python
-    make && sudo make install
-    cd ../../..
-fi
 ```
 
 **RHEL/CentOS/Rocky:**
@@ -118,45 +110,48 @@ make && sudo make install
 cd ../../..
 ```
 
-#### Step 2: Install Python Dependencies
-
-Install the required Python packages:
-
-```bash
-# For system-wide installation (may require sudo)
-pip3 install steadytext>=2.2.0 pyzmq>=22.0.0 numpy>=1.20.0
-
-# For user installation
-pip3 install --user steadytext>=2.2.0 pyzmq>=22.0.0 numpy>=1.20.0
-```
-
-**Note:** On some systems, you may need to use `--break-system-packages` flag:
-```bash
-pip3 install --break-system-packages steadytext>=2.2.0 pyzmq>=22.0.0 numpy>=1.20.0
-```
-
-#### Step 3: Download and Install pg_steadytext
+#### Step 2: Download and Install pg_steadytext
 
 ```bash
 # Clone the repository
 git clone https://github.com/julep-ai/steadytext.git
 cd steadytext/pg_steadytext
 
-# Install the extension
+# Install the extension (this will also install Python dependencies)
 sudo make install
 
 # Or if you don't have sudo access, specify the PostgreSQL directory
 make install PG_CONFIG=/path/to/pg_config
 ```
 
-#### Step 4: Enable the Extension in PostgreSQL
+**Note:** The `make install` command will automatically attempt to install the required Python packages (steadytext, pyzmq, numpy) to a location where PostgreSQL can find them. If this fails, you can install them manually:
+
+```bash
+# Install to PostgreSQL's site-packages directory (recommended)
+sudo pip3 install --target=$(pg_config --pkglibdir)/pg_steadytext/site-packages steadytext pyzmq numpy
+
+# Or install system-wide
+sudo pip3 install steadytext>=2.2.0 pyzmq>=22.0.0 numpy>=1.20.0
+
+# Or install to user directory
+pip3 install --user steadytext>=2.2.0 pyzmq>=22.0.0 numpy>=1.20.0
+```
+
+**Troubleshooting:** If you encounter issues with Python package visibility:
+- The extension looks for packages in multiple locations including the PostgreSQL extension directory, system-wide packages, and user packages
+- You can check which Python packages are visible to PostgreSQL by running:
+  ```sql
+  SELECT * FROM steadytext_python_info();
+  ```
+
+#### Step 3: Enable the Extension in PostgreSQL
 
 Connect to your PostgreSQL database and run:
 
 ```sql
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS plpython3u;
-CREATE EXTENSION IF NOT EXISTS omni_python;
+CREATE EXTENSION IF NOT EXISTS vector;  -- pgvector for embedding support
 
 -- Enable pg_steadytext
 CREATE EXTENSION IF NOT EXISTS pg_steadytext;
@@ -224,17 +219,23 @@ ALTER DATABASE your_database SET plpython3.python_path TO '/usr/local/lib/python
    - Check available extensions: `SELECT * FROM pg_available_extensions WHERE name = 'omni_python';`
    - If missing, install from source as shown in the installation instructions
 
-3. **"ImportError: No module named steadytext"**
-   - Verify SteadyText is installed: `python3 -c "import steadytext; print(steadytext.__version__)"`
-   - Check PYTHONPATH configuration in PostgreSQL
-   - Ensure the postgres user can access the Python packages
+3. **"Missing required Python packages: steadytext, zmq, numpy"**
+   - The extension will show detailed installation instructions when this error occurs
+   - Try running `sudo make install` from the pg_steadytext directory to automatically install packages
+   - Or manually install to PostgreSQL's site-packages: `sudo pip3 install --target=$(pg_config --pkglibdir)/pg_steadytext/site-packages steadytext pyzmq numpy`
+   - Verify packages are installed: `python3 -c "import steadytext, zmq, numpy; print('All packages found')"`.
 
-4. **"Model download failed"**
+4. **"Failed to import pg_steadytext modules"**
+   - This usually means Python dependencies are missing
+   - Check that all Python module files exist in the installation directory
+   - Verify the postgres user can read the module files
+
+5. **"Model download failed"**
    - Ensure the PostgreSQL server has internet access
    - Check disk space in the model cache directory
    - Try pre-downloading models: `python3 -c "from steadytext import preload_models; preload_models(verbose=True)"`
 
-5. **"Permission denied" errors**
+6. **"Permission denied" errors**
    - Ensure the postgres user has write access to the model cache directory
    - Default cache location: `~postgres/.cache/steadytext/models/`
 

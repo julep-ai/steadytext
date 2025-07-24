@@ -1,8 +1,9 @@
--- pg_steadytext--1.0.0.sql
--- Initial schema for pg_steadytext extension
+-- pg_steadytext--1.2.0.sql
+-- Initial schema for pg_steadytext extension with AI summarization aggregates
 
 -- AIDEV-NOTE: This SQL script creates the core schema for the pg_steadytext extension
 -- It mirrors SteadyText's cache structure and adds PostgreSQL-specific features
+-- Version 1.2.0 includes improved AI summarization aggregate functions with better error handling
 
 -- This file should be loaded via CREATE EXTENSION pg_steadytext
 -- Do not source directly in psql
@@ -18,24 +19,24 @@ CREATE TABLE steadytext_cache (
     prompt TEXT NOT NULL,
     response TEXT,
     embedding vector(1024),  -- For embedding cache using pgvector
-    
+
     -- Frecency statistics (synced with SteadyText's cache)
     access_count INT DEFAULT 1,
     last_accessed TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    
+
     -- SteadyText integration metadata
     steadytext_cache_hit BOOLEAN DEFAULT FALSE,  -- Whether this came from ST's cache
     model_name TEXT NOT NULL DEFAULT 'qwen3-1.7b',  -- Model used (supports switching)
     model_size TEXT CHECK (model_size IN ('small', 'medium', 'large')),
     seed INTEGER DEFAULT 42,  -- Seed used for generation
     eos_string TEXT,  -- Custom end-of-sequence string if used
-    
+
     -- Generation parameters
     generation_params JSONB,  -- temperature, max_tokens, seed, etc.
     response_size INT,
     generation_time_ms INT  -- Time taken to generate (if not cached)
-    
+
     -- AIDEV-NOTE: frecency_score removed - calculated via view instead
     -- Previously used GENERATED column with NOW() which is not immutable
 );
@@ -50,17 +51,17 @@ CREATE TABLE steadytext_queue (
     id SERIAL PRIMARY KEY,
     request_id UUID DEFAULT gen_random_uuid(),
     request_type TEXT CHECK (request_type IN ('generate', 'embed', 'batch_embed')),
-    
+
     -- Request data
     prompt TEXT,  -- For single requests
     prompts TEXT[],  -- For batch requests
     params JSONB,  -- Model params, seed, etc.
-    
+
     -- Priority and scheduling
     priority INT DEFAULT 5 CHECK (priority BETWEEN 1 AND 10),
     user_id TEXT,  -- For rate limiting per user
     session_id TEXT,  -- For request grouping
-    
+
     -- Status tracking
     status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'cancelled')),
     result TEXT,
@@ -68,13 +69,13 @@ CREATE TABLE steadytext_queue (
     embedding vector(1024),
     embeddings vector(1024)[],  -- For batch embeddings
     error TEXT,
-    
+
     -- Timing
     created_at TIMESTAMPTZ DEFAULT NOW(),
     started_at TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,
     processing_time_ms INT,
-    
+
     -- Resource tracking
     retry_count INT DEFAULT 0,
     max_retries INT DEFAULT 3,
@@ -197,6 +198,9 @@ except Exception as e:
 
 python_module_dir = os.path.join(pg_lib_dir, 'pg_steadytext', 'python')
 
+# Save pg_lib_dir in GD for use in error messages
+GD['pg_lib_dir'] = pg_lib_dir
+
 # Verify the directory exists
 if not os.path.exists(python_module_dir):
     plpy.error(f"Python module directory not found: {python_module_dir}")
@@ -205,6 +209,31 @@ if not os.path.exists(python_module_dir):
 if python_module_dir not in sys.path:
     sys.path.insert(0, python_module_dir)
     site.addsitedir(python_module_dir)  # Process .pth files if any
+
+# AIDEV-NOTE: Add site-packages directory for locally installed Python packages
+site_packages_dir = os.path.join(pg_lib_dir, 'pg_steadytext', 'site-packages')
+if os.path.exists(site_packages_dir) and site_packages_dir not in sys.path:
+    sys.path.insert(0, site_packages_dir)
+    site.addsitedir(site_packages_dir)
+    plpy.notice(f"Added site-packages to path: {site_packages_dir}")
+
+# AIDEV-NOTE: Add common Python package locations
+# These are common locations where pip might install packages
+common_paths = [
+    # User site-packages
+    site.getusersitepackages(),
+    # System-wide site-packages
+    '/usr/local/lib/python3.10/dist-packages',
+    '/usr/local/lib/python3.11/dist-packages',
+    '/usr/local/lib/python3.12/dist-packages',
+    '/usr/lib/python3/dist-packages',
+    # Virtual environment (if activated)
+    os.path.join(sys.prefix, 'lib', f'python{sys.version_info.major}.{sys.version_info.minor}', 'site-packages'),
+]
+
+for path in common_paths:
+    if path and os.path.exists(path) and path not in sys.path:
+        sys.path.append(path)
 
 # Log Python path for debugging
 plpy.notice(f"Python path: {sys.path}")
@@ -236,7 +265,34 @@ for package, description in required_packages.items():
         missing_packages.append(f"{package} ({description})")
 
 if missing_packages:
-    plpy.warning(f"Missing required packages: {', '.join(missing_packages)}. Run: pip3 install steadytext pyzmq numpy")
+    pg_lib_dir = GD.get('pg_lib_dir', '/usr/lib/postgresql/17/lib')
+    site_packages_dir = os.path.join(pg_lib_dir, 'pg_steadytext', 'site-packages')
+
+    error_msg = f"""
+=================================================================
+Missing required Python packages: {', '.join(missing_packages)}
+
+The pg_steadytext extension requires these packages to function.
+
+To fix this, run ONE of the following commands:
+
+1. Install via make (recommended):
+   cd /path/to/pg_steadytext
+   sudo make install
+
+2. Install to PostgreSQL's site-packages:
+   sudo pip3 install --target={site_packages_dir} steadytext pyzmq numpy
+
+3. Install system-wide:
+   sudo pip3 install steadytext pyzmq numpy
+
+4. Install to user directory:
+   pip3 install --user steadytext pyzmq numpy
+
+After installation, restart PostgreSQL and try again.
+=================================================================
+"""
+    plpy.error(error_msg)
 
 # Try to import our modules and cache them in GD
 try:
@@ -244,25 +300,51 @@ try:
     for key in list(GD.keys()):
         if key.startswith('module_'):
             del GD[key]
-    
+
     # Import and cache modules
     import daemon_connector
     import cache_manager
     import security
     import config
-    
+
     # Store modules in GD for reuse
     GD['module_daemon_connector'] = daemon_connector
     GD['module_cache_manager'] = cache_manager
     GD['module_security'] = security
     GD['module_config'] = config
     GD['steadytext_initialized'] = True
-    
+
     plpy.notice(f"pg_steadytext Python environment initialized successfully from {python_module_dir}")
 except ImportError as e:
     GD['steadytext_initialized'] = False
-    plpy.error(f"Failed to import pg_steadytext modules from {python_module_dir}: {e}")
-    plpy.error(f"Make sure the extension is properly installed with 'make install'")
+    pg_lib_dir = GD.get('pg_lib_dir', '/usr/lib/postgresql/17/lib')
+    site_packages_dir = os.path.join(pg_lib_dir, 'pg_steadytext', 'site-packages')
+
+    error_msg = f"""
+=================================================================
+Failed to import pg_steadytext modules from {python_module_dir}
+
+Error: {str(e)}
+
+This usually means the extension files are installed but Python
+module files are missing or there's an import error.
+
+To fix this:
+
+1. Ensure all Python module files are present in:
+   {python_module_dir}
+
+2. Check that required packages are installed:
+   sudo pip3 install --target={site_packages_dir} steadytext pyzmq numpy
+
+3. Or reinstall the extension:
+   cd /path/to/pg_steadytext
+   sudo make install
+
+After fixing, restart PostgreSQL and try again.
+=================================================================
+"""
+    plpy.error(error_msg)
 except Exception as e:
     GD['steadytext_initialized'] = False
     plpy.error(f"Unexpected error during initialization: {e}")
@@ -332,16 +414,16 @@ if use_cache:
     # AIDEV-NOTE: Updated to match SteadyText's simple cache key format from utils.py
     # For generation: just the prompt (no parameters in key)
     cache_key = prompt
-    
+
     # Try to get from cache first
     cache_plan = plpy.prepare("""
-        UPDATE steadytext_cache 
+        UPDATE steadytext_cache
         SET access_count = access_count + 1,
             last_accessed = NOW()
         WHERE cache_key = $1
         RETURNING response
     """, ["text"])
-    
+
     cache_result = plpy.execute(cache_plan, [cache_key])
     if cache_result and cache_result[0]["response"]:
         plpy.notice(f"Cache hit for key: {cache_key[:8]}...")
@@ -352,29 +434,18 @@ try:
     # Get daemon configuration
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
-    
-    # Parse host - handle both quoted and unquoted formats
-    host_val = host_rv[0]["value"] if host_rv else "localhost"
-    try:
-        host = json.loads(host_val) if host_val.startswith('"') else host_val
-    except:
-        host = host_val
-    
-    # Parse port
-    port_val = port_rv[0]["value"] if port_rv else "5555"
-    try:
-        port = int(port_val)
-    except:
-        port = 5555
-    
+
+    host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
+    port = json.loads(port_rv[0]["value"]) if port_rv else 5555
+
     # Connect to daemon and generate using cached module
     connector = daemon_connector.SteadyTextConnector(host, port)
     response = connector.generate(prompt, max_tokens=resolved_max_tokens, seed=resolved_seed)
-    
+
     # Store in cache if enabled
     if use_cache and response:
         insert_plan = plpy.prepare("""
-            INSERT INTO steadytext_cache 
+            INSERT INTO steadytext_cache
             (cache_key, prompt, response, generation_params)
             VALUES ($1, $2, $3, $4)
             ON CONFLICT (cache_key) DO UPDATE
@@ -382,13 +453,13 @@ try:
                 access_count = steadytext_cache.access_count + 1,
                 last_accessed = NOW()
         """, ["text", "text", "text", "jsonb"])
-        
+
         params = {"max_tokens": resolved_max_tokens, "seed": resolved_seed}
         plpy.execute(insert_plan, [cache_key, prompt, response, json.dumps(params)])
         plpy.notice(f"Cached response with key: {cache_key[:8]}...")
-    
+
     return response
-    
+
 except Exception as e:
     plpy.warning(f"Failed to generate text: {e}")
     # Return NULL instead of fallback text
@@ -446,15 +517,15 @@ if use_cache:
     # Embeddings use SHA256 hash of "embed:{text}"
     cache_key_input = f"embed:{text_input}"
     cache_key = hashlib.sha256(cache_key_input.encode()).hexdigest()
-    
+
     cache_plan = plpy.prepare("""
-        UPDATE steadytext_cache 
+        UPDATE steadytext_cache
         SET access_count = access_count + 1,
             last_accessed = NOW()
         WHERE cache_key = $1
         RETURNING embedding
     """, ["text"])
-    
+
     cache_result = plpy.execute(cache_plan, [cache_key])
     if cache_result and cache_result[0]["embedding"]:
         plpy.notice(f"Embedding cache hit for key: {cache_key[:8]}...")
@@ -466,32 +537,21 @@ try:
     plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
-    
-    # Parse host - handle both quoted and unquoted formats
-    host_val = host_rv[0]["value"] if host_rv else "localhost"
-    try:
-        host = json.loads(host_val) if host_val.startswith('"') else host_val
-    except:
-        host = host_val
-    
-    # Parse port
-    port_val = port_rv[0]["value"] if port_rv else "5555"
-    try:
-        port = int(port_val)
-    except:
-        port = 5555
-    
+
+    host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
+    port = json.loads(port_rv[0]["value"]) if port_rv else 5555
+
     # Connect and generate embedding using cached module
     connector = daemon_connector.SteadyTextConnector(host, port)
     embedding = connector.embed(text_input, seed=resolved_seed)
-    
+
     # Convert numpy array to list for storage
     embedding_list = embedding.tolist()
-    
+
     # Store in cache if enabled
     if use_cache and embedding_list:
         insert_plan = plpy.prepare("""
-            INSERT INTO steadytext_cache 
+            INSERT INTO steadytext_cache
             (cache_key, prompt, embedding)
             VALUES ($1, $2, $3::vector)
             ON CONFLICT (cache_key) DO UPDATE
@@ -499,14 +559,14 @@ try:
                 access_count = steadytext_cache.access_count + 1,
                 last_accessed = NOW()
         """, ["text", "text", "text"])
-        
+
         # Convert to PostgreSQL vector format
         vector_str = '[' + ','.join(map(str, embedding_list)) + ']'
         plpy.execute(insert_plan, [cache_key, text_input, vector_str])
         plpy.notice(f"Cached embedding with key: {cache_key[:8]}...")
-    
+
     return embedding_list
-    
+
 except Exception as e:
     plpy.warning(f"Failed to generate embedding: {e}")
     # Return NULL instead of fallback vector
@@ -529,30 +589,19 @@ try:
     plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
-    
-    # Parse host - handle both quoted and unquoted formats
-    host_val = host_rv[0]["value"] if host_rv else "localhost"
-    try:
-        host = json.loads(host_val) if host_val.startswith('"') else host_val
-    except:
-        host = host_val
-    
-    # Parse port
-    port_val = port_rv[0]["value"] if port_rv else "5555"
-    try:
-        port = int(port_val)
-    except:
-        port = 5555
-    
+
+    host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
+    port = json.loads(port_rv[0]["value"]) if port_rv else 5555
+
     # Check if daemon is already running by trying to start it
     # SteadyText daemon start command is idempotent
     try:
         result = subprocess.run(['st', 'daemon', 'start'], capture_output=True, text=True, timeout=10)
-        
+
         if result.returncode == 0:
             # Update health status
             health_plan = plpy.prepare("""
-                UPDATE steadytext_daemon_health 
+                UPDATE steadytext_daemon_health
                 SET status = 'healthy',
                     last_heartbeat = NOW()
                 WHERE daemon_id = 'default'
@@ -562,11 +611,11 @@ try:
         else:
             plpy.warning(f"Failed to start daemon: {result.stderr}")
             return False
-            
+
     except subprocess.TimeoutExpired:
         plpy.warning("Timeout starting daemon")
         return False
-        
+
 except Exception as e:
     plpy.error(f"Error in daemon start: {e}")
     return False
@@ -599,26 +648,15 @@ try:
     daemon_connector = GD.get('module_daemon_connector')
     if not daemon_connector:
         plpy.error("daemon_connector module not loaded")
-    
+
     # Get configuration
     plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
-    
-    # Parse host - handle both quoted and unquoted formats
-    host_val = host_rv[0]["value"] if host_rv else "localhost"
-    try:
-        host = json.loads(host_val) if host_val.startswith('"') else host_val
-    except:
-        host = host_val
-    
-    # Parse port
-    port_val = port_rv[0]["value"] if port_rv else "5555"
-    try:
-        port = int(port_val)
-    except:
-        port = 5555
-    
+
+    host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
+    port = json.loads(port_rv[0]["value"]) if port_rv else 5555
+
     # Try to connect using cached module
     try:
         connector = daemon_connector.SteadyTextConnector(host, port)
@@ -631,20 +669,20 @@ try:
             status = 'healthy'
     except:
         status = 'unhealthy'
-    
+
     # Update and return health status
     update_plan = plpy.prepare("""
-        UPDATE steadytext_daemon_health 
+        UPDATE steadytext_daemon_health
         SET status = $1,
             last_heartbeat = CASE WHEN $1 = 'healthy' THEN NOW() ELSE last_heartbeat END
         WHERE daemon_id = 'default'
         RETURNING daemon_id, status, endpoint, last_heartbeat,
                   EXTRACT(EPOCH FROM (NOW() - last_heartbeat))::INT as uptime_seconds
     """, ["text"])
-    
+
     result = plpy.execute(update_plan, [status])
     return result
-    
+
 except Exception as e:
     plpy.warning(f"Error checking daemon status: {e}")
     # Return current status from table
@@ -669,22 +707,22 @@ import json
 try:
     # Stop daemon using CLI
     result = subprocess.run(['st', 'daemon', 'stop'], capture_output=True, text=True)
-    
+
     if result.returncode == 0:
         # Update health status
         health_plan = plpy.prepare("""
-            UPDATE steadytext_daemon_health 
+            UPDATE steadytext_daemon_health
             SET status = 'stopping',
                 last_heartbeat = NOW()
             WHERE daemon_id = 'default'
         """)
         plpy.execute(health_plan)
-        
+
         return True
     else:
         plpy.warning(f"Failed to stop daemon: {result.stderr}")
         return False
-        
+
 except Exception as e:
     plpy.error(f"Error stopping daemon: {e}")
     return False
@@ -704,7 +742,7 @@ RETURNS TABLE(
 LANGUAGE sql
 STABLE PARALLEL SAFE
 AS $$
-    SELECT 
+    SELECT
         COUNT(*)::BIGINT as total_entries,
         COALESCE(SUM(pg_column_size(response) + pg_column_size(embedding)) / 1024.0 / 1024.0, 0)::FLOAT as total_size_mb,
         COALESCE(SUM(CASE WHEN access_count > 1 THEN 1 ELSE 0 END)::FLOAT / NULLIF(COUNT(*), 0), 0)::FLOAT as cache_hit_rate,
@@ -732,7 +770,7 @@ RETURNS TEXT
 LANGUAGE sql
 IMMUTABLE PARALLEL SAFE LEAKPROOF
 AS $$
-    SELECT '1.0.0'::TEXT;
+    SELECT '1.4.0'::TEXT;
 $$;
 
 -- AIDEV-SECTION: CONFIGURATION_FUNCTIONS
@@ -823,16 +861,16 @@ if use_cache:
     # AIDEV-NOTE: Include schema in cache key for structured generation
     cache_key_input = f"{prompt}|json|{json.dumps(schema_dict, sort_keys=True)}"
     cache_key = hashlib.sha256(cache_key_input.encode()).hexdigest()
-    
+
     # Try to get from cache first
     cache_plan = plpy.prepare("""
-        UPDATE steadytext_cache 
+        UPDATE steadytext_cache
         SET access_count = access_count + 1,
             last_accessed = NOW()
         WHERE cache_key = $1
         RETURNING response
     """, ["text"])
-    
+
     cache_result = plpy.execute(cache_plan, [cache_key])
     if cache_result and cache_result[0]["response"]:
         plpy.notice(f"JSON cache hit for key: {cache_key[:8]}...")
@@ -843,29 +881,18 @@ try:
     # Get daemon configuration
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
-    
-    # Parse host - handle both quoted and unquoted formats
-    host_val = host_rv[0]["value"] if host_rv else "localhost"
-    try:
-        host = json.loads(host_val) if host_val.startswith('"') else host_val
-    except:
-        host = host_val
-    
-    # Parse port
-    port_val = port_rv[0]["value"] if port_rv else "5555"
-    try:
-        port = int(port_val)
-    except:
-        port = 5555
-    
+
+    host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
+    port = json.loads(port_rv[0]["value"]) if port_rv else 5555
+
     # Connect and generate JSON using cached module
     connector = daemon_connector.SteadyTextConnector(host, port)
     response = connector.generate_json(prompt, schema_dict, max_tokens=resolved_max_tokens, seed=resolved_seed)
-    
+
     # Store in cache if enabled
     if use_cache and response:
         insert_plan = plpy.prepare("""
-            INSERT INTO steadytext_cache 
+            INSERT INTO steadytext_cache
             (cache_key, prompt, response, generation_params)
             VALUES ($1, $2, $3, $4)
             ON CONFLICT (cache_key) DO UPDATE
@@ -873,7 +900,7 @@ try:
                 access_count = steadytext_cache.access_count + 1,
                 last_accessed = NOW()
         """, ["text", "text", "text", "jsonb"])
-        
+
         params = {
             "max_tokens": resolved_max_tokens,
             "seed": resolved_seed,
@@ -881,9 +908,9 @@ try:
         }
         plpy.execute(insert_plan, [cache_key, prompt, response, json.dumps(params)])
         plpy.notice(f"Cached JSON response with key: {cache_key[:8]}...")
-    
+
     return response
-    
+
 except Exception as e:
     plpy.warning(f"Failed to generate JSON: {e}")
     # Return NULL instead of fallback
@@ -944,16 +971,16 @@ if use_cache:
     # Generate cache key including pattern
     cache_key_input = f"{prompt}|regex|{pattern}"
     cache_key = hashlib.sha256(cache_key_input.encode()).hexdigest()
-    
+
     # Try to get from cache first
     cache_plan = plpy.prepare("""
-        UPDATE steadytext_cache 
+        UPDATE steadytext_cache
         SET access_count = access_count + 1,
             last_accessed = NOW()
         WHERE cache_key = $1
         RETURNING response
     """, ["text"])
-    
+
     cache_result = plpy.execute(cache_plan, [cache_key])
     if cache_result and cache_result[0]["response"]:
         plpy.notice(f"Regex cache hit for key: {cache_key[:8]}...")
@@ -964,29 +991,18 @@ try:
     # Get daemon configuration
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
-    
-    # Parse host - handle both quoted and unquoted formats
-    host_val = host_rv[0]["value"] if host_rv else "localhost"
-    try:
-        host = json.loads(host_val) if host_val.startswith('"') else host_val
-    except:
-        host = host_val
-    
-    # Parse port
-    port_val = port_rv[0]["value"] if port_rv else "5555"
-    try:
-        port = int(port_val)
-    except:
-        port = 5555
-    
+
+    host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
+    port = json.loads(port_rv[0]["value"]) if port_rv else 5555
+
     # Connect and generate regex-constrained text using cached module
     connector = daemon_connector.SteadyTextConnector(host, port)
     response = connector.generate_regex(prompt, pattern, max_tokens=resolved_max_tokens, seed=resolved_seed)
-    
+
     # Store in cache if enabled
     if use_cache and response:
         insert_plan = plpy.prepare("""
-            INSERT INTO steadytext_cache 
+            INSERT INTO steadytext_cache
             (cache_key, prompt, response, generation_params)
             VALUES ($1, $2, $3, $4)
             ON CONFLICT (cache_key) DO UPDATE
@@ -994,7 +1010,7 @@ try:
                 access_count = steadytext_cache.access_count + 1,
                 last_accessed = NOW()
         """, ["text", "text", "text", "jsonb"])
-        
+
         params = {
             "max_tokens": resolved_max_tokens,
             "seed": resolved_seed,
@@ -1002,9 +1018,9 @@ try:
         }
         plpy.execute(insert_plan, [cache_key, prompt, response, json.dumps(params)])
         plpy.notice(f"Cached regex response with key: {cache_key[:8]}...")
-    
+
     return response
-    
+
 except Exception as e:
     plpy.warning(f"Failed to generate regex-constrained text: {e}")
     # Return NULL instead of fallback
@@ -1068,16 +1084,16 @@ if use_cache:
     # Generate cache key including choices
     cache_key_input = f"{prompt}|choice|{json.dumps(sorted(choices_list))}"
     cache_key = hashlib.sha256(cache_key_input.encode()).hexdigest()
-    
+
     # Try to get from cache first
     cache_plan = plpy.prepare("""
-        UPDATE steadytext_cache 
+        UPDATE steadytext_cache
         SET access_count = access_count + 1,
             last_accessed = NOW()
         WHERE cache_key = $1
         RETURNING response
     """, ["text"])
-    
+
     cache_result = plpy.execute(cache_plan, [cache_key])
     if cache_result and cache_result[0]["response"]:
         plpy.notice(f"Choice cache hit for key: {cache_key[:8]}...")
@@ -1088,29 +1104,18 @@ try:
     # Get daemon configuration
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
-    
-    # Parse host - handle both quoted and unquoted formats
-    host_val = host_rv[0]["value"] if host_rv else "localhost"
-    try:
-        host = json.loads(host_val) if host_val.startswith('"') else host_val
-    except:
-        host = host_val
-    
-    # Parse port
-    port_val = port_rv[0]["value"] if port_rv else "5555"
-    try:
-        port = int(port_val)
-    except:
-        port = 5555
-    
+
+    host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
+    port = json.loads(port_rv[0]["value"]) if port_rv else 5555
+
     # Connect and generate choice-constrained text using cached module
     connector = daemon_connector.SteadyTextConnector(host, port)
     response = connector.generate_choice(prompt, choices_list, max_tokens=resolved_max_tokens, seed=resolved_seed)
-    
+
     # Store in cache if enabled
     if use_cache and response:
         insert_plan = plpy.prepare("""
-            INSERT INTO steadytext_cache 
+            INSERT INTO steadytext_cache
             (cache_key, prompt, response, generation_params)
             VALUES ($1, $2, $3, $4)
             ON CONFLICT (cache_key) DO UPDATE
@@ -1118,7 +1123,7 @@ try:
                 access_count = steadytext_cache.access_count + 1,
                 last_accessed = NOW()
         """, ["text", "text", "text", "jsonb"])
-        
+
         params = {
             "max_tokens": resolved_max_tokens,
             "seed": resolved_seed,
@@ -1126,34 +1131,454 @@ try:
         }
         plpy.execute(insert_plan, [cache_key, prompt, response, json.dumps(params)])
         plpy.notice(f"Cached choice response with key: {cache_key[:8]}...")
-    
+
     return response
-    
+
 except Exception as e:
     plpy.warning(f"Failed to generate choice-constrained text: {e}")
     # Return NULL instead of fallback
     return None
 $$;
 
+-- AIDEV-SECTION: AI_SUMMARIZATION_AGGREGATES
+-- AI summarization aggregate functions with TimescaleDB support
+
+-- Helper function to extract facts from text using JSON generation
+CREATE OR REPLACE FUNCTION ai_extract_facts(
+    input_text text,
+    max_facts integer DEFAULT 5
+) RETURNS jsonb
+LANGUAGE plpython3u
+IMMUTABLE PARALLEL SAFE
+AS $$
+    import json
+    from plpy import quote_literal
+
+    # Validate inputs
+    if not input_text or not input_text.strip():
+        return json.dumps({"facts": []})
+
+    if max_facts <= 0 or max_facts > 50:
+        plpy.error("max_facts must be between 1 and 50")
+
+    # AIDEV-NOTE: Use steadytext's JSON generation with schema for structured fact extraction
+    schema = {
+        "type": "object",
+        "properties": {
+            "facts": {
+                "type": "array",
+                "items": {"type": "string"},
+                "maxItems": max_facts,
+                "description": "Key facts extracted from the text"
+            }
+        },
+        "required": ["facts"]
+    }
+
+    prompt = f"Extract up to {max_facts} key facts from this text: {input_text}"
+
+    # Use daemon_connector for JSON generation
+    plan = plpy.prepare(
+        "SELECT steadytext_generate_json($1, $2::jsonb) as result",
+        ["text", "jsonb"]
+    )
+    result = plpy.execute(plan, [prompt, json.dumps(schema)])
+
+    if result and result[0]["result"]:
+        try:
+            return json.loads(result[0]["result"])
+        except json.JSONDecodeError as e:
+            plpy.warning(f"Failed to parse JSON response: {e}")
+            return json.dumps({"facts": []})
+        except Exception as e:
+            plpy.warning(f"Unexpected error parsing response: {e}")
+            return json.dumps({"facts": []})
+    return json.dumps({"facts": []})
+$$;
+
+-- Helper function to deduplicate facts using embeddings
+CREATE OR REPLACE FUNCTION ai_deduplicate_facts(
+    facts_array jsonb,
+    similarity_threshold float DEFAULT 0.85
+) RETURNS jsonb
+LANGUAGE plpython3u
+IMMUTABLE PARALLEL SAFE
+AS $$
+    import json
+    import numpy as np
+
+    # Validate similarity threshold
+    if similarity_threshold < 0.0 or similarity_threshold > 1.0:
+        plpy.error("similarity_threshold must be between 0.0 and 1.0")
+
+    try:
+        facts = json.loads(facts_array)
+    except (json.JSONDecodeError, TypeError) as e:
+        plpy.warning(f"Invalid JSON input: {e}")
+        return json.dumps([])
+
+    if not facts or len(facts) == 0:
+        return json.dumps([])
+
+    # Extract text from fact objects if they have structure
+    fact_texts = []
+    for fact in facts:
+        if isinstance(fact, dict) and "text" in fact:
+            fact_texts.append(fact["text"])
+        elif isinstance(fact, str):
+            fact_texts.append(fact)
+
+    if len(fact_texts) <= 1:
+        return facts_array
+
+    # Generate embeddings for all facts
+    # AIDEV-NOTE: Consider batching embedding generation for better performance
+    embeddings = []
+    for text in fact_texts:
+        plan = plpy.prepare("SELECT steadytext_embed($1) as embedding", ["text"])
+        result = plpy.execute(plan, [text])
+        if result and result[0]["embedding"]:
+            embeddings.append(np.array(result[0]["embedding"]))
+
+    # Deduplicate based on cosine similarity
+    unique_indices = [0]  # Always keep first fact
+    for i in range(1, len(embeddings)):
+        is_duplicate = False
+        for j in unique_indices:
+            # Calculate cosine similarity with zero-norm protection
+            norm_i = np.linalg.norm(embeddings[i])
+            norm_j = np.linalg.norm(embeddings[j])
+
+            if norm_i == 0 or norm_j == 0:
+                # Treat zero-norm vectors as non-duplicate
+                similarity = 0.0
+            else:
+                similarity = np.dot(embeddings[i], embeddings[j]) / (norm_i * norm_j)
+
+            if similarity > similarity_threshold:
+                is_duplicate = True
+                break
+        if not is_duplicate:
+            unique_indices.append(i)
+
+    # Return deduplicated facts
+    unique_facts = [facts[i] for i in unique_indices]
+    return json.dumps(unique_facts)
+$$;
+
+-- State accumulator function for AI summarization
+CREATE OR REPLACE FUNCTION ai_summarize_accumulate(
+    state jsonb,
+    value text,
+    metadata jsonb DEFAULT '{}'::jsonb
+) RETURNS jsonb
+LANGUAGE plpython3u
+IMMUTABLE PARALLEL SAFE
+AS $$
+    import json
+
+    # Initialize state if null
+    if state is None:
+        state = {
+            "facts": [],
+            "samples": [],
+            "stats": {
+                "row_count": 0,
+                "total_chars": 0,
+                "min_length": None,
+                "max_length": 0
+            },
+            "metadata": {}
+        }
+    else:
+        try:
+            state = json.loads(state)
+        except (json.JSONDecodeError, TypeError) as e:
+            plpy.error(f"Invalid state JSON: {e}")
+
+    if value is None:
+        return json.dumps(state)
+
+    # Extract facts from the value
+    plan = plpy.prepare("SELECT ai_extract_facts($1, 3) as facts", ["text"])
+    result = plpy.execute(plan, [value])
+
+    if result and result[0]["facts"]:
+        try:
+            extracted = json.loads(result[0]["facts"])
+            if "facts" in extracted:
+                state["facts"].extend(extracted["facts"])
+        except (json.JSONDecodeError, TypeError):
+            # Skip if fact extraction failed
+            pass
+
+    # Update statistics
+    value_len = len(value)
+    state["stats"]["row_count"] += 1
+    state["stats"]["total_chars"] += value_len
+
+    if state["stats"]["min_length"] is None or value_len < state["stats"]["min_length"]:
+        state["stats"]["min_length"] = value_len
+    if value_len > state["stats"]["max_length"]:
+        state["stats"]["max_length"] = value_len
+
+    # Sample every 10th row (up to 10 samples)
+    if state["stats"]["row_count"] % 10 == 1 and len(state["samples"]) < 10:
+        state["samples"].append(value[:200])  # First 200 chars
+
+    # Merge metadata
+    if metadata:
+        try:
+            meta = json.loads(metadata) if isinstance(metadata, str) else metadata
+            for key, value in meta.items():
+                if key not in state["metadata"]:
+                    state["metadata"][key] = value
+        except (json.JSONDecodeError, TypeError):
+            # Skip invalid metadata
+            pass
+
+    return json.dumps(state)
+$$;
+
+-- Combiner function for parallel aggregation
+CREATE OR REPLACE FUNCTION ai_summarize_combine(
+    state1 jsonb,
+    state2 jsonb
+) RETURNS jsonb
+LANGUAGE plpython3u
+IMMUTABLE PARALLEL SAFE
+AS $$
+    import json
+
+    if state1 is None:
+        return state2
+    if state2 is None:
+        return state1
+
+    try:
+        s1 = json.loads(state1)
+    except (json.JSONDecodeError, TypeError):
+        return state2
+
+    try:
+        s2 = json.loads(state2)
+    except (json.JSONDecodeError, TypeError):
+        return state1
+
+    # Combine facts
+    combined_facts = s1.get("facts", []) + s2.get("facts", [])
+
+    # Deduplicate facts if too many
+    # AIDEV-NOTE: Threshold of 20 may need tuning based on usage patterns
+    if len(combined_facts) > 20:
+        plan = plpy.prepare(
+            "SELECT ai_deduplicate_facts($1::jsonb) as deduped",
+            ["jsonb"]
+        )
+        result = plpy.execute(plan, [json.dumps(combined_facts)])
+        if result and result[0]["deduped"]:
+            try:
+                combined_facts = json.loads(result[0]["deduped"])
+            except (json.JSONDecodeError, TypeError):
+                # Keep original if deduplication failed
+                pass
+
+    # Combine samples (keep diverse set)
+    combined_samples = s1.get("samples", []) + s2.get("samples", [])
+    if len(combined_samples) > 10:
+        # Simple diversity: take evenly spaced samples
+        step = len(combined_samples) // 10
+        combined_samples = combined_samples[::step][:10]
+
+    # Combine statistics
+    stats1 = s1.get("stats", {})
+    stats2 = s2.get("stats", {})
+
+    combined_stats = {
+        "row_count": stats1.get("row_count", 0) + stats2.get("row_count", 0),
+        "total_chars": stats1.get("total_chars", 0) + stats2.get("total_chars", 0),
+        "min_length": min(
+            stats1.get("min_length", float('inf')),
+            stats2.get("min_length", float('inf'))
+        ),
+        "max_length": max(
+            stats1.get("max_length", 0),
+            stats2.get("max_length", 0)
+        ),
+        "combine_depth": max(
+            stats1.get("combine_depth", 0),
+            stats2.get("combine_depth", 0)
+        ) + 1
+    }
+
+    # Merge metadata
+    combined_metadata = {**s1.get("metadata", {}), **s2.get("metadata", {})}
+
+    return json.dumps({
+        "facts": combined_facts,
+        "samples": combined_samples,
+        "stats": combined_stats,
+        "metadata": combined_metadata
+    })
+$$;
+
+-- Finalizer function to generate summary
+CREATE OR REPLACE FUNCTION ai_summarize_finalize(
+    state jsonb
+) RETURNS text
+LANGUAGE plpython3u
+IMMUTABLE PARALLEL SAFE
+AS $$
+    import json
+
+    if state is None:
+        return None
+
+    try:
+        state_data = json.loads(state)
+    except (json.JSONDecodeError, TypeError):
+        return "Unable to parse aggregation state"
+
+    # Check if we have any data
+    if state_data.get("stats", {}).get("row_count", 0) == 0:
+        return "No data to summarize"
+
+    # Build summary prompt based on combine depth
+    combine_depth = state_data.get("stats", {}).get("combine_depth", 0)
+
+    if combine_depth == 0:
+        prompt_template = "Create a concise summary of this data: Facts: {facts}, Row count: {row_count}, Average length: {avg_length}"
+    elif combine_depth < 3:
+        prompt_template = "Synthesize these key facts into a coherent summary: {facts}, Total rows: {row_count}, Length range: {min_length}-{max_length} chars"
+    else:
+        prompt_template = "Identify major patterns from these aggregated facts: {facts}, Dataset size: {row_count} rows"
+
+    # Calculate average length with division by zero protection
+    stats = state_data.get("stats", {})
+    row_count = stats.get("row_count", 0)
+    if row_count > 0:
+        avg_length = stats.get("total_chars", 0) // row_count
+    else:
+        avg_length = 0
+
+    # Format facts for prompt
+    facts = state_data.get("facts", [])[:10]  # Limit to top 10 facts
+    facts_str = "; ".join(facts) if facts else "No specific facts extracted"
+
+    # Build prompt
+    prompt = prompt_template.format(
+        facts=facts_str,
+        row_count=row_count,
+        avg_length=avg_length,
+        min_length=stats.get("min_length", 0),
+        max_length=stats.get("max_length", 0)
+    )
+
+    # Add metadata context if available
+    metadata = state_data.get("metadata", {})
+    if metadata:
+        meta_str = ", ".join([f"{k}: {v}" for k, v in metadata.items()])
+        prompt += f". Context: {meta_str}"
+
+    # Generate summary using steadytext
+    plan = plpy.prepare("SELECT steadytext_generate($1) as summary", ["text"])
+    result = plpy.execute(plan, [prompt])
+
+    if result and result[0]["summary"]:
+        return result[0]["summary"]
+    return "Unable to generate summary"
+$$;
+
+-- AIDEV-NOTE: Serialization functions removed because they are only allowed for STYPE = internal.
+-- Since we use STYPE = jsonb, PostgreSQL handles serialization automatically for parallel processing.
+
+-- Create the main aggregate
+CREATE AGGREGATE ai_summarize(text, jsonb) (
+    SFUNC = ai_summarize_accumulate,
+    STYPE = jsonb,
+    FINALFUNC = ai_summarize_finalize,
+    COMBINEFUNC = ai_summarize_combine,
+    PARALLEL = SAFE
+);
+
+-- Create partial aggregate for TimescaleDB continuous aggregates
+CREATE AGGREGATE ai_summarize_partial(text, jsonb) (
+    SFUNC = ai_summarize_accumulate,
+    STYPE = jsonb,
+    COMBINEFUNC = ai_summarize_combine,
+    PARALLEL = SAFE
+);
+
+-- Helper function to combine partial states for final aggregation
+CREATE OR REPLACE FUNCTION ai_summarize_combine_states(
+    state1 jsonb,
+    partial_state jsonb
+) RETURNS jsonb
+LANGUAGE plpgsql
+IMMUTABLE PARALLEL SAFE
+AS $$
+BEGIN
+    -- Simply use the combine function
+    RETURN ai_summarize_combine(state1, partial_state);
+END;
+$$;
+
+-- Create final aggregate that works on partial results
+CREATE AGGREGATE ai_summarize_final(jsonb) (
+    SFUNC = ai_summarize_combine_states,
+    STYPE = jsonb,
+    FINALFUNC = ai_summarize_finalize,
+    PARALLEL = SAFE
+);
+
+-- Convenience function for single-value summarization
+CREATE OR REPLACE FUNCTION ai_summarize_text(
+    input_text text,
+    metadata jsonb DEFAULT '{}'::jsonb
+) RETURNS text
+LANGUAGE sql
+IMMUTABLE PARALLEL SAFE
+AS $$
+    SELECT ai_summarize_finalize(
+        ai_summarize_accumulate(NULL::jsonb, input_text, metadata)
+    );
+$$;
+
+-- Add helpful comments
+COMMENT ON AGGREGATE ai_summarize(text, jsonb) IS
+'AI-powered text summarization aggregate that handles non-transitivity through structured fact extraction';
+
+COMMENT ON AGGREGATE ai_summarize_partial(text, jsonb) IS
+'Partial aggregate for use with TimescaleDB continuous aggregates';
+
+COMMENT ON AGGREGATE ai_summarize_final(jsonb) IS
+'Final aggregate for completing partial aggregations from continuous aggregates';
+
+COMMENT ON FUNCTION ai_extract_facts(text, integer) IS
+'Extract structured facts from text using SteadyText JSON generation';
+
+COMMENT ON FUNCTION ai_deduplicate_facts(jsonb, float) IS
+'Deduplicate facts based on semantic similarity using embeddings';
+
 -- Grant appropriate permissions
 GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO PUBLIC;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO PUBLIC;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO PUBLIC;
 
--- AIDEV-NOTE: This completes the base schema for pg_steadytext v1.0.0
--- 
+-- AIDEV-NOTE: This completes the base schema for pg_steadytext v1.2.0
+--
 -- AIDEV-SECTION: CHANGES_MADE_IN_REVIEW
 -- The following issues were identified and fixed during review:
 -- 1. Added missing columns: model_size, eos_string, response_size, daemon_endpoint
 -- 2. Enhanced queue table with priority, user_id, session_id, batch support
--- 3. Added rate limiting and audit logging tables  
+-- 3. Added rate limiting and audit logging tables
 -- 4. Fixed cache key generation to use SHA256 and match SteadyText format
 -- 5. Fixed daemon integration to use proper SteadyText API methods
 -- 6. Added proper indexes for performance
 --
 -- AIDEV-TODO: Future versions should add:
 -- - Async processing functions (steadytext_generate_async, steadytext_get_result)
--- - Streaming generation function (steadytext_generate_stream) 
+-- - Streaming generation function (steadytext_generate_stream)
 -- - Batch operations (steadytext_embed_batch)
 -- - FAISS index operations (steadytext_index_create, steadytext_index_search)
 -- - Worker management functions
@@ -1163,9 +1588,31 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO PUBLIC;
 
 -- AIDEV-NOTE: Added in v1.0.1 (2025-07-07):
 -- Marked all deterministic functions as IMMUTABLE, PARALLEL SAFE, and LEAKPROOF (where allowed):
--- - steadytext_generate(), steadytext_embed(), steadytext_generate_json(), 
+-- - steadytext_generate(), steadytext_embed(), steadytext_generate_json(),
 --   steadytext_generate_regex(), steadytext_generate_choice() are IMMUTABLE PARALLEL SAFE
 -- - steadytext_version() is IMMUTABLE PARALLEL SAFE LEAKPROOF
 -- - steadytext_cache_stats() and steadytext_config_get() are STABLE PARALLEL SAFE
 -- - steadytext_config_get() is also LEAKPROOF since it's a simple SQL function
 -- This enables use with TimescaleDB and in aggregates, and improves query optimization
+
+-- AIDEV-NOTE: Added in v1.1.0 (2025-07-08):
+-- AI summarization aggregate functions with the following features:
+-- 1. Structured fact extraction to mitigate non-transitivity
+-- 2. Semantic deduplication using embeddings
+-- 3. Statistical tracking (row counts, character lengths)
+-- 4. Sample preservation for context
+-- 5. Combine depth tracking for adaptive prompts
+-- 6. Full TimescaleDB continuous aggregate support
+-- 7. Serialization for distributed aggregation
+
+-- AIDEV-NOTE: Updated in v1.2.0 (2025-07-08):
+-- Improved AI summarization aggregate functions with:
+-- 1. Better error handling throughout all functions
+-- 2. Input validation for all parameters
+-- 3. Protection against division by zero in cosine similarity calculations
+-- 4. Specific exception handling instead of bare except clauses
+-- 5. Proper handling of invalid JSON inputs
+-- 6. Zero-norm vector protection in similarity calculations
+-- 7. Graceful fallback when parsing fails
+-- 8. FIXED: Removed serialization functions to resolve "serialization functions may be
+--    specified only when the aggregate transition data type is internal" error

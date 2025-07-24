@@ -22,16 +22,16 @@ INSERT INTO steadytext_config (key, value, description) VALUES
     ('cache_eviction_batch_size', '100', 'Number of entries to evict in each batch'),
     ('cache_min_access_count', '2', 'Minimum access count to protect from eviction'),
     ('cache_min_age_hours', '1', 'Minimum age in hours to protect from eviction'),
-    ('cron_host', 'localhost', 'Database host for pg_cron connections'),
+    ('cron_host', '"localhost"', 'Database host for pg_cron connections'),
     ('cron_port', '5432', 'Database port for pg_cron connections')
 ON CONFLICT (key) DO NOTHING;
 
 -- AIDEV-SECTION: CACHE_PERFORMANCE_INDEXES
 -- Add indexes for optimal frecency-based eviction performance
 -- This index supports the ORDER BY frecency_score query in eviction
+-- AIDEV-NOTE: WHERE clause removed due to NOW() not being immutable
 CREATE INDEX IF NOT EXISTS idx_steadytext_cache_frecency_eviction 
-ON steadytext_cache (access_count, last_accessed)
-WHERE created_at < NOW() - INTERVAL '1 hour';
+ON steadytext_cache (access_count, last_accessed);
 
 -- AIDEV-SECTION: CACHE_STATISTICS_FUNCTIONS
 -- Enhanced cache statistics function with size calculations
@@ -377,7 +377,7 @@ BEGIN
     
     -- Set defaults if not configured
     v_interval := COALESCE(v_interval, 300); -- Default 5 minutes
-    v_host := COALESCE(v_host, 'localhost');
+    v_host := COALESCE(v_host, '"localhost"');
     v_port := COALESCE(v_port, 5432);
     
     -- Validate configuration values

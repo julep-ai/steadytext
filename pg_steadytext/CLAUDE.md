@@ -211,6 +211,108 @@ The extension includes a GitHub Actions workflow for pgTAP tests:
 - Added fallback model support using known-working Qwen models
 - Added diagnostic scripts to help troubleshoot model loading issues
 
+## Python Version Constraints (CRITICAL)
+
+### AIDEV-NOTE: PostgreSQL plpython3u Python Version Lock-in
+
+**Issue**: PostgreSQL's plpython3u extension is compiled against a specific Python version at PostgreSQL build time. This version CANNOT be changed at runtime.
+
+**Common Scenario**: 
+- System has multiple Python versions (e.g., 3.10 and 3.13)
+- PostgreSQL was compiled with Python 3.10
+- User installs packages in Python 3.13
+- Extension fails with "Missing required Python packages"
+
+**Solutions Implemented**:
+
+1. **Custom PostgreSQL Build** (Recommended for production):
+   - `Dockerfile.python313`: Builds PostgreSQL 17 from source with Python 3.13
+   - `scripts/build-postgres-python313.sh`: Automated build script
+   - Ensures plpython3u uses the desired Python version
+
+2. **Package Installation Guidance**:
+   - Updated README with clear Python version checking instructions
+   - SQL snippet to detect PostgreSQL's Python version
+   - Commands to install packages in the correct Python version
+
+**Key Implementation Details**:
+- The Python version is determined by the `PYTHON` environment variable during PostgreSQL's `./configure` step
+- Once compiled, the libpython version is hardcoded in the plpython3u.so library
+- Virtual environments can be used within plpython3u, but the base interpreter remains fixed
+
+**Testing Considerations**:
+- Always verify Python version with: `DO $$ import sys; plpy.notice(sys.version) $$ LANGUAGE plpython3u;`
+- Test package imports after installation
+- Document the Python version requirement for each deployment
+
+## IMMUTABLE Functions and Cache Strategy (v1.4.1+)
+
+### AIDEV-NOTE: Write-Once Cache for True Immutability
+
+**Issue**: PostgreSQL functions declared as IMMUTABLE cannot perform any database modifications (INSERT, UPDATE, DELETE). Previous versions violated this by trying to UPDATE cache statistics on reads.
+
+**Solution Implemented in v1.4.1**:
+- Changed from frecency-based eviction to age-based (FIFO) eviction
+- Cache reads are now pure SELECT operations (no UPDATEs)
+- **IMMUTABLE functions no longer write to cache** (no INSERTs)
+- Cache population must be done via VOLATILE wrapper functions
+- Eviction is based on `created_at` timestamp only
+
+**Trade-offs**:
+- **Lost**: Frecency-based eviction (frequency + recency scoring)
+- **Lost**: Access count tracking for cache optimization
+- **Lost**: Automatic cache population on first use
+- **Gained**: True immutability - functions are now genuinely side-effect free
+- **Gained**: Simpler cache logic and better PostgreSQL compliance
+- **Gained**: Potential for better query optimization by PostgreSQL
+- **Gained**: Functions can be used in indexes and other IMMUTABLE-only contexts
+
+**Key Changes**:
+```sql
+-- OLD (violates IMMUTABLE):
+UPDATE steadytext_cache 
+SET access_count = access_count + 1, last_accessed = NOW()
+WHERE cache_key = $1
+RETURNING response;
+
+-- NEW (IMMUTABLE-safe):
+SELECT response 
+FROM steadytext_cache 
+WHERE cache_key = $1;
+```
+
+**Functions Affected**:
+- `steadytext_generate` - Now uses SELECT-only cache reads
+- `steadytext_embed` - Now uses SELECT-only cache reads
+- `steadytext_generate_json` - Now uses SELECT-only cache reads
+- `steadytext_generate_regex` - Now uses SELECT-only cache reads
+- `steadytext_generate_choice` - Now uses SELECT-only cache reads
+
+**Eviction Strategy**:
+- `steadytext_cache_evict_by_frecency` → `steadytext_cache_evict_by_age`
+- Evicts oldest entries first (FIFO/LRU style)
+- Respects `min_age_hours` to protect recent entries
+- Still supports size and count limits
+
+This change ensures PostgreSQL can properly optimize queries and maintain consistency, at the cost of less sophisticated cache management.
+
+**Cache Population Options**:
+1. Use VOLATILE wrapper functions:
+   - `steadytext_generate_cached()` - Auto-populates cache
+   - `steadytext_embed_cached()` - Auto-populates cache
+2. Pre-populate cache via batch operations
+3. Use external processes to manage cache
+4. Let cache populate naturally through the wrapper functions
+
+**Usage Examples**:
+```sql
+-- IMMUTABLE (read-only cache)
+SELECT steadytext_generate('Hello world');  -- Only reads cache
+
+-- VOLATILE (read and write cache)
+SELECT steadytext_generate_cached('Hello world');  -- Reads and populates cache
+```
+
 ## Architecture Overview
 
 ### Core Design Principles
@@ -569,5 +671,55 @@ AIDEV-TODO: Future cache enhancements:
 - Different eviction strategies (LRU, LFU, ARC)
 - Cache partitioning by model or use case
 - Integration with PostgreSQL's shared buffer cache
+
+## Python Package Installation (v1.4.0+)
+
+### AIDEV-NOTE: Automatic Python Package Installation
+
+As of v1.4.0+, the Makefile includes automatic Python package installation to address the common issue where PostgreSQL's plpython3u cannot find required packages:
+
+1. **Makefile Changes**:
+   - Added `install-python-deps` target that installs packages to `$(pkglibdir)/pg_steadytext/site-packages`
+   - The `install` target now depends on `install-python-deps`
+   - Packages are installed using `pip install --target` to a PostgreSQL-specific directory
+   - Graceful fallback with helpful error messages if installation fails
+
+2. **Python Path Enhancement**:
+   - `_steadytext_init_python()` now adds multiple paths to sys.path:
+     - Extension's site-packages directory (`pg_steadytext/site-packages`)
+     - User site-packages (from `site.getusersitepackages()`)
+     - Common system-wide locations (`/usr/local/lib/python*/dist-packages`)
+     - Virtual environment paths (if applicable)
+
+3. **Improved Error Messages**:
+   - Detailed installation instructions when packages are missing
+   - Specific commands for different installation scenarios
+   - Clear guidance on troubleshooting steps
+   - Error messages include the exact paths where packages should be installed
+
+4. **Installation Testing**:
+   - Added `test_installation.sh` script to verify proper installation
+   - Checks for extension files, Python modules, and package visibility
+   - Tests actual functionality in PostgreSQL
+   - Provides clear diagnostic output
+
+### Usage
+
+```bash
+# Install extension with automatic Python package installation
+sudo make install
+
+# If Python packages fail to install automatically:
+sudo pip3 install --target=$(pg_config --pkglibdir)/pg_steadytext/site-packages steadytext pyzmq numpy
+
+# Test the installation
+./test_installation.sh
+```
+
+AIDEV-TODO: Future enhancements for package management:
+- Support for virtual environments dedicated to PostgreSQL
+- Conda environment detection and support
+- Package version checking and upgrade capabilities
+- Integration with PostgreSQL package management extensions
 
 **AIDEV-NOTE**: This file should be updated whenever architectural decisions change or new patterns are established.
