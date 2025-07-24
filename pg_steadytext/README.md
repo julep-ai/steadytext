@@ -16,7 +16,7 @@
 ## Requirements
 
 - PostgreSQL 14+ 
-- Python 3.10+
+- Python 3.10+ (see [Python Version Compatibility](#python-version-compatibility) for important notes)
 - Extensions:
   - `plpython3u` (required)
   - `pgvector` (required)
@@ -50,6 +50,59 @@ docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres pg_steadytext
 ```
 
 See [INSTALL.md](INSTALL.md) for complete instructions including troubleshooting.
+
+## Python Version Compatibility
+
+**Important**: PostgreSQL's `plpython3u` extension is compiled against a specific Python version determined at PostgreSQL build time. This version cannot be changed without recompiling PostgreSQL.
+
+### Common Issue
+If you encounter errors like:
+```
+Missing required Python packages: steadytext, zmq, numpy
+```
+This typically means PostgreSQL is using a different Python version than the one where you installed the packages.
+
+### Solutions
+
+#### Option 1: Install packages in PostgreSQL's Python version
+First, check which Python version PostgreSQL is using:
+```sql
+DO $$ import sys; plpy.notice(f'Python version: {sys.version}') $$ LANGUAGE plpython3u;
+```
+
+Then install packages for that specific version:
+```bash
+# If PostgreSQL uses Python 3.10
+python3.10 -m pip install steadytext pyzmq numpy
+```
+
+#### Option 2: Use custom PostgreSQL build with Python 3.13
+If you need Python 3.13 specifically (e.g., for package compatibility):
+
+**Using Docker (Recommended):**
+```bash
+# Build PostgreSQL with Python 3.13
+docker build -f Dockerfile.python313 -t pg_steadytext:python313 .
+docker run -d -p 5432:5432 --name pg_steadytext_py313 pg_steadytext:python313
+```
+
+**Manual build:**
+```bash
+# Use the provided build script
+sudo ./scripts/build-postgres-python313.sh
+```
+
+This builds PostgreSQL from source with Python 3.13 support, ensuring all Python packages can use the latest Python features.
+
+### Verifying Python Version
+After installation, verify the Python version in PostgreSQL:
+```sql
+-- Check Python version
+DO $$ import sys; plpy.notice(f'Python: {sys.version}') $$ LANGUAGE plpython3u;
+
+-- Initialize and check pg_steadytext
+SELECT _steadytext_init_python();
+```
 
 ## Basic Usage
 
