@@ -182,6 +182,18 @@ class SteadyTextConnector:
             logger.error(f"Error starting daemon: {e}")
             return False
 
+    def start_daemon(self) -> bool:
+        """
+        Public method to start the SteadyText daemon.
+
+        AIDEV-NOTE: Added public wrapper for _start_daemon() to fix SQL compatibility
+        issue where pg_steadytext--1.4.1.sql calls connector.start_daemon().
+
+        Returns:
+            True if daemon started successfully, False otherwise
+        """
+        return self._start_daemon()
+
     def is_daemon_running(self) -> bool:
         """
         Check if the SteadyText daemon is currently running.
