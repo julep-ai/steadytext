@@ -2,6 +2,15 @@
 
 This file contains important development notes and architectural decisions for AI assistants working on pg_steadytext.
 
+## Recent Fixes (v1.4.3 - Pending)
+
+### Parameter Name Fix for Direct Generation (HIGH SEVERITY) ✅
+**Files**: SQL version files (1.4.1, 1.4.2, 1.4.0--1.4.1)
+**Issue**: When falling back to direct generation (daemon not running), the SQL function incorrectly passed `max_tokens` parameter instead of `max_new_tokens` to steadytext.generate()
+**Error**: `generate() got an unexpected keyword argument 'max_tokens'. Did you mean 'max_new_tokens'?`
+**Fix**: Changed parameter name from `max_tokens` to `max_new_tokens` in direct generation fallback
+**AIDEV-NOTE**: The structured generation functions (generate_json, generate_regex, generate_choice) correctly use `max_tokens`
+
 ## Recent Security Fixes (v1.0.2)
 
 This document summarizes the critical fixes implemented in the pg_steadytext PostgreSQL extension.

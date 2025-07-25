@@ -132,7 +132,7 @@ try:
         from steadytext import generate as steadytext_generate
         result = steadytext_generate(
             prompt=prompt, 
-            max_tokens=resolved_max_tokens,
+            max_new_tokens=resolved_max_tokens,
             seed=resolved_seed
         )
     
