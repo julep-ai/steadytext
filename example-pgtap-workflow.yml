@@ -1,0 +1,148 @@
+name: pgTAP Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'pg_steadytext/**'
+      - '.github/workflows/test-pgtap.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'pg_steadytext/**'
+      - '.github/workflows/test-pgtap.yml'
+
+jobs:
+  pgtap-tests:
+    name: Run pgTAP Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            postgresql-client \
+            postgresql-server-dev-all \
+            build-essential \
+            git
+          
+          # Install pgTAP from source for PostgreSQL 17 compatibility
+          git clone https://github.com/theory/pgtap.git
+          cd pgtap
+          make
+          sudo make install
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install uv
+          uv pip install -e .
+          
+      - name: Set up PostgreSQL for testing
+        env:
+          PGPASSWORD: postgres
+        run: |
+          # Wait for PostgreSQL to be ready
+          for i in {1..30}; do
+            if psql -h localhost -U postgres -c "SELECT 1" >/dev/null 2>&1; then
+              echo "PostgreSQL is ready"
+              break
+            fi
+            echo "Waiting for PostgreSQL... ($i/30)"
+            sleep 1
+          done
+          
+          # Create extensions
+          psql -h localhost -U postgres -d postgres <<EOF
+          CREATE EXTENSION IF NOT EXISTS plpython3u CASCADE;
+          CREATE EXTENSION IF NOT EXISTS pgtap CASCADE;
+          \dx
+          EOF
+
+      - name: Build and install pg_steadytext
+        run: |
+          cd pg_steadytext
+          
+          # Configure Python path for PostgreSQL
+          export PYTHON_CONFIG=$(which python3-config)
+          
+          # Build extension
+          make clean
+          make PG_CONFIG=/usr/bin/pg_config
+          
+          # Install extension
+          sudo make install PG_CONFIG=/usr/bin/pg_config
+
+      - name: Run pgTAP tests
+        env:
+          PGPASSWORD: postgres
+          PGHOST: localhost
+          PGUSER: postgres
+          PGPORT: 5432
+          PGDATABASE: postgres
+        run: |
+          cd pg_steadytext
+          
+          # Make script executable
+          chmod +x run_pgtap_tests.sh
+          
+          # Run tests with TAP output
+          ./run_pgtap_tests.sh --tap | tee test-results.tap
+          
+          # Also run with verbose output for debugging
+          echo "=== Verbose Test Output ==="
+          ./run_pgtap_tests.sh --verbose || true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pgtap-test-results
+          path: |
+            pg_steadytext/test-results.tap
+            
+      - name: Parse and display results
+        if: always()
+        run: |
+          cd pg_steadytext
+          if [ -f test-results.tap ]; then
+            echo "=== TAP Results Summary ==="
+            # Count tests
+            total=$(grep -c "^ok\|^not ok" test-results.tap || echo "0")
+            passed=$(grep -c "^ok" test-results.tap || echo "0")
+            failed=$(grep -c "^not ok" test-results.tap || echo "0")
+            
+            echo "Total tests: $total"
+            echo "Passed: $passed"
+            echo "Failed: $failed"
+            
+            if [ "$failed" -gt 0 ]; then
+              echo "=== Failed Tests ==="
+              grep "^not ok" test-results.tap || true
+              exit 1
+            fi
+          fi
