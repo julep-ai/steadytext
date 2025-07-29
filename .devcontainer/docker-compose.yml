@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspace:cached
+    command: sleep infinity
+    networks:
+      - default
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+
+  postgres:
+    build: ../pg_steadytext
+    container_name: pg_steadytext_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: postgres
+      STEADYTEXT_GENERATION_CACHE_CAPACITY: "512"
+      STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB: "100.0"
+      STEADYTEXT_EMBEDDING_CACHE_CAPACITY: "1024"
+      STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB: "200.0"
+    ports:
+      - "5432:5432"
+    volumes:
+      - ../pg_steadytext/sql:/tmp/pg_steadytext/sql:ro
+      - ../pg_steadytext/python:/tmp/pg_steadytext/python:ro
+      - ../pg_steadytext/test:/tmp/pg_steadytext/test:ro
+      - postgres_data:/var/lib/postgresql/data
+      - steadytext_cache:/root/.cache/steadytext
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - default
+
+volumes:
+  postgres_data:
+  steadytext_cache:
+
+networks:
+  default:
+    driver: bridge 

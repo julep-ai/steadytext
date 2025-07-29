@@ -1,0 +1,42 @@
+{
+  "name": "Steadytext Development",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "dev",
+  "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
+  "dockerPath": "docker",
+  "dockerComposePath": "docker compose",
+  "containerEnv": {
+    "UV_PROJECT_ROOT": "/workspace",
+    "UV_CACHE_DIR": "/tmp/.uv-cache",
+    "PYTHONUSERBASE": "/tmp/.local"
+  },
+  "postCreateCommand": "cd /workspace && UV_CACHE_DIR=/tmp/.uv-cache PYTHONUSERBASE=/tmp/.local uv sync --no-cache && UV_CACHE_DIR=/tmp/.uv-cache PYTHONUSERBASE=/tmp/.local uv run pip install -e . && if [ -d pg_steadytext ]; then UV_CACHE_DIR=/tmp/.uv-cache PYTHONUSERBASE=/tmp/.local uv run pip install -e pg_steadytext/; fi",
+  "postStartCommand": "docker compose up -d postgres && echo 'Waiting for PostgreSQL...' && for i in {1..30}; do docker compose exec -T postgres pg_isready -U postgres >/dev/null 2>&1 && echo 'PostgreSQL is ready!' && break || { echo -n '.'; sleep 1; }; done",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "mtxr.sqltools",
+        "mtxr.sqltools-driver-pg",
+        "redhat.vscode-yaml",
+        "davidanson.vscode-markdownlint",
+        "ms-azuretools.vscode-docker",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "dev.containers.dockerComposePath": "docker compose",
+        "dev.containers.dockerPath": "docker",
+        "remote.containers.dockerComposePath": "docker compose",
+        "docker.dockerComposePath": "docker compose"
+      }
+    }
+  },
+  "remoteUser": "root",
+  "runArgs": ["--network=host", "--security-opt", "label=disable"],
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ]
+} 
