@@ -3,7 +3,7 @@
 
 -- AIDEV-NOTE: This SQL script creates the core schema for the pg_steadytext extension
 -- It mirrors SteadyText's cache structure and adds PostgreSQL-specific features
--- Version 1.4.1 makes cache functions truly IMMUTABLE for PostgreSQL compliance
+-- Version 1.4.2 makes cache functions truly IMMUTABLE for PostgreSQL compliance
 
 -- This file should be loaded via CREATE EXTENSION pg_steadytext
 -- Do not source directly in psql
@@ -50,7 +50,7 @@ CREATE INDEX idx_steadytext_cache_access_count ON steadytext_cache(access_count)
 CREATE TABLE steadytext_queue (
     id SERIAL PRIMARY KEY,
     request_id UUID DEFAULT gen_random_uuid(),
-    request_type TEXT CHECK (request_type IN ('generate', 'embed', 'batch_embed')),
+    request_type TEXT CHECK (request_type IN ('generate', 'embed', 'batch_embed', 'rerank', 'batch_rerank')),
 
     -- Request data
     prompt TEXT,  -- For single requests
