@@ -1,5 +1,48 @@
 # Changelog
 
+## Version 2.6.0 (Unreleased)
+
+### New Features
+- **Development Container Support:** Added comprehensive VSCode Dev Container configuration
+  - Full PostgreSQL 17 setup with extensions (plpython3u, pgvector, pg_cron)
+  - Pre-configured development environment with all dependencies
+  - Docker-in-Docker support for testing containerized builds
+  - Automatic SteadyText and pg_steadytext installation in editable mode
+  - Multi-container setup with PostgreSQL service
+
+### Documentation
+- **Enhanced CLAUDE.md:** Added comprehensive development container documentation
+- **Updated AIDEV Comments:** Added documentation for recent fixes and new features
+
+## Version 2.5.3 (2025-07-18)
+
+### New Features
+- **Gemma License Compliance Framework:** Added license compliance for Google's Gemma models
+  - Display license notice when downloading Gemma models
+  - Added `LICENSE-GEMMA.txt` placeholder for Gemma Terms of Use
+  - Automatic detection of Gemma models by checking repo_id or filename
+  - Clear user notification before model download begins
+
+### Bug Fixes
+- **CLI Formatting:** Applied code formatting and linting fixes to CLI commands
+
+### Documentation
+- **License Documentation:** Added comprehensive documentation about Gemma model licensing
+- **Updated README:** Added information about model licenses and compliance
+
+## Version 2.5.2 (2025-07-15)
+
+### Bug Fixes
+- **Reranker Improvements:** Fixed reranking model compatibility and enhanced fallback scoring
+  - Removed unsupported `top_logprobs` parameter from model call
+  - Improved fallback scoring with basic semantic heuristics for common phrases
+  - Enhanced caching to include both model-generated and fallback scores
+  - Better error handling and logging for debugging reranking issues
+
+### Internal Changes
+- **Version Sync:** Updated `__version__` in `__init__.py` to match pyproject.toml
+- **Cache Improvements:** Reranker now caches all valid scores for better performance
+
 ## Version 2.5.1 (2025-07-14)
 
 ### New Features

@@ -102,6 +102,8 @@ SteadyText v2.0+ uses Gemma-3n models for generation and Qwen3 for embeddings.
 - AIDEV-NOTE: Gemma models are subject to Google's Gemma Terms of Use - license compliance added in v2.5.3
 - AIDEV-NOTE: License notice is displayed when downloading Gemma models
 - AIDEV-NOTE: LICENSE-GEMMA.txt must be updated with actual terms from https://ai.google.dev/gemma/terms
+- AIDEV-NOTE: Implementation in models/cache.py checks for "gemma" in repo_id or filename (case-insensitive)
+- AIDEV-NOTE: License notice displays before download starts, ensuring user awareness
 
 ## Reranking Support (v1.3.0+)
 
@@ -131,6 +133,8 @@ SteadyText v1.3.0+ includes document reranking functionality using the Qwen3-Rer
 - AIDEV-TODO: Consider adding support for cross-encoder models.
 - AIDEV-TODO: Add streaming support for large document sets.
 - AIDEV-TODO: Improve scoring to use actual token probabilities instead of binary.
+- AIDEV-NOTE: v2.5.2 improved fallback scoring with basic semantic heuristics for common phrases
+- AIDEV-NOTE: Reranker now caches all scores (both model-generated and fallback) for performance
 
 ## Cache Management
 
@@ -984,3 +988,45 @@ AIDEV-TODO: Add package signing for security-conscious deployments
 ### Additional Process Guidance
 
 - At the end of code changes, please make sure to run `poe format` and `poe lint` (in that order) to make sure the code follows the style guide.
+
+## Development Container (v2.6.0+)
+
+### AIDEV-NOTE: DevContainer Architecture
+
+SteadyText includes a development container setup for consistent development environments across machines.
+
+**Key Components:**
+- `.devcontainer/devcontainer.json` - VSCode dev container configuration
+- `.devcontainer/docker-compose.yml` - Multi-container setup with PostgreSQL
+- `.devcontainer/Dockerfile` - Development environment with all dependencies
+- `.devcontainer/postCreateCommand.sh` - Environment setup script
+
+**Features:**
+- AIDEV-NOTE: Full PostgreSQL 17 with extensions (plpython3u, pgvector, pg_cron)
+- AIDEV-NOTE: UV package manager pre-installed for fast dependency management
+- AIDEV-NOTE: Automatic SteadyText installation in editable mode
+- AIDEV-NOTE: PostgreSQL extension development environment ready
+- AIDEV-NOTE: Docker-in-Docker support for testing containerized builds
+
+**Usage:**
+```bash
+# Open in VSCode with Dev Containers extension
+# Or use GitHub Codespaces
+
+# PostgreSQL is available at:
+# - Host: localhost (or postgres service name)
+# - Port: 5432
+# - User: postgres
+# - Password: postgres
+# - Database: postgres
+```
+
+**Development Workflow:**
+1. Container automatically installs SteadyText and pg_steadytext
+2. PostgreSQL starts automatically with required extensions
+3. Run tests with `uv run pytest` or `make test` in pg_steadytext/
+4. Develop with full IDE support and database access
+
+AIDEV-TODO: Add support for GPU passthrough in devcontainer for CUDA models
+AIDEV-TODO: Consider adding Redis service for distributed cache testing
+AIDEV-NOTE: The devcontainer mounts Docker socket for testing containerized builds

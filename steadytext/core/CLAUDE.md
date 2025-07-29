@@ -6,13 +6,16 @@ This directory contains the core text generation and embedding functionality.
 
 - `generator.py`: Deterministic text generation with model-based and fallback mechanisms.
 - `embedder.py`: L2-normalized embeddings with zero-vector fallbacks.
+- `reranker.py`: Document reranking with binary relevance scoring (v1.3.0+)
 
 ## Critical Design Patterns
 
-### Never Fails Principle
+### Never Fails Principle (Updated v2.1.0+)
 All functions must return valid outputs even when models fail to load:
-- Text generation returns deterministic hash-based text on model failure
-- Embeddings return zero vectors on model failure
+- Text generation returns `None` when model is not loaded or on invalid input (v2.1.0+)
+- Embeddings return `None` instead of zero vectors when model is not loaded (v2.1.0+)
+- Reranking uses simple word overlap fallback when model unavailable (v1.3.0+)
+- AIDEV-NOTE: The deterministic fallback generator was disabled in v2.1.0+ as it caused more confusion than it solved
 
 ### Deterministic Behavior
 - All randomness must be seeded consistently

@@ -10,6 +10,17 @@ This file contains important development notes and architectural decisions for A
 **Error**: `generate() got an unexpected keyword argument 'max_tokens'. Did you mean 'max_new_tokens'?`
 **Fix**: Changed parameter name from `max_tokens` to `max_new_tokens` in direct generation fallback
 **AIDEV-NOTE**: The structured generation functions (generate_json, generate_regex, generate_choice) correctly use `max_tokens`
+**AIDEV-NOTE**: This inconsistency exists because the daemon API uses `max_tokens` while the direct Python API uses `max_new_tokens`
+**AIDEV-NOTE**: All SQL versions from 1.4.1 onwards have been patched with this fix
+
+### start_daemon() Method Addition (MEDIUM SEVERITY) ✅
+**File**: python/daemon_connector.py
+**Issue**: SQL functions were calling `connector.start_daemon()` but the method was private (`_start_daemon`)
+**Error**: AttributeError when SQL tries to start daemon
+**Fix**: Added public `start_daemon()` method as wrapper for `_start_daemon()`
+**Version**: Fixed in v1.4.2
+**AIDEV-NOTE**: The private method pattern was intended for internal use, but SQL functions need public access
+**AIDEV-NOTE**: Also added `is_daemon_running()` and `check_health()` methods for better daemon status checking
 
 ## Recent Security Fixes (v1.0.2)
 
