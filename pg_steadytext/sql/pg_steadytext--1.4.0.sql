@@ -1585,10 +1585,21 @@ AS $$
     if not documents or len(documents) == 0:
         return []
     
-    # Import daemon connector
+    # Check if initialized, if not, initialize now
+    if not GD.get('steadytext_initialized', False):
+        # Initialize on demand
+        plpy.execute("SELECT _steadytext_init_python()")
+        # Check again after initialization
+        if not GD.get('steadytext_initialized', False):
+            plpy.error("Failed to initialize pg_steadytext Python environment")
+    
+    # Get cached modules from GD
+    daemon_connector = GD.get('module_daemon_connector')
+    if not daemon_connector:
+        plpy.error("daemon_connector module not loaded")
+    
     try:
-        from daemon_connector import SteadyTextConnector
-        connector = SteadyTextConnector()
+        connector = daemon_connector.SteadyTextConnector()
     except Exception as e:
         logger.error(f"Failed to initialize SteadyText connector: {e}")
         # Return empty result on error
@@ -1685,7 +1696,7 @@ AS $$
     # Insert into queue
     plpy.execute("""
         INSERT INTO steadytext_queue 
-        (request_id, function_name, parameters, status, created_at, priority)
+        (request_id, request_type, params, status, created_at, priority)
         VALUES ($1, 'rerank', $2::jsonb, 'pending', CURRENT_TIMESTAMP, 5)
     """, [request_id, json.dumps(params)])
     
@@ -1719,10 +1730,21 @@ AS $$
     if not documents or len(documents) == 0:
         return []
     
-    # Import daemon connector
+    # Check if initialized, if not, initialize now
+    if not GD.get('steadytext_initialized', False):
+        # Initialize on demand
+        plpy.execute("SELECT _steadytext_init_python()")
+        # Check again after initialization
+        if not GD.get('steadytext_initialized', False):
+            plpy.error("Failed to initialize pg_steadytext Python environment")
+    
+    # Get cached modules from GD
+    daemon_connector = GD.get('module_daemon_connector')
+    if not daemon_connector:
+        plpy.error("daemon_connector module not loaded")
+    
     try:
-        from daemon_connector import SteadyTextConnector
-        connector = SteadyTextConnector()
+        connector = daemon_connector.SteadyTextConnector()
     except Exception as e:
         logger.error(f"Failed to initialize SteadyText connector: {e}")
         return []
@@ -1786,8 +1808,8 @@ AS $$
         
         plpy.execute("""
             INSERT INTO steadytext_queue 
-            (request_id, function_name, parameters, status, created_at, priority)
-            VALUES ($1, 'rerank', $2::jsonb, 'pending', CURRENT_TIMESTAMP, 5)
+            (request_id, request_type, params, status, created_at, priority)
+            VALUES ($1, 'batch_rerank', $2::jsonb, 'pending', CURRENT_TIMESTAMP, 5)
         """, [request_id, json.dumps(params)])
     
     # Send notification to worker
