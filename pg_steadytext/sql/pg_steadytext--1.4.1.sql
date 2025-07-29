@@ -50,7 +50,7 @@ CREATE INDEX idx_steadytext_cache_access_count ON steadytext_cache(access_count)
 CREATE TABLE steadytext_queue (
     id SERIAL PRIMARY KEY,
     request_id UUID DEFAULT gen_random_uuid(),
-    request_type TEXT CHECK (request_type IN ('generate', 'embed', 'batch_embed')),
+    request_type TEXT CHECK (request_type IN ('generate', 'embed', 'batch_embed', 'rerank', 'batch_rerank')),
 
     -- Request data
     prompt TEXT,  -- For single requests
@@ -1810,6 +1810,271 @@ COMMENT ON FUNCTION ai_extract_facts(text, integer) IS
 COMMENT ON FUNCTION ai_deduplicate_facts(jsonb, float) IS
 'Deduplicate facts based on semantic similarity using embeddings';
 
+-- AIDEV-SECTION: RERANKING_FUNCTIONS
+-- Basic rerank function returning documents with scores
+CREATE OR REPLACE FUNCTION steadytext_rerank(
+    query text,
+    documents text[],
+    task text DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    return_scores boolean DEFAULT true,
+    seed integer DEFAULT 42
+) RETURNS TABLE(document text, score float)
+AS $$
+    import json
+    import logging
+    from typing import List, Tuple
+    
+    # Configure logging
+    logging.basicConfig(level=logging.WARNING)
+    logger = logging.getLogger(__name__)
+    
+    # Validate inputs
+    if not query:
+        plpy.error("Query cannot be empty")
+        
+    if not documents or len(documents) == 0:
+        return []
+    
+    # Check if initialized, if not, initialize now
+    if not GD.get('steadytext_initialized', False):
+        # Initialize on demand
+        plpy.execute("SELECT _steadytext_init_python()")
+        # Check again after initialization
+        if not GD.get('steadytext_initialized', False):
+            plpy.error("Failed to initialize pg_steadytext Python environment")
+    
+    # Get cached modules from GD
+    daemon_connector = GD.get('module_daemon_connector')
+    if not daemon_connector:
+        plpy.error("daemon_connector module not loaded")
+    
+    try:
+        connector = daemon_connector.SteadyTextConnector()
+    except Exception as e:
+        logger.error(f"Failed to initialize SteadyText connector: {e}")
+        # Return empty result on error
+        return []
+    
+    try:
+        # Call rerank with scores always enabled for PostgreSQL
+        results = connector.rerank(
+            query=query,
+            documents=list(documents),  # Convert from PostgreSQL array
+            task=task,
+            return_scores=True,  # Always get scores for PostgreSQL
+            seed=seed
+        )
+        
+        # Return results as tuples
+        return results
+        
+    except Exception as e:
+        logger.error(f"Reranking failed: {e}")
+        # Return empty result on error
+        return []
+$$ LANGUAGE plpython3u IMMUTABLE PARALLEL SAFE;
+
+-- Rerank function returning only documents (no scores)
+CREATE OR REPLACE FUNCTION steadytext_rerank_docs_only(
+    query text,
+    documents text[],
+    task text DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    seed integer DEFAULT 42
+) RETURNS TABLE(document text)
+AS $$
+    # Call the main rerank function and extract just documents
+    results = plpy.execute(
+        "SELECT document FROM steadytext_rerank($1, $2, $3, true, $4)",
+        [query, documents, task, seed]
+    )
+    
+    return [{"document": row["document"]} for row in results]
+$$ LANGUAGE plpython3u IMMUTABLE PARALLEL SAFE;
+
+-- Rerank function with top-k filtering
+CREATE OR REPLACE FUNCTION steadytext_rerank_top_k(
+    query text,
+    documents text[],
+    top_k integer,
+    task text DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    return_scores boolean DEFAULT true,
+    seed integer DEFAULT 42
+) RETURNS TABLE(document text, score float)
+AS $$
+    # Validate top_k
+    if top_k <= 0:
+        plpy.error("top_k must be positive")
+    
+    # Call the main rerank function
+    results = plpy.execute(
+        "SELECT document, score FROM steadytext_rerank($1, $2, $3, true, $4) LIMIT $5",
+        [query, documents, task, seed, top_k]
+    )
+    
+    if return_scores:
+        return results
+    else:
+        # Return without scores
+        return [{"document": row["document"], "score": None} for row in results]
+$$ LANGUAGE plpython3u IMMUTABLE PARALLEL SAFE;
+
+-- Async rerank function
+CREATE OR REPLACE FUNCTION steadytext_rerank_async(
+    query text,
+    documents text[],
+    task text DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    return_scores boolean DEFAULT true,
+    seed integer DEFAULT 42
+) RETURNS uuid
+AS $$
+    import uuid
+    import json
+    import logging
+    
+    # Generate request ID
+    request_id = str(uuid.uuid4())
+    
+    # Prepare parameters
+    params = {
+        'query': query,
+        'documents': documents,
+        'task': task,
+        'return_scores': return_scores,
+        'seed': seed
+    }
+    
+    # Insert into queue
+    plpy.execute("""
+        INSERT INTO steadytext_queue 
+        (request_id, request_type, params, status, created_at, priority)
+        VALUES ($1, 'rerank', $2::jsonb, 'pending', CURRENT_TIMESTAMP, 5)
+    """, [request_id, json.dumps(params)])
+    
+    # Send notification to worker
+    plpy.execute("NOTIFY steadytext_queue_notify")
+    
+    return request_id
+$$ LANGUAGE plpython3u VOLATILE;
+
+-- Batch rerank function for multiple queries
+CREATE OR REPLACE FUNCTION steadytext_rerank_batch(
+    queries text[],
+    documents text[],
+    task text DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    return_scores boolean DEFAULT true,
+    seed integer DEFAULT 42
+) RETURNS TABLE(query_index integer, document text, score float)
+AS $$
+    import json
+    import logging
+    from typing import List, Tuple
+    
+    # Configure logging
+    logging.basicConfig(level=logging.WARNING)
+    logger = logging.getLogger(__name__)
+    
+    # Validate inputs
+    if not queries or len(queries) == 0:
+        plpy.error("Queries cannot be empty")
+        
+    if not documents or len(documents) == 0:
+        return []
+    
+    # Check if initialized, if not, initialize now
+    if not GD.get('steadytext_initialized', False):
+        # Initialize on demand
+        plpy.execute("SELECT _steadytext_init_python()")
+        # Check again after initialization
+        if not GD.get('steadytext_initialized', False):
+            plpy.error("Failed to initialize pg_steadytext Python environment")
+    
+    # Get cached modules from GD
+    daemon_connector = GD.get('module_daemon_connector')
+    if not daemon_connector:
+        plpy.error("daemon_connector module not loaded")
+    
+    try:
+        connector = daemon_connector.SteadyTextConnector()
+    except Exception as e:
+        logger.error(f"Failed to initialize SteadyText connector: {e}")
+        return []
+    
+    all_results = []
+    
+    # Process each query
+    for idx, query in enumerate(queries):
+        try:
+            # Call rerank for this query
+            results = connector.rerank(
+                query=query,
+                documents=list(documents),
+                task=task,
+                return_scores=True,
+                seed=seed
+            )
+            
+            # Add query index to results
+            for doc, score in results:
+                all_results.append({
+                    "query_index": idx,
+                    "document": doc,
+                    "score": score
+                })
+                
+        except Exception as e:
+            logger.error(f"Reranking failed for query {idx}: {e}")
+            # Continue with next query
+            continue
+    
+    return all_results
+$$ LANGUAGE plpython3u IMMUTABLE PARALLEL SAFE;
+
+-- Batch async rerank function
+CREATE OR REPLACE FUNCTION steadytext_rerank_batch_async(
+    queries text[],
+    documents text[],
+    task text DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    return_scores boolean DEFAULT true,
+    seed integer DEFAULT 42
+) RETURNS uuid[]
+AS $$
+    import uuid
+    import json
+    
+    request_ids = []
+    
+    # Create separate async request for each query
+    for query in queries:
+        request_id = str(uuid.uuid4())
+        request_ids.append(request_id)
+        
+        params = {
+            'query': query,
+            'documents': documents,
+            'task': task,
+            'return_scores': return_scores,
+            'seed': seed
+        }
+        
+        plpy.execute("""
+            INSERT INTO steadytext_queue 
+            (request_id, request_type, params, status, created_at, priority)
+            VALUES ($1, 'batch_rerank', $2::jsonb, 'pending', CURRENT_TIMESTAMP, 5)
+        """, [request_id, json.dumps(params)])
+    
+    # Send notification to worker
+    plpy.execute("NOTIFY steadytext_queue_notify")
+    
+    return request_ids
+$$ LANGUAGE plpython3u VOLATILE;
+
+COMMENT ON FUNCTION steadytext_rerank IS 'Rerank documents by relevance to a query using AI model';
+COMMENT ON FUNCTION steadytext_rerank_docs_only IS 'Rerank documents returning only sorted documents without scores';
+COMMENT ON FUNCTION steadytext_rerank_top_k IS 'Rerank documents and return only top K results';
+COMMENT ON FUNCTION steadytext_rerank_async IS 'Asynchronously rerank documents (returns request UUID)';
+COMMENT ON FUNCTION steadytext_rerank_batch IS 'Rerank documents for multiple queries in batch';
+COMMENT ON FUNCTION steadytext_rerank_batch_async IS 'Asynchronously rerank documents for multiple queries';
+
 -- AIDEV-SECTION: VOLATILE_WRAPPER_FUNCTIONS
 -- These functions provide cache-writing capability for users who need it
 -- They wrap the IMMUTABLE functions and handle cache population
@@ -1978,3 +2243,12 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO PUBLIC;
 -- 7. Graceful fallback when parsing fails
 -- 8. FIXED: Removed serialization functions to resolve "serialization functions may be
 --    specified only when the aggregate transition data type is internal" error
+
+-- AIDEV-NOTE: Added in v1.3.0 (2025-07-09):
+-- Reranking functions for query-document relevance scoring:
+-- 1. Basic rerank function with optional score return
+-- 2. Document-only variant for simplified output
+-- 3. Top-k filtering for returning best matches
+-- 4. Async processing support via queue system
+-- 5. Batch reranking for multiple queries
+-- 6. Integration with SteadyText daemon for Qwen3-Reranker-4B model

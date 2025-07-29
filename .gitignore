@@ -2,6 +2,8 @@
 .*.swi
 .*.swo
 
+.*_cache/
+
 .pytest-runtimes
 
 ##---------------------------------------------------
@@ -274,3 +276,150 @@ modular_cache/
 
 # MCP configuration (local only)
 .mcp.json
+
+##---------------------------------------------------
+# Node.js specific .gitignore
+##---------------------------------------------------
+
+# Dependencies
+node_modules/
+bower_components/
+
+# Package manager files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Package manager directories
+.npm
+.yarn
+.pnpm-store/
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variable files
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# parcel-bundler cache (https://parceljs.org/)
+.parcel-cache
+
+# Next.js build output
+.next
+out
+
+# Nuxt.js build / generate output
+.nuxt
+
+# Gatsby files
+# Comment in the public line in if your project uses Gatsby and not Next.js
+# https://nextjs.org/blog/next-9-1#public-directory-support
+# public
+
+# vuepress build output
+.vuepress/dist
+
+# vuepress v2.x temp and cache directory
+.temp
+
+# Docusaurus cache and generated files
+.docusaurus
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# Yarn v2/v3
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# TypeScript cache
+*.tsbuildinfo
+
+# TypeScript v1 declaration files
+typings/
+
+# PM2 ecosystem file
+ecosystem.config.js
+
+# Turbo cache
+.turbo/
+
+# Vercel
+.vercel
+
+# Rollup cache directory
+.rollup.cache/
+
+# Webpack cache
+.webpack/
+
+# Metro bundler cache
+.metro-health-check*
+
+# Expo
+.expo/
+
+# Cloudflare Workers
+.wrangler/
+
+# Build directories (common for various bundlers)
+out/
+compiled/
+
+# Coverage directory used by testing tools
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
+.grunt
+
+# Bower dependency directory (https://bower.io/)
+bower_components
+
+# Compiled binary addons (https://nodejs.org/api/addons.html)
+build/Release
+
+# Lock files (comment out if you want to commit them)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml

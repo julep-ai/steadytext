@@ -5,6 +5,29 @@ All notable changes to the pg_steadytext PostgreSQL extension will be documented
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] - Unreleased
+
+### Fixed
+- Fixed parameter name mismatch in direct generation fallback
+  - Changed `max_tokens` to `max_new_tokens` when calling steadytext.generate() directly
+  - This fixes the error: `generate() got an unexpected keyword argument 'max_tokens'`
+  - Affects all SQL versions (1.4.0, 1.4.1, 1.4.2)
+  - Note: Structured generation functions correctly use `max_tokens` as the daemon API expects
+
+- Fixed JSON configuration value handling to prevent SQL syntax errors
+  - Properly escape single quotes in JSON config values
+  - Handle NULL values correctly when current_setting doesn't exist
+
+### Added
+- **Reranking Support:** Propagated reranking functions to all SQL version files
+  - Added missing `pg_steadytext--1.3.0.sql` with complete reranking implementation
+  - Updated queue table to support 'rerank' and 'batch_rerank' request types
+  - Fixed header comments to reflect reranking capabilities
+
+### Documentation
+- Enhanced CLAUDE.md with detailed fix documentation
+- Added AIDEV-NOTE comments explaining API inconsistencies
+
 ## [1.4.2] - 2025-01-25
 
 ### Fixed

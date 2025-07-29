@@ -2,7 +2,7 @@
 # AIDEV-NOTE: This creates a PostgreSQL image with pg_steadytext pre-installed
 # Optimized for build caching - dependencies first, source code last
 
-FROM postgres:17
+FROM ghcr.io/omnigres/omnigres-17:latest
 
 # Build arguments for model selection
 # AIDEV-NOTE: Use STEADYTEXT_USE_FALLBACK_MODEL=true to use known working models
@@ -33,15 +33,7 @@ RUN pip3 install --break-system-packages \
 
 # Pre-download models to catch compatibility issues early
 # AIDEV-NOTE: This ensures model issues are caught at build time, not runtime
-RUN python3 -c "import os; os.environ['STEADYTEXT_USE_FALLBACK_MODEL'] = os.environ.get('STEADYTEXT_USE_FALLBACK_MODEL', 'false'); \
-    from steadytext.models.cache import ensure_generation_model_cached, ensure_embedding_model_cached; \
-    print(f'Using fallback model: {os.environ[\"STEADYTEXT_USE_FALLBACK_MODEL\"]}'); \
-    print('Pre-downloading generation model...'); \
-    ensure_generation_model_cached(); \
-    print('Pre-downloading embedding model...'); \
-    ensure_embedding_model_cached(); \
-    print('Models downloaded successfully')" || \
-    (echo "WARNING: Model pre-download failed. Models will be downloaded on first use." && true)
+RUN python3 -m steadytext models download
 
 # Create working directory
 WORKDIR /tmp/pg_steadytext
@@ -61,13 +53,16 @@ COPY sql/ ./sql/
 # AIDEV-NOTE: Python files are most likely to change
 COPY python/ ./python/
 
-# Copy diagnostic script (optional - skip if not available)
-# COPY diagnose_pg_model.py /usr/local/bin/diagnose_pg_model
-# RUN chmod +x /usr/local/bin/diagnose_pg_model || true
-
 # Build and install the extension
 # AIDEV-NOTE: This layer rebuilds only when source files change
 RUN make install
+
+RUN git clone https://github.com/pgmq/pgmq.git && \
+    cd pgmq/pgmq-extension && \
+    make && \
+    make install && \
+    cd ../.. && \
+    rm -rf pgmq
 
 # Copy the entrypoint script separately
 # AIDEV-NOTE: This ensures the entrypoint can be updated without rebuilding everything
@@ -82,28 +77,9 @@ EXPOSE 5432
 
 # Set default environment variables
 ENV POSTGRES_USER=postgres
-ENV POSTGRES_PASSWORD=postgres
+ENV POSTGRES_PASSWORD=password
 ENV POSTGRES_DB=postgres
 
 # Add healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s \
   CMD pg_isready -U postgres || exit 1
-
-# AIDEV-NOTE: Usage:
-# Standard build (may fail with gemma-3n models):
-#   docker build -t pg_steadytext .
-#
-# Build with fallback model (recommended if gemma-3n fails):
-#   docker build --build-arg STEADYTEXT_USE_FALLBACK_MODEL=true -t pg_steadytext .
-#
-# Run container:
-#   docker run -d -p 5432:5432 --name pg_steadytext pg_steadytext
-#
-# Or run with fallback model environment variable:
-#   docker run -d -p 5432:5432 -e STEADYTEXT_USE_FALLBACK_MODEL=true --name pg_steadytext pg_steadytext
-#
-# Test generation:
-#   docker exec -it pg_steadytext psql -U postgres -c "SELECT steadytext_generate('Hello Docker!');"
-#
-# Run diagnostics if issues occur:
-#   docker exec -it pg_steadytext /usr/local/bin/diagnose_pg_model
