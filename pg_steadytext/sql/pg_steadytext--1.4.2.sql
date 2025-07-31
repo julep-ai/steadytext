@@ -412,7 +412,6 @@ if resolved_seed < 0:
 # Check if we should use cache
 if use_cache:
     # Generate cache key consistent with SteadyText format
-    # AIDEV-NOTE: Updated to match SteadyText's simple cache key format from utils.py
     # For generation: just the prompt (no parameters in key)
     cache_key = prompt
 
@@ -466,7 +465,6 @@ try:
             seed=resolved_seed
         )
     
-    # AIDEV-NOTE: Cache writes removed for IMMUTABLE compliance
     # To populate cache, use the VOLATILE wrapper functions or external processes
     
     return result
@@ -577,8 +575,7 @@ try:
         else:
             embedding_list = list(result)
         
-        # AIDEV-NOTE: Cache writes removed for IMMUTABLE compliance
-        
+            
         return embedding_list
     else:
         plpy.error("Failed to generate embedding")
@@ -1100,7 +1097,6 @@ if isinstance(schema, str):
 # Check if we should use cache
 if use_cache:
     # Generate cache key including schema
-    # AIDEV-NOTE: Include schema in cache key for structured generation
     cache_key_input = f"{prompt}|json|{json.dumps(schema_dict, sort_keys=True)}"
     cache_key = hashlib.sha256(cache_key_input.encode()).hexdigest()
 
@@ -1153,7 +1149,6 @@ try:
             seed=seed
         )
     
-    # AIDEV-NOTE: Cache writes removed for IMMUTABLE compliance
     
     return result
     
@@ -1266,7 +1261,6 @@ try:
             seed=seed
         )
     
-    # AIDEV-NOTE: Cache writes removed for IMMUTABLE compliance
     
     return result
     
@@ -1382,7 +1376,6 @@ try:
             seed=seed
         )
     
-    # AIDEV-NOTE: Cache writes removed for IMMUTABLE compliance
     
     return result
     
