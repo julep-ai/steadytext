@@ -17,11 +17,10 @@ Two workflow options are provided:
 
 ### 2. Add the Workflow
 
-1. The workflow files are included in `.github/workflows/`:
-   - `.github/workflows/update-changelog.yml` (basic version)
-   - `.github/workflows/update-changelog-advanced.yml` (advanced version)
-2. Choose which workflow to use by enabling/disabling them as needed
-3. Ensure you have the required secrets configured (see below)
+1. Copy your chosen workflow file to `.github/workflows/update-changelog.yml`:
+   - Use `update-changelog.yml` for the basic version
+   - Use `update-changelog-advanced.yml` for the advanced version with more features
+2. Ensure you have the required secrets configured (see below)
 
 ### 3. Configure Secrets
 
