@@ -26,7 +26,7 @@ CREATE OR REPLACE FUNCTION steadytext_generate(
 )
 RETURNS TEXT
 LANGUAGE plpython3u
-IMMUTABLE PARALLEL SAFE LEAKPROOF
+IMMUTABLE PARALLEL SAFE
 AS $$
 # AIDEV-NOTE: Main text generation function that integrates with SteadyText daemon
 import json
@@ -125,24 +125,6 @@ try:
             max_new_tokens=resolved_max_tokens,
             seed=resolved_seed
         )
-    
-    # Store in cache if enabled
-    if use_cache and result is not None:
-        # Store in cache
-        insert_plan = plpy.prepare("""
-            INSERT INTO steadytext_cache 
-            (cache_key, prompt, response, model_name, seed, generation_params)
-            VALUES ($1, $2, $3, 'steadytext-default', $4, $5)
-            ON CONFLICT (cache_key) DO NOTHING
-        """, ["text", "text", "text", "int", "jsonb"])
-        
-        generation_params = json.dumps({
-            'max_tokens': resolved_max_tokens,
-            'seed': resolved_seed
-        })
-        
-        plpy.execute(insert_plan, [cache_key, prompt, result, resolved_seed, generation_params])
-    
     return result
     
 except Exception as e:
@@ -157,7 +139,7 @@ CREATE OR REPLACE FUNCTION steadytext_embed(
 )
 RETURNS vector(1024)
 LANGUAGE plpython3u
-IMMUTABLE PARALLEL SAFE LEAKPROOF
+IMMUTABLE PARALLEL SAFE
 AS $$
 # AIDEV-NOTE: Embedding function that returns deterministic embeddings
 import json
@@ -247,18 +229,7 @@ try:
             embedding_list = result.tolist()
         else:
             embedding_list = list(result)
-        
-        # Store in cache if enabled
-        if use_cache:
-            insert_plan = plpy.prepare("""
-                INSERT INTO steadytext_cache 
-                (cache_key, prompt, embedding, model_name, seed)
-                VALUES ($1, $2, $3, 'steadytext-embedding', $4)
-                ON CONFLICT (cache_key) DO NOTHING
-            """, ["text", "text", "vector", "int"])
-            
-            plpy.execute(insert_plan, [cache_key, text_input, embedding_list, resolved_seed])
-        
+
         return embedding_list
     else:
         plpy.error("Failed to generate embedding")

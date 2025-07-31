@@ -31,10 +31,6 @@ RUN pip3 install --break-system-packages \
     pyzmq>=22.0.0 \
     numpy>=1.20.0
 
-# Pre-download models to catch compatibility issues early
-# AIDEV-NOTE: This ensures model issues are caught at build time, not runtime
-RUN python3 -m steadytext models download
-
 # Create working directory
 WORKDIR /tmp/pg_steadytext
 

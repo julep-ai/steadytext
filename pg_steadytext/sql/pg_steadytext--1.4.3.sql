@@ -1,6 +1,9 @@
 -- pg_steadytext--1.4.3.sql
 -- Complete schema for pg_steadytext extension version 1.4.3
 
+-- Remove legacy single-argument embed overload to avoid ambiguity on fresh installs
+DROP FUNCTION IF EXISTS steadytext_embed(TEXT);
+
 -- AIDEV-SECTION: CORE_TABLE_DEFINITIONS
 -- Cache table that mirrors and extends SteadyText's SQLite cache
 CREATE TABLE IF NOT EXISTS steadytext_cache (
@@ -2271,7 +2274,7 @@ CREATE OR REPLACE FUNCTION steadytext_generate(
 )
 RETURNS TEXT
 LANGUAGE plpython3u
-IMMUTABLE PARALLEL SAFE LEAKPROOF
+IMMUTABLE PARALLEL SAFE
 AS $c$
 # AIDEV-NOTE: Main text generation function that integrates with SteadyText daemon
 import json
@@ -2371,30 +2374,12 @@ try:
             seed=resolved_seed
         )
     
-    # Store in cache if enabled
-    if use_cache and result is not None:
-        # Store in cache
-        insert_plan = plpy.prepare("""
-            INSERT INTO steadytext_cache 
-            (cache_key, prompt, response, model_name, seed, generation_params)
-            VALUES ($1, $2, $3, 'steadytext-default', $4, $5)
-            ON CONFLICT (cache_key) DO NOTHING
-        """, ["text", "text", "text", "int", "jsonb"])
-        
-        generation_params = json.dumps({
-            'max_tokens': resolved_max_tokens,
-            'seed': resolved_seed
-        })
-        
-        plpy.execute(insert_plan, [cache_key, prompt, result, resolved_seed, generation_params])
-    
     return result
     
 except Exception as e:
     plpy.error(f"Generation failed: {str(e)}")
 $c$;
 
--- Fix steadytext_embed function to be LEAKPROOF
 CREATE OR REPLACE FUNCTION steadytext_embed(
     text_input TEXT,
     use_cache BOOLEAN DEFAULT TRUE,
@@ -2402,7 +2387,7 @@ CREATE OR REPLACE FUNCTION steadytext_embed(
 )
 RETURNS vector(1024)
 LANGUAGE plpython3u
-IMMUTABLE PARALLEL SAFE LEAKPROOF
+IMMUTABLE PARALLEL SAFE
 AS $c$
 # AIDEV-NOTE: Embedding function that returns deterministic embeddings
 import json
@@ -2492,17 +2477,6 @@ try:
             embedding_list = result.tolist()
         else:
             embedding_list = list(result)
-        
-        # Store in cache if enabled
-        if use_cache:
-            insert_plan = plpy.prepare("""
-                INSERT INTO steadytext_cache 
-                (cache_key, prompt, embedding, model_name, seed)
-                VALUES ($1, $2, $3, 'steadytext-embedding', $4)
-                ON CONFLICT (cache_key) DO NOTHING
-            """, ["text", "text", "vector", "int"])
-            
-            plpy.execute(insert_plan, [cache_key, text_input, embedding_list, resolved_seed])
         
         return embedding_list
     else:

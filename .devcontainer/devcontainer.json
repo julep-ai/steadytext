@@ -32,6 +32,7 @@
         "anthropic.claude-code",
         "andrepimenta.claude-code-chat",
         "dbaeumer.vscode-eslint",
+        "github.vscode-pull-request-github",
         "esbenp.prettier-vscode"
       ],
       "settings": {

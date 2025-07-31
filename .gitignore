@@ -3,6 +3,7 @@
 .*.swo
 
 .*_cache/
+.crush/
 
 .pytest-runtimes
 
