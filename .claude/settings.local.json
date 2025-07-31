@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(export PGPASSWORD=password)",
+      "Bash(./run_pgtap_tests.sh:*)",
+      "Bash(psql:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)"
+    ],
+    "deny": []
+  }
+}
