@@ -1,4 +1,3 @@
-# AIDEV-NOTE: Vector operations CLI for SteadyText embeddings, providing similarity, distance, search, and arithmetic operations.
 import click
 import sys
 import json
