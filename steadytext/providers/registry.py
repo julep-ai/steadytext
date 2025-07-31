@@ -104,6 +104,7 @@ def get_provider(model: str, api_key: Optional[str] = None) -> RemoteModelProvid
     provider_name, model_name = parse_remote_model(model)
 
     # AIDEV-NOTE: Early API key validation to fail fast without importing heavy dependencies
+    actual_key = api_key  # Default to passed api_key
     if provider_name == "openai":
         actual_key = api_key or os.environ.get("OPENAI_API_KEY")
         if not actual_key:
@@ -120,12 +121,13 @@ def get_provider(model: str, api_key: Optional[str] = None) -> RemoteModelProvid
     provider_class = PROVIDER_REGISTRY[provider_name]
 
     # Handle provider-specific constructors
+    # AIDEV-NOTE: Pass the resolved actual_key to ensure consistency
     if provider_name in ["openai", "cerebras"]:
         # These providers accept a model parameter
-        provider = provider_class(api_key=api_key, model=model_name)  # type: ignore[call-arg]
+        provider = provider_class(api_key=actual_key, model=model_name)  # type: ignore[call-arg]
     else:
         # Future providers might only need api_key
-        provider = provider_class(api_key=api_key)
+        provider = provider_class(api_key=actual_key)
 
     if not provider.is_available():
         raise RuntimeError(
