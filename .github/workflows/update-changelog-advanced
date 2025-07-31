@@ -1,0 +1,309 @@
+name: Update CHANGELOG (Advanced)
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_update:
+        description: 'Force CHANGELOG update even without keyword matches'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  # Configuration
+  CHANGELOG_FILE: CHANGELOG.md
+  SKIP_CI_MESSAGE: "[skip ci]"
+  DEFAULT_FETCH_DEPTH: 50
+  FALLBACK_COMMIT_COUNT: 20
+  
+jobs:
+  update-changelog:
+    # Only run on merged PRs, direct pushes to main, or manual trigger
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
+      (github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - name: Validate environment
+        run: |
+          if [ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "::error::ANTHROPIC_API_KEY secret is required"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CLAUDE_CODE_PRIVATE_KEY }}" ]; then
+            echo "::warning::CLAUDE_CODE_PRIVATE_KEY not set, will use GITHUB_TOKEN instead"
+          fi
+
+      - name: Generate GitHub App Token
+        id: app-token
+        if: ${{ secrets.CLAUDE_CODE_PRIVATE_KEY != '' }}
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.CLAUDE_CODE_APP_ID || '1040539' }}
+          private-key: ${{ secrets.CLAUDE_CODE_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+        continue-on-error: true
+
+      - name: Select token
+        id: select-token
+        run: |
+          if [ -n "${{ steps.app-token.outputs.token }}" ]; then
+            echo "token=${{ steps.app-token.outputs.token }}" >> $GITHUB_OUTPUT
+            echo "Using GitHub App token"
+          else
+            echo "token=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_OUTPUT
+            echo "Using GITHUB_TOKEN"
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ env.DEFAULT_FETCH_DEPTH }}
+          token: ${{ steps.select-token.outputs.token }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "claude-code[bot]"
+          git config user.email "197855+claude-code[bot]@users.noreply.github.com"
+
+      - name: Get change context
+        id: context
+        run: |
+          # Initialize variables
+          COMMITS=""
+          PR_TITLE=""
+          PR_BODY=""
+          PR_NUMBER=""
+          PR_LABELS=""
+          
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            # For merged PRs, get all commits in the PR
+            COMMITS=$(git log --format="%h %s" "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}" || echo "")
+            PR_TITLE="${{ github.event.pull_request.title }}"
+            PR_BODY="${{ github.event.pull_request.body }}"
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+            # Safely extract PR labels
+            PR_LABELS=$(echo '${{ toJson(github.event.pull_request.labels.*.name) }}' | jq -r 'join(",")' || echo "")
+          elif [ "${{ github.event_name }}" == "push" ]; then
+            # For direct pushes, get commits since last CHANGELOG update
+            LAST_CHANGELOG_COMMIT=$(git log -1 --format="%H" --grep="update CHANGELOG" -- "${{ env.CHANGELOG_FILE }}" || echo "")
+            if [ -n "$LAST_CHANGELOG_COMMIT" ]; then
+              COMMITS=$(git log --format="%h %s" "${LAST_CHANGELOG_COMMIT}..HEAD" || echo "")
+            else
+              # Fallback to configured commit count
+              COMMITS=$(git log --format="%h %s" "-${{ env.FALLBACK_COMMIT_COUNT }}" || echo "")
+            fi
+          else
+            # Manual trigger - get last 10 commits
+            COMMITS=$(git log --format="%h %s" -10 || echo "")
+          fi
+          
+          # Export for use in next steps
+          {
+            echo "commits<<EOF"
+            echo "$COMMITS"
+            echo "EOF"
+            echo "pr_title=$PR_TITLE"
+            echo "pr_body<<EOF"
+            echo "$PR_BODY"
+            echo "EOF"
+            echo "pr_number=$PR_NUMBER"
+            echo "pr_labels=$PR_LABELS"
+          } >> $GITHUB_OUTPUT
+
+      - name: Analyze changes
+        id: analyze
+        run: |
+          # Keywords that indicate changelog-worthy changes
+          FEAT_KEYWORDS="feat|feature|add|new"
+          FIX_KEYWORDS="fix|bug|patch|repair"
+          BREAKING_KEYWORDS="breaking|!:|BREAKING CHANGE"
+          PERF_KEYWORDS="perf|performance|optimize|speed"
+          DOCS_KEYWORDS="docs|documentation"
+          
+          # Initialize categories
+          HAS_FEATURES=false
+          HAS_FIXES=false
+          HAS_BREAKING=false
+          HAS_PERF=false
+          HAS_DOCS=false
+          NEEDS_UPDATE=false
+          
+          # Check commits
+          while IFS= read -r line; do
+            if echo "$line" | grep -E -i "($FEAT_KEYWORDS)" > /dev/null; then
+              HAS_FEATURES=true
+              NEEDS_UPDATE=true
+            fi
+            if echo "$line" | grep -E -i "($FIX_KEYWORDS)" > /dev/null; then
+              HAS_FIXES=true
+              NEEDS_UPDATE=true
+            fi
+            if echo "$line" | grep -E -i "($BREAKING_KEYWORDS)" > /dev/null; then
+              HAS_BREAKING=true
+              NEEDS_UPDATE=true
+            fi
+            if echo "$line" | grep -E -i "($PERF_KEYWORDS)" > /dev/null; then
+              HAS_PERF=true
+              NEEDS_UPDATE=true
+            fi
+            if echo "$line" | grep -E -i "($DOCS_KEYWORDS)" > /dev/null; then
+              HAS_DOCS=true
+              NEEDS_UPDATE=true
+            fi
+          done <<< "${{ steps.context.outputs.commits }}"
+          
+          # Check PR title
+          if [ -n "${{ steps.context.outputs.pr_title }}" ]; then
+            TITLE="${{ steps.context.outputs.pr_title }}"
+            if echo "$TITLE" | grep -E -i "^($FEAT_KEYWORDS)" > /dev/null; then
+              HAS_FEATURES=true
+              NEEDS_UPDATE=true
+            elif echo "$TITLE" | grep -E -i "^($FIX_KEYWORDS)" > /dev/null; then
+              HAS_FIXES=true
+              NEEDS_UPDATE=true
+            fi
+          fi
+          
+          # Check for version bump commits
+          if echo "${{ steps.context.outputs.commits }}" | grep -E -i "bump.*version|release.*v[0-9]" > /dev/null; then
+            echo "version_bump=true" >> $GITHUB_OUTPUT
+          else
+            echo "version_bump=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Force update if requested
+          if [ "${{ inputs.force_update }}" == "true" ]; then
+            NEEDS_UPDATE=true
+          fi
+          
+          # Skip if the last commit was a changelog update
+          LAST_COMMIT_MESSAGE=$(git log -1 --pretty=%B || echo "")
+          if echo "$LAST_COMMIT_MESSAGE" | grep -i "update CHANGELOG.*${{ env.SKIP_CI_MESSAGE }}" > /dev/null; then
+            NEEDS_UPDATE=false
+          fi
+          
+          # Export results
+          {
+            echo "needs_update=$NEEDS_UPDATE"
+            echo "has_features=$HAS_FEATURES"
+            echo "has_fixes=$HAS_FIXES"
+            echo "has_breaking=$HAS_BREAKING"
+            echo "has_perf=$HAS_PERF"
+            echo "has_docs=$HAS_DOCS"
+          } >> $GITHUB_OUTPUT
+
+      - name: Update CHANGELOG with Claude
+        if: steps.analyze.outputs.needs_update == 'true'
+        id: claude-update
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: "${{ vars.CLAUDE_MODEL || 'claude-opus-4-20250514' }}"
+          trigger_phrase: "@claude"
+          allowed_tools: "Read,Write,Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git diff:*)"
+          custom_instructions: |
+            You are updating the CHANGELOG.md file for the SteadyText project.
+            
+            Context:
+            - Recent commits:
+            ${{ steps.context.outputs.commits }}
+            
+            - PR Information:
+              - Title: ${{ steps.context.outputs.pr_title }}
+              - Number: ${{ steps.context.outputs.pr_number }}
+              - Labels: ${{ steps.context.outputs.pr_labels }}
+              - Body: ${{ steps.context.outputs.pr_body }}
+            
+            - Change Analysis:
+              - Has new features: ${{ steps.analyze.outputs.has_features }}
+              - Has bug fixes: ${{ steps.analyze.outputs.has_fixes }}
+              - Has breaking changes: ${{ steps.analyze.outputs.has_breaking }}
+              - Has performance improvements: ${{ steps.analyze.outputs.has_perf }}
+              - Has documentation updates: ${{ steps.analyze.outputs.has_docs }}
+              - Version bump detected: ${{ steps.analyze.outputs.version_bump }}
+            
+            Instructions:
+            1. Read the current CHANGELOG.md file
+            2. Analyze the commits and PR information to extract meaningful changes
+            3. Update the CHANGELOG.md following these rules:
+               - If version_bump is true and there's an Unreleased section, convert it to a new version section with today's date
+               - Otherwise, add entries to the "Unreleased" section (create if it doesn't exist)
+               - Group changes by category in this order:
+                 * Breaking Changes (if any)
+                 * New Features
+                 * Bug Fixes
+                 * Performance Improvements
+                 * Documentation
+                 * Internal Changes
+               - Write clear, user-facing descriptions
+               - Include PR reference when available (#{number})
+               - Focus on the "what" and "why", not the "how"
+            4. Guidelines for descriptions:
+               - Start with a verb in present tense
+               - Be concise but informative
+               - Mention affected components/modules
+               - Highlight user impact
+            5. Skip these types of changes:
+               - Minor refactoring without user impact
+               - Typo fixes in code comments
+               - Development dependency updates
+               - CI/CD changes (unless they affect users)
+            6. After updating, show the diff with: git diff CHANGELOG.md
+            7. Commit with: git commit -m "chore: update CHANGELOG.md ${{ env.SKIP_CI_MESSAGE }}"
+            8. Push the changes
+            
+            IMPORTANT:
+            - Preserve all existing content
+            - Maintain consistent formatting
+            - If no meaningful changes found, do not update the file
+            - Reference issues/PRs using GitHub's format (#123)
+          github_comment_mode: "none"  # Don't post comments for automated runs
+          github_app_installation_id: ${{ steps.app-token.outputs.installation-id }}
+          github_app_token: ${{ steps.app-token.outputs.token }}
+        continue-on-error: true
+
+      - name: Create detailed summary
+        if: always()
+        run: |
+          echo "# CHANGELOG Update Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.analyze.outputs.needs_update }}" == "true" ]; then
+            echo "## Analysis Results" >> $GITHUB_STEP_SUMMARY
+            echo "- 🆕 New Features: ${{ steps.analyze.outputs.has_features }}" >> $GITHUB_STEP_SUMMARY
+            echo "- 🐛 Bug Fixes: ${{ steps.analyze.outputs.has_fixes }}" >> $GITHUB_STEP_SUMMARY
+            echo "- 💥 Breaking Changes: ${{ steps.analyze.outputs.has_breaking }}" >> $GITHUB_STEP_SUMMARY
+            echo "- ⚡ Performance: ${{ steps.analyze.outputs.has_perf }}" >> $GITHUB_STEP_SUMMARY
+            echo "- 📚 Documentation: ${{ steps.analyze.outputs.has_docs }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Check if CHANGELOG was actually modified
+            if git diff --name-only "origin/${{ github.ref_name }}..HEAD" 2>/dev/null | grep -q "^${{ env.CHANGELOG_FILE }}$" || \
+               git diff --name-only HEAD~1..HEAD 2>/dev/null | grep -q "^${{ env.CHANGELOG_FILE }}$"; then
+              echo "✅ **CHANGELOG.md was successfully updated**" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "ℹ️ **No updates were needed for CHANGELOG.md**" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "⏭️ **Skipped**: No changelog-worthy changes detected" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Analyzed Commits" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.context.outputs.commits }}" | head -10 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Handle errors
+        if: failure()
+        run: |
+          echo "❌ **Failed to update CHANGELOG.md**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Please update the CHANGELOG manually or check the workflow logs for details." >> $GITHUB_STEP_SUMMARY
