@@ -404,6 +404,13 @@ print(f"Models are stored in: {cache_dir}")
 - **`OPENAI_API_KEY`**: API key for OpenAI models (required for openai:* models)
 - **`CEREBRAS_API_KEY`**: API key for Cerebras models (required for cerebras:* models)
 
+**Note:** To use OpenAI or Cerebras models, you must install the OpenAI client library:
+```bash
+pip install openai
+# or
+pip install steadytext[unsafe]
+```
+
 ### Generation Cache
 
 - **`STEADYTEXT_GENERATION_CACHE_CAPACITY`**: Maximum number of cache entries (default: 256)

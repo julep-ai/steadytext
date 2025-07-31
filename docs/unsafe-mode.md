@@ -16,6 +16,16 @@ Remote models are considered "unsafe" because:
 - **Infrastructure Variability**: Different servers may produce different results
 - **API Costs**: Unlike local models, remote models incur per-token charges
 
+## Prerequisites
+
+To use unsafe mode with OpenAI models, you need to install the OpenAI client:
+
+```bash
+pip install openai
+# or
+pip install steadytext[unsafe]
+```
+
 ## Enabling Unsafe Mode
 
 Unsafe mode requires explicit opt-in via environment variable:

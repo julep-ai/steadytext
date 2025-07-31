@@ -298,6 +298,11 @@ SteadyText now supports remote AI models (OpenAI, Cerebras) with **best-effort d
 ### Quick Example
 
 ```bash
+# Install OpenAI client (required for OpenAI models)
+pip install openai
+# or
+pip install steadytext[unsafe]
+
 # Enable unsafe mode
 export STEADYTEXT_UNSAFE_MODE=true
 
