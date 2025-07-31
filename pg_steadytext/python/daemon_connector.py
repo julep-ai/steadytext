@@ -243,6 +243,7 @@ class SteadyTextConnector:
         prompt: str,
         max_tokens: Optional[int] = None,
         max_new_tokens: Optional[int] = None,
+        unsafe_mode: bool = False,
         **kwargs,
     ) -> str:
         """
@@ -275,6 +276,7 @@ class SteadyTextConnector:
                 result = generate(
                     prompt,
                     max_new_tokens=max_new_tokens,
+                    unsafe_mode=unsafe_mode,
                     **kwargs,
                 )
                 # Handle both str and tuple returns
@@ -290,6 +292,7 @@ class SteadyTextConnector:
                 result = generate(
                     prompt,
                     max_new_tokens=max_new_tokens,
+                    unsafe_mode=unsafe_mode,
                     **kwargs,
                 )
                 # Handle both str and tuple returns
@@ -301,7 +304,9 @@ class SteadyTextConnector:
                 logger.error(f"Direct generation also failed: {e2}")
                 return self._fallback_generate(prompt, max_new_tokens)
 
-    def generate_stream(self, prompt: str, max_tokens: int = 512, **kwargs):
+    def generate_stream(
+        self, prompt: str, max_tokens: int = 512, unsafe_mode: bool = False, **kwargs
+    ):
         """
         Generate text in streaming mode.
 
@@ -329,6 +334,7 @@ class SteadyTextConnector:
                 for token in generate_iter(
                     prompt,
                     max_new_tokens=max_tokens,
+                    unsafe_mode=unsafe_mode,
                     **kwargs,
                 ):
                     yield token
@@ -340,6 +346,7 @@ class SteadyTextConnector:
                 for token in generate_iter(
                     prompt,
                     max_new_tokens=max_tokens,
+                    unsafe_mode=unsafe_mode,
                     **kwargs,
                 ):
                     yield token
@@ -395,6 +402,7 @@ class SteadyTextConnector:
         prompt: str,
         schema: dict,
         max_tokens: int = 512,
+        unsafe_mode: bool = False,
         **kwargs,
     ) -> str:
         """
@@ -423,6 +431,7 @@ class SteadyTextConnector:
                     prompt,
                     schema=schema,
                     max_tokens=max_tokens,
+                    unsafe_mode=unsafe_mode,
                     **kwargs,
                 )
                 return cast(str, result)
@@ -437,6 +446,7 @@ class SteadyTextConnector:
                     prompt,
                     schema=schema,
                     max_tokens=max_tokens,
+                    unsafe_mode=unsafe_mode,
                     **kwargs,
                 )
                 return cast(str, result)
@@ -449,6 +459,7 @@ class SteadyTextConnector:
         prompt: str,
         pattern: str,
         max_tokens: int = 512,
+        unsafe_mode: bool = False,
         **kwargs,
     ) -> str:
         """
@@ -477,6 +488,7 @@ class SteadyTextConnector:
                     prompt,
                     pattern=pattern,
                     max_tokens=max_tokens,
+                    unsafe_mode=unsafe_mode,
                     **kwargs,
                 )
                 return cast(str, result)
@@ -491,6 +503,7 @@ class SteadyTextConnector:
                     prompt,
                     pattern=pattern,
                     max_tokens=max_tokens,
+                    unsafe_mode=unsafe_mode,
                     **kwargs,
                 )
                 return cast(str, result)
@@ -503,6 +516,7 @@ class SteadyTextConnector:
         prompt: str,
         choices: List[str],
         max_tokens: int = 512,
+        unsafe_mode: bool = False,
         **kwargs,
     ) -> str:
         """
@@ -531,6 +545,7 @@ class SteadyTextConnector:
                     prompt,
                     choices=choices,
                     max_tokens=max_tokens,
+                    unsafe_mode=unsafe_mode,
                     **kwargs,
                 )
                 return cast(str, result)
@@ -545,6 +560,7 @@ class SteadyTextConnector:
                     prompt,
                     choices=choices,
                     max_tokens=max_tokens,
+                    unsafe_mode=unsafe_mode,
                     **kwargs,
                 )
                 return cast(str, result)

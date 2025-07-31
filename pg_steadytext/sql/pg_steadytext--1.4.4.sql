@@ -1,5 +1,5 @@
--- pg_steadytext--1.4.3.sql
--- Complete schema for pg_steadytext extension version 1.4.3
+-- pg_steadytext--1.4.4.sql
+-- Complete schema for pg_steadytext extension version 1.4.4
 
 -- AIDEV-SECTION: CORE_TABLE_DEFINITIONS
 -- Cache table that mirrors and extends SteadyText's SQLite cache
@@ -348,18 +348,40 @@ $c$;
 -- AIDEV-SECTION: CORE_FUNCTIONS
 -- Core function: Synchronous text generation
 -- Returns NULL if generation fails (no fallback text)
+-- Handle removal of old function signature before creating new one
+DO $$
+BEGIN
+    -- Try to remove old function from extension if it exists
+    BEGIN
+        ALTER EXTENSION pg_steadytext DROP FUNCTION steadytext_generate(text, integer, boolean, integer);
+    EXCEPTION WHEN OTHERS THEN
+        -- Function either doesn't exist or isn't part of extension
+        NULL;
+    END;
+    
+    -- Try to drop old function if it exists
+    DROP FUNCTION IF EXISTS steadytext_generate(text, integer, boolean, integer);
+END $$;
+
 CREATE OR REPLACE FUNCTION steadytext_generate(
     prompt TEXT,
     max_tokens INT DEFAULT NULL,
     use_cache BOOLEAN DEFAULT TRUE,
-    seed INT DEFAULT 42
+    seed INT DEFAULT 42,
+    eos_string TEXT DEFAULT '[EOS]',
+    model TEXT DEFAULT NULL,
+    model_repo TEXT DEFAULT NULL,
+    model_filename TEXT DEFAULT NULL,
+    size TEXT DEFAULT NULL,
+    unsafe_mode BOOLEAN DEFAULT FALSE
 )
 RETURNS TEXT
 LANGUAGE plpython3u
-IMMUTABLE PARALLEL SAFE LEAKPROOF
+IMMUTABLE PARALLEL SAFE
 AS $c$
 # AIDEV-NOTE: Main text generation function that integrates with SteadyText daemon
-# Fixed in v1.4.1 to use SELECT-only cache reads for true immutability
+# v1.4.4: Added support for eos_string, model, model_repo, model_filename, size parameters
+# v1.4.4: Added unsafe_mode parameter for remote model access
 import json
 import hashlib
 
@@ -401,14 +423,20 @@ if resolved_max_tokens < 1 or resolved_max_tokens > 4096:
 if resolved_seed < 0:
     plpy.error("seed must be non-negative")
 
+# AIDEV-NOTE: Validate model parameter - remote models require unsafe_mode=TRUE
+if not unsafe_mode and model and ':' in model:
+    plpy.error("Remote models (containing ':') require unsafe_mode=TRUE")
+
 # Check if we should use cache
 if use_cache:
     # Generate cache key consistent with SteadyText format
-    # AIDEV-NOTE: Updated to match SteadyText's simple cache key format from utils.py
-    # For generation: just the prompt (no parameters in key)
-    cache_key = prompt
+    # Include eos_string in cache key if it's not the default
+    if eos_string == '[EOS]':
+        cache_key = prompt
+    else:
+        cache_key = f"{prompt}::EOS::{eos_string}"
 
-    # Try to get from cache first - SELECT ONLY (no UPDATE for immutability)
+    # Try to get from cache first
     cache_plan = plpy.prepare("""
         SELECT response 
         FROM steadytext_cache 
@@ -441,13 +469,31 @@ if auto_start and not connector.is_daemon_running():
     if not started:
         plpy.warning("Failed to auto-start daemon, will try direct generation")
 
+# Build kwargs for additional parameters
+generation_kwargs = {
+    "seed": resolved_seed,
+    "eos_string": eos_string
+}
+
+# Add optional model parameters if provided
+if model is not None:
+    generation_kwargs["model"] = model
+if model_repo is not None:
+    generation_kwargs["model_repo"] = model_repo
+if model_filename is not None:
+    generation_kwargs["model_filename"] = model_filename
+if size is not None:
+    generation_kwargs["size"] = size
+if unsafe_mode:
+    generation_kwargs["unsafe_mode"] = unsafe_mode
+
 # Try to generate via daemon or direct fallback
 try:
     if connector.is_daemon_running():
         result = connector.generate(
             prompt=prompt,
             max_tokens=resolved_max_tokens,
-            seed=resolved_seed
+            **generation_kwargs
         )
     else:
         # Direct generation fallback
@@ -455,17 +501,25 @@ try:
         result = steadytext_generate(
             prompt=prompt, 
             max_new_tokens=resolved_max_tokens,
-            seed=resolved_seed
+            **generation_kwargs
         )
-    
-    # AIDEV-NOTE: Cache writes removed for IMMUTABLE compliance
-    # To populate cache, use the VOLATILE wrapper functions or external processes
-    
     return result
     
 except Exception as e:
     plpy.error(f"Generation failed: {str(e)}")
 $c$;
+
+-- Add new function to extension (idempotent)
+DO $$
+BEGIN
+    -- Try to add function to extension
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION steadytext_generate(text, integer, boolean, integer, text, text, text, text, text, boolean);
+    EXCEPTION WHEN OTHERS THEN
+        -- Function is already part of extension
+        NULL;
+    END;
+END $$;
 
 -- Core function: Synchronous embedding generation
 -- Returns NULL if embedding generation fails (no fallback vector)
@@ -1018,12 +1072,28 @@ $c$;
 -- Structured generation functions using llama.cpp grammars
 
 -- Generate JSON with schema validation
+-- Handle removal of old function signature before creating new one
+DO $$
+BEGIN
+    -- Try to remove old function from extension if it exists
+    BEGIN
+        ALTER EXTENSION pg_steadytext DROP FUNCTION steadytext_generate_json(text, jsonb, integer, boolean, integer);
+    EXCEPTION WHEN OTHERS THEN
+        -- Function either doesn't exist or isn't part of extension
+        NULL;
+    END;
+    
+    -- Try to drop old function if it exists
+    DROP FUNCTION IF EXISTS steadytext_generate_json(text, jsonb, integer, boolean, integer);
+END $$;
+
 CREATE OR REPLACE FUNCTION steadytext_generate_json(
     prompt TEXT,
     schema JSONB,
     max_tokens INT DEFAULT NULL,
     use_cache BOOLEAN DEFAULT TRUE,
-    seed INT DEFAULT 42
+    seed INT DEFAULT 42,
+    unsafe_mode BOOLEAN DEFAULT FALSE
 )
 RETURNS TEXT
 LANGUAGE plpython3u
@@ -1031,6 +1101,7 @@ IMMUTABLE PARALLEL SAFE
 AS $c$
 # AIDEV-NOTE: Generate JSON that conforms to a schema using llama.cpp grammars
 # Fixed in v1.4.1 to use SELECT-only cache reads for true immutability
+# v1.4.4: Added unsafe_mode parameter for remote model access
 import json
 import hashlib
 
@@ -1112,6 +1183,12 @@ if auto_start and not connector.is_daemon_running():
     plpy.notice("Starting SteadyText daemon...")
     connector.start_daemon()
 
+# Build kwargs
+generation_kwargs = {
+    "seed": resolved_seed,
+    "unsafe_mode": unsafe_mode
+}
+
 # Generate structured output
 try:
     if connector.is_daemon_running():
@@ -1119,7 +1196,7 @@ try:
             prompt=prompt,
             schema=schema_dict,
             max_tokens=resolved_max_tokens,
-            seed=seed
+            **generation_kwargs
         )
     else:
         # Direct generation fallback
@@ -1128,7 +1205,7 @@ try:
             prompt=prompt,
             schema=schema_dict,
             max_tokens=resolved_max_tokens,
-            seed=seed
+            **generation_kwargs
         )
     
     # AIDEV-NOTE: Cache writes removed for IMMUTABLE compliance
@@ -1139,13 +1216,41 @@ except Exception as e:
     plpy.error(f"JSON generation failed: {str(e)}")
 $c$;
 
+-- Add new function to extension (idempotent)
+DO $$
+BEGIN
+    -- Try to add function to extension
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION steadytext_generate_json(text, jsonb, integer, boolean, integer, boolean);
+    EXCEPTION WHEN OTHERS THEN
+        -- Function is already part of extension
+        NULL;
+    END;
+END $$;
+
 -- Generate text matching a regex pattern
+-- Handle removal of old function signature before creating new one
+DO $$
+BEGIN
+    -- Try to remove old function from extension if it exists
+    BEGIN
+        ALTER EXTENSION pg_steadytext DROP FUNCTION steadytext_generate_regex(text, text, integer, boolean, integer);
+    EXCEPTION WHEN OTHERS THEN
+        -- Function either doesn't exist or isn't part of extension
+        NULL;
+    END;
+    
+    -- Try to drop old function if it exists
+    DROP FUNCTION IF EXISTS steadytext_generate_regex(text, text, integer, boolean, integer);
+END $$;
+
 CREATE OR REPLACE FUNCTION steadytext_generate_regex(
     prompt TEXT,
     pattern TEXT,
     max_tokens INT DEFAULT NULL,
     use_cache BOOLEAN DEFAULT TRUE,
-    seed INT DEFAULT 42
+    seed INT DEFAULT 42,
+    unsafe_mode BOOLEAN DEFAULT FALSE
 )
 RETURNS TEXT
 LANGUAGE plpython3u
@@ -1153,6 +1258,7 @@ IMMUTABLE PARALLEL SAFE
 AS $c$
 # AIDEV-NOTE: Generate text matching a regex pattern using llama.cpp grammars
 # Fixed in v1.4.1 to use SELECT-only cache reads for true immutability
+# v1.4.4: Added unsafe_mode parameter for remote model access
 import json
 import hashlib
 
@@ -1225,6 +1331,12 @@ if auto_start and not connector.is_daemon_running():
     plpy.notice("Starting SteadyText daemon...")
     connector.start_daemon()
 
+# Build kwargs
+generation_kwargs = {
+    "seed": resolved_seed,
+    "unsafe_mode": unsafe_mode
+}
+
 # Generate structured output
 try:
     if connector.is_daemon_running():
@@ -1232,7 +1344,7 @@ try:
             prompt=prompt,
             pattern=pattern,
             max_tokens=resolved_max_tokens,
-            seed=seed
+            **generation_kwargs
         )
     else:
         # Direct generation fallback
@@ -1241,7 +1353,7 @@ try:
             prompt=prompt,
             regex=pattern,
             max_tokens=resolved_max_tokens,
-            seed=seed
+            **generation_kwargs
         )
     
     # AIDEV-NOTE: Cache writes removed for IMMUTABLE compliance
@@ -1252,13 +1364,41 @@ except Exception as e:
     plpy.error(f"Regex generation failed: {str(e)}")
 $c$;
 
+-- Add new function to extension (idempotent)
+DO $$
+BEGIN
+    -- Try to add function to extension
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION steadytext_generate_regex(text, text, integer, boolean, integer, boolean);
+    EXCEPTION WHEN OTHERS THEN
+        -- Function is already part of extension
+        NULL;
+    END;
+END $$;
+
 -- Generate text from a list of choices
+-- Handle removal of old function signature before creating new one
+DO $$
+BEGIN
+    -- Try to remove old function from extension if it exists
+    BEGIN
+        ALTER EXTENSION pg_steadytext DROP FUNCTION steadytext_generate_choice(text, text[], integer, boolean, integer);
+    EXCEPTION WHEN OTHERS THEN
+        -- Function either doesn't exist or isn't part of extension
+        NULL;
+    END;
+    
+    -- Try to drop old function if it exists
+    DROP FUNCTION IF EXISTS steadytext_generate_choice(text, text[], integer, boolean, integer);
+END $$;
+
 CREATE OR REPLACE FUNCTION steadytext_generate_choice(
     prompt TEXT,
     choices TEXT[],
     max_tokens INT DEFAULT NULL,
     use_cache BOOLEAN DEFAULT TRUE,
-    seed INT DEFAULT 42
+    seed INT DEFAULT 42,
+    unsafe_mode BOOLEAN DEFAULT FALSE
 )
 RETURNS TEXT
 LANGUAGE plpython3u
@@ -1266,6 +1406,7 @@ IMMUTABLE PARALLEL SAFE
 AS $c$
 # AIDEV-NOTE: Generate text constrained to one of the provided choices
 # Fixed in v1.4.1 to use SELECT-only cache reads for true immutability
+# v1.4.4: Added unsafe_mode parameter for remote model access
 import json
 import hashlib
 
@@ -1341,6 +1482,12 @@ if auto_start and not connector.is_daemon_running():
     plpy.notice("Starting SteadyText daemon...")
     connector.start_daemon()
 
+# Build kwargs
+generation_kwargs = {
+    "seed": resolved_seed,
+    "unsafe_mode": unsafe_mode
+}
+
 # Generate structured output
 try:
     if connector.is_daemon_running():
@@ -1348,7 +1495,7 @@ try:
             prompt=prompt,
             choices=choices_list,
             max_tokens=resolved_max_tokens,
-            seed=seed
+            **generation_kwargs
         )
     else:
         # Direct generation fallback
@@ -1357,7 +1504,7 @@ try:
             prompt=prompt,
             choices=choices_list,
             max_tokens=resolved_max_tokens,
-            seed=seed
+            **generation_kwargs
         )
     
     # AIDEV-NOTE: Cache writes removed for IMMUTABLE compliance
@@ -1367,6 +1514,18 @@ try:
 except Exception as e:
     plpy.error(f"Choice generation failed: {str(e)}")
 $c$;
+
+-- Add new function to extension (idempotent)
+DO $$
+BEGIN
+    -- Try to add function to extension
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION steadytext_generate_choice(text, text[], integer, boolean, integer, boolean);
+    EXCEPTION WHEN OTHERS THEN
+        -- Function is already part of extension
+        NULL;
+    END;
+END $$;
 
 -- AIDEV-SECTION: AI_SUMMARIZATION_AGGREGATES
 -- AI summarization aggregate functions with TimescaleDB support
@@ -2159,7 +2318,7 @@ COMMENT ON FUNCTION steadytext_embed_cached IS
 'VOLATILE wrapper for steadytext_embed that handles cache population. Use when automatic caching is needed.';
 
 -- Add note about cache population strategies
-COMMENT ON FUNCTION steadytext_generate IS 
+COMMENT ON FUNCTION steadytext_generate(text, integer, boolean, integer, text, text, text, text, text, boolean) IS 
 'IMMUTABLE function for text generation. Only reads from cache, never writes. For automatic cache population, use steadytext_generate_cached.';
 
 COMMENT ON FUNCTION steadytext_embed IS 
@@ -2230,371 +2389,363 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO PUBLIC;
 -- 4. Async processing support via queue system
 -- 5. Batch reranking for multiple queries
 -- 6. Integration with SteadyText daemon for Qwen3-Reranker-4B model
--- pg_steadytext--1.4.2--1.4.3.sql
--- Migration from version 1.4.2 to 1.4.3
 
--- AIDEV-NOTE: This migration fixes the following issues:
--- 1. Parameter name fix: max_tokens → max_new_tokens for direct generation fallback
--- 2. Mark functions as LEAKPROOF where appropriate for security
--- 3. Fix function overload conflict by removing single-argument embed function
--- 4. Fix UnboundLocalError in ai_summarize_accumulate function
--- 5. Fix rerank function return type issue
+-- AIDEV-NOTE: Added in v1.4.4 (2025-07-31):
+-- Short aliases for all steadytext functions (st_* for steadytext_*)
+-- Manual creation is required to preserve default parameter values
+-- Dynamic generation would create functions without DEFAULT clauses, breaking the API
 
--- Update the version function
-CREATE OR REPLACE FUNCTION steadytext_version()
-RETURNS TEXT
-LANGUAGE sql
-IMMUTABLE PARALLEL SAFE LEAKPROOF
-AS $c$
-    SELECT '1.4.3'::TEXT;
-$c$;
-
--- Fix steadytext_generate function to use max_new_tokens in fallback
-CREATE OR REPLACE FUNCTION steadytext_generate(
+-- st_generate alias
+CREATE OR REPLACE FUNCTION st_generate(
     prompt TEXT,
     max_tokens INT DEFAULT NULL,
     use_cache BOOLEAN DEFAULT TRUE,
-    seed INT DEFAULT 42
+    seed INT DEFAULT 42,
+    eos_string TEXT DEFAULT '[EOS]',
+    model TEXT DEFAULT NULL,
+    model_repo TEXT DEFAULT NULL,
+    model_filename TEXT DEFAULT NULL,
+    size TEXT DEFAULT NULL,
+    unsafe_mode BOOLEAN DEFAULT FALSE
 )
 RETURNS TEXT
-LANGUAGE plpython3u
+LANGUAGE sql
 IMMUTABLE PARALLEL SAFE
-AS $c$
-# AIDEV-NOTE: Main text generation function that integrates with SteadyText daemon
-import json
-import hashlib
+AS $alias$
+    SELECT steadytext_generate($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
+$alias$;
 
-# Check if initialized, if not, initialize now
-if not GD.get('steadytext_initialized', False):
-    # Initialize on demand
-    plpy.execute("SELECT _steadytext_init_python()")
-    # Check again after initialization
-    if not GD.get('steadytext_initialized', False):
-        plpy.error("Failed to initialize pg_steadytext Python environment")
-
-# Get cached modules from GD
-daemon_connector = GD.get('module_daemon_connector')
-if not daemon_connector:
-    plpy.error("daemon_connector module not loaded")
-
-# Get configuration
-plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
-
-# Resolve max_tokens, using the provided value or fetching the default
-resolved_max_tokens = max_tokens
-if resolved_max_tokens is None:
-    rv = plpy.execute(plan, ["default_max_tokens"])
-    resolved_max_tokens = json.loads(rv[0]["value"]) if rv else 512
-
-# Resolve seed, using the provided value or fetching the default
-resolved_seed = seed
-if resolved_seed is None:
-    rv = plpy.execute(plan, ["default_seed"])
-    resolved_seed = json.loads(rv[0]["value"]) if rv else 42
-
-# Validate inputs
-if not prompt or not prompt.strip():
-    plpy.error("Prompt cannot be empty")
-
-if resolved_max_tokens < 1 or resolved_max_tokens > 4096:
-    plpy.error("max_tokens must be between 1 and 4096")
-
-if resolved_seed < 0:
-    plpy.error("seed must be non-negative")
-
-# Check if we should use cache
-if use_cache:
-    # Generate cache key consistent with SteadyText format
-    # For generation: just the prompt (no parameters in key)
-    cache_key = prompt
-
-    # Try to get from cache first
-    cache_plan = plpy.prepare("""
-        SELECT response 
-        FROM steadytext_cache 
-        WHERE cache_key = $1
-    """, ["text"])
-    
-    cache_result = plpy.execute(cache_plan, [cache_key])
-    if cache_result and cache_result[0]["response"]:
-        plpy.notice(f"Cache hit for key: {cache_key[:8]}...")
-        return cache_result[0]["response"]
-
-# Cache miss - generate new content
-# Get configuration for daemon connection
-host_rv = plpy.execute(plan, ["daemon_host"])
-host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
-
-port_rv = plpy.execute(plan, ["daemon_port"])  
-port = json.loads(port_rv[0]["value"]) if port_rv else 5555
-
-# Create daemon connector
-connector = daemon_connector.SteadyTextConnector(host=host, port=port)
-
-# Check if daemon should auto-start
-auto_start_rv = plpy.execute(plan, ["daemon_auto_start"])
-auto_start = json.loads(auto_start_rv[0]["value"]) if auto_start_rv else True
-
-if auto_start and not connector.is_daemon_running():
-    plpy.notice("Starting SteadyText daemon...")
-    started = connector.start_daemon()
-    if not started:
-        plpy.warning("Failed to auto-start daemon, will try direct generation")
-
-# Try to generate via daemon or direct fallback
-try:
-    if connector.is_daemon_running():
-        result = connector.generate(
-            prompt=prompt,
-            max_tokens=resolved_max_tokens,
-            seed=resolved_seed
-        )
-    else:
-        # Direct generation fallback
-        from steadytext import generate as steadytext_generate
-        result = steadytext_generate(
-            prompt=prompt, 
-            max_new_tokens=resolved_max_tokens,
-            seed=resolved_seed
-        )
-    
-    return result
-    
-except Exception as e:
-    plpy.error(f"Generation failed: {str(e)}")
-$c$;
-
-CREATE OR REPLACE FUNCTION steadytext_embed(
+-- st_embed alias
+CREATE OR REPLACE FUNCTION st_embed(
     text_input TEXT,
     use_cache BOOLEAN DEFAULT TRUE,
     seed INT DEFAULT 42
 )
 RETURNS vector(1024)
-LANGUAGE plpython3u
+LANGUAGE sql
 IMMUTABLE PARALLEL SAFE
-AS $c$
-# AIDEV-NOTE: Embedding function that returns deterministic embeddings
-import json
-import numpy as np
-import hashlib
+AS $alias$
+    SELECT steadytext_embed($1, $2, $3);
+$alias$;
 
-# Check if initialized, if not, initialize now
-if not GD.get('steadytext_initialized', False):
-    # Initialize on demand
-    plpy.execute("SELECT _steadytext_init_python()")
-    # Check again after initialization
-    if not GD.get('steadytext_initialized', False):
-        plpy.error("Failed to initialize pg_steadytext Python environment")
+-- st_embed_cached alias
+CREATE OR REPLACE FUNCTION st_embed_cached(
+    text_input TEXT,
+    seed INT DEFAULT 42
+)
+RETURNS vector(1024)
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_embed_cached($1, $2);
+$alias$;
 
-# Get cached modules from GD
-daemon_connector = GD.get('module_daemon_connector')
-if not daemon_connector:
-    plpy.error("daemon_connector module not loaded")
+-- st_generate_cached alias
+CREATE OR REPLACE FUNCTION st_generate_cached(
+    prompt TEXT,
+    max_tokens INT DEFAULT NULL,
+    seed INT DEFAULT 42
+)
+RETURNS TEXT
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_generate_cached($1, $2, $3);
+$alias$;
 
-# Resolve seed, using the provided value or fetching the default
-plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
-resolved_seed = seed
-if resolved_seed is None:
-    rv = plpy.execute(plan, ["default_seed"])
-    resolved_seed = json.loads(rv[0]["value"]) if rv else 42
-
-# Validate input
-if not text_input or not text_input.strip():
-    plpy.warning("Empty text input provided, returning NULL")
-    return None
-
-if resolved_seed < 0:
-    plpy.error("seed must be non-negative")
-
-# Check cache first if enabled
-if use_cache:
-    # Generate cache key for embedding
-    # Embeddings use SHA256 hash of "embed:{text}"
-    cache_key_input = f"embed:{text_input}"
-    cache_key = hashlib.sha256(cache_key_input.encode()).hexdigest()
-
-    # Try to get from cache
-    cache_plan = plpy.prepare("""
-        SELECT embedding 
-        FROM steadytext_cache 
-        WHERE cache_key = $1
-    """, ["text"])
-    
-    cache_result = plpy.execute(cache_plan, [cache_key])
-    if cache_result and cache_result[0]["embedding"] is not None:
-        plpy.notice(f"Cache hit for embedding key: {cache_key[:8]}...")
-        return cache_result[0]["embedding"]
-
-# Cache miss - generate new embedding
-plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
-
-host_rv = plpy.execute(plan, ["daemon_host"])
-host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
-
-port_rv = plpy.execute(plan, ["daemon_port"])
-port = json.loads(port_rv[0]["value"]) if port_rv else 5555
-
-# Create connector
-connector = daemon_connector.SteadyTextConnector(host=host, port=port)
-
-# Auto-start daemon if configured
-auto_start_rv = plpy.execute(plan, ["daemon_auto_start"])
-auto_start = json.loads(auto_start_rv[0]["value"]) if auto_start_rv else True
-
-if auto_start and not connector.is_daemon_running():
-    plpy.notice("Starting SteadyText daemon...")
-    connector.start_daemon()
-
-# Generate embedding
-try:
-    if connector.is_daemon_running():
-        result = connector.embed(text=text_input)
-    else:
-        # Direct embedding fallback
-        from steadytext import embed as steadytext_embed
-        result = steadytext_embed(text_input)
-    
-    # Convert to vector format if needed
-    if result is not None:
-        # Ensure it's a list/array
-        if hasattr(result, 'tolist'):
-            embedding_list = result.tolist()
-        else:
-            embedding_list = list(result)
-        
-        return embedding_list
-    else:
-        plpy.error("Failed to generate embedding")
-        
-except Exception as e:
-    plpy.error(f"Embedding generation failed: {str(e)}")
-$c$;
-
--- Drop the single-argument embed overload if it exists (causes function overload conflicts)
-DROP FUNCTION IF EXISTS steadytext_embed(TEXT);
-
--- Fix ai_summarize_accumulate UnboundLocalError
-CREATE OR REPLACE FUNCTION ai_summarize_accumulate(
-    state jsonb,
-    value text,
-    metadata jsonb DEFAULT '{}'::jsonb
-) RETURNS jsonb
-LANGUAGE plpython3u
+-- st_generate_json alias
+CREATE OR REPLACE FUNCTION st_generate_json(
+    prompt TEXT,
+    schema JSONB,
+    max_tokens INT DEFAULT NULL,
+    use_cache BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42,
+    unsafe_mode BOOLEAN DEFAULT FALSE
+)
+RETURNS TEXT
+LANGUAGE sql
 IMMUTABLE PARALLEL SAFE
-AS $c$
-import json
+AS $alias$
+    SELECT steadytext_generate_json($1, $2, $3, $4, $5, $6);
+$alias$;
 
-old_state = state
+-- st_generate_regex alias
+CREATE OR REPLACE FUNCTION st_generate_regex(
+    prompt TEXT,
+    pattern TEXT,
+    max_tokens INT DEFAULT NULL,
+    use_cache BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42,
+    unsafe_mode BOOLEAN DEFAULT FALSE
+)
+RETURNS TEXT
+LANGUAGE sql
+IMMUTABLE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_generate_regex($1, $2, $3, $4, $5, $6);
+$alias$;
 
-if old_state is None:
-    accum = {
-        "facts": [],
-        "samples": [],
-        "stats": {
-            "row_count": 0,
-            "total_chars": 0,
-            "min_length": None,
-            "max_length": 0
-        },
-        "metadata": {}
-    }
-else:
-    try:
-        accum = json.loads(old_state)
-    except (json.JSONDecodeError, TypeError) as e:
-        plpy.error(f"Invalid state JSON: {e}")
+-- st_generate_choice alias
+CREATE OR REPLACE FUNCTION st_generate_choice(
+    prompt TEXT,
+    choices TEXT[],
+    max_tokens INT DEFAULT NULL,
+    use_cache BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42,
+    unsafe_mode BOOLEAN DEFAULT FALSE
+)
+RETURNS TEXT
+LANGUAGE sql
+IMMUTABLE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_generate_choice($1, $2, $3, $4, $5, $6);
+$alias$;
 
-if value is None:
-    return json.dumps(accum)
+-- st_rerank alias
+CREATE OR REPLACE FUNCTION st_rerank(
+    query TEXT,
+    documents TEXT[],
+    task TEXT DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    return_scores BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42
+)
+RETURNS TABLE(document TEXT, score DOUBLE PRECISION)
+LANGUAGE sql
+IMMUTABLE PARALLEL SAFE
+AS $alias$
+    SELECT * FROM steadytext_rerank($1, $2, $3, $4, $5);
+$alias$;
 
-# Extract facts from the value
-plan = plpy.prepare("SELECT ai_extract_facts($1, 3) as facts", ["text"])
-result = plpy.execute(plan, [value])
+-- st_rerank_docs_only alias
+CREATE OR REPLACE FUNCTION st_rerank_docs_only(
+    query TEXT,
+    documents TEXT[],
+    task TEXT DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    seed INT DEFAULT 42
+)
+RETURNS TABLE(document TEXT)
+LANGUAGE sql
+IMMUTABLE PARALLEL SAFE
+AS $alias$
+    SELECT * FROM steadytext_rerank_docs_only($1, $2, $3, $4);
+$alias$;
 
-if result and result[0]["facts"]:
-    try:
-        extracted = json.loads(result[0]["facts"])
-        if "facts" in extracted:
-            accum["facts"].extend(extracted["facts"])
-    except (json.JSONDecodeError, TypeError):
-        pass
+-- st_rerank_top_k alias
+CREATE OR REPLACE FUNCTION st_rerank_top_k(
+    query TEXT,
+    documents TEXT[],
+    top_k INT DEFAULT 5,
+    task TEXT DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    return_scores BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42
+)
+RETURNS TABLE(document TEXT, score DOUBLE PRECISION)
+LANGUAGE sql
+IMMUTABLE PARALLEL SAFE
+AS $alias$
+    SELECT * FROM steadytext_rerank_top_k($1, $2, $3, $4, $5, $6);
+$alias$;
 
-# Update statistics
-value_len = len(value)
-accum["stats"]["row_count"] += 1
-accum["stats"]["total_chars"] += value_len
-if accum["stats"]["min_length"] is None or value_len < accum["stats"]["min_length"]:
-    accum["stats"]["min_length"] = value_len
-if value_len > accum["stats"]["max_length"]:
-    accum["stats"]["max_length"] = value_len
+-- st_rerank_batch alias
+CREATE OR REPLACE FUNCTION st_rerank_batch(
+    queries TEXT[],
+    documents TEXT[],
+    task TEXT DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    return_scores BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42
+)
+RETURNS TABLE(query_index INTEGER, document TEXT, score DOUBLE PRECISION)
+LANGUAGE sql
+IMMUTABLE PARALLEL SAFE
+AS $alias$
+    SELECT * FROM steadytext_rerank_batch($1, $2, $3, $4, $5);
+$alias$;
 
-# Sample every 10th row (up to 10 samples)
-if accum["stats"]["row_count"] % 10 == 1 and len(accum["samples"]) < 10:
-    accum["samples"].append(value[:200])
+-- Async function aliases
+-- st_generate_async alias
+CREATE OR REPLACE FUNCTION st_generate_async(
+    prompt TEXT,
+    max_tokens INT DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_generate_async($1, $2);
+$alias$;
 
-# Merge metadata
-if metadata:
-    try:
-        meta = json.loads(metadata) if isinstance(metadata, str) else metadata
-        for k, v in meta.items():
-            if k not in accum["metadata"]:
-                accum["metadata"][k] = v
-    except (json.JSONDecodeError, TypeError):
-        pass
+-- st_rerank_async alias
+CREATE OR REPLACE FUNCTION st_rerank_async(
+    query TEXT,
+    documents TEXT[],
+    task TEXT DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    return_scores BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42
+)
+RETURNS UUID
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_rerank_async($1, $2, $3, $4, $5);
+$alias$;
 
-return json.dumps(accum)
-$c$;
+-- st_rerank_batch_async alias
+CREATE OR REPLACE FUNCTION st_rerank_batch_async(
+    queries TEXT[],
+    documents TEXT[],
+    task TEXT DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    return_scores BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42
+)
+RETURNS UUID[]
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_rerank_batch_async($1, $2, $3, $4, $5);
+$alias$;
 
--- Fix rerank function return type issue
--- First rename the implementation function
-DO $$
-BEGIN
-    -- Only run if steadytext_rerank_impl does NOT exist
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_proc 
-        WHERE proname = 'steadytext_rerank_impl'
-          AND pg_function_is_visible(oid)
-    ) THEN
-        EXECUTE $cmd$
-            ALTER FUNCTION steadytext_rerank(text, text[], text, boolean, integer) RENAME TO steadytext_rerank_impl;
-        $cmd$;
+-- st_check_async alias
+CREATE OR REPLACE FUNCTION st_check_async(
+    request_id UUID
+)
+RETURNS TABLE(status TEXT, result TEXT, error TEXT, created_at TIMESTAMP WITH TIME ZONE, completed_at TIMESTAMP WITH TIME ZONE)
+LANGUAGE sql
+STABLE PARALLEL SAFE
+AS $alias$
+    SELECT * FROM steadytext_check_async($1);
+$alias$;
 
-        EXECUTE $cmd$
-            CREATE OR REPLACE FUNCTION steadytext_rerank(
-                query text,
-                documents text[],
-                task text DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
-                return_scores boolean DEFAULT true,
-                seed integer DEFAULT 42
-            ) RETURNS SETOF record
-            LANGUAGE sql IMMUTABLE PARALLEL SAFE
-            AS $c$
-              SELECT document, score FROM steadytext_rerank_impl($1, $2, $3, $4, $5);
-            $c$;
-        $cmd$;
-    END IF;
-END
-$$;
+-- st_get_async_result alias
+CREATE OR REPLACE FUNCTION st_get_async_result(
+    request_id UUID,
+    timeout_seconds INT DEFAULT 30
+)
+RETURNS TEXT
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_get_async_result($1, $2);
+$alias$;
 
--- Update config function to be more secure
-CREATE OR REPLACE FUNCTION steadytext_config_set(key TEXT, value TEXT)
+-- Cache management aliases
+-- st_cache_stats alias
+CREATE OR REPLACE FUNCTION st_cache_stats()
+RETURNS TABLE(total_entries BIGINT, total_size_mb DOUBLE PRECISION, cache_hit_rate DOUBLE PRECISION, avg_access_count DOUBLE PRECISION, oldest_entry TIMESTAMP WITH TIME ZONE, newest_entry TIMESTAMP WITH TIME ZONE)
+LANGUAGE sql
+STABLE PARALLEL SAFE
+AS $alias$
+    SELECT * FROM steadytext_cache_stats();
+$alias$;
+
+-- st_cache_clear alias
+CREATE OR REPLACE FUNCTION st_cache_clear()
+RETURNS BIGINT
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_cache_clear();
+$alias$;
+
+-- st_cache_evict_by_age alias
+CREATE OR REPLACE FUNCTION st_cache_evict_by_age(
+    target_entries INT DEFAULT NULL,
+    target_size_mb DOUBLE PRECISION DEFAULT NULL,
+    batch_size INT DEFAULT 100,
+    min_age_hours INT DEFAULT 1
+)
+RETURNS TABLE(evicted_count INTEGER, freed_size_mb DOUBLE PRECISION, remaining_entries BIGINT, remaining_size_mb DOUBLE PRECISION)
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT * FROM steadytext_cache_evict_by_age($1, $2, $3, $4);
+$alias$;
+
+-- st_cache_preview_eviction alias
+CREATE OR REPLACE FUNCTION st_cache_preview_eviction(
+    preview_count INT DEFAULT 10
+)
+RETURNS TABLE(cache_key TEXT, prompt TEXT, access_count INTEGER, last_accessed TIMESTAMP WITH TIME ZONE, created_at TIMESTAMP WITH TIME ZONE, age_days DOUBLE PRECISION, size_bytes BIGINT)
+LANGUAGE sql
+STABLE PARALLEL SAFE
+AS $alias$
+    SELECT * FROM steadytext_cache_preview_eviction($1);
+$alias$;
+
+-- st_cache_analyze_usage alias
+CREATE OR REPLACE FUNCTION st_cache_analyze_usage()
+RETURNS TABLE(age_bucket TEXT, entry_count BIGINT, avg_access_count DOUBLE PRECISION, total_size_mb DOUBLE PRECISION, percentage_of_cache DOUBLE PRECISION)
+LANGUAGE sql
+STABLE PARALLEL SAFE
+AS $alias$
+    SELECT * FROM steadytext_cache_analyze_usage();
+$alias$;
+
+-- st_cache_scheduled_eviction alias
+CREATE OR REPLACE FUNCTION st_cache_scheduled_eviction()
 RETURNS VOID
-LANGUAGE plpgsql
-AS $c$
-BEGIN
-    INSERT INTO steadytext_config (key, value)
-    VALUES (key, to_jsonb(value))
-    ON CONFLICT (key) DO UPDATE
-    SET value = to_jsonb(EXCLUDED.value),
-        updated_at = NOW(),
-        updated_by = current_user;
-END;
-$c$;
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_cache_scheduled_eviction();
+$alias$;
 
--- AIDEV-NOTE: Migration completed successfully
--- Changes in v1.4.3:
--- 1. Fixed parameter name from max_tokens to max_new_tokens in direct generation fallback
--- 2. Added LEAKPROOF to appropriate functions for security
--- 3. Removed conflicting single-argument steadytext_embed overload
--- 4. Fixed UnboundLocalError in ai_summarize_accumulate by using old_state/accum pattern
--- 5. Fixed rerank function return type by creating proper SQL wrapper
+-- Daemon management aliases
+-- st_daemon_start alias
+CREATE OR REPLACE FUNCTION st_daemon_start()
+RETURNS BOOLEAN
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_daemon_start();
+$alias$;
+
+-- st_daemon_status alias
+CREATE OR REPLACE FUNCTION st_daemon_status()
+RETURNS TABLE(daemon_id TEXT, status TEXT, endpoint TEXT, last_heartbeat TIMESTAMP WITH TIME ZONE, uptime_seconds INTEGER)
+LANGUAGE sql
+STABLE PARALLEL SAFE
+AS $alias$
+    SELECT * FROM steadytext_daemon_status();
+$alias$;
+
+-- st_daemon_stop alias
+CREATE OR REPLACE FUNCTION st_daemon_stop()
+RETURNS BOOLEAN
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_daemon_stop();
+$alias$;
+
+-- Configuration aliases
+-- st_config_get alias
+CREATE OR REPLACE FUNCTION st_config_get(
+    key TEXT
+)
+RETURNS TEXT
+LANGUAGE sql
+STABLE PARALLEL SAFE STRICT
+AS $alias$
+    SELECT steadytext_config_get($1);
+$alias$;
+
+-- st_config_set alias
+CREATE OR REPLACE FUNCTION st_config_set(
+    key TEXT,
+    value TEXT
+)
+RETURNS VOID
+LANGUAGE sql
+VOLATILE PARALLEL SAFE STRICT
+AS $alias$
+    SELECT steadytext_config_set($1, $2);
+$alias$;
+
+-- st_version alias
+CREATE OR REPLACE FUNCTION st_version()
+RETURNS TEXT
+LANGUAGE sql
+IMMUTABLE PARALLEL SAFE LEAKPROOF
+AS $alias$
+    SELECT steadytext_version();
+$alias$;

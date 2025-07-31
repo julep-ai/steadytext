@@ -5,7 +5,25 @@ All notable changes to the pg_steadytext PostgreSQL extension will be documented
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.4.3] - Unreleased
+## [1.4.4] - 2025-01-31
+
+### Added
+- **Unsafe Mode Support:** Added `unsafe_mode` parameter to all generation functions
+  - New parameter allows explicit opt-in for remote AI models (containing ':' in model name)
+  - Remote models like `openai:gpt-4o-mini` require `unsafe_mode := TRUE`
+  - Local models work with any `unsafe_mode` setting
+  - Security enhancement: prevents accidental use of non-deterministic remote models
+
+### Changed
+- Updated all SQL generation functions to accept `unsafe_mode BOOLEAN DEFAULT FALSE`
+- Modified `daemon_connector.py` to propagate `unsafe_mode` parameter to SteadyText library
+- Enhanced validation: models with ':' in name are rejected unless `unsafe_mode=TRUE`
+
+### Security
+- Remote model usage now requires explicit permission via `unsafe_mode` parameter
+- Prevents unintentional loss of determinism when using remote AI providers
+
+## [1.4.3] - 2025-01-30
 
 ### Fixed
 - Fixed parameter name mismatch in direct generation fallback

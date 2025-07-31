@@ -315,19 +315,33 @@ $$;
 
 -- Fix rerank function return type issue
 -- First rename the implementation function
-ALTER FUNCTION steadytext_rerank(text, text[], text, boolean, integer) RENAME TO steadytext_rerank_impl;
+DO $$
+BEGIN
+    -- Only run if steadytext_rerank_impl does NOT exist
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_proc 
+        WHERE proname = 'steadytext_rerank_impl'
+          AND pg_function_is_visible(oid)
+    ) THEN
+        EXECUTE $cmd$
+            ALTER FUNCTION steadytext_rerank(text, text[], text, boolean, integer) RENAME TO steadytext_rerank_impl;
+        $cmd$;
 
--- Create a proper SQL wrapper that returns SETOF record
-CREATE OR REPLACE FUNCTION steadytext_rerank(
-    query text,
-    documents text[],
-    task text DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
-    return_scores boolean DEFAULT true,
-    seed integer DEFAULT 42
-) RETURNS SETOF record
-LANGUAGE sql IMMUTABLE PARALLEL SAFE
-AS $$
-  SELECT document, score FROM steadytext_rerank_impl($1, $2, $3, $4, $5);
+        EXECUTE $cmd$
+            CREATE OR REPLACE FUNCTION steadytext_rerank(
+                query text,
+                documents text[],
+                task text DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+                return_scores boolean DEFAULT true,
+                seed integer DEFAULT 42
+            ) RETURNS SETOF record
+            LANGUAGE sql IMMUTABLE PARALLEL SAFE
+            AS $c$
+              SELECT document, score FROM steadytext_rerank_impl($1, $2, $3, $4, $5);
+            $c$;
+        $cmd$;
+    END IF;
+END
 $$;
 
 -- Update config function to be more secure

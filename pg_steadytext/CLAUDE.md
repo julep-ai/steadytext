@@ -4,6 +4,42 @@ This file contains important development notes and architectural decisions for A
 
 ## Recent Fixes
 
+### v1.4.4 - Extended Model Parameters, Unsafe Mode, and Short Aliases
+- **Added**: Support for additional generation parameters:
+  - `eos_string`: End-of-sequence string (default: '[EOS]')
+  - `model`: Specific model to use
+  - `model_repo`: Model repository
+  - `model_filename`: Model filename
+  - `size`: Model size specification
+  - `unsafe_mode`: Allow remote models when TRUE (default: FALSE)
+- **Added**: Automatic short aliases for all functions (`st_*` for `steadytext_*`)
+  - Examples: `st_generate()`, `st_embed()`, `st_generate_json()`, etc.
+  - Aliases preserve all function properties (IMMUTABLE, PARALLEL SAFE, etc.)
+  - Created dynamically during migration to catch all current and future functions
+- **Security**: Remote models (containing ':' in name) require `unsafe_mode=TRUE`
+- **Fixed**: Upgrade script pattern for changing function signatures
+- AIDEV-NOTE: Cache key includes eos_string when non-default
+- AIDEV-NOTE: Added validation to prevent remote model usage without explicit unsafe_mode flag
+- AIDEV-NOTE: When changing function signatures in upgrades, use ALTER EXTENSION DROP/ADD pattern:
+  ```sql
+  ALTER EXTENSION pg_steadytext DROP FUNCTION old_signature;
+  DROP FUNCTION IF EXISTS old_signature;
+  CREATE OR REPLACE FUNCTION new_signature...;
+  ALTER EXTENSION pg_steadytext ADD FUNCTION new_signature;
+  ```
+- AIDEV-NOTE: Aliases must be created manually to preserve default parameters:
+  ```sql
+  -- Manual creation preserves DEFAULT clauses
+  CREATE FUNCTION st_generate(
+    prompt TEXT,
+    max_tokens INT DEFAULT NULL,
+    ...
+  ) RETURNS TEXT LANGUAGE sql AS $$ 
+    SELECT steadytext_generate($1, $2, ...); 
+  $$;
+  ```
+  Dynamic generation would lose default values, requiring all parameters.
+
 ### v1.4.3 - Parameter Naming
 - **Fixed**: `max_tokens` → `max_new_tokens` in direct generation fallback
 - AIDEV-NOTE: Daemon API uses `max_tokens`, direct Python API uses `max_new_tokens`

@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y \
 # Install Python dependencies
 # AIDEV-NOTE: This layer is cached when requirements don't change
 RUN pip3 install --break-system-packages \
-    steadytext>=2.1.0 \
+    'steadytext[unsafe]>=2.6.0' \
     pyzmq>=22.0.0 \
     numpy>=1.20.0
 

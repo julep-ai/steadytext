@@ -27,7 +27,7 @@ fi
 
 # Install Python dependencies
 echo "Installing Python dependencies with uv..."
-uv sync
+uv sync --all-extras
 uv run pip install -e .
 
 # Check if pg_steadytext exists before trying to install it
