@@ -1,4 +1,3 @@
-# AIDEV-NOTE: CLI for downloading SteadyText models
 # Run with: python -m steadytext.download
 
 import argparse
