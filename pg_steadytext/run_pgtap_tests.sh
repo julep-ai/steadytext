@@ -12,9 +12,9 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Configuration
-DB_NAME="${PGDATABASE:-test_steadytext}"
+DB_NAME="${PGDATABASE:-test_postgres}"
 DB_USER="${PGUSER:-postgres}"
-DB_HOST="${PGHOST:-localhost}"
+DB_HOST="${PGHOST:-postgres}"
 DB_PORT="${PGPORT:-5432}"
 
 # Parse command line arguments

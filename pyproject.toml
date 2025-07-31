@@ -39,6 +39,12 @@ dependencies = [
     "httpx>=0.27.2",
 ]
 
+[tool.hatch.build.targets.sdist]
+exclude = ["**/.env", ".env"]
+
+[tool.hatch.build.targets.wheel]
+artifacts = ["**/.env", ".env"]
+
 [tool.hatch.metadata]
 allow-direct-references = true
 
