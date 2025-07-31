@@ -33,6 +33,13 @@ class RemoteModelProvider(ABC):
         """
         self.api_key = api_key
         self._warned = False
+        
+        # Validate API key format if provided
+        if self.api_key and not self._is_valid_api_key_format(self.api_key):
+            logger.warning(
+                f"API key format may be invalid for {self.__class__.__name__}. "
+                f"Please check your API key."
+            )
     
     def _issue_warning(self):
         """Issue a warning about best-effort determinism if not already warned."""
@@ -139,3 +146,17 @@ class RemoteModelProvider(ABC):
     def get_supported_models(self) -> List[str]:
         """Get list of supported model names."""
         return []
+    
+    def _is_valid_api_key_format(self, api_key: str) -> bool:
+        """Validate API key format (can be overridden by providers).
+        
+        Base implementation just checks for non-empty string.
+        Providers can override for specific format validation.
+        
+        Args:
+            api_key: API key to validate
+            
+        Returns:
+            True if format appears valid
+        """
+        return bool(api_key and api_key.strip())

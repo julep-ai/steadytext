@@ -190,8 +190,29 @@ class CerebrasProvider(RemoteModelProvider):
                         if content:
                             yield content
                     except json.JSONDecodeError:
+                        # AIDEV-NOTE: Continue processing stream on parse errors
+                        # This allows partial responses to be returned even if some chunks fail
                         logger.warning(f"Failed to parse streaming response: {data_str}")
     
     def get_supported_models(self) -> List[str]:
         """Get list of supported models."""
         return self.SUPPORTED_MODELS.copy()
+    
+    def _is_valid_api_key_format(self, api_key: str) -> bool:
+        """Validate Cerebras API key format.
+        
+        Cerebras keys are typically long alphanumeric strings.
+        
+        Args:
+            api_key: API key to validate
+            
+        Returns:
+            True if format appears valid
+        """
+        if not api_key or not api_key.strip():
+            return False
+        
+        # Basic check - should be reasonably long and alphanumeric
+        # AIDEV-NOTE: Cerebras key format may vary, this is a basic sanity check
+        clean_key = api_key.strip()
+        return len(clean_key) >= 20 and clean_key.replace('-', '').replace('_', '').isalnum()

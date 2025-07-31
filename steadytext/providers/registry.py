@@ -4,7 +4,7 @@ AIDEV-NOTE: Central registry for managing remote providers and model routing.
 """
 
 import os
-from typing import Optional, Dict, Type, List
+from typing import Optional, Dict, Type, List, Tuple
 import logging
 
 from .base import RemoteModelProvider
@@ -47,7 +47,7 @@ def is_remote_model(model: Optional[str]) -> bool:
     return False
 
 
-def parse_remote_model(model: str) -> tuple[str, str]:
+def parse_remote_model(model: str) -> Tuple[str, str]:
     """Parse remote model string into provider and model name.
     
     Args:

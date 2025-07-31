@@ -165,3 +165,21 @@ class OpenAIProvider(RemoteModelProvider):
     def get_supported_models(self) -> List[str]:
         """Get list of models that support seed parameter."""
         return self.SEED_SUPPORTED_MODELS.copy()
+    
+    def _is_valid_api_key_format(self, api_key: str) -> bool:
+        """Validate OpenAI API key format.
+        
+        OpenAI keys typically start with 'sk-' followed by alphanumeric chars.
+        
+        Args:
+            api_key: API key to validate
+            
+        Returns:
+            True if format appears valid
+        """
+        if not api_key or not api_key.strip():
+            return False
+        
+        # Basic format check - OpenAI keys start with 'sk-'
+        # AIDEV-NOTE: This is a basic check, actual key validation happens on API call
+        return api_key.startswith('sk-') and len(api_key) > 10
