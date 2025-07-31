@@ -121,7 +121,9 @@ class OpenAIProvider(RemoteModelProvider):
         self._issue_warning()
 
         if not self.is_available():
-            raise RuntimeError("OpenAI provider not available")
+            raise RuntimeError(
+                "OpenAI provider not available. Install with: pip install openai"
+            )
 
         client = self._get_client()
 
@@ -206,7 +208,9 @@ class OpenAIProvider(RemoteModelProvider):
         self._issue_warning()
 
         if not self.is_available():
-            raise RuntimeError("OpenAI provider not available")
+            raise RuntimeError(
+                "OpenAI provider not available. Install with: pip install openai"
+            )
 
         client = self._get_client()
 

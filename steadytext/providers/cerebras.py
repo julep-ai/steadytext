@@ -97,7 +97,9 @@ class CerebrasProvider(RemoteModelProvider):
         self._issue_warning()
 
         if not self.is_available():
-            raise RuntimeError("Cerebras provider not available")
+            raise RuntimeError(
+                "Cerebras provider not available. Install OpenAI client with: pip install openai"
+            )
 
         client = self._get_client()
 
@@ -156,7 +158,9 @@ class CerebrasProvider(RemoteModelProvider):
         self._issue_warning()
 
         if not self.is_available():
-            raise RuntimeError("Cerebras provider not available")
+            raise RuntimeError(
+                "Cerebras provider not available. Install OpenAI client with: pip install openai"
+            )
 
         client = self._get_client()
 
