@@ -110,7 +110,9 @@ def generate(
     # AIDEV-NOTE: This is the primary public API. It orchestrates the daemon-first logic.
     # If the daemon is enabled (default), it attempts to use the client.
     # On any ConnectionError, it transparently falls back to direct, in-process generation.
-    if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
+    # Skip daemon for remote models to avoid unnecessary delays
+    is_remote = model and ":" in model
+    if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1" and not is_remote:
         client = get_daemon_client()
         if client is not None:
             try:
@@ -192,7 +194,9 @@ def generate_iter(
         dict: Token info with 'token' and 'logprobs' keys (if include_logprobs=True)
     """
     # AIDEV-NOTE: Use daemon by default for streaming unless explicitly disabled
-    if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
+    # Skip daemon for remote models to avoid unnecessary delays
+    is_remote = model and ":" in model
+    if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1" and not is_remote:
         client = get_daemon_client()
         if client is not None:
             try:

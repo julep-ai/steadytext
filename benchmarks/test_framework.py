@@ -74,17 +74,17 @@ def test_benchmark_framework():
 
 def mock_steadytext_functions():
     """Create mock SteadyText functions for testing and return cleanup function."""
-    
+
     # Store original modules to restore later
     original_modules = {}
     modules_to_mock = [
         "steadytext",
-        "steadytext.models.loader", 
+        "steadytext.models.loader",
         "steadytext.cache_manager",
         "steadytext.core.generator",
-        "steadytext.core.embedder"
+        "steadytext.core.embedder",
     ]
-    
+
     for module_name in modules_to_mock:
         if module_name in sys.modules:
             original_modules[module_name] = sys.modules[module_name]

@@ -50,10 +50,9 @@ class DeterministicGenerator:
         self._context_window = (
             get_optimal_context_window()
         )  # Will be updated when model is loaded
-        # Load model without logits_all initially
-        # AIDEV-NOTE: Skip model loading if STEADYTEXT_SKIP_MODEL_LOAD is set
-        if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") != "1":
-            self._load_model(enable_logits=False)
+        # AIDEV-NOTE: Delay model loading until first use to avoid unnecessary loading
+        # when using remote models. Model will be loaded on first generate() call.
+        self._model_loaded = False
 
     def _load_model(
         self,
@@ -245,10 +244,11 @@ class DeterministicGenerator:
 
         # AIDEV-NOTE: Check if this is a remote model request
         from ..providers.registry import is_remote_model, get_provider
+
         if model and is_remote_model(model):
             try:
                 provider = get_provider(model)
-                
+
                 # Handle structured generation with remote models
                 if schema or response_format:
                     result = provider.generate(
@@ -282,7 +282,7 @@ class DeterministicGenerator:
                         max_new_tokens=max_new_tokens,
                         seed=seed,
                     )
-                
+
                 # Remote models don't support logprobs in our implementation
                 if return_logprobs:
                     logger.warning(
@@ -377,8 +377,12 @@ class DeterministicGenerator:
         model_key = f"{repo_id or 'default'}::{filename or 'default'}"
         needs_different_model = model_key != self._current_model_key
 
-        # Load appropriate model if needed
-        if needs_different_model or (return_logprobs and not self._logits_enabled):
+        # AIDEV-NOTE: Load model on first use (lazy loading) or when switching models
+        if (
+            not self._model_loaded
+            or needs_different_model
+            or (return_logprobs and not self._logits_enabled)
+        ):
             logger.info(f"Loading model {model_key} with logits={return_logprobs}")
             self._load_model(
                 enable_logits=return_logprobs,
@@ -386,6 +390,7 @@ class DeterministicGenerator:
                 filename=filename,
                 force_reload=False,  # Use cache if available
             )
+            self._model_loaded = True
 
         # AIDEV-NOTE: Return None if model is not loaded instead of using fallback
         skip_model_load = os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1"
@@ -518,9 +523,10 @@ class DeterministicGenerator:
         """
         validate_seed(seed)
         set_deterministic_environment(seed)
-        
+
         # AIDEV-NOTE: Check if this is a remote model request
         from ..providers.registry import is_remote_model, get_provider
+
         if model and is_remote_model(model):
             try:
                 provider = get_provider(model)
@@ -538,7 +544,7 @@ class DeterministicGenerator:
             except Exception as e:
                 logger.error(f"Remote model streaming generation failed: {e}")
                 return
-        
+
         if not isinstance(prompt, str):
             logger.error(
                 f"DeterministicGenerator.generate_iter: Invalid prompt type: {type(prompt)}. Expected str."
@@ -613,8 +619,12 @@ class DeterministicGenerator:
         model_key = f"{repo_id or 'default'}::{filename or 'default'}"
         needs_different_model = model_key != self._current_model_key
 
-        # Load appropriate model if needed
-        if needs_different_model or (include_logprobs and not self._logits_enabled):
+        # AIDEV-NOTE: Load model on first use (lazy loading) or when switching models
+        if (
+            not self._model_loaded
+            or needs_different_model
+            or (include_logprobs and not self._logits_enabled)
+        ):
             logger.info(f"Loading model {model_key} with logits={include_logprobs}")
             self._load_model(
                 enable_logits=include_logprobs,
@@ -622,6 +632,7 @@ class DeterministicGenerator:
                 filename=filename,
                 force_reload=False,
             )
+            self._model_loaded = True
 
         # AIDEV-NOTE: Return early if model is not loaded
         skip_model_load = os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1"
@@ -1006,13 +1017,14 @@ def core_generate(
     """
     # AIDEV-NOTE: Check for remote models first to avoid loading local models unnecessarily
     from ..providers.registry import is_remote_model, get_provider
+
     if model and is_remote_model(model):
         try:
             validate_seed(seed)
             set_deterministic_environment(seed)
-            
+
             provider = get_provider(model)
-            
+
             # Handle structured generation with remote models
             if schema or response_format:
                 result = provider.generate(
@@ -1046,20 +1058,23 @@ def core_generate(
                     max_new_tokens=max_new_tokens,
                     seed=seed,
                 )
-            
+
             if return_logprobs:
                 # Remote models don't support logprobs, return None
                 return result, None
             else:
                 return result
-                
+
         except Exception as e:
             logger.error(f"Remote model generation failed: {e}")
             if return_logprobs:
                 return None, None
             else:
                 return None
-    
+
+        # AIDEV-NOTE: This point should never be reached for remote models
+        # since we either return the result or return None on error above
+
     # Use local model for non-remote models
     return _get_generator_instance().generate(
         prompt=prompt,
@@ -1111,15 +1126,16 @@ def core_generate_iter(
     """
     # AIDEV-NOTE: Check for remote models first to avoid loading local models unnecessarily
     from ..providers.registry import is_remote_model, get_provider
+
     if model and is_remote_model(model):
         try:
             validate_seed(seed)
             set_deterministic_environment(seed)
-            
+
             provider = get_provider(model)
-            
+
             # Use generate_iter if available, otherwise fall back to non-streaming
-            if hasattr(provider, 'generate_iter'):
+            if hasattr(provider, "generate_iter"):
                 yield from provider.generate_iter(
                     prompt=prompt,
                     max_new_tokens=max_new_tokens,
@@ -1141,11 +1157,11 @@ def core_generate_iter(
                         else:
                             yield word + " "
             return
-                
+
         except Exception as e:
             logger.error(f"Remote model streaming generation failed: {e}")
             return
-    
+
     # Use local model for non-remote models
     return _get_generator_instance().generate_iter(
         prompt=prompt,

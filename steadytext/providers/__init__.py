@@ -13,7 +13,7 @@ from .registry import get_provider, list_providers, is_remote_model
 __all__ = [
     "RemoteModelProvider",
     "UnsafeModeWarning",
-    "OpenAIProvider", 
+    "OpenAIProvider",
     "CerebrasProvider",
     "get_provider",
     "list_providers",

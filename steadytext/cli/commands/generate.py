@@ -92,7 +92,7 @@ from .index import search_index_for_context, get_default_index_path
 @click.option(
     "--unsafe-mode",
     is_flag=True,
-    help="Enable remote models with best-effort determinism (requires STEADYTEXT_UNSAFE_MODE=true)",
+    help="Enable remote models with best-effort determinism",
 )
 @click.pass_context
 def generate(
@@ -138,11 +138,13 @@ def generate(
         echo "My phone is" | st --regex '\\d{3}-\\d{3}-\\d{4}'
         echo "Is Python good?" | st --choices "yes,no,maybe"
         echo "Generate user data" | st --schema user_schema.json  # From file
-    
+
     Unsafe mode (remote models with best-effort determinism):
-        export STEADYTEXT_UNSAFE_MODE=true
         echo "Explain AI" | st --unsafe-mode --model openai:gpt-4o-mini
         echo "Write code" | st --unsafe-mode --model cerebras:llama3.1-8b
+        # Or with environment variable:
+        export STEADYTEXT_UNSAFE_MODE=true
+        echo "Explain AI" | st --model openai:gpt-4o-mini
     """
     # Handle verbosity - verbose overrides quiet
     if verbose:
@@ -154,36 +156,33 @@ def generate(
 
         logging.getLogger("steadytext").setLevel(logging.ERROR)
         logging.getLogger("llama_cpp").setLevel(logging.ERROR)
-    
-    # Handle unsafe mode
+
+    # Handle unsafe mode - flag enables it directly
     if unsafe_mode:
+        # Set the environment variable to enable unsafe mode
         import os
-        if os.environ.get("STEADYTEXT_UNSAFE_MODE", "false").lower() != "true":
-            click.echo(
-                "Error: Unsafe mode requires STEADYTEXT_UNSAFE_MODE=true environment variable.\n"
-                "WARNING: Remote models provide only best-effort determinism!",
-                err=True
-            )
-            sys.exit(1)
-        
+
+        os.environ["STEADYTEXT_UNSAFE_MODE"] = "true"
+
         # Check if model is a remote model
         if model and ":" in model:
             from ...providers.registry import is_remote_model
+
             if not is_remote_model(model):
                 click.echo(
                     f"Error: Model '{model}' is not a valid remote model.\n"
                     f"Format: provider:model (e.g., openai:gpt-4o-mini)",
-                    err=True
+                    err=True,
                 )
                 sys.exit(1)
         elif not model:
             click.echo(
                 "Error: --unsafe-mode requires a remote model specification.\n"
                 "Example: --model openai:gpt-4o-mini",
-                err=True
+                err=True,
             )
             sys.exit(1)
-    
+
     # Handle stdin input
     if prompt == "-":
         if sys.stdin.isatty():
@@ -226,9 +225,11 @@ def generate(
     if choices:
         choices_list = [c.strip() for c in choices.split(",")]
 
-    # AIDEV-NOTE: Search index for context unless disabled
+    # AIDEV-NOTE: Search index for context unless disabled or using remote models
     context_chunks = []
-    if not no_index:
+    # Skip index search for remote models to avoid loading embedding model
+    is_remote = model and ":" in model
+    if not no_index and not is_remote:
         index_path = Path(index_file) if index_file else get_default_index_path()
         if index_path:
             context_chunks = search_index_for_context(
