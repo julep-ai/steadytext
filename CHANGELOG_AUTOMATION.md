@@ -17,19 +17,23 @@ Two workflow options are provided:
 
 ### 2. Add the Workflow
 
-1. Copy your chosen workflow file to `.github/workflows/update-changelog.yml`
-2. Ensure you have the required secrets configured (see below)
+1. The workflow files are included in `.github/workflows/`:
+   - `.github/workflows/update-changelog.yml` (basic version)
+   - `.github/workflows/update-changelog-advanced.yml` (advanced version)
+2. Choose which workflow to use by enabling/disabling them as needed
+3. Ensure you have the required secrets configured (see below)
 
 ### 3. Configure Secrets
 
 Required GitHub secrets:
-- `ANTHROPIC_API_KEY`: Your Anthropic API key for Claude
-- `CLAUDE_CODE_PRIVATE_KEY`: Private key for the Claude Code GitHub App (if using advanced workflow)
+- `ANTHROPIC_API_KEY`: Your Anthropic API key for Claude (required)
+- `CLAUDE_CODE_PRIVATE_KEY`: Private key for the Claude Code GitHub App (optional - advanced workflow will fall back to GITHUB_TOKEN if not set)
 
-### 4. Configure Variables (Advanced workflow only)
+### 4. Configure Variables (Optional)
 
 GitHub variables:
 - `CLAUDE_CODE_APP_ID`: The Claude Code GitHub App ID (default: 1040539)
+- `CLAUDE_MODEL`: The Claude model to use (default: claude-opus-4-20250514)
 
 ## How It Works
 
