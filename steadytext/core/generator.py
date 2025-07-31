@@ -246,20 +246,43 @@ class DeterministicGenerator:
         # AIDEV-NOTE: Check if this is a remote model request
         from ..providers.registry import is_remote_model, get_provider
         if model and is_remote_model(model):
-            # Remote models don't support structured output yet
-            if any([response_format, schema, regex, choices]):
-                logger.error(
-                    "Structured output not supported with remote models in unsafe mode"
-                )
-                return (None, None) if return_logprobs else None
-            
             try:
                 provider = get_provider(model)
-                result = provider.generate(
-                    prompt=prompt,
-                    max_new_tokens=max_new_tokens,
-                    seed=seed,
-                )
+                
+                # Handle structured generation with remote models
+                if schema or response_format:
+                    result = provider.generate(
+                        prompt=prompt,
+                        max_new_tokens=max_new_tokens,
+                        seed=seed,
+                        response_format=response_format,
+                        schema=schema,
+                    )
+                elif regex:
+                    # Convert regex to prompt instruction for remote models
+                    enhanced_prompt = f"{prompt}\n\nPlease format your response to match this regular expression pattern: {regex}"
+                    result = provider.generate(
+                        prompt=enhanced_prompt,
+                        max_new_tokens=max_new_tokens,
+                        seed=seed,
+                    )
+                elif choices:
+                    # Convert choices to prompt instruction for remote models
+                    choices_str = ", ".join([f"'{choice}'" for choice in choices])
+                    enhanced_prompt = f"{prompt}\n\nYou must respond with exactly one of these choices: {choices_str}"
+                    result = provider.generate(
+                        prompt=enhanced_prompt,
+                        max_new_tokens=max_new_tokens,
+                        seed=seed,
+                    )
+                else:
+                    # Regular generation
+                    result = provider.generate(
+                        prompt=prompt,
+                        max_new_tokens=max_new_tokens,
+                        seed=seed,
+                    )
+                
                 # Remote models don't support logprobs in our implementation
                 if return_logprobs:
                     logger.warning(

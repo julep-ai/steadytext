@@ -2,50 +2,42 @@
 
 AIDEV-NOTE: Cerebras provides a seed parameter similar to OpenAI
 for best-effort determinism with their cloud inference API.
+Uses OpenAI client with custom base URL.
 """
 
 import os
-from typing import Optional, Iterator, Dict, Any, List
+from typing import Optional, Iterator, Dict, Any, List, Union, Type
 import logging
-import json
 
 from .base import RemoteModelProvider
 
 logger = logging.getLogger("steadytext.providers.cerebras")
 
-# AIDEV-NOTE: Import httpx only when needed
-_httpx_module = None
+# AIDEV-NOTE: Import OpenAI only when needed
+_openai_module = None
 
 
-def _get_httpx():
-    """Lazy import of httpx module."""
-    global _httpx_module
-    if _httpx_module is None:
+def _get_openai():
+    """Lazy import of openai module."""
+    global _openai_module
+    if _openai_module is None:
         try:
-            import httpx
-            _httpx_module = httpx
+            import openai
+            _openai_module = openai
         except ImportError:
             logger.error(
-                "httpx library not installed. Install with: pip install httpx"
+                "OpenAI library not installed. Install with: pip install openai"
             )
             return None
-    return _httpx_module
+    return _openai_module
 
 
 class CerebrasProvider(RemoteModelProvider):
     """Cerebras model provider with seed support.
     
     AIDEV-NOTE: Cerebras inference API provides seed parameter for reproducibility.
-    Uses their cloud API at api.cerebras.ai.
+    Uses OpenAI-compatible API at api.cerebras.ai.
     """
-    
-    # Available models on Cerebras Cloud
-    SUPPORTED_MODELS = [
-        "llama3.1-8b",
-        "llama3.1-70b", 
-        "llama3-8b",
-        "llama3-70b",
-    ]
     
     API_BASE = "https://api.cerebras.ai/v1"
     
@@ -74,32 +66,22 @@ class CerebrasProvider(RemoteModelProvider):
         if not self.api_key:
             return False
         
-        httpx = _get_httpx()
-        if httpx is None:
+        openai = _get_openai()
+        if openai is None:
             return False
             
-        if self.model not in self.SUPPORTED_MODELS:
-            logger.error(
-                f"Model {self.model} not supported. "
-                f"Supported models: {', '.join(self.SUPPORTED_MODELS)}"
-            )
-            return False
-            
+        # AIDEV-NOTE: No static model checking - let provider handle it
         return True
     
     def _get_client(self):
-        """Get or create httpx client."""
+        """Get or create OpenAI client with Cerebras base URL."""
         if self._client is None:
-            httpx = _get_httpx()
-            if httpx is None:
-                raise RuntimeError("httpx library not available")
-            self._client = httpx.Client(
+            openai = _get_openai()
+            if openai is None:
+                raise RuntimeError("OpenAI library not available")
+            self._client = openai.OpenAI(
                 base_url=self.API_BASE,
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                },
-                timeout=60.0
+                api_key=self.api_key
             )
         return self._client
     
@@ -109,6 +91,8 @@ class CerebrasProvider(RemoteModelProvider):
         max_new_tokens: Optional[int] = None,
         seed: int = 42,
         temperature: float = 0.0,
+        response_format: Optional[Dict[str, Any]] = None,
+        schema: Optional[Union[Dict[str, Any], type, object]] = None,
         **kwargs
     ) -> str:
         """Generate text using Cerebras with seed for determinism."""
@@ -119,21 +103,45 @@ class CerebrasProvider(RemoteModelProvider):
         
         client = self._get_client()
         
-        # AIDEV-NOTE: Cerebras uses OpenAI-compatible API format
-        payload = {
-            "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": max_new_tokens or 512,
-            "temperature": temperature,
-            "seed": seed,  # For reproducibility
-            **kwargs
-        }
+        # Handle structured output
+        if response_format or schema:
+            # Convert schema to response_format if needed
+            if schema and not response_format:
+                response_format = {"type": "json_object"}
+            
+            # Create system message instructing JSON output
+            if schema:
+                import json
+                schema_str = json.dumps(schema) if isinstance(schema, dict) else str(schema)
+                system_message = f"You must respond with valid JSON that adheres to this schema: {schema_str}"
+                messages = [
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": prompt}
+                ]
+            else:
+                messages = [{"role": "user", "content": prompt}]
+                
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                max_tokens=max_new_tokens or 512,
+                temperature=temperature,
+                seed=seed,  # For reproducibility
+                response_format=response_format,
+                **kwargs
+            )
+        else:
+            # Regular generation
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=max_new_tokens or 512,
+                temperature=temperature,
+                seed=seed,  # For reproducibility
+                **kwargs
+            )
         
-        response = client.post("/chat/completions", json=payload)
-        response.raise_for_status()
-        
-        data = response.json()
-        return data["choices"][0]["message"]["content"] or ""
+        return response.choices[0].message.content or ""
     
     def generate_iter(
         self,
@@ -149,54 +157,26 @@ class CerebrasProvider(RemoteModelProvider):
         if not self.is_available():
             raise RuntimeError("Cerebras provider not available")
         
-        httpx = _get_httpx()
-        if httpx is None:
-            raise RuntimeError("httpx not available")
+        client = self._get_client()
         
-        # AIDEV-NOTE: Use streaming with httpx
-        payload = {
-            "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": max_new_tokens or 512,
-            "temperature": temperature,
-            "seed": seed,
-            "stream": True,
+        stream = client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_new_tokens or 512,
+            temperature=temperature,
+            seed=seed,
+            stream=True,
             **kwargs
-        }
+        )
         
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
-        
-        with httpx.stream(
-            "POST",
-            f"{self.API_BASE}/chat/completions",
-            json=payload,
-            headers=headers,
-            timeout=60.0
-        ) as response:
-            response.raise_for_status()
-            
-            for line in response.iter_lines():
-                if line.startswith("data: "):
-                    data_str = line[6:]  # Remove "data: " prefix
-                    if data_str == "[DONE]":
-                        break
-                    
-                    try:
-                        data = json.loads(data_str)
-                        content = data["choices"][0]["delta"].get("content", "")
-                        if content:
-                            yield content
-                    except json.JSONDecodeError:
-                        # AIDEV-NOTE: Continue processing stream on parse errors
-                        # This allows partial responses to be returned even if some chunks fail
-                        logger.warning(f"Failed to parse streaming response: {data_str}")
+        for chunk in stream:
+            if chunk.choices[0].delta.content is not None:
+                yield chunk.choices[0].delta.content
     
     def get_supported_models(self) -> List[str]:
         """Get list of supported models."""
-        return self.SUPPORTED_MODELS.copy()
+        # AIDEV-NOTE: Return empty list to let provider handle model validation
+        return []
     
     def _is_valid_api_key_format(self, api_key: str) -> bool:
         """Validate Cerebras API key format.
@@ -212,7 +192,7 @@ class CerebrasProvider(RemoteModelProvider):
         if not api_key or not api_key.strip():
             return False
         
-        # Basic check - should be reasonably long and alphanumeric
+        # Basic check - should be reasonably long
         # AIDEV-NOTE: Cerebras key format may vary, this is a basic sanity check
         clean_key = api_key.strip()
-        return len(clean_key) >= 20 and clean_key.replace('-', '').replace('_', '').isalnum()
+        return len(clean_key) >= 20

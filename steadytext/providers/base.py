@@ -78,6 +78,8 @@ class RemoteModelProvider(ABC):
         prompt: str,
         max_new_tokens: Optional[int] = None,
         seed: int = 42,
+        response_format: Optional[Dict[str, Any]] = None,
+        schema: Optional[Union[Dict[str, Any], type, object]] = None,
         **kwargs
     ) -> str:
         """Generate text with best-effort determinism using seed.
@@ -86,6 +88,8 @@ class RemoteModelProvider(ABC):
             prompt: Input prompt
             max_new_tokens: Maximum tokens to generate
             seed: Seed for best-effort determinism
+            response_format: Response format specification (e.g., {"type": "json_object"})
+            schema: JSON schema, Pydantic model, or Python type for structured output
             **kwargs: Additional provider-specific parameters
             
         Returns:

@@ -131,18 +131,20 @@ class TestOpenAIProvider:
         provider = OpenAIProvider(api_key=None)
         assert not provider.is_available()
     
-    def test_is_available_unsupported_model(self):
-        """Test availability with unsupported model."""
-        provider = OpenAIProvider(api_key="test", model="gpt-3.5-turbo")
-        assert not provider.is_available()
+    @patch("steadytext.providers.openai._get_openai")
+    def test_is_available_with_openai(self, mock_get_openai):
+        """Test availability with OpenAI library available."""
+        mock_get_openai.return_value = Mock()
+        provider = OpenAIProvider(api_key="test", model="gpt-4o-mini")
+        assert provider.is_available()
     
     def test_supported_models(self):
         """Test getting supported models."""
         provider = OpenAIProvider()
         models = provider.get_supported_models()
-        assert "gpt-4o-mini" in models
-        assert "gpt-4o" in models
+        # No static model list anymore - let provider handle it
         assert isinstance(models, list)
+        assert len(models) == 0  # Empty list returned
     
     @patch("steadytext.providers.openai._get_openai")
     def test_generate_mock(self, mock_get_openai, monkeypatch):
@@ -197,9 +199,35 @@ class TestCerebrasProvider:
         """Test getting supported models."""
         provider = CerebrasProvider()
         models = provider.get_supported_models()
-        assert "llama3.1-8b" in models
-        assert "llama3.1-70b" in models
+        # No static model list anymore - let provider handle it
         assert isinstance(models, list)
+        assert len(models) == 0  # Empty list returned
+    
+    @patch("steadytext.providers.cerebras._get_openai")
+    def test_uses_openai_client(self, mock_get_openai, monkeypatch):
+        """Test that Cerebras uses OpenAI client with custom base URL."""
+        monkeypatch.setenv("STEADYTEXT_UNSAFE_MODE", "true")
+        
+        # Mock OpenAI module and client
+        mock_openai = Mock()
+        mock_client = Mock()
+        mock_response = Mock()
+        mock_response.choices = [Mock(message=Mock(content="Cerebras generated text"))]
+        
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_openai.OpenAI.return_value = mock_client
+        mock_get_openai.return_value = mock_openai
+        
+        provider = CerebrasProvider(api_key="test", model="llama3.1-8b")
+        
+        result = provider.generate("Test prompt", seed=42)
+        assert result == "Cerebras generated text"
+        
+        # Verify OpenAI client was created with Cerebras base URL
+        mock_openai.OpenAI.assert_called_once_with(
+            base_url="https://api.cerebras.ai/v1",
+            api_key="test"
+        )
 
 
 class TestProviderRegistry:
@@ -264,9 +292,37 @@ class TestIntegration:
         assert result is None  # Should fail and return None
 
 
+    @patch("steadytext.providers.openai._get_openai")
+    def test_generate_with_structured_output(self, mock_get_openai, monkeypatch):
+        """Test structured generation with remote model."""
+        monkeypatch.setenv("STEADYTEXT_UNSAFE_MODE", "true")
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+        
+        # Mock OpenAI
+        mock_openai = Mock()
+        mock_client = Mock()
+        mock_response = Mock()
+        mock_response.choices = [Mock(message=Mock(content='{"name": "Alice", "age": 30}'))]
+        
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_openai.OpenAI.return_value = mock_client
+        mock_get_openai.return_value = mock_openai
+        
+        # Import here to ensure environment is set
+        from steadytext import generate
+        
+        schema = {"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}}
+        result = generate("Create a person", model="openai:gpt-4o-mini", schema=schema)
+        assert result == '{"name": "Alice", "age": 30}'
+        
+        # Verify API call included response_format
+        call_args = mock_client.chat.completions.create.call_args
+        assert call_args.kwargs["response_format"] == {"type": "json_object"}
+
+
 # AIDEV-NOTE: Additional tests could be added for:
 # - Streaming generation with remote models
 # - Error handling for API failures
-# - Structured output rejection with remote models
+# - Regex and choices with remote models
 # - CLI command testing
 # However, these would require more complex mocking

@@ -5,8 +5,8 @@ from .cache import cache
 from .models import models
 from .vector import vector
 from .index import index
+from .daemon import daemon
 from .completion import completion
-from .unsafe import unsafe
 
 __all__ = [
     "generate",
@@ -16,6 +16,6 @@ __all__ = [
     "models",
     "vector",
     "index",
+    "daemon",
     "completion",
-    "unsafe",
 ]

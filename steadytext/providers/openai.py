@@ -5,7 +5,7 @@ but explicitly states it's not guaranteed across all conditions.
 """
 
 import os
-from typing import Optional, Iterator, Dict, Any, List, Union
+from typing import Optional, Iterator, Dict, Any, List, Union, Type
 import logging
 
 from .base import RemoteModelProvider
@@ -85,14 +85,7 @@ class OpenAIProvider(RemoteModelProvider):
         if openai is None:
             return False
             
-        # Check if model supports seed
-        if self.model not in self.SEED_SUPPORTED_MODELS:
-            logger.error(
-                f"Model {self.model} does not support seed parameter. "
-                f"Supported models: {', '.join(self.SEED_SUPPORTED_MODELS)}"
-            )
-            return False
-            
+        # AIDEV-NOTE: No static model checking - let provider handle it
         return True
     
     def _get_client(self):
@@ -110,6 +103,8 @@ class OpenAIProvider(RemoteModelProvider):
         max_new_tokens: Optional[int] = None,
         seed: int = 42,
         temperature: float = 0.0,
+        response_format: Optional[Dict[str, Any]] = None,
+        schema: Optional[Union[Dict[str, Any], type, object]] = None,
         **kwargs
     ) -> str:
         """Generate text using OpenAI with seed for best-effort determinism."""
@@ -121,14 +116,44 @@ class OpenAIProvider(RemoteModelProvider):
         client = self._get_client()
         
         # AIDEV-NOTE: temperature=0 + seed provides maximum determinism possible
-        response = client.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_new_tokens,
-            temperature=temperature,
-            seed=seed,  # Best-effort determinism
-            **kwargs
-        )
+        
+        # Handle structured output
+        if response_format or schema:
+            # Convert schema to response_format if needed
+            if schema and not response_format:
+                response_format = {"type": "json_object"}
+            
+            # Create system message instructing JSON output
+            if schema:
+                import json
+                schema_str = json.dumps(schema) if isinstance(schema, dict) else str(schema)
+                system_message = f"You must respond with valid JSON that adheres to this schema: {schema_str}"
+                messages = [
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": prompt}
+                ]
+            else:
+                messages = [{"role": "user", "content": prompt}]
+                
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                max_tokens=max_new_tokens,
+                temperature=temperature,
+                seed=seed,  # Best-effort determinism
+                response_format=response_format,
+                **kwargs
+            )
+        else:
+            # Regular generation
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=max_new_tokens,
+                temperature=temperature,
+                seed=seed,  # Best-effort determinism
+                **kwargs
+            )
         
         return response.choices[0].message.content or ""
     
@@ -164,7 +189,8 @@ class OpenAIProvider(RemoteModelProvider):
     
     def get_supported_models(self) -> List[str]:
         """Get list of models that support seed parameter."""
-        return self.SEED_SUPPORTED_MODELS.copy()
+        # AIDEV-NOTE: Return empty list to let provider handle model validation
+        return []
     
     def _is_valid_api_key_format(self, api_key: str) -> bool:
         """Validate OpenAI API key format.
