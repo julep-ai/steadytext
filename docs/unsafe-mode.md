@@ -28,31 +28,32 @@ export STEADYTEXT_UNSAFE_MODE=true
 
 ### OpenAI
 
-Models with seed support:
-- `gpt-4-turbo-preview`
-- `gpt-4-turbo` 
-- `gpt-4o`
-- `gpt-4o-mini`
-- `gpt-3.5-turbo-1106`
-- `gpt-3.5-turbo-0125`
+Supported models (all models available through OpenAI API):
+- `gpt-4o` and `gpt-4o-mini` (recommended for seed support)
+- `gpt-4-turbo` and variants
+- `gpt-3.5-turbo` and variants
+- Any future models accessible via the OpenAI API
 
 Setup:
 ```bash
 export OPENAI_API_KEY=your-api-key
 ```
 
+Note: The provider dynamically supports all models available through your OpenAI account.
+
 ### Cerebras
 
-Models available:
-- `llama3.1-8b`
-- `llama3.1-70b`
-- `llama3-8b`
-- `llama3-70b`
+Supported models (all models available through Cerebras Cloud API):
+- `llama3.1-8b` and `llama3.1-70b`
+- `llama3-8b` and `llama3-70b`
+- Any future models accessible via the Cerebras API
 
 Setup:
 ```bash
 export CEREBRAS_API_KEY=your-api-key
 ```
+
+Note: The provider dynamically supports all models available through your Cerebras account.
 
 ## Usage
 
@@ -85,6 +86,21 @@ for token in steadytext.generate_iter(
     model="openai:gpt-4o-mini"
 ):
     print(token, end='')
+
+# Structured generation (JSON schemas)
+from pydantic import BaseModel
+
+class Person(BaseModel):
+    name: str
+    age: int
+
+# Generate structured JSON with remote models
+result = steadytext.generate(
+    "Create a person named Alice, age 30",
+    model="openai:gpt-4o-mini",
+    schema=Person
+)
+# Result contains JSON wrapped in <json-output> tags
 ```
 
 ### CLI
@@ -99,21 +115,23 @@ echo "Explain AI" | st --unsafe-mode --model openai:gpt-4o-mini
 # Generate with Cerebras
 echo "Write code" | st --unsafe-mode --model cerebras:llama3.1-8b
 
-# List available models
-st unsafe list-models
+# With custom seed for reproducibility
+echo "Tell me a story" | st --unsafe-mode --model openai:gpt-4o-mini --seed 123
 
-# Check unsafe mode status
-st unsafe status
+# Structured generation with remote models
+echo "Create a person" | st --unsafe-mode --model openai:gpt-4o-mini \
+    --schema '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "integer"}}}' \
+    --wait
 ```
 
 ## Limitations
 
 When using unsafe mode:
 
-1. **No Structured Output**: Remote models don't support `--schema`, `--regex`, or `--choices`
-2. **No Logprobs**: Log probabilities are not available
+1. **Limited Structured Output**: Remote models support JSON schemas but not regex or choices constraints
+2. **No Logprobs**: Log probabilities are not available from remote APIs
 3. **No Embeddings**: Only generation is supported, not embeddings
-4. **Best-Effort Only**: Determinism is not guaranteed
+4. **Best-Effort Only**: Determinism is not guaranteed despite seed parameters
 
 ## Best Practices
 

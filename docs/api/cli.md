@@ -167,6 +167,24 @@ steadytext generate [OPTIONS] PROMPT
         --seed 999 --max-new-tokens 100
     ```
 
+=== "Remote Models (Unsafe Mode)"
+
+    ```bash
+    # Enable unsafe mode first
+    export STEADYTEXT_UNSAFE_MODE=true
+    
+    # Use OpenAI model
+    echo "Explain quantum computing" | st --unsafe-mode --model openai:gpt-4o-mini
+    
+    # Use Cerebras model with custom seed
+    echo "Write Python code" | st --unsafe-mode --model cerebras:llama3.1-8b --seed 123
+    
+    # Structured generation with remote model
+    echo "Create a user" | st --unsafe-mode --model openai:gpt-4o-mini \
+        --schema '{"type": "object", "properties": {"name": {"type": "string"}}}' \
+        --wait
+    ```
+
 === "Structured JSON Output"
 
     ```bash
@@ -213,6 +231,7 @@ steadytext generate [OPTIONS] PROMPT
     - **Mutually exclusive**: Only one of `--schema`, `--regex`, or `--choices` can be used at a time
     - **Schema format**: Can be inline JSON or path to a `.json` file
     - **Choices format**: Comma-separated values without spaces around commas
+    - **Remote models**: Only `--schema` is supported with remote models; `--regex` and `--choices` work with local models only
 
 ### Stdin Support
 
@@ -959,6 +978,11 @@ export STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true
 
 # Set default seed for all operations
 export STEADYTEXT_DEFAULT_SEED=42
+
+# Enable unsafe mode for remote models
+export STEADYTEXT_UNSAFE_MODE=true
+export OPENAI_API_KEY=your-api-key
+export CEREBRAS_API_KEY=your-api-key
 
 # Then run commands
 st generate "test prompt"

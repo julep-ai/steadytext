@@ -31,16 +31,16 @@ Generate deterministic text from a prompt, with optional structured output.
 **Parameters:**
 - `prompt` (str): The input text to generate from
 - `max_new_tokens` (int, optional): Maximum number of tokens to generate (default: 512)
-- `return_logprobs` (bool): If True, returns log probabilities along with the text
+- `return_logprobs` (bool): If True, returns log probabilities along with the text (not supported with remote models)
 - `eos_string` (str): Custom end-of-sequence string to stop generation. Use "[EOS]" for model's default stop tokens
-- `model` (str, optional): Model name from built-in registry (deprecated - use `size` parameter instead)
-- `model_repo` (str, optional): Custom Hugging Face repository ID (e.g., "ggml-org/gemma-3n-E2B-it-GGUF")
-- `model_filename` (str, optional): Custom model filename (e.g., "gemma-3n-E2B-it-Q8_0.gguf")
-- `size` (str, optional): Size shortcut for Gemma-3n models: "small" (2B, default), or "large" (4B) - **recommended approach**
+- `model` (str, optional): Model name - can be a size shortcut ("small", "large"), a model name from registry, or a remote model in "provider:model" format (e.g., "openai:gpt-4o-mini")
+- `model_repo` (str, optional): Custom Hugging Face repository ID (e.g., "ggml-org/gemma-3n-E2B-it-GGUF") - for local models only
+- `model_filename` (str, optional): Custom model filename (e.g., "gemma-3n-E2B-it-Q8_0.gguf") - for local models only
+- `size` (str, optional): Size shortcut for Gemma-3n models: "small" (2B, default), or "large" (4B) - **recommended approach for local models**
 - `seed` (int): Random seed for deterministic generation (default: 42)
-- `schema` (Union[Dict, type, object], optional): JSON schema, Pydantic model, or Python type for structured JSON output.
-- `regex` (str, optional): A regular expression to constrain the output.
-- `choices` (List[str], optional): A list of strings to choose from.
+- `schema` (Union[Dict, type, object], optional): JSON schema, Pydantic model, or Python type for structured JSON output
+- `regex` (str, optional): A regular expression to constrain the output (local models only)
+- `choices` (List[str], optional): A list of strings to choose from (local models only)
 - `response_format` (Dict, optional): A dictionary specifying the output format (e.g., `{"type": "json_object"}`).
 
 **Returns:**
@@ -92,6 +92,23 @@ class User(BaseModel):
 
 user_json = steadytext.generate("Create a user named John, age 30", schema=User)
 # user_json will contain: '... <json-output>{"name": "John", "age": 30}</json-output>'
+
+# Remote model usage (requires STEADYTEXT_UNSAFE_MODE=true)
+import os
+os.environ["STEADYTEXT_UNSAFE_MODE"] = "true"
+
+# OpenAI model
+text = steadytext.generate("Explain AI", model="openai:gpt-4o-mini", seed=123)
+
+# Cerebras model  
+text = steadytext.generate("Write code", model="cerebras:llama3.1-8b", seed=456)
+
+# Structured generation with remote model
+user_remote = steadytext.generate(
+    "Create a user named Alice, age 25",
+    model="openai:gpt-4o-mini",
+    schema=User
+)
 ```
 
 #### `steadytext.generate_iter()`
@@ -116,11 +133,11 @@ Generate text iteratively, yielding tokens as they are produced.
 - `prompt` (str): The input text to generate from
 - `max_new_tokens` (int, optional): Maximum number of tokens to generate (default: 512)
 - `eos_string` (str): Custom end-of-sequence string to stop generation. Use "[EOS]" for model's default stop tokens
-- `include_logprobs` (bool): If True, yields tuples of (token, logprobs) instead of just tokens
-- `model` (str, optional): Model name from built-in registry (deprecated - use `size` parameter instead)
-- `model_repo` (str, optional): Custom Hugging Face repository ID
-- `model_filename` (str, optional): Custom model filename
-- `size` (str, optional): Size shortcut for Gemma-3n models: "small" (2B, default), or "large" (4B) - **recommended approach**
+- `include_logprobs` (bool): If True, yields tuples of (token, logprobs) instead of just tokens (not supported with remote models)
+- `model` (str, optional): Model name - can be a size shortcut, model name, or remote model in "provider:model" format
+- `model_repo` (str, optional): Custom Hugging Face repository ID (local models only)
+- `model_filename` (str, optional): Custom model filename (local models only)
+- `size` (str, optional): Size shortcut for Gemma-3n models: "small" (2B, default), or "large" (4B) - **recommended approach for local models**
 - `seed` (int): Random seed for deterministic generation (default: 42)
 
 **Yields:**
@@ -150,6 +167,18 @@ for token in steadytext.generate_iter("Quick response", size="small", max_new_to
     print(token, end="", flush=True)
 
 for token in steadytext.generate_iter("Complex task", size="large", seed=789):
+    print(token, end="", flush=True)
+
+# Streaming with remote models (requires STEADYTEXT_UNSAFE_MODE=true)
+import os
+os.environ["STEADYTEXT_UNSAFE_MODE"] = "true"
+
+# Stream from OpenAI
+for token in steadytext.generate_iter("Tell a story", model="openai:gpt-4o-mini"):
+    print(token, end="", flush=True)
+
+# Stream from Cerebras
+for token in steadytext.generate_iter("Explain ML", model="cerebras:llama3.1-8b", seed=999):
     print(token, end="", flush=True)
 ```
 
@@ -368,6 +397,12 @@ print(f"Models are stored in: {cache_dir}")
 - **Description:** The dimensionality of embedding vectors
 
 ## Environment Variables
+
+### Unsafe Mode (Remote Models)
+
+- **`STEADYTEXT_UNSAFE_MODE`**: Set to "true" to enable remote model support (default: false)
+- **`OPENAI_API_KEY`**: API key for OpenAI models (required for openai:* models)
+- **`CEREBRAS_API_KEY`**: API key for Cerebras models (required for cerebras:* models)
 
 ### Generation Cache
 

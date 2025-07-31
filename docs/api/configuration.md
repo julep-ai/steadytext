@@ -9,6 +9,12 @@ SteadyText can be configured through environment variables to customize its beha
 - `STEADYTEXT_MAX_CONTEXT_WINDOW`: Maximum context window size (default: auto-detected per model)
 - `STEADYTEXT_ALLOW_MODEL_DOWNLOADS`: Allow automatic model downloads (default: true)
 - `STEADYTEXT_DISABLE_DAEMON`: Disable daemon mode (default: false)
+- `STEADYTEXT_UNSAFE_MODE`: Enable unsafe mode for remote models (default: false)
+
+### Remote Model Configuration (Unsafe Mode)
+
+- `OPENAI_API_KEY`: API key for OpenAI models (required for openai:* models)
+- `CEREBRAS_API_KEY`: API key for Cerebras models (required for cerebras:* models)
 
 ### Cache Configuration
 
@@ -77,6 +83,19 @@ export STEADYTEXT_D1_BATCH_SIZE=100
 export STEADYTEXT_CACHE_BACKEND=memory
 export STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true
 export STEADYTEXT_DISABLE_DAEMON=true
+```
+
+### Remote Model Configuration (Unsafe Mode)
+```bash
+# Enable unsafe mode
+export STEADYTEXT_UNSAFE_MODE=true
+
+# Set API keys
+export OPENAI_API_KEY=sk-your-openai-key
+export CEREBRAS_API_KEY=your-cerebras-key
+
+# Use remote models
+python -c "import steadytext; print(steadytext.generate('Hello', model='openai:gpt-4o-mini'))"
 ```
 
 ## Platform-Specific Configuration
