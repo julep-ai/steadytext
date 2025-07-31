@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://steadytext.dev/why-steadytext/">
+        <link rel="canonical" href="https://steadytext.dev/unsafe-mode/">
       
       
-        <link rel="prev" href="../quick-start/">
+        <link rel="prev" href="../vector-indexing/">
       
       
-        <link rel="next" href="../architecture/">
+        <link rel="next" href="../faq/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -24,7 +24,7 @@
     
     
       
-        <title>Why SteadyText - SteadyText Documentation</title>
+        <title>Remote Models (Unsafe Mode) - SteadyText Documentation</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#why-steadytext" class="md-skip">
+        <a href="#unsafe-mode-remote-models-with-best-effort-determinism" class="md-skip">
           Skip to content
         </a>
       
@@ -110,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Why SteadyText
+              Remote Models (Unsafe Mode)
             
           </span>
         </div>
@@ -262,11 +262,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../why-steadytext/" class="md-tabs__link">
         
   
   
@@ -422,10 +420,12 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
+      <li class="md-tabs__item md-tabs__item--active">
         <a href="../examples/caching/" class="md-tabs__link">
           
   
@@ -572,32 +572,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    Why SteadyText
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../why-steadytext/" class="md-nav__link">
         
   
   
@@ -608,122 +586,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#the-problem-non-deterministic-ai" class="md-nav__link">
-    <span class="md-ellipsis">
-      The Problem: Non-Deterministic AI
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-solution-deterministic-generation" class="md-nav__link">
-    <span class="md-ellipsis">
-      The Solution: Deterministic Generation
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#technical-architecture" class="md-nav__link">
-    <span class="md-ellipsis">
-      Technical Architecture
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Technical Architecture">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#local-first-design" class="md-nav__link">
-    <span class="md-ellipsis">
-      Local-First Design
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#postgresql-integration" class="md-nav__link">
-    <span class="md-ellipsis">
-      PostgreSQL Integration
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#caching-strategy" class="md-nav__link">
-    <span class="md-ellipsis">
-      Caching Strategy
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#use-cases" class="md-nav__link">
-    <span class="md-ellipsis">
-      Use Cases
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#performance-characteristics" class="md-nav__link">
-    <span class="md-ellipsis">
-      Performance Characteristics
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#design-principles" class="md-nav__link">
-    <span class="md-ellipsis">
-      Design Principles
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
-    <span class="md-ellipsis">
-      Next Steps
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2016,28 +1878,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" checked>
         
           
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_11" >
-        
-          
-          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="">
             
   
   
@@ -2050,7 +1915,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_11">
             <span class="md-nav__icon md-icon"></span>
             Advanced Topics
@@ -2291,10 +2156,32 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../unsafe-mode/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Remote Models (Unsafe Mode)
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -2305,6 +2192,206 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-unsafe" class="md-nav__link">
+    <span class="md-ellipsis">
+      Why "Unsafe"?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enabling-unsafe-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      Enabling Unsafe Mode
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supported-providers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Supported Providers
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Supported Providers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#openai" class="md-nav__link">
+    <span class="md-ellipsis">
+      OpenAI
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cerebras" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cerebras
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#python-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      Python API
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      CLI
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Limitations
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      Best Practices
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#warning-messages" class="md-nav__link">
+    <span class="md-ellipsis">
+      Warning Messages
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-local-vs-remote" class="md-nav__link">
+    <span class="md-ellipsis">
+      Comparison: Local vs Remote
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Troubleshooting
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unsafe-mode-requires-steadytext_unsafe_modetrue" class="md-nav__link">
+    <span class="md-ellipsis">
+      "Unsafe mode requires STEADYTEXT_UNSAFE_MODE=true"
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#provider-not-available" class="md-nav__link">
+    <span class="md-ellipsis">
+      "Provider not available"
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#model-does-not-support-seed-parameter" class="md-nav__link">
+    <span class="md-ellipsis">
+      "Model does not support seed parameter"
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migration-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      Migration Path
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -2502,100 +2589,203 @@
   
 
 
-<h1 id="why-steadytext">Why SteadyText<a class="headerlink" href="#why-steadytext" title="Permanent link">&para;</a></h1>
-<p>Understanding the technical rationale behind deterministic AI.</p>
-<h2 id="the-problem-non-deterministic-ai">The Problem: Non-Deterministic AI<a class="headerlink" href="#the-problem-non-deterministic-ai" title="Permanent link">&para;</a></h2>
-<p>Traditional AI models produce different outputs for the same input, causing:</p>
+<h1 id="unsafe-mode-remote-models-with-best-effort-determinism">Unsafe Mode: Remote Models with Best-Effort Determinism<a class="headerlink" href="#unsafe-mode-remote-models-with-best-effort-determinism" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>⚠️ <strong>WARNING</strong>: Remote models provide only <strong>best-effort determinism</strong>. Results may vary between calls, environments, and over time. For true determinism, use local GGUF models (default SteadyText behavior).</p>
+</blockquote>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>SteadyText's unsafe mode allows you to use remote AI models (OpenAI, Cerebras, etc.) that support seed parameters for reproducibility. While these models attempt to provide consistent outputs when given the same seed, they cannot guarantee the same level of determinism as local models.</p>
+<h2 id="why-unsafe">Why "Unsafe"?<a class="headerlink" href="#why-unsafe" title="Permanent link">&para;</a></h2>
+<p>Remote models are considered "unsafe" because:</p>
 <ul>
-<li><strong>Flaky tests</strong>: Tests that pass locally but fail in CI</li>
-<li><strong>Debugging difficulties</strong>: Cannot reproduce issues reliably</li>
-<li><strong>Caching challenges</strong>: Results cannot be cached effectively</li>
-<li><strong>API dependencies</strong>: External services introduce latency and failure points</li>
+<li><strong>No Guaranteed Determinism</strong>: Results may vary despite using the same seed</li>
+<li><strong>External Dependencies</strong>: Relies on third-party APIs that may change</li>
+<li><strong>Version Changes</strong>: Model updates can alter outputs</li>
+<li><strong>Infrastructure Variability</strong>: Different servers may produce different results</li>
+<li><strong>API Costs</strong>: Unlike local models, remote models incur per-token charges</li>
 </ul>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Traditional approach - unpredictable</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">test_ai_feature</span><span class="p">():</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">result</span> <span class="o">=</span> <span class="n">ai_generate</span><span class="p">(</span><span class="s2">&quot;Summarize this&quot;</span><span class="p">)</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="k">assert</span> <span class="s2">&quot;summary&quot;</span> <span class="ow">in</span> <span class="n">result</span>  <span class="c1"># May randomly fail</span>
+<h2 id="enabling-unsafe-mode">Enabling Unsafe Mode<a class="headerlink" href="#enabling-unsafe-mode" title="Permanent link">&para;</a></h2>
+<p>Unsafe mode requires explicit opt-in via environment variable:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_UNSAFE_MODE</span><span class="o">=</span><span class="nb">true</span>
 </span></code></pre></div>
-<h2 id="the-solution-deterministic-generation">The Solution: Deterministic Generation<a class="headerlink" href="#the-solution-deterministic-generation" title="Permanent link">&para;</a></h2>
-<p>SteadyText ensures identical inputs always produce identical outputs by:</p>
-<ol>
-<li><strong>Fixed random seeds</strong>: All randomness is seeded with deterministic values</li>
-<li><strong>Greedy decoding</strong>: Always selecting the highest probability token</li>
-<li><strong>Quantized models</strong>: Consistent numerical precision across platforms</li>
-<li><strong>Aggressive caching</strong>: Deterministic outputs enable perfect caching</li>
-</ol>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># SteadyText approach - predictable</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">test_ai_feature</span><span class="p">():</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="n">result</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="s2">&quot;Summarize this&quot;</span><span class="p">)</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="k">assert</span> <span class="n">result</span> <span class="o">==</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="s2">&quot;Summarize this&quot;</span><span class="p">)</span>  <span class="c1"># Always true</span>
-</span></code></pre></div>
-<h2 id="technical-architecture">Technical Architecture<a class="headerlink" href="#technical-architecture" title="Permanent link">&para;</a></h2>
-<h3 id="local-first-design">Local-First Design<a class="headerlink" href="#local-first-design" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>No network calls</strong>: Models run entirely on your infrastructure</li>
-<li><strong>No API keys</strong>: Self-contained system with no external dependencies</li>
-<li><strong>Predictable latency</strong>: Consistent sub-millisecond response times</li>
-<li><strong>Data locality</strong>: AI processing happens where your data lives</li>
-</ul>
-<h3 id="postgresql-integration">PostgreSQL Integration<a class="headerlink" href="#postgresql-integration" title="Permanent link">&para;</a></h3>
-<p>The PostgreSQL extension enables AI operations directly in SQL:</p>
-<div class="language-sql highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1">-- AI as a native database function</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">SELECT</span><span class="w"> </span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="n">id</span><span class="p">,</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="n">steadytext_generate</span><span class="p">(</span><span class="s1">&#39;Summarize: &#39;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">content</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">summary</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="k">FROM</span><span class="w"> </span><span class="n">documents</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="k">CURRENT_DATE</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">7</span><span class="p">;</span>
-</span></code></pre></div>
-<p>Benefits:
-- <strong>Transactional consistency</strong>: AI operations participate in ACID transactions
-- <strong>Backup integration</strong>: AI results included in standard database backups
-- <strong>Security model</strong>: Leverages existing PostgreSQL authentication and permissions
-- <strong>Performance</strong>: Eliminates round-trips between application and database</p>
-<h3 id="caching-strategy">Caching Strategy<a class="headerlink" href="#caching-strategy" title="Permanent link">&para;</a></h3>
-<p>Deterministic outputs enable sophisticated caching:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Cache key includes all parameters affecting output</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">cache_key</span> <span class="o">=</span> <span class="nb">hash</span><span class="p">(</span><span class="n">prompt</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span> <span class="o">+</span> <span class="n">model_params</span><span class="p">)</span>
+<h2 id="supported-providers">Supported Providers<a class="headerlink" href="#supported-providers" title="Permanent link">&para;</a></h2>
+<h3 id="openai">OpenAI<a class="headerlink" href="#openai" title="Permanent link">&para;</a></h3>
+<p>Supported models (all models available through OpenAI API):
+- <code>gpt-4o</code> and <code>gpt-4o-mini</code> (recommended for seed support)
+- <code>gpt-4-turbo</code> and variants
+- <code>gpt-3.5-turbo</code> and variants
+- Any future models accessible via the OpenAI API</p>
+<p>Setup:
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>your-api-key
+</span></code></pre></div></p>
+<p>Note: The provider dynamically supports all models available through your OpenAI account.</p>
+<h3 id="cerebras">Cerebras<a class="headerlink" href="#cerebras" title="Permanent link">&para;</a></h3>
+<p>Supported models (all models available through Cerebras Cloud API):
+- <code>llama3.1-8b</code> and <code>llama3.1-70b</code>
+- <code>llama3-8b</code> and <code>llama3-70b</code>
+- Any future models accessible via the Cerebras API</p>
+<p>Setup:
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CEREBRAS_API_KEY</span><span class="o">=</span>your-api-key
+</span></code></pre></div></p>
+<p>Note: The provider dynamically supports all models available through your Cerebras account.</p>
+<h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
+<h3 id="python-api">Python API<a class="headerlink" href="#python-api" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">steadytext</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Perfect cache hits for repeated queries</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="k">if</span> <span class="n">cache_key</span> <span class="ow">in</span> <span class="n">cache</span><span class="p">:</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="k">return</span> <span class="n">cache</span><span class="p">[</span><span class="n">cache_key</span><span class="p">]</span>  <span class="c1"># &lt;1ms response</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Enable unsafe mode</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;STEADYTEXT_UNSAFE_MODE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;true&quot;</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="c1"># Use OpenAI</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">text</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    <span class="s2">&quot;Explain quantum computing&quot;</span><span class="p">,</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;openai:gpt-4o-mini&quot;</span><span class="p">,</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>    <span class="n">seed</span><span class="o">=</span><span class="mi">42</span>  <span class="c1"># Best-effort determinism</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="p">)</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="c1"># Use Cerebras</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="n">text</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>    <span class="s2">&quot;Write a Python function&quot;</span><span class="p">,</span>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;cerebras:llama3.1-8b&quot;</span><span class="p">,</span>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>    <span class="n">seed</span><span class="o">=</span><span class="mi">42</span>
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="p">)</span>
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="c1"># Streaming also supported</span>
+</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">generate_iter</span><span class="p">(</span>
+</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>    <span class="s2">&quot;Tell me a story&quot;</span><span class="p">,</span>
+</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;openai:gpt-4o-mini&quot;</span>
+</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="p">):</span>
+</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">token</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a>
+</span><span id="__span-3-28"><a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a><span class="c1"># Structured generation (JSON schemas)</span>
+</span><span id="__span-3-29"><a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span>
+</span><span id="__span-3-30"><a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a>
+</span><span id="__span-3-31"><a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a><span class="k">class</span><span class="w"> </span><span class="nc">Person</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+</span><span id="__span-3-32"><a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+</span><span id="__span-3-33"><a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a>    <span class="n">age</span><span class="p">:</span> <span class="nb">int</span>
+</span><span id="__span-3-34"><a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a>
+</span><span id="__span-3-35"><a id="__codelineno-3-35" name="__codelineno-3-35" href="#__codelineno-3-35"></a><span class="c1"># Generate structured JSON with remote models</span>
+</span><span id="__span-3-36"><a id="__codelineno-3-36" name="__codelineno-3-36" href="#__codelineno-3-36"></a><span class="n">result</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span>
+</span><span id="__span-3-37"><a id="__codelineno-3-37" name="__codelineno-3-37" href="#__codelineno-3-37"></a>    <span class="s2">&quot;Create a person named Alice, age 30&quot;</span><span class="p">,</span>
+</span><span id="__span-3-38"><a id="__codelineno-3-38" name="__codelineno-3-38" href="#__codelineno-3-38"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;openai:gpt-4o-mini&quot;</span><span class="p">,</span>
+</span><span id="__span-3-39"><a id="__codelineno-3-39" name="__codelineno-3-39" href="#__codelineno-3-39"></a>    <span class="n">schema</span><span class="o">=</span><span class="n">Person</span>
+</span><span id="__span-3-40"><a id="__codelineno-3-40" name="__codelineno-3-40" href="#__codelineno-3-40"></a><span class="p">)</span>
+</span><span id="__span-3-41"><a id="__codelineno-3-41" name="__codelineno-3-41" href="#__codelineno-3-41"></a><span class="c1"># Result contains JSON wrapped in &lt;json-output&gt; tags</span>
 </span></code></pre></div>
-<p>Cache features:
-- <strong>Frecency-based eviction</strong>: Balances recency and frequency
-- <strong>Distributed backends</strong>: Support for SQLite, D1, and memory caches
-- <strong>Size limits</strong>: Configurable capacity and memory constraints</p>
-<h2 id="use-cases">Use Cases<a class="headerlink" href="#use-cases" title="Permanent link">&para;</a></h2>
-<p>SteadyText excels in scenarios requiring predictable AI:</p>
+<h3 id="cli">CLI<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Enable unsafe mode</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_UNSAFE_MODE</span><span class="o">=</span><span class="nb">true</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Generate with OpenAI</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Explain AI&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>st<span class="w"> </span>--unsafe-mode<span class="w"> </span>--model<span class="w"> </span>openai:gpt-4o-mini
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># Generate with Cerebras</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Write code&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>st<span class="w"> </span>--unsafe-mode<span class="w"> </span>--model<span class="w"> </span>cerebras:llama3.1-8b
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="c1"># With custom seed for reproducibility</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Tell me a story&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>st<span class="w"> </span>--unsafe-mode<span class="w"> </span>--model<span class="w"> </span>openai:gpt-4o-mini<span class="w"> </span>--seed<span class="w"> </span><span class="m">123</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="c1"># Structured generation with remote models</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Create a person&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>st<span class="w"> </span>--unsafe-mode<span class="w"> </span>--model<span class="w"> </span>openai:gpt-4o-mini<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">    </span>--schema<span class="w"> </span><span class="s1">&#39;{&quot;type&quot;: &quot;object&quot;, &quot;properties&quot;: {&quot;name&quot;: {&quot;type&quot;: &quot;string&quot;}, &quot;age&quot;: {&quot;type&quot;: &quot;integer&quot;}}}&#39;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">    </span>--wait
+</span></code></pre></div>
+<h2 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">&para;</a></h2>
+<p>When using unsafe mode:</p>
 <ol>
-<li><strong>Automated testing</strong>: Reliable assertions on AI-generated content</li>
-<li><strong>Data pipelines</strong>: Reproducible ETL operations with AI components</li>
-<li><strong>Content generation</strong>: Consistent outputs for documentation and reports</li>
-<li><strong>Semantic search</strong>: Stable embeddings for similarity matching</li>
-<li><strong>Log analysis</strong>: Deterministic summarization of system events</li>
+<li><strong>Limited Structured Output</strong>: Remote models support JSON schemas but not regex or choices constraints</li>
+<li><strong>No Logprobs</strong>: Log probabilities are not available from remote APIs</li>
+<li><strong>No Embeddings</strong>: Only generation is supported, not embeddings</li>
+<li><strong>Best-Effort Only</strong>: Determinism is not guaranteed despite seed parameters</li>
 </ol>
-<h2 id="performance-characteristics">Performance Characteristics<a class="headerlink" href="#performance-characteristics" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong>Inference latency</strong>: &lt;100ms for most generation tasks</li>
-<li><strong>Embedding speed</strong>: ~1ms per text with caching</li>
-<li><strong>Memory usage</strong>: 2-4GB for model storage</li>
-<li><strong>Cache hit rate</strong>: &gt;90% in typical workloads</li>
-</ul>
-<h2 id="design-principles">Design Principles<a class="headerlink" href="#design-principles" title="Permanent link">&para;</a></h2>
+<h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Determinism by default</strong>: Same input → same output, always</li>
-<li><strong>Zero configuration</strong>: Works out of the box without setup</li>
-<li><strong>Local execution</strong>: No external dependencies or network calls</li>
-<li><strong>SQL-native</strong>: AI as a first-class database primitive</li>
-<li><strong>Production-ready</strong>: Designed for reliability over novelty</li>
+<li><strong>Use for Prototyping</strong>: Test ideas with remote models, then switch to local models for production</li>
+<li><strong>Document Variability</strong>: Note that outputs may change over time</li>
+<li><strong>Set Temperature to 0</strong>: Use <code>temperature=0</code> for maximum consistency</li>
+<li><strong>Version Lock</strong>: Document which model versions you're using</li>
+<li><strong>Fallback Planning</strong>: Have a plan for when remote APIs are unavailable</li>
 </ol>
-<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
-<ul>
-<li><a href="../quick-start/">Quick Start Guide</a> - Get running in minutes</li>
-<li><a href="../postgresql-extension/">PostgreSQL Extension</a> - Database integration</li>
-<li><a href="../api/">API Reference</a> - Complete function documentation</li>
-<li><a href="../examples/">Examples</a> - Real-world usage patterns</li>
-</ul>
+<h2 id="warning-messages">Warning Messages<a class="headerlink" href="#warning-messages" title="Permanent link">&para;</a></h2>
+<p>When using unsafe mode, you'll see warnings like:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>======================================================================
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>UNSAFE MODE WARNING: Using OpenAI (gpt-4o-mini) remote model
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>======================================================================
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>You are using a REMOTE model that provides only BEST-EFFORT determinism.
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>Results may vary between:
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>  - Different API calls
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>  - Different environments
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>  - Different times
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>  - Provider infrastructure changes
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>For TRUE determinism, use local GGUF models (default SteadyText behavior).
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>======================================================================
+</span></code></pre></div>
+<h2 id="comparison-local-vs-remote">Comparison: Local vs Remote<a class="headerlink" href="#comparison-local-vs-remote" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Local Models (Default)</th>
+<th>Remote Models (Unsafe)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Determinism</td>
+<td>✅ Guaranteed</td>
+<td>⚠️ Best-effort only</td>
+</tr>
+<tr>
+<td>Cost</td>
+<td>✅ Free after download</td>
+<td>❌ Per-token charges</td>
+</tr>
+<tr>
+<td>Speed</td>
+<td>✅ Fast (local)</td>
+<td>❌ Network latency</td>
+</tr>
+<tr>
+<td>Privacy</td>
+<td>✅ Fully private</td>
+<td>❌ Data sent to API</td>
+</tr>
+<tr>
+<td>Offline</td>
+<td>✅ Works offline</td>
+<td>❌ Requires internet</td>
+</tr>
+<tr>
+<td>Models</td>
+<td>Limited selection</td>
+<td>Many options</td>
+</tr>
+</tbody>
+</table>
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<h3 id="unsafe-mode-requires-steadytext_unsafe_modetrue">"Unsafe mode requires STEADYTEXT_UNSAFE_MODE=true"<a class="headerlink" href="#unsafe-mode-requires-steadytext_unsafe_modetrue" title="Permanent link">&para;</a></h3>
+<p>Set the environment variable:
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">STEADYTEXT_UNSAFE_MODE</span><span class="o">=</span><span class="nb">true</span>
+</span></code></pre></div></p>
+<h3 id="provider-not-available">"Provider not available"<a class="headerlink" href="#provider-not-available" title="Permanent link">&para;</a></h3>
+<p>Check your API key:
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># OpenAI</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>sk-...
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Cerebras  </span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CEREBRAS_API_KEY</span><span class="o">=</span>...
+</span></code></pre></div></p>
+<h3 id="model-does-not-support-seed-parameter">"Model does not support seed parameter"<a class="headerlink" href="#model-does-not-support-seed-parameter" title="Permanent link">&para;</a></h3>
+<p>Use only models listed in the supported models section above.</p>
+<h2 id="migration-path">Migration Path<a class="headerlink" href="#migration-path" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Prototype</strong> with remote models for flexibility</li>
+<li><strong>Evaluate</strong> outputs and identify core use cases</li>
+<li><strong>Switch</strong> to local models for production deployment</li>
+<li><strong>Maintain</strong> deterministic outputs over time</li>
+</ol>
+<p>Remember: SteadyText's core value is <strong>deterministic</strong> text generation. Use unsafe mode only when you explicitly need remote model capabilities and understand the trade-offs.</p>
 
 
 
