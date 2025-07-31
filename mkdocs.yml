@@ -98,6 +98,7 @@ nav:
     - Reranking: reranking.md
     - Shell Integration: shell-integration.md
     - Vector Indexing: vector-indexing.md
+    - Remote Models (Unsafe Mode): unsafe-mode.md
   - Reference:
     - FAQ: faq.md
     - Benchmarks: benchmarks.md

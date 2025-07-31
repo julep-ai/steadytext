@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "steadytext"
-version = "2.5.2"
+version = "2.6.0"
 description = "Deterministic text generation and embedding with zero configuration"
 readme = "README.md"
 authors = [
@@ -67,6 +67,9 @@ benchmark = [
 ]
 d1 = [
     "httpx>=0.25.0",
+]
+unsafe = [
+    "openai>=1.0.0",
 ]
 
 [project.scripts]

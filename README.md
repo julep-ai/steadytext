@@ -285,6 +285,55 @@ echo "Is Python good?" | st --choices "yes,no,maybe" --wait
 
 ---
 
+## ⚠️ Unsafe Mode: Remote Models (Experimental)
+
+SteadyText now supports remote AI models (OpenAI, Cerebras) with **best-effort determinism** via seed parameters. This feature is explicitly marked as "unsafe" because remote models cannot guarantee reproducibility.
+
+### Why Use Unsafe Mode?
+
+- Access to larger, more capable models
+- Prototype before switching to local models
+- Use when true determinism isn't critical
+
+### Quick Example
+
+```bash
+# Enable unsafe mode
+export STEADYTEXT_UNSAFE_MODE=true
+
+# Use OpenAI
+echo "Explain quantum computing" | st --unsafe-mode --model openai:gpt-4o-mini
+
+# Use Cerebras  
+echo "Write Python code" | st --unsafe-mode --model cerebras:llama3.1-8b
+
+# List available remote models
+st unsafe list-models
+```
+
+### Python API
+
+```python
+import os
+import steadytext
+
+# Enable unsafe mode
+os.environ["STEADYTEXT_UNSAFE_MODE"] = "true"
+
+# Generate with OpenAI (requires OPENAI_API_KEY)
+text = steadytext.generate(
+    "Explain AI", 
+    model="openai:gpt-4o-mini",
+    seed=42  # Best-effort determinism only
+)
+```
+
+⚠️ **WARNING**: Remote models may produce different outputs despite using the same seed. Use local GGUF models for guaranteed determinism.
+
+📚 **[Learn more in the Unsafe Mode Guide](docs/unsafe-mode.md)**
+
+---
+
 ## 📦 Installation & Models
 
 Install stable release:

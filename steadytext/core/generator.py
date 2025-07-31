@@ -50,10 +50,9 @@ class DeterministicGenerator:
         self._context_window = (
             get_optimal_context_window()
         )  # Will be updated when model is loaded
-        # Load model without logits_all initially
-        # AIDEV-NOTE: Skip model loading if STEADYTEXT_SKIP_MODEL_LOAD is set
-        if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") != "1":
-            self._load_model(enable_logits=False)
+        # AIDEV-NOTE: Delay model loading until first use to avoid unnecessary loading
+        # when using remote models. Model will be loaded on first generate() call.
+        self._model_loaded = False
 
     def _load_model(
         self,
@@ -243,6 +242,58 @@ class DeterministicGenerator:
         validate_seed(seed)
         set_deterministic_environment(seed)
 
+        # AIDEV-NOTE: Check if this is a remote model request
+        from ..providers.registry import is_remote_model, get_provider
+
+        if model and is_remote_model(model):
+            try:
+                provider = get_provider(model)
+
+                # Handle structured generation with remote models
+                if schema or response_format:
+                    result = provider.generate(
+                        prompt=prompt,
+                        max_new_tokens=max_new_tokens,
+                        seed=seed,
+                        response_format=response_format,
+                        schema=schema,
+                    )
+                elif regex:
+                    # Convert regex to prompt instruction for remote models
+                    enhanced_prompt = f"{prompt}\n\nPlease format your response to match this regular expression pattern: {regex}"
+                    result = provider.generate(
+                        prompt=enhanced_prompt,
+                        max_new_tokens=max_new_tokens,
+                        seed=seed,
+                    )
+                elif choices:
+                    # Convert choices to prompt instruction for remote models
+                    choices_str = ", ".join([f"'{choice}'" for choice in choices])
+                    enhanced_prompt = f"{prompt}\n\nYou must respond with exactly one of these choices: {choices_str}"
+                    result = provider.generate(
+                        prompt=enhanced_prompt,
+                        max_new_tokens=max_new_tokens,
+                        seed=seed,
+                    )
+                else:
+                    # Regular generation
+                    result = provider.generate(
+                        prompt=prompt,
+                        max_new_tokens=max_new_tokens,
+                        seed=seed,
+                    )
+
+                # Remote models don't support logprobs in our implementation
+                if return_logprobs:
+                    logger.warning(
+                        "Logprobs not supported with remote models, returning None"
+                    )
+                    return (result, None)
+                return result
+            except Exception as e:
+                logger.error(f"Remote model generation failed: {e}")
+                return (None, None) if return_logprobs else None
+
         # AIDEV-NOTE: Check if structured output is requested
         is_structured = any([response_format, schema, regex, choices])
 
@@ -326,8 +377,12 @@ class DeterministicGenerator:
         model_key = f"{repo_id or 'default'}::{filename or 'default'}"
         needs_different_model = model_key != self._current_model_key
 
-        # Load appropriate model if needed
-        if needs_different_model or (return_logprobs and not self._logits_enabled):
+        # AIDEV-NOTE: Load model on first use (lazy loading) or when switching models
+        if (
+            not self._model_loaded
+            or needs_different_model
+            or (return_logprobs and not self._logits_enabled)
+        ):
             logger.info(f"Loading model {model_key} with logits={return_logprobs}")
             self._load_model(
                 enable_logits=return_logprobs,
@@ -335,6 +390,7 @@ class DeterministicGenerator:
                 filename=filename,
                 force_reload=False,  # Use cache if available
             )
+            self._model_loaded = True
 
         # AIDEV-NOTE: Return None if model is not loaded instead of using fallback
         skip_model_load = os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1"
@@ -467,6 +523,28 @@ class DeterministicGenerator:
         """
         validate_seed(seed)
         set_deterministic_environment(seed)
+
+        # AIDEV-NOTE: Check if this is a remote model request
+        from ..providers.registry import is_remote_model, get_provider
+
+        if model and is_remote_model(model):
+            try:
+                provider = get_provider(model)
+                for token in provider.generate_iter(
+                    prompt=prompt,
+                    max_new_tokens=max_new_tokens,
+                    seed=seed,
+                ):
+                    # Remote models return strings, not dicts with logprobs
+                    if include_logprobs:
+                        yield {"token": token, "logprobs": None}
+                    else:
+                        yield token
+                return
+            except Exception as e:
+                logger.error(f"Remote model streaming generation failed: {e}")
+                return
+
         if not isinstance(prompt, str):
             logger.error(
                 f"DeterministicGenerator.generate_iter: Invalid prompt type: {type(prompt)}. Expected str."
@@ -541,8 +619,12 @@ class DeterministicGenerator:
         model_key = f"{repo_id or 'default'}::{filename or 'default'}"
         needs_different_model = model_key != self._current_model_key
 
-        # Load appropriate model if needed
-        if needs_different_model or (include_logprobs and not self._logits_enabled):
+        # AIDEV-NOTE: Load model on first use (lazy loading) or when switching models
+        if (
+            not self._model_loaded
+            or needs_different_model
+            or (include_logprobs and not self._logits_enabled)
+        ):
             logger.info(f"Loading model {model_key} with logits={include_logprobs}")
             self._load_model(
                 enable_logits=include_logprobs,
@@ -550,6 +632,7 @@ class DeterministicGenerator:
                 filename=filename,
                 force_reload=False,
             )
+            self._model_loaded = True
 
         # AIDEV-NOTE: Return early if model is not loaded
         skip_model_load = os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1"
@@ -872,6 +955,7 @@ def core_generate(
     schema: Optional[Union[Dict[str, Any], Type, object]] = None,
     regex: Optional[str] = None,
     choices: Optional[List[str]] = None,
+    unsafe_mode: bool = False,
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None]]:
     """Generate text deterministically with optional model switching and structured output.
 
@@ -924,7 +1008,7 @@ def core_generate(
         # Returns: "Let me create...<json-output>{"name": "John", "age": 30}</json-output>"
 
         # Generate with regex pattern
-        phone = generate("My phone number is", regex=r"\d{3}-\d{3}-\d{4}")
+        phone = generate("My phone number is", regex=r"\\d{3}-\\d{3}-\\d{4}")
 
         # Generate with choices
         answer = generate("Is Python good?", choices=["yes", "no", "maybe"])
@@ -932,6 +1016,79 @@ def core_generate(
     AIDEV-NOTE: Model switching allows using different models without changing environment variables. Models are cached after the first load.
     AIDEV-NOTE: Structured output parameters enable JSON, regex, and choice-constrained generation.
     """
+    # AIDEV-NOTE: Check for remote models first to avoid loading local models unnecessarily
+    from ..providers.registry import is_remote_model, get_provider
+
+    if model and is_remote_model(model):
+        # AIDEV-NOTE: Temporarily enable unsafe mode for this call if requested
+        old_unsafe_mode = os.environ.get("STEADYTEXT_UNSAFE_MODE")
+        if unsafe_mode:
+            os.environ["STEADYTEXT_UNSAFE_MODE"] = "true"
+
+        try:
+            validate_seed(seed)
+            set_deterministic_environment(seed)
+
+            provider = get_provider(model)
+
+            # Handle structured generation with remote models
+            if schema or response_format:
+                result = provider.generate(
+                    prompt=prompt,
+                    max_new_tokens=max_new_tokens,
+                    seed=seed,
+                    response_format=response_format,
+                    schema=schema,
+                )
+            elif regex:
+                # Convert regex to prompt instruction for remote models
+                enhanced_prompt = f"{prompt}\n\nPlease format your response to match this regular expression pattern: {regex}"
+                result = provider.generate(
+                    prompt=enhanced_prompt,
+                    max_new_tokens=max_new_tokens,
+                    seed=seed,
+                )
+            elif choices:
+                # Convert choices to prompt instruction for remote models
+                choices_str = ", ".join([f"'{choice}'" for choice in choices])
+                enhanced_prompt = f"{prompt}\n\nYou must respond with exactly one of these choices: {choices_str}"
+                result = provider.generate(
+                    prompt=enhanced_prompt,
+                    max_new_tokens=max_new_tokens,
+                    seed=seed,
+                )
+            else:
+                # Regular generation
+                result = provider.generate(
+                    prompt=prompt,
+                    max_new_tokens=max_new_tokens,
+                    seed=seed,
+                )
+
+            if return_logprobs:
+                # Remote models don't support logprobs, return None
+                return result, None
+            else:
+                return result
+
+        except Exception as e:
+            logger.error(f"Remote model generation failed: {e}")
+            if return_logprobs:
+                return None, None
+            else:
+                return None
+        finally:
+            # AIDEV-NOTE: Restore original unsafe mode state
+            if unsafe_mode:
+                if old_unsafe_mode is None:
+                    os.environ.pop("STEADYTEXT_UNSAFE_MODE", None)
+                else:
+                    os.environ["STEADYTEXT_UNSAFE_MODE"] = old_unsafe_mode
+
+        # AIDEV-NOTE: This point should never be reached for remote models
+        # since we either return the result or return None on error above
+
+    # Use local model for non-remote models
     return _get_generator_instance().generate(
         prompt=prompt,
         max_new_tokens=max_new_tokens,
@@ -959,6 +1116,7 @@ def core_generate_iter(
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
     seed: int = DEFAULT_SEED,
+    unsafe_mode: bool = False,
 ) -> Iterator[Union[str, Dict[str, Any]]]:
     """Generate text iteratively with optional model switching.
 
@@ -980,6 +1138,57 @@ def core_generate_iter(
 
     AIDEV-NOTE: Streaming generation with model switching support. Falls back to word-by-word yielding from the deterministic fallback.
     """
+    # AIDEV-NOTE: Check for remote models first to avoid loading local models unnecessarily
+    from ..providers.registry import is_remote_model, get_provider
+
+    if model and is_remote_model(model):
+        # AIDEV-NOTE: Temporarily enable unsafe mode for this call if requested
+        old_unsafe_mode = os.environ.get("STEADYTEXT_UNSAFE_MODE")
+        if unsafe_mode:
+            os.environ["STEADYTEXT_UNSAFE_MODE"] = "true"
+
+        try:
+            validate_seed(seed)
+            set_deterministic_environment(seed)
+
+            provider = get_provider(model)
+
+            # Use generate_iter if available, otherwise fall back to non-streaming
+            if hasattr(provider, "generate_iter"):
+                yield from provider.generate_iter(
+                    prompt=prompt,
+                    max_new_tokens=max_new_tokens,
+                    seed=seed,
+                )
+            else:
+                # Fall back to non-streaming generation and yield word by word
+                result = provider.generate(
+                    prompt=prompt,
+                    max_new_tokens=max_new_tokens,
+                    seed=seed,
+                )
+                if result:
+                    # Split result into words and yield them
+                    words = result.split()
+                    for word in words:
+                        if include_logprobs:
+                            yield {"token": word + " ", "logprobs": None}
+                        else:
+                            yield word + " "
+            return
+
+        except Exception as e:
+            logger.error(f"Remote model streaming generation failed: {e}")
+            return
+        finally:
+            # AIDEV-NOTE: Restore original unsafe mode state
+            if unsafe_mode:
+                if old_unsafe_mode is None:
+                    os.environ.pop("STEADYTEXT_UNSAFE_MODE", None)
+                else:
+                    os.environ["STEADYTEXT_UNSAFE_MODE"] = old_unsafe_mode
+
+    # Use local model for non-remote models
     return _get_generator_instance().generate_iter(
         prompt=prompt,
         max_new_tokens=max_new_tokens,

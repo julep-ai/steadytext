@@ -22,24 +22,6 @@ Add specially formatted comments throughout the codebase, where appropriate, for
 
 SteadyText includes a daemon mode for persistent model serving via ZeroMQ. This avoids the overhead of repeated model loading.
 
-### Key Components
-
-**daemon/protocol.py**
-- Defines JSON-based request/response protocol
-- Request types: generate, generate_iter, embed, ping, shutdown
-- Uses unique IDs for request-response matching
-
-**daemon/server.py**
-- ZeroMQ REP server that keeps models loaded in memory
-- Handles multiple request types with error recovery
-- Supports streaming generation with acknowledgment protocol
-- Graceful shutdown via signals (SIGINT, SIGTERM)
-
-**daemon/client.py**
-- Client wrapper with automatic fallback to direct model loading
-- `use_daemon()` context manager for scoped daemon usage
-- Environment variable support (STEADYTEXT_DISABLE_DAEMON to opt-out)
-
 ### Usage Patterns
 
 **CLI Commands:**
@@ -52,17 +34,10 @@ st daemon status [--json]
 
 # Stop daemon
 st daemon stop [--force]
-
-# Restart daemon
-st daemon restart
 ```
 
 **SDK Usage:**
 ```python
-# Daemon is used by default - no setup needed
-text = generate("Hello world")  # Uses daemon automatically
-embedding = embed("Some text")   # Uses daemon automatically
-
 # Use daemon for all operations in a scope (ensures connection)
 with use_daemon():
     text = generate("Hello world")
@@ -75,7 +50,7 @@ os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 ### AIDEV Considerations
 
 - AIDEV-NOTE: The daemon maintains singleton model instances and falls back to direct loading on connection failure
-- AIDEV-NOTE: Cache integration (v1.3.3+): Daemon and direct access share the same centralized SQLite cache for consistency
+- AIDEV-NOTE: Cache integration: Daemon and direct access share the same centralized SQLite cache for consistency
 - AIDEV-NOTE: Streaming handles caching by collecting tokens and populating cache after completion
 - AIDEV-NOTE: Special cases: Logprobs bypass cache, custom eos_string included in cache keys
 - AIDEV-TODO: Consider adding connection pooling for high-concurrency scenarios
@@ -85,21 +60,9 @@ os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 
 SteadyText v2.0+ uses Gemma-3n models for generation and Qwen3 for embeddings.
 
-### AIDEV Considerations
-
-- AIDEV-NOTE: Default models: `gemma-3n-E2B-it-GGUF` (generation), `Qwen3-Embedding-0.6B-GGUF` (embedding)
-- AIDEV-NOTE: Gemma license compliance (v2.5.3+): Shows terms before download, checks "gemma" in repo_id/filename
-
 ## Reranking Support (v1.3.0+)
 
 SteadyText v1.3.0+ includes document reranking functionality using the Qwen3-Reranker-4B model.
-
-### Key Components
-
-**core/reranker.py**
-- DeterministicReranker class following the same patterns as generation/embedding
-- Uses yes/no token logits for binary relevance scoring
-- Fallback to simple word overlap scoring when model unavailable
 
 **Reranking Features:**
 - Query-document relevance scoring
@@ -109,8 +72,6 @@ SteadyText v1.3.0+ includes document reranking functionality using the Qwen3-Rer
 - CLI command: `st rerank`
 - PostgreSQL functions: `steadytext_rerank()` and async variants
 
-### AIDEV Considerations
-
 - AIDEV-NOTE: Default model `Qwen3-Reranker-4B-GGUF` uses binary scoring (1.0/0.0) based on yes/no tokens
 - AIDEV-NOTE: v2.5.2+ caches all scores and improved fallback with semantic heuristics
 - AIDEV-TODO: Consider cross-encoder models, streaming support, and probabilistic scoring
@@ -119,61 +80,10 @@ SteadyText v1.3.0+ includes document reranking functionality using the Qwen3-Rer
 
 SteadyText v1.3+ uses a centralized cache management system with pluggable backends (v2.2.0+).
 
-### Key Components
-
-**cache_manager.py**
-- Centralized cache management with singleton pattern
-- Support for multiple cache backends via factory pattern
-- Thread-safe and process-safe access across all components
-
 **Cache Backends (v2.2.0+):**
 - **SQLite** (default): Thread-safe local storage with WAL mode
 - **D1**: Cloudflare's distributed SQLite for edge deployments
 - **Memory**: In-memory cache for testing/ephemeral workloads
-
-### Cache Backend Selection
-
-```bash
-# Select cache backend
-export STEADYTEXT_CACHE_BACKEND=sqlite  # Default
-export STEADYTEXT_CACHE_BACKEND=d1      # Cloudflare D1
-export STEADYTEXT_CACHE_BACKEND=memory  # In-memory
-
-# D1-specific configuration
-export STEADYTEXT_D1_API_URL=https://your-worker.workers.dev
-export STEADYTEXT_D1_API_KEY=your-api-key
-export STEADYTEXT_D1_BATCH_SIZE=50
-```
-
-### Cache Configuration
-
-Environment variables affect all backends:
-
-**Generation Cache:**
-- `STEADYTEXT_GENERATION_CACHE_CAPACITY` (default: 256)
-- `STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB` (default: 50.0)
-
-**Embedding Cache:**
-- `STEADYTEXT_EMBEDDING_CACHE_CAPACITY` (default: 512)
-- `STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB` (default: 100.0)
-
-### Cache Usage
-
-```python
-from steadytext import get_cache_manager
-
-# Get cache statistics
-cache_manager = get_cache_manager()
-stats = cache_manager.get_cache_stats()
-print(f"Generation cache size: {stats['generation']['size']}")
-
-# Clear all caches (for testing)
-cache_manager.clear_all_caches()
-
-# Programmatic backend selection
-from steadytext.disk_backed_frecency_cache import DiskBackedFrecencyCache
-cache = DiskBackedFrecencyCache(backend_type="d1", api_url="...", api_key="...")
-```
 
 - AIDEV-NOTE: Cache backends use factory pattern (`cache/factory.py`), all implement CacheBackend interface
 - AIDEV-NOTE: D1 backend requires proxy Worker due to Cloudflare restrictions
@@ -194,50 +104,11 @@ When responding to user instructions, the AI assistant (Claude, Cursor, GPT, etc
 9. **User Review**: After completing the task, ask the user to review what you've done, and repeat the process as needed.
 10. **Session Boundaries**: If the user's request isn't directly related to the current context and can be safely started in a fresh session, suggest starting from scratch to avoid context confusion.
 
-
-## Deterministic Fallback Removal (v2.1.0+)
-
-- AIDEV-NOTE: Functions return `None` when models unavailable (was: deterministic fallback text)
-- Affects: `generate()`, `generate_iter()`, `embed()`, PostgreSQL extension
-- Original fallback functions preserved but DEPRECATED
-
-## pytest Collection Hanging Fix (v2.0.1+)
-
-- AIDEV-NOTE: Fixed hanging by removing module-level execution and adding lazy initialization
-
-## Context Window Management (v2.3.0+)
-
-### Key Features
-
-- **Dynamic sizing**: Auto-detects model limits, override with `STEADYTEXT_MAX_CONTEXT_WINDOW`
-- **Input validation**: Pre-validates length, raises `ContextLengthExceededError` if too long
-- **Deterministic output**: Same output regardless of context window size
-
-```python
-# Auto-sized context
-text = generate("Your prompt here")
-
-# Override context  
-os.environ["STEADYTEXT_MAX_CONTEXT_WINDOW"] = "8192"
-
-# Handle errors
-try:
-    text = generate(very_long_prompt)
-except ContextLengthExceededError as e:
-    print(f"Too long: {e.input_tokens}/{e.max_tokens} tokens")
-```
-
-- AIDEV-TODO: Add automatic truncation and sliding window support
-
 ## Structured Generation (v2.4.0+)
-
-### Native Grammar Support (v2.4.0+)
 
 - AIDEV-NOTE: Uses llama.cpp GBNF grammars instead of Outlines (fixes Gemma-3n compatibility)
 - Conversion support: JSON schemas, Pydantic models, regex, choices, Python types → GBNF
 - AIDEV-TODO: Expand regex conversion and add recursive schema support
-
-### Feature Overview
 
 SteadyText supports structured text generation using llama.cpp grammars, enabling:
 - JSON generation with schemas or Pydantic models
@@ -272,8 +143,6 @@ schema = {"type": "object", "properties": {"color": {"type": "string"}}}
 result = generate_json("Pick a color", schema)
 ```
 
-### Technical Implementation
-
 - AIDEV-NOTE: Two-phase generation: reasoning → `<json-` tag → grammar-constrained output
 - AIDEV-NOTE: Deterministic/cacheable, bypasses cache for logprobs, on-the-fly grammar conversion
 - AIDEV-TODO: Add streaming support and grammar caching
@@ -282,71 +151,27 @@ result = generate_json("Pick a color", schema)
 
 ### Testing
 
-**Using UV (recommended):**
 ```bash
 # Run all tests with UV
-uv run python -m pytest
-
-# Run tests with coverage
-uv run python -m pytest --cov=steadytext --cov-report=xml
-
-# Run specific test files
-uv run python -m pytest tests/test_steadytext.py
-uv run python -m pytest test_gen.py
-uv run python -m pytest test_fallback_gen.py
+uv run poe test
 
 # Allow model downloads in tests (models are downloaded on first use)
-STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true uv run python -m pytest
-
-# Configure cache settings
-STEADYTEXT_GENERATION_CACHE_CAPACITY=512 uv run python -m pytest
-STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB=100.0 uv run python -m pytest
-STEADYTEXT_EMBEDDING_CACHE_CAPACITY=1024 uv run python -m pytest
-STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB=200.0 uv run python -m pytest
-
-# Alternative: run pytest as tool (if not project dependency)
-uvx pytest
-```
-
-**Legacy method:**
-```bash
-# Run all tests with plain Python
-python -m pytest
+STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true uv run poe test
 ```
 
 All tests are designed to pass even if models cannot be downloaded. Model-dependent tests are automatically skipped unless `STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true` is set.
 
 ### Linting and Formatting
 
-**Using UV (recommended):**
 ```bash
-# Run tools without installing them in project environment
-uvx ruff check .
-uvx ruff format .
-uvx black .
-uvx mypy .
+uv run poe format
+uv run poe lint
+uv run poe test
+uv run poe check # typecheck
+uv run poe docs-build # build the docs
 
-# Install and run pre-commit hooks
-uvx pre-commit install
-uvx pre-commit run --all-files
-
-# If tools are added as dev dependencies
-uv add --dev ruff black mypy pre-commit
-uv run ruff check .
-uv run black .
+uv run poe build # Runs all of the above
 ```
-
-**Legacy methods:**
-```bash
-# Check code quality with flake8
-python -m flake8 .
-
-# Using poethepoet tasks (if available)
-poe lint
-poe format
-poe check
-```
-
 
 ### Index Management
 ```bash
@@ -367,27 +192,6 @@ echo "explain this error" | st --no-index  # Disable index search
 
 - AIDEV-NOTE: Index uses chonkie (chunking), faiss-cpu (vectors), auto-retrieval with default.faiss
 
-### Installation
-
-**Preferred method using UV (recommended):**
-```bash
-# Install in development mode with UV
-uv pip install -e .
-
-# Or if project uses pyproject.toml with UV
-uv sync --all-extras --dev
-
-# Build package with UV
-uv build
-```
-
-**Alternative method using pip:**
-```bash
-# Install in development mode with pip (legacy)
-python -m pip install -e .
-```
-
-
 ## Architecture Overview
 
 SteadyText provides deterministic text generation and embedding with zero configuration. The core principle is "Never Fails" - all functions return deterministic outputs even when models can't be loaded.
@@ -401,11 +205,6 @@ SteadyText provides deterministic text generation and embedding with zero config
 **Models Layer (`steadytext/models/`)**
 - `cache.py`: Downloads and caches GGUF models from Hugging Face
 - `loader.py`: Singleton model loading with thread-safe caching via `_ModelInstanceCache`
-
-**Configuration (`steadytext/utils.py`)**
-- Model configurations for llama-cpp-python
-- Deterministic environment setup (seeds, PYTHONHASHSEED)
-- Cache directory management across platforms
 
 ### Deterministic Design
 
@@ -424,16 +223,6 @@ SteadyText provides deterministic text generation and embedding with zero config
 - Models auto-download to platform-specific cache directories on first use
 - Thread-safe singleton pattern prevents multiple model instances
 - Graceful degradation when models can't be loaded
-
-### Testing Strategy
-
-The test suite in `tests/test_steadytext.py` covers:
-- API determinism across multiple calls
-- Graceful error handling and fallback behavior
-- Edge cases (empty inputs, invalid types)
-- Model-dependent tests (skipped if models unavailable)
-
-Two standalone test files (`test_gen.py`, `test_fallback_gen.py`) provide direct testing of core components.
 
 ## Important Constants
 
@@ -468,73 +257,9 @@ SteadyText includes a command-line interface built with Click:
 - Log probability access for advanced use cases
 - Shell completion support for all commands and options
 
-## Shell Integration and ZSH Plugins
-
-SteadyText provides advanced shell integration through ZSH plugins that enable AI-powered command suggestions.
-
-### Shell Completions
-Basic tab completion for commands and options:
-```bash
-# Install completions
-st completion --install
-
-# Manual installation for specific shell
-st completion --shell zsh
-```
-
-### ZSH Plugins (`steadytext/cli/zsh-plugin/`)
-
-**Context-Aware Suggestions (`steadytext-context.plugin.zsh`)**
-- AIDEV-NOTE: Gathers shell context (pwd, git, env, history) for AI suggestions
-- Triggered with `Ctrl-X Ctrl-S` by default
-- Configurable via environment variables
-- Non-intrusive manual activation
-
-**Autosuggestions (`steadytext-autosuggestions.zsh`)**
-- AIDEV-NOTE: Fish-like autosuggestions powered by SteadyText
-- Shows AI predictions as you type in gray text
-- Async processing to avoid blocking
-- Suggestion caching for performance
-- Integrates with zsh-autosuggestions if available
-- Multiple strategies: context, history, or mixed
-
-**Installation:**
-```bash
-# Quick install (interactive installer)
-bash /path/to/steadytext/cli/zsh-plugin/install.sh
-
-# Manual oh-my-zsh
-plugins=(... steadytext-context steadytext-autosuggestions)
-
-# Manual standalone
-source /path/to/steadytext/cli/zsh-plugin/steadytext-context.plugin.zsh
-source /path/to/steadytext/cli/zsh-plugin/steadytext-autosuggestions.zsh
-```
-
-**Configuration:**
-```bash
-export STEADYTEXT_SUGGEST_ENABLED=1          # Enable/disable
-export STEADYTEXT_SUGGEST_MODEL_SIZE=small   # Model size
-export STEADYTEXT_SUGGEST_STRATEGY=context   # Suggestion strategy
-export STEADYTEXT_SUGGEST_ASYNC=1            # Async mode
-```
-
-AIDEV-NOTE: The ZSH plugins send minimal context to preserve privacy
-AIDEV-TODO: Consider adding bash/fish equivalents of the context-aware plugins
-AIDEV-TODO: Add telemetry for suggestion acceptance rates (opt-in)
-AIDEV-QUESTION: Should we support project-specific contexts via .steadytext files?
-
 ## Cache Configuration
 
 SteadyText uses disk-backed frecency caches for both generation and embedding results. The caches can be configured via environment variables:
-
-**Generation Cache:**
-- `STEADYTEXT_GENERATION_CACHE_CAPACITY`: Maximum number of cache entries (default: 256)
-- `STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB`: Maximum cache file size in MB (default: 50.0)
-
-**Embedding Cache:**
-- `STEADYTEXT_EMBEDDING_CACHE_CAPACITY`: Maximum number of cache entries (default: 512)
-- `STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB`: Maximum cache file size in MB (default: 100.0)
 
 Cache files are stored in:
 - `~/.cache/steadytext/caches/` (Linux/Mac)
@@ -558,41 +283,12 @@ The `benchmarks/` directory contains comprehensive speed and accuracy benchmarks
 
 **Using UV (recommended):**
 ```bash
-# Run all benchmarks
-uv run python benchmarks/run_all_benchmarks.py
-
-# Quick benchmarks for CI
-uv run python benchmarks/run_all_benchmarks.py --quick
-
-# Test benchmarks are working
-uv run python benchmarks/test_benchmarks.py
+uv run python benchmarks/run_all_benchmarks.py --quick  # Optional, for CI
 ```
-
-**Legacy method:**
-```bash
-# Run with plain Python
-python benchmarks/run_all_benchmarks.py
-```
-
-### Key Metrics
-- **Speed**: Generation/embedding throughput, latency percentiles, memory usage
-- **Accuracy**: Determinism verification, quality checks, LightEval standard benchmarks
-
-- AIDEV-NOTE: Run benchmarks after modifying core generation/embedding code
 
 ## UV Package Manager
 
 UV is a modern, blazing-fast Python package and project manager written in Rust. It serves as a drop-in replacement for pip, virtualenv, poetry, and other Python tooling, offering 10-100x speed improvements.
-
-
-### Key Benefits
-
-- **Speed**: 10-100x faster than pip for package installation and dependency resolution
-- **Automatic Virtual Environments**: Creates and manages `.venv` automatically when needed
-- **No Activation Required**: Commands work without manual virtual environment activation
-- **Superior Dependency Resolution**: Modern resolver prevents version conflicts
-- **Unified Tooling**: Replaces multiple tools (pip, virtualenv, poetry, pyenv) with one
-- **Drop-in Compatibility**: Works with existing requirements.txt and pyproject.toml files
 
 ### Installation
 
@@ -601,25 +297,9 @@ Install UV system-wide using the official installer:
 ```bash
 # Linux/macOS
 curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Windows PowerShell (run as administrator)
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-
-# Alternative: using pip (not recommended)
-pip install uv
 ```
 
 ### Basic Usage
-
-**Project Initialization:**
-```bash
-# Initialize new project with pyproject.toml
-uv init steadytext-project
-cd steadytext-project
-
-# Initialize in existing directory
-uv init .
-```
 
 **Virtual Environment Management:**
 ```bash
@@ -702,66 +382,6 @@ uv export -o requirements.txt
 uv sync
 ```
 
-**Development Workflow:**
-```bash
-# Install project with all development dependencies
-uv sync --all-extras --dev
-
-# Update dependencies
-uv lock --upgrade
-
-# Check for dependency conflicts
-uv tree
-```
-
-### Migration from pip/virtualenv
-
-Replace common commands:
-```bash
-# Old way                          # New way
-python -m venv .venv              # uv venv (automatic)
-source .venv/bin/activate         # (not needed)
-pip install requests              # uv add requests
-pip install -r requirements.txt  # uv pip install -r requirements.txt
-pip freeze > requirements.txt    # uv export -o requirements.txt
-deactivate                        # (not needed)
-```
-
-### Common Patterns for SteadyText Development
-
-**Setting up development environment:**
-```bash
-# Clone and setup
-git clone <repo>
-cd steadytext
-uv sync --all-extras --dev
-
-# Run tests
-uv run python -m pytest
-
-# Run linting
-uvx ruff check .
-uvx black .
-
-# Install in development mode
-uv pip install -e .
-```
-
-**Working with dependencies:**
-```bash
-# Add ML libraries commonly used
-uv add numpy torch transformers
-
-# Add development tools
-uv add --dev pytest ruff black mypy
-
-# Check installed packages
-uv pip list
-
-# Show dependency tree
-uv tree
-```
-
 ### Troubleshooting
 
 **Common Issues:**
@@ -769,30 +389,9 @@ uv tree
 - For permission errors on Linux/Mac: `sudo chown -R $USER ~/.local/share/uv`
 - To force recreation of virtual environment: `rm -rf .venv && uv sync`
 
-**Cache Management:**
-```bash
-# Show cache info
-uv cache info
-
-# Clean cache
-uv cache clean
-```
-
 - AIDEV-TODO: Add UV-specific CI/CD configurations for faster builds
 
-## Dependency Management and Optional Dependencies
-
-## Dependency Management and Optional Dependencies
-
-- AIDEV-NOTE: Optional deps (lighteval→torch→nvidia) only installed with `--extra benchmark`
-- Use `uv sync` for minimal install, `uv sync --extra benchmark` for benchmarks
-
 ## PostgreSQL Extension (pg_steadytext)
-
-### Known Issues and Fixes
-
-**Python Path Configuration Error (Fixed)**
-- AIDEV-NOTE: Fixed NULL concatenation in plpython3.python_path setting using DECLARE block
 
 ### Docker Development
 
@@ -809,7 +408,6 @@ docker exec -it pg_steadytext psql -U postgres -c "SELECT steadytext_generate('H
 docker exec -it pg_steadytext psql -U postgres -c "SELECT steadytext_version();"
 ```
 
-
 ## PostgreSQL Extension Async Functions (v1.1.0+)
 
 **Features:** Non-blocking UUID returns, queue-based processing, LISTEN/NOTIFY, batch operations
@@ -817,8 +415,6 @@ docker exec -it pg_steadytext psql -U postgres -c "SELECT steadytext_version();"
 **Implementation:** Queue table + Python worker using `FOR UPDATE SKIP LOCKED` for concurrency
 
 - AIDEV-TODO: Add tests for structured generation, consider Pydantic model support
-
-## Distribution Packaging (v1.2.0+)
 
 ## Distribution Packaging (v1.2.0+)
 
@@ -833,15 +429,41 @@ docker exec -it pg_steadytext psql -U postgres -c "SELECT steadytext_version();"
 
 ### Additional Process Guidance
 
-- At the end of code changes, please make sure to run `poe format` and `poe lint` (in that order) to make sure the code follows the style guide.
+- At the end of code changes, please make sure to run `poe build`.
 
 ## Development Container (v2.6.0+)
 
-## Development Container (v2.6.0+)
+**Usage:**
+```bash
+# Open in VSCode with Dev Containers extension
+# Or use GitHub Codespaces
 
-**Setup:** VSCode devcontainer with PostgreSQL 17, UV, and all extensions
+# PostgreSQL is available at:
+# - Host: localhost (or postgres service name)
+# - Port: 5432
+# - User: postgres
+# - Password: password
+# - Database: postgres
+```
 
-**Usage:** Open in VSCode/Codespaces, PostgreSQL on localhost:5432
+**Development Workflow:**
+1. Container automatically installs SteadyText and pg_steadytext
+2. PostgreSQL starts automatically with required extensions
+3. Run tests with `uv run pytest` or `make test` in pg_steadytext/
+4. Develop with full IDE support and database access
 
-- AIDEV-NOTE: Includes Docker-in-Docker for containerized build testing
-- AIDEV-TODO: Add GPU passthrough and Redis service
+AIDEV-TODO: Add support for GPU passthrough in devcontainer for CUDA models
+AIDEV-TODO: Consider adding Redis service for distributed cache testing
+AIDEV-NOTE: The devcontainer mounts Docker socket for testing containerized builds
+
+## Unsafe Mode: Remote Models (v2.6.0+)
+
+SteadyText includes an "unsafe mode" that allows using remote AI models (OpenAI, Cerebras, etc.) with best-effort determinism via seed parameters.
+
+**Provider Support:**
+- OpenAI: Models with seed parameter (gpt-4o, gpt-4o-mini, etc.)
+- Cerebras: Llama models via their cloud API
+
+AIDEV-TODO: Add support for more providers (Anthropic when they add seed support, Together.ai, etc.)
+AIDEV-TODO: Consider adding structured output support for remote models
+AIDEV-TODO: Add telemetry to track unsafe mode usage patterns

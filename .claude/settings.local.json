@@ -5,7 +5,9 @@
       "Bash(./run_pgtap_tests.sh:*)",
       "Bash(psql:*)",
       "Bash(ls:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(poe:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

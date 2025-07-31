@@ -89,6 +89,11 @@ from .index import search_index_for_context, get_default_index_path
     default=None,
     help="Comma-separated list of allowed choices for structured output",
 )
+@click.option(
+    "--unsafe-mode",
+    is_flag=True,
+    help="Enable remote models with best-effort determinism",
+)
 @click.pass_context
 def generate(
     ctx,
@@ -111,6 +116,7 @@ def generate(
     schema: str,
     regex: str,
     choices: str,
+    unsafe_mode: bool,
 ):
     """Generate text from a prompt (streams by default).
 
@@ -132,6 +138,13 @@ def generate(
         echo "My phone is" | st --regex '\\d{3}-\\d{3}-\\d{4}'
         echo "Is Python good?" | st --choices "yes,no,maybe"
         echo "Generate user data" | st --schema user_schema.json  # From file
+
+    Unsafe mode (remote models with best-effort determinism):
+        echo "Explain AI" | st --unsafe-mode --model openai:gpt-4o-mini
+        echo "Write code" | st --unsafe-mode --model cerebras:llama3.1-8b
+        # Or with environment variable:
+        export STEADYTEXT_UNSAFE_MODE=true
+        echo "Explain AI" | st --model openai:gpt-4o-mini
     """
     # Handle verbosity - verbose overrides quiet
     if verbose:
@@ -143,6 +156,28 @@ def generate(
 
         logging.getLogger("steadytext").setLevel(logging.ERROR)
         logging.getLogger("llama_cpp").setLevel(logging.ERROR)
+
+    # Handle unsafe mode - validate remote model if specified
+    if unsafe_mode:
+        # Check if model is a remote model
+        if model and ":" in model:
+            from ...providers.registry import is_remote_model
+
+            if not is_remote_model(model):
+                click.echo(
+                    f"Error: Model '{model}' is not a valid remote model.\n"
+                    f"Format: provider:model (e.g., openai:gpt-4o-mini)",
+                    err=True,
+                )
+                sys.exit(1)
+        elif not model:
+            click.echo(
+                "Error: --unsafe-mode requires a remote model specification.\n"
+                "Example: --model openai:gpt-4o-mini",
+                err=True,
+            )
+            sys.exit(1)
+
     # Handle stdin input
     if prompt == "-":
         if sys.stdin.isatty():
@@ -185,9 +220,11 @@ def generate(
     if choices:
         choices_list = [c.strip() for c in choices.split(",")]
 
-    # AIDEV-NOTE: Search index for context unless disabled
+    # AIDEV-NOTE: Search index for context unless disabled or using remote models
     context_chunks = []
-    if not no_index:
+    # Skip index search for remote models to avoid loading embedding model
+    is_remote = model and ":" in model
+    if not no_index and not is_remote:
         index_path = Path(index_file) if index_file else get_default_index_path()
         if index_path:
             context_chunks = search_index_for_context(
@@ -234,6 +271,7 @@ def generate(
             model_filename=model_filename,
             size=size,
             seed=seed,
+            unsafe_mode=unsafe_mode,
         ):
             if logprobs and isinstance(token, dict):
                 # Handle logprobs output
@@ -298,6 +336,7 @@ def generate(
                 schema=schema_obj,
                 regex=regex,
                 choices=choices_list,
+                unsafe_mode=unsafe_mode,
             )
             # Unpack the tuple result
             if result is not None and isinstance(result, tuple):
@@ -315,6 +354,7 @@ def generate(
                     model_filename=model_filename,
                     size=size,
                     seed=seed,
+                    unsafe_mode=unsafe_mode,
                 ):
                     generated_text += str(
                         token.get("token", "") if isinstance(token, dict) else token
@@ -356,6 +396,7 @@ def generate(
                 schema=schema_obj,
                 regex=regex,
                 choices=choices_list,
+                unsafe_mode=unsafe_mode,
             )
             if output_format == "json":
                 metadata = {
