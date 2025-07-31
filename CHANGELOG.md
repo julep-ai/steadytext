@@ -1,8 +1,18 @@
 # Changelog
 
-## Version 2.6.0 (Unreleased)
+## Version 2.6.0 (2025-07-31)
 
 ### New Features
+- **Unsafe Mode: Remote Model Support (Experimental):** Added support for remote AI models with best-effort determinism
+  - Requires explicit opt-in via `STEADYTEXT_UNSAFE_MODE=true` environment variable
+  - Support for OpenAI models (gpt-4o, gpt-4o-mini, etc.) with seed parameter
+  - Support for Cerebras Cloud API (Llama models)
+  - Provider-based architecture for easy extension to other remote models
+  - Prominent warnings about determinism limitations of remote models
+  - Remote models specified as "provider:model" (e.g., "openai:gpt-4o-mini")
+  - Supports both regular and streaming generation
+  - Note: Does NOT support structured output, logprobs, or embeddings with remote models
+
 - **Development Container Support:** Added comprehensive VSCode Dev Container configuration
   - Full PostgreSQL 17 setup with extensions (plpython3u, pgvector, pg_cron)
   - Pre-configured development environment with all dependencies
@@ -11,6 +21,10 @@
   - Multi-container setup with PostgreSQL service
 
 ### Documentation
+- **Unsafe Mode Documentation:** Added comprehensive documentation about remote model support
+  - Clear warnings about best-effort determinism vs true determinism
+  - Provider configuration and API key setup
+  - Usage examples and limitations
 - **Enhanced CLAUDE.md:** Added comprehensive development container documentation
 - **Updated AIDEV Comments:** Added documentation for recent fixes and new features
 
