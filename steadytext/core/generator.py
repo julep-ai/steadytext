@@ -996,7 +996,7 @@ def core_generate(
         # Returns: "Let me create...<json-output>{"name": "John", "age": 30}</json-output>"
 
         # Generate with regex pattern
-        phone = generate("My phone number is", regex=r"\d{3}-\d{3}-\d{4}")
+        phone = generate("My phone number is", regex=r"\\d{3}-\\d{3}-\\d{4}")
 
         # Generate with choices
         answer = generate("Is Python good?", choices=["yes", "no", "maybe"])
@@ -1004,6 +1004,63 @@ def core_generate(
     AIDEV-NOTE: Model switching allows using different models without changing environment variables. Models are cached after the first load.
     AIDEV-NOTE: Structured output parameters enable JSON, regex, and choice-constrained generation.
     """
+    # AIDEV-NOTE: Check for remote models first to avoid loading local models unnecessarily
+    from ..providers.registry import is_remote_model, get_provider
+    if model and is_remote_model(model):
+        try:
+            validate_seed(seed)
+            set_deterministic_environment(seed)
+            
+            provider = get_provider(model)
+            
+            # Handle structured generation with remote models
+            if schema or response_format:
+                result = provider.generate(
+                    prompt=prompt,
+                    max_new_tokens=max_new_tokens,
+                    seed=seed,
+                    response_format=response_format,
+                    schema=schema,
+                )
+            elif regex:
+                # Convert regex to prompt instruction for remote models
+                enhanced_prompt = f"{prompt}\n\nPlease format your response to match this regular expression pattern: {regex}"
+                result = provider.generate(
+                    prompt=enhanced_prompt,
+                    max_new_tokens=max_new_tokens,
+                    seed=seed,
+                )
+            elif choices:
+                # Convert choices to prompt instruction for remote models
+                choices_str = ", ".join([f"'{choice}'" for choice in choices])
+                enhanced_prompt = f"{prompt}\n\nYou must respond with exactly one of these choices: {choices_str}"
+                result = provider.generate(
+                    prompt=enhanced_prompt,
+                    max_new_tokens=max_new_tokens,
+                    seed=seed,
+                )
+            else:
+                # Regular generation
+                result = provider.generate(
+                    prompt=prompt,
+                    max_new_tokens=max_new_tokens,
+                    seed=seed,
+                )
+            
+            if return_logprobs:
+                # Remote models don't support logprobs, return None
+                return result, None
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Remote model generation failed: {e}")
+            if return_logprobs:
+                return None, None
+            else:
+                return None
+    
+    # Use local model for non-remote models
     return _get_generator_instance().generate(
         prompt=prompt,
         max_new_tokens=max_new_tokens,
@@ -1052,6 +1109,44 @@ def core_generate_iter(
 
     AIDEV-NOTE: Streaming generation with model switching support. Falls back to word-by-word yielding from the deterministic fallback.
     """
+    # AIDEV-NOTE: Check for remote models first to avoid loading local models unnecessarily
+    from ..providers.registry import is_remote_model, get_provider
+    if model and is_remote_model(model):
+        try:
+            validate_seed(seed)
+            set_deterministic_environment(seed)
+            
+            provider = get_provider(model)
+            
+            # Use generate_iter if available, otherwise fall back to non-streaming
+            if hasattr(provider, 'generate_iter'):
+                yield from provider.generate_iter(
+                    prompt=prompt,
+                    max_new_tokens=max_new_tokens,
+                    seed=seed,
+                )
+            else:
+                # Fall back to non-streaming generation and yield word by word
+                result = provider.generate(
+                    prompt=prompt,
+                    max_new_tokens=max_new_tokens,
+                    seed=seed,
+                )
+                if result:
+                    # Split result into words and yield them
+                    words = result.split()
+                    for word in words:
+                        if include_logprobs:
+                            yield {"token": word + " ", "logprobs": None}
+                        else:
+                            yield word + " "
+            return
+                
+        except Exception as e:
+            logger.error(f"Remote model streaming generation failed: {e}")
+            return
+    
+    # Use local model for non-remote models
     return _get_generator_instance().generate_iter(
         prompt=prompt,
         max_new_tokens=max_new_tokens,
