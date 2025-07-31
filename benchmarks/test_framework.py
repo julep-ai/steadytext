@@ -73,7 +73,21 @@ def test_benchmark_framework():
 
 
 def mock_steadytext_functions():
-    """Create mock SteadyText functions for testing."""
+    """Create mock SteadyText functions for testing and return cleanup function."""
+    
+    # Store original modules to restore later
+    original_modules = {}
+    modules_to_mock = [
+        "steadytext",
+        "steadytext.models.loader", 
+        "steadytext.cache_manager",
+        "steadytext.core.generator",
+        "steadytext.core.embedder"
+    ]
+    
+    for module_name in modules_to_mock:
+        if module_name in sys.modules:
+            original_modules[module_name] = sys.modules[module_name]
 
     class MockSteadyText:
         @staticmethod
@@ -170,7 +184,16 @@ def mock_steadytext_functions():
     )
     sys.modules["steadytext.core.embedder"] = type("Module", (), {})
 
-    return MockSteadyText
+    def cleanup():
+        """Restore original modules."""
+        for module_name in modules_to_mock:
+            if module_name in original_modules:
+                sys.modules[module_name] = original_modules[module_name]
+            else:
+                # Remove module if it wasn't there before
+                sys.modules.pop(module_name, None)
+
+    return MockSteadyText, cleanup
 
 
 def test_with_mock():
@@ -178,7 +201,7 @@ def test_with_mock():
     print("\n\nTesting benchmarks with mock SteadyText...")
 
     # Setup mocks
-    mock_steadytext_functions()
+    mock_steadytext, cleanup = mock_steadytext_functions()
 
     try:
         from benchmarks.speed.benchmark_speed import SpeedBenchmark
@@ -215,6 +238,9 @@ def test_with_mock():
 
         traceback.print_exc()
         return False
+    finally:
+        # Always clean up the mocks
+        cleanup()
 
 
 def main():
