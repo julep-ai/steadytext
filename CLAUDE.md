@@ -74,22 +74,12 @@ os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 
 ### AIDEV Considerations
 
-- AIDEV-NOTE: The daemon maintains singleton model instances to avoid memory duplication.
-- AIDEV-NOTE: Streaming uses a special acknowledgment protocol for flow control.
-- AIDEV-NOTE: All operations gracefully fall back to direct model loading on connection failure.
-- AIDEV-NOTE: The centralized cache system ensures consistent caching between the daemon and direct access.
-- AIDEV-NOTE: The cache is shared via an SQLite backend for thread/process safety.
-- AIDEV-NOTE: The daemon server is now fully integrated with the centralized cache manager (v1.3.3+).
-- AIDEV-NOTE: Cache hits in daemon mode return identical results to direct access mode.
-- AIDEV-NOTE: Streaming generation simulates streaming from cached results for consistency.
-- AIDEV-NOTE: Streaming now populates the cache after completion in both daemon and direct modes (v1.3.3+).
-- AIDEV-NOTE: Cached streaming results may have normalized whitespace when simulated from the cache.
-- AIDEV-NOTE: Logprobs requests bypass the cache in both daemon and direct modes.
-- AIDEV-NOTE: Custom eos_string parameters are included in cache keys to prevent collisions.
-- AIDEV-NOTE: The CLI cache fix (v1.3.3+) uses the main API layer (generate, generate_iter) to enable full cache functionality.
-- AIDEV-TODO: Consider adding connection pooling for high-concurrency scenarios.
-- AIDEV-TODO: Add metrics/monitoring endpoints for production deployments.
-- AIDEV-QUESTION: Should we support multiple daemon instances for load balancing?
+- AIDEV-NOTE: The daemon maintains singleton model instances and falls back to direct loading on connection failure
+- AIDEV-NOTE: Cache integration (v1.3.3+): Daemon and direct access share the same centralized SQLite cache for consistency
+- AIDEV-NOTE: Streaming handles caching by collecting tokens and populating cache after completion
+- AIDEV-NOTE: Special cases: Logprobs bypass cache, custom eos_string included in cache keys
+- AIDEV-TODO: Consider adding connection pooling for high-concurrency scenarios
+- AIDEV-TODO: Add metrics/monitoring endpoints for production deployments
 
 ## Gemma-3n Models
 
@@ -97,13 +87,8 @@ SteadyText v2.0+ uses Gemma-3n models for generation and Qwen3 for embeddings.
 
 ### AIDEV Considerations
 
-- AIDEV-NOTE: The default generation model is `gemma-3n-E2B-it-GGUF`.
-- AIDEV-NOTE: The default embedding model is `Qwen3-Embedding-0.6B-GGUF`.
-- AIDEV-NOTE: Gemma models are subject to Google's Gemma Terms of Use - license compliance added in v2.5.3
-- AIDEV-NOTE: License notice is displayed when downloading Gemma models
-- AIDEV-NOTE: LICENSE-GEMMA.txt must be updated with actual terms from https://ai.google.dev/gemma/terms
-- AIDEV-NOTE: Implementation in models/cache.py checks for "gemma" in repo_id or filename (case-insensitive)
-- AIDEV-NOTE: License notice displays before download starts, ensuring user awareness
+- AIDEV-NOTE: Default models: `gemma-3n-E2B-it-GGUF` (generation), `Qwen3-Embedding-0.6B-GGUF` (embedding)
+- AIDEV-NOTE: Gemma license compliance (v2.5.3+): Shows terms before download, checks "gemma" in repo_id/filename
 
 ## Reranking Support (v1.3.0+)
 
@@ -126,15 +111,9 @@ SteadyText v1.3.0+ includes document reranking functionality using the Qwen3-Rer
 
 ### AIDEV Considerations
 
-- AIDEV-NOTE: The default reranking model is `Qwen3-Reranker-4B-GGUF`.
-- AIDEV-NOTE: Reranking uses a specific prompt format with system/user/assistant tags.
-- AIDEV-NOTE: Scores are binary (1.0 for "yes", 0.0 for "no") based on generated token.
-- AIDEV-NOTE: Fixed in v2.4.1 - removed unsupported top_logprobs parameter from model call.
-- AIDEV-TODO: Consider adding support for cross-encoder models.
-- AIDEV-TODO: Add streaming support for large document sets.
-- AIDEV-TODO: Improve scoring to use actual token probabilities instead of binary.
-- AIDEV-NOTE: v2.5.2 improved fallback scoring with basic semantic heuristics for common phrases
-- AIDEV-NOTE: Reranker now caches all scores (both model-generated and fallback) for performance
+- AIDEV-NOTE: Default model `Qwen3-Reranker-4B-GGUF` uses binary scoring (1.0/0.0) based on yes/no tokens
+- AIDEV-NOTE: v2.5.2+ caches all scores and improved fallback with semantic heuristics
+- AIDEV-TODO: Consider cross-encoder models, streaming support, and probabilistic scoring
 
 ## Cache Management
 
@@ -196,10 +175,9 @@ from steadytext.disk_backed_frecency_cache import DiskBackedFrecencyCache
 cache = DiskBackedFrecencyCache(backend_type="d1", api_url="...", api_key="...")
 ```
 
-AIDEV-NOTE: The cache backend system uses a factory pattern in `cache/factory.py`
-AIDEV-NOTE: D1 backend requires a proxy Worker due to Cloudflare access restrictions
-AIDEV-NOTE: All backends implement the same CacheBackend interface for consistency
-AIDEV-TODO: Consider adding Redis backend for traditional distributed caching
+- AIDEV-NOTE: Cache backends use factory pattern (`cache/factory.py`), all implement CacheBackend interface
+- AIDEV-NOTE: D1 backend requires proxy Worker due to Cloudflare restrictions
+- AIDEV-TODO: Consider adding Redis backend for distributed caching
 
 ## AI Assistant Workflow: Step-by-Step Methodology
 
@@ -219,84 +197,45 @@ When responding to user instructions, the AI assistant (Claude, Cursor, GPT, etc
 
 ## Deterministic Fallback Removal (v2.1.0+)
 
-AIDEV-NOTE: The deterministic fallback generator has been disabled in v2.1.0+. When models are unavailable or errors occur, functions now return `None` instead of generating deterministic but meaningless text. This change was made because the fallback was causing more confusion than it was solving.
+- AIDEV-NOTE: Functions return `None` when models unavailable (was: deterministic fallback text)
+- Affects: `generate()`, `generate_iter()`, `embed()`, PostgreSQL extension
+- Original fallback functions preserved but DEPRECATED
 
-**Key Changes:**
-- `generate()` returns `None` when model is not loaded or on invalid input
-- `generate_iter()` returns an empty iterator when model is not loaded
-- `embed()` returns `None` instead of zero vectors when model is not loaded
-- PostgreSQL extension returns NULL on errors instead of fallback text
-- Tests updated to expect `None` instead of fallback outputs
+## pytest Collection Hanging Fix (v2.0.1+)
 
-The original fallback functions (`_deterministic_fallback_generate` and `_deterministic_fallback_generate_iter`) are preserved but marked as DEPRECATED.
-
-## pytest Collection Hanging Fix
-
-AIDEV-NOTE: Fixed in v2.0.1+ - pytest collection was hanging due to module-level code execution. The fixes include removing module-level execution, adding environment checks for model downloads, lazy cache initialization, and early environment setup in conftest.py.
+- AIDEV-NOTE: Fixed hanging by removing module-level execution and adding lazy initialization
 
 ## Context Window Management (v2.3.0+)
 
-AIDEV-NOTE: SteadyText now dynamically manages context windows to maximize available context while preventing errors.
-
 ### Key Features
 
-**Dynamic Context Window Sizing:**
-- Automatically uses the largest context window supported by each model
-- Can be overridden via `STEADYTEXT_MAX_CONTEXT_WINDOW` environment variable
-- Known model limits are hardcoded for safety (e.g., Qwen2.5-3B: 32768 tokens)
-
-**Input Length Validation:**
-- Validates input length before generation to prevent mid-generation failures
-- Raises `ContextLengthExceededError` with detailed token counts
-- Reserves space for output tokens (default: 512) plus 10% safety margin
-- Uses model's tokenizer for accurate counting, falls back to estimation
-
-**Deterministic Behavior:**
-- Output remains identical regardless of context window size
-- The same input produces the same output whether n_ctx=2048 or n_ctx=32768
-- Only the maximum processable input length changes
-
-### Usage
+- **Dynamic sizing**: Auto-detects model limits, override with `STEADYTEXT_MAX_CONTEXT_WINDOW`
+- **Input validation**: Pre-validates length, raises `ContextLengthExceededError` if too long
+- **Deterministic output**: Same output regardless of context window size
 
 ```python
-# Context window is set automatically
-text = generate("Your prompt here")  # Uses optimal context for loaded model
+# Auto-sized context
+text = generate("Your prompt here")
 
-# Override context window size
+# Override context  
 os.environ["STEADYTEXT_MAX_CONTEXT_WINDOW"] = "8192"
-text = generate("Your prompt here")  # Limited to 8192 tokens
 
-# Handle long inputs gracefully
+# Handle errors
 try:
     text = generate(very_long_prompt)
 except ContextLengthExceededError as e:
-    print(f"Input too long: {e.input_tokens} tokens, max: {e.max_tokens}")
+    print(f"Too long: {e.input_tokens}/{e.max_tokens} tokens")
 ```
 
-AIDEV-NOTE: The context window affects only input capacity, not output quality or consistency
-AIDEV-TODO: Add automatic input truncation option for oversized inputs
-AIDEV-TODO: Support for sliding window or chunking for very long documents
+- AIDEV-TODO: Add automatic truncation and sliding window support
 
 ## Structured Generation (v2.4.0+)
 
-### Native Grammar Support
+### Native Grammar Support (v2.4.0+)
 
-AIDEV-NOTE: As of v2.4.0, SteadyText uses llama.cpp's native GBNF grammar support instead of Outlines. This resolves compatibility issues with Gemma-3n and other models that had vocabulary processing errors.
-
-**Implementation Details:**
-- `core/grammar.py`: Converts JSON schemas, regex patterns, and choices to GBNF grammars
-- `core/structured.py`: Uses llama-cpp-python's `grammar` parameter for constrained generation
-- Outlines dependency has been removed from the project
-
-**Grammar Conversion Features:**
-- JSON schemas (including Pydantic models) → GBNF
-- Simple regex patterns → GBNF (complex patterns fall back to generic string)
-- Choice lists → GBNF
-- Python types (int, float, bool, str) → GBNF
-
-AIDEV-NOTE: The grammar-based approach is fully compatible with all models supported by llama.cpp
-AIDEV-TODO: Expand regex to GBNF conversion for more complex patterns
-AIDEV-TODO: Add support for recursive JSON schemas
+- AIDEV-NOTE: Uses llama.cpp GBNF grammars instead of Outlines (fixes Gemma-3n compatibility)
+- Conversion support: JSON schemas, Pydantic models, regex, choices, Python types → GBNF
+- AIDEV-TODO: Expand regex conversion and add recursive schema support
 
 ### Feature Overview
 
@@ -335,15 +274,9 @@ result = generate_json("Pick a color", schema)
 
 ### Technical Implementation
 
-- AIDEV-NOTE: Structured generation uses a two-phase approach:
-  1. Generate thoughts/reasoning up to `<json-` tag
-  2. Use llama.cpp grammars to generate constrained output after `<json-output>`
-- AIDEV-NOTE: All structured outputs are deterministic and cacheable
-- AIDEV-NOTE: Structured generation bypasses cache for logprobs requests
-- AIDEV-NOTE: The daemon protocol supports grammar parameters natively
-- AIDEV-NOTE: Grammar conversion happens on-the-fly for each request
-- AIDEV-TODO: Add streaming support for structured generation
-- AIDEV-TODO: Cache compiled grammars for frequently used schemas
+- AIDEV-NOTE: Two-phase generation: reasoning → `<json-` tag → grammar-constrained output
+- AIDEV-NOTE: Deterministic/cacheable, bypasses cache for logprobs, on-the-fly grammar conversion
+- AIDEV-TODO: Add streaming support and grammar caching
 
 ## Development Commands
 
@@ -414,7 +347,6 @@ poe format
 poe check
 ```
 
-AIDEV-NOTE: UV's tool runner (uvx) allows using linting tools without polluting project dependencies
 
 ### Index Management
 ```bash
@@ -433,7 +365,7 @@ echo "What is Python?" | st --index-file my_index.faiss
 echo "explain this error" | st --no-index  # Disable index search
 ```
 
-AIDEV-NOTE: The index functionality uses chonkie for deterministic text chunking, faiss-cpu for vector storage, automatic context retrieval when default.faiss exists, and aggressive caching of search results for determinism.
+- AIDEV-NOTE: Index uses chonkie (chunking), faiss-cpu (vectors), auto-retrieval with default.faiss
 
 ### Installation
 
@@ -455,7 +387,6 @@ uv build
 python -m pip install -e .
 ```
 
-AIDEV-NOTE: Always prefer UV for new development - it's faster and handles virtual environments automatically
 
 ## Architecture Overview
 
@@ -647,13 +578,12 @@ python benchmarks/run_all_benchmarks.py
 - **Speed**: Generation/embedding throughput, latency percentiles, memory usage
 - **Accuracy**: Determinism verification, quality checks, LightEval standard benchmarks
 
-AIDEV-NOTE: When modifying core generation/embedding code, always run benchmarks to check for performance regressions
+- AIDEV-NOTE: Run benchmarks after modifying core generation/embedding code
 
 ## UV Package Manager
 
 UV is a modern, blazing-fast Python package and project manager written in Rust. It serves as a drop-in replacement for pip, virtualenv, poetry, and other Python tooling, offering 10-100x speed improvements.
 
-AIDEV-NOTE: UV is now the preferred package manager for SteadyText development. It automatically handles virtual environments, avoids activation/deactivation issues, and provides superior dependency resolution.
 
 ### Key Benefits
 
@@ -848,29 +778,21 @@ uv cache info
 uv cache clean
 ```
 
-AIDEV-TODO: Consider adding UV-specific CI/CD configurations for faster builds
-AIDEV-NOTE: UV's automatic virtual environment management eliminates common "forgot to activate venv" issues
+- AIDEV-TODO: Add UV-specific CI/CD configurations for faster builds
 
 ## Dependency Management and Optional Dependencies
 
-AIDEV-NOTE: The project includes optional dependencies that may pull in large packages like torch/nvidia:
-- `lighteval` (in benchmark extras) depends on `accelerate` → `torch` → nvidia CUDA packages
-- UV correctly includes all dependencies (including optional) in `uv.lock` for reproducibility
-- These packages are NOT installed during regular installation unless explicitly requested
-- Use `uv sync` for minimal installation (no extras)
-- Use `uv sync --extra benchmark` only when running benchmarks
-- The code gracefully handles missing optional dependencies (e.g., lighteval)
+## Dependency Management and Optional Dependencies
+
+- AIDEV-NOTE: Optional deps (lighteval→torch→nvidia) only installed with `--extra benchmark`
+- Use `uv sync` for minimal install, `uv sync --extra benchmark` for benchmarks
 
 ## PostgreSQL Extension (pg_steadytext)
 
 ### Known Issues and Fixes
 
 **Python Path Configuration Error (Fixed)**
-- AIDEV-NOTE: Fixed SQL syntax error when setting plpython3.python_path in pg_steadytext--1.0.0.sql
-- Issue: `ALTER DATABASE ... SET plpython3.python_path TO NULL` causes syntax error during Docker initialization
-- Root cause: `current_setting('plpython3.python_path', true)` returns NULL when setting doesn't exist, causing invalid SQL
-- Fix: Properly handle NULL values by checking if current_path exists before concatenation
-- The fixed code uses a DECLARE block with proper exception handling to avoid NULL concatenation
+- AIDEV-NOTE: Fixed NULL concatenation in plpython3.python_path setting using DECLARE block
 
 ### Docker Development
 
@@ -887,101 +809,25 @@ docker exec -it pg_steadytext psql -U postgres -c "SELECT steadytext_generate('H
 docker exec -it pg_steadytext psql -U postgres -c "SELECT steadytext_version();"
 ```
 
-## PostgreSQL Extension Structured Output (v2.4.0+)
-
-AIDEV-NOTE: The PostgreSQL extension now supports structured output generation using the same grammar-based approach as the main library.
 
 ## PostgreSQL Extension Async Functions (v1.1.0+)
 
-AIDEV-NOTE: The PostgreSQL extension now includes async counterparts for all generation and embedding functions.
+**Features:** Non-blocking UUID returns, queue-based processing, LISTEN/NOTIFY, batch operations
 
-**Key Features:**
-- Non-blocking execution: Functions return UUID immediately
-- Queue-based processing with priority support
-- Background worker handles AI operations
-- LISTEN/NOTIFY integration for responsive processing
-- Batch operations for efficiency
+**Implementation:** Queue table + Python worker using `FOR UPDATE SKIP LOCKED` for concurrency
 
-**New Async SQL Functions:**
-```sql
--- Async generation
-steadytext_generate_async(prompt, max_tokens) → UUID
-steadytext_embed_async(text, use_cache) → UUID
-steadytext_generate_json_async(prompt, schema, max_tokens, use_cache, seed) → UUID
-steadytext_generate_regex_async(prompt, pattern, max_tokens, use_cache, seed) → UUID
-steadytext_generate_choice_async(prompt, choices, use_cache, seed) → UUID
-
--- Batch operations
-steadytext_generate_batch_async(prompts[], max_tokens) → UUID[]
-steadytext_embed_batch_async(texts[], use_cache) → UUID[]
-
--- Result retrieval
-steadytext_check_async(request_id) → (status, result, error, ...)
-steadytext_get_async_result(request_id, timeout_seconds) → TEXT
-steadytext_cancel_async(request_id) → BOOLEAN
-steadytext_check_async_batch(request_ids[]) → TABLE
-```
-
-**Implementation Details:**
-- Queue table (`steadytext_queue`) stores all async requests
-- Python worker (`pg_steadytext/python/worker.py`) processes queue
-- Updated to handle all structured generation types
-- Supports concurrent workers with `FOR UPDATE SKIP LOCKED`
-- All async functions follow the same patterns as synchronous versions
-- Functions use the same `daemon_connector.py` methods that wrap the main library
-
-AIDEV-TODO: Add tests for PostgreSQL structured generation functions
-AIDEV-TODO: Consider adding support for Pydantic models in PostgreSQL (would need JSON serialization)
+- AIDEV-TODO: Add tests for structured generation, consider Pydantic model support
 
 ## Distribution Packaging (v1.2.0+)
 
-AIDEV-NOTE: SteadyText includes comprehensive packaging scripts for multiple Linux distributions with minimal maintenance overhead.
+## Distribution Packaging (v1.2.0+)
 
-### Package Types
+**Formats:** Debian/Ubuntu (.deb), RHEL/Fedora (.rpm), PGXN, Pigsty
 
-**Supported Formats:**
-- **Debian/Ubuntu** (.deb) - For apt-based systems with multiple PostgreSQL versions
-- **RHEL/Rocky/Fedora** (.rpm) - For yum/dnf-based systems with multiple PostgreSQL versions
-- **PGXN** - PostgreSQL Extension Network compatible packages
-- **Pigsty** - Configuration for Pigsty PostgreSQL distribution
+**Build:** `./build-packages.sh [deb|rpm|pgxn]`
 
-### Packaging Architecture
-
-**Key Components:**
-- `packaging/build-deb.sh` - Builds Debian packages for PostgreSQL 14-17
-- `packaging/build-rpm.sh` - Builds RPM packages for PostgreSQL 14-17
-- `packaging/pgxn-upload.sh` - Prepares PGXN distribution with Pigsty config
-- `packaging/test-builds.sh` - Validates built packages
-- `.github/workflows/build-packages.yml` - Automated CI/CD for releases
-
-**Version Management:**
-- Extension version read from `pg_steadytext/META.json`
-- Python version read from `pyproject.toml`
-- No manual version updates needed in packaging scripts
-
-### Building Packages
-
-```bash
-# Build all packages
-./build-packages.sh
-
-# Build specific type
-./build-packages.sh deb
-./build-packages.sh rpm
-./build-packages.sh pgxn
-```
-
-**Package Contents:**
-- PostgreSQL extension files (.control, .sql)
-- Python support modules in `/opt/steadytext/`
-- Systemd service for async worker
-- Virtual environment with SteadyText installed
-- Documentation and license files
-
-AIDEV-NOTE: Packages handle Python dependencies via virtual environments to avoid system conflicts
-AIDEV-NOTE: Post-install scripts automatically set up the Python environment and systemd service
-AIDEV-TODO: Consider adding support for Alpine Linux (apk) packages
-AIDEV-TODO: Add package signing for security-conscious deployments
+- AIDEV-NOTE: Uses virtual environments to avoid system Python conflicts
+- AIDEV-TODO: Add Alpine support and package signing
 
 ## Development Workflow
 
@@ -991,42 +837,11 @@ AIDEV-TODO: Add package signing for security-conscious deployments
 
 ## Development Container (v2.6.0+)
 
-### AIDEV-NOTE: DevContainer Architecture
+## Development Container (v2.6.0+)
 
-SteadyText includes a development container setup for consistent development environments across machines.
+**Setup:** VSCode devcontainer with PostgreSQL 17, UV, and all extensions
 
-**Key Components:**
-- `.devcontainer/devcontainer.json` - VSCode dev container configuration
-- `.devcontainer/docker-compose.yml` - Multi-container setup with PostgreSQL
-- `.devcontainer/Dockerfile` - Development environment with all dependencies
-- `.devcontainer/postCreateCommand.sh` - Environment setup script
+**Usage:** Open in VSCode/Codespaces, PostgreSQL on localhost:5432
 
-**Features:**
-- AIDEV-NOTE: Full PostgreSQL 17 with extensions (plpython3u, pgvector, pg_cron)
-- AIDEV-NOTE: UV package manager pre-installed for fast dependency management
-- AIDEV-NOTE: Automatic SteadyText installation in editable mode
-- AIDEV-NOTE: PostgreSQL extension development environment ready
-- AIDEV-NOTE: Docker-in-Docker support for testing containerized builds
-
-**Usage:**
-```bash
-# Open in VSCode with Dev Containers extension
-# Or use GitHub Codespaces
-
-# PostgreSQL is available at:
-# - Host: localhost (or postgres service name)
-# - Port: 5432
-# - User: postgres
-# - Password: postgres
-# - Database: postgres
-```
-
-**Development Workflow:**
-1. Container automatically installs SteadyText and pg_steadytext
-2. PostgreSQL starts automatically with required extensions
-3. Run tests with `uv run pytest` or `make test` in pg_steadytext/
-4. Develop with full IDE support and database access
-
-AIDEV-TODO: Add support for GPU passthrough in devcontainer for CUDA models
-AIDEV-TODO: Consider adding Redis service for distributed cache testing
-AIDEV-NOTE: The devcontainer mounts Docker socket for testing containerized builds
+- AIDEV-NOTE: Includes Docker-in-Docker for containerized build testing
+- AIDEV-TODO: Add GPU passthrough and Redis service
