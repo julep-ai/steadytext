@@ -1030,3 +1030,31 @@ SteadyText includes a development container setup for consistent development env
 AIDEV-TODO: Add support for GPU passthrough in devcontainer for CUDA models
 AIDEV-TODO: Consider adding Redis service for distributed cache testing
 AIDEV-NOTE: The devcontainer mounts Docker socket for testing containerized builds
+
+## Unsafe Mode: Remote Models (v2.6.0+)
+
+### AIDEV-NOTE: Remote Model Architecture
+
+SteadyText includes an "unsafe mode" that allows using remote AI models (OpenAI, Cerebras, etc.) with best-effort determinism via seed parameters.
+
+**Key Components:**
+- `providers/base.py` - Base `RemoteModelProvider` class with warning system
+- `providers/openai.py` - OpenAI provider supporting seed-enabled models
+- `providers/cerebras.py` - Cerebras cloud API provider
+- `providers/registry.py` - Provider registry and model routing
+
+**Features:**
+- AIDEV-NOTE: Requires explicit opt-in via `STEADYTEXT_UNSAFE_MODE=true` environment variable
+- AIDEV-NOTE: Shows prominent warnings about best-effort determinism limitations
+- AIDEV-NOTE: Remote models specified as "provider:model" (e.g., "openai:gpt-4o-mini")
+- AIDEV-NOTE: Supports both regular and streaming generation
+- AIDEV-NOTE: Does NOT support structured output, logprobs, or embeddings
+
+**Provider Support:**
+- OpenAI: Models with seed parameter (gpt-4o, gpt-4o-mini, etc.)
+- Cerebras: Llama models via their cloud API
+
+AIDEV-TODO: Add support for more providers (Anthropic when they add seed support, Together.ai, etc.)
+AIDEV-TODO: Consider adding structured output support for remote models
+AIDEV-TODO: Add telemetry to track unsafe mode usage patterns
+AIDEV-NOTE: Remote models are explicitly marked "unsafe" to emphasize they don't provide true determinism

@@ -243,6 +243,34 @@ class DeterministicGenerator:
         validate_seed(seed)
         set_deterministic_environment(seed)
 
+        # AIDEV-NOTE: Check if this is a remote model request
+        from ..providers.registry import is_remote_model, get_provider
+        if model and is_remote_model(model):
+            # Remote models don't support structured output yet
+            if any([response_format, schema, regex, choices]):
+                logger.error(
+                    "Structured output not supported with remote models in unsafe mode"
+                )
+                return (None, None) if return_logprobs else None
+            
+            try:
+                provider = get_provider(model)
+                result = provider.generate(
+                    prompt=prompt,
+                    max_new_tokens=max_new_tokens,
+                    seed=seed,
+                )
+                # Remote models don't support logprobs in our implementation
+                if return_logprobs:
+                    logger.warning(
+                        "Logprobs not supported with remote models, returning None"
+                    )
+                    return (result, None)
+                return result
+            except Exception as e:
+                logger.error(f"Remote model generation failed: {e}")
+                return (None, None) if return_logprobs else None
+
         # AIDEV-NOTE: Check if structured output is requested
         is_structured = any([response_format, schema, regex, choices])
 
@@ -467,6 +495,27 @@ class DeterministicGenerator:
         """
         validate_seed(seed)
         set_deterministic_environment(seed)
+        
+        # AIDEV-NOTE: Check if this is a remote model request
+        from ..providers.registry import is_remote_model, get_provider
+        if model and is_remote_model(model):
+            try:
+                provider = get_provider(model)
+                for token in provider.generate_iter(
+                    prompt=prompt,
+                    max_new_tokens=max_new_tokens,
+                    seed=seed,
+                ):
+                    # Remote models return strings, not dicts with logprobs
+                    if include_logprobs:
+                        yield {"token": token, "logprobs": None}
+                    else:
+                        yield token
+                return
+            except Exception as e:
+                logger.error(f"Remote model streaming generation failed: {e}")
+                return
+        
         if not isinstance(prompt, str):
             logger.error(
                 f"DeterministicGenerator.generate_iter: Invalid prompt type: {type(prompt)}. Expected str."

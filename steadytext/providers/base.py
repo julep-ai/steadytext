@@ -1,0 +1,141 @@
+"""Base class for remote model providers.
+
+AIDEV-NOTE: Remote models provide best-effort determinism via seed parameters
+but cannot guarantee the same reproducibility as local GGUF models.
+"""
+
+import warnings
+from abc import ABC, abstractmethod
+from typing import Optional, Iterator, Dict, Any, List, Union, Tuple
+import logging
+
+logger = logging.getLogger("steadytext.providers")
+
+
+class UnsafeModeWarning(UserWarning):
+    """Warning issued when using remote models with best-effort determinism."""
+    pass
+
+
+class RemoteModelProvider(ABC):
+    """Abstract base class for remote model providers.
+    
+    AIDEV-NOTE: All providers must implement seed-based generation for best-effort
+    determinism. Providers should document their determinism limitations clearly.
+    """
+    
+    def __init__(self, api_key: Optional[str] = None):
+        """Initialize provider with optional API key.
+        
+        Args:
+            api_key: API key for the provider. If None, will try to read from
+                    environment variables specific to each provider.
+        """
+        self.api_key = api_key
+        self._warned = False
+    
+    def _issue_warning(self):
+        """Issue a warning about best-effort determinism if not already warned."""
+        if not self._warned:
+            warning_msg = (
+                f"\n{'='*70}\n"
+                f"UNSAFE MODE WARNING: Using {self.provider_name} remote model\n"
+                f"{'='*70}\n"
+                f"You are using a REMOTE model that provides only BEST-EFFORT determinism.\n"
+                f"Results may vary between:\n"
+                f"  - Different API calls\n"
+                f"  - Different environments\n" 
+                f"  - Different times\n"
+                f"  - Provider infrastructure changes\n\n"
+                f"For TRUE determinism, use local GGUF models (default SteadyText behavior).\n"
+                f"{'='*70}\n"
+            )
+            warnings.warn(warning_msg, UnsafeModeWarning, stacklevel=3)
+            logger.warning(f"Unsafe mode enabled with {self.provider_name}")
+            self._warned = True
+    
+    @property
+    @abstractmethod
+    def provider_name(self) -> str:
+        """Return the provider name for display."""
+        pass
+    
+    @abstractmethod
+    def is_available(self) -> bool:
+        """Check if the provider is available (API key set, dependencies installed)."""
+        pass
+    
+    @abstractmethod
+    def generate(
+        self,
+        prompt: str,
+        max_new_tokens: Optional[int] = None,
+        seed: int = 42,
+        **kwargs
+    ) -> str:
+        """Generate text with best-effort determinism using seed.
+        
+        Args:
+            prompt: Input prompt
+            max_new_tokens: Maximum tokens to generate
+            seed: Seed for best-effort determinism
+            **kwargs: Additional provider-specific parameters
+            
+        Returns:
+            Generated text
+        """
+        pass
+    
+    @abstractmethod
+    def generate_iter(
+        self,
+        prompt: str,
+        max_new_tokens: Optional[int] = None,
+        seed: int = 42,
+        **kwargs
+    ) -> Iterator[str]:
+        """Generate text iteratively with best-effort determinism.
+        
+        Args:
+            prompt: Input prompt
+            max_new_tokens: Maximum tokens to generate
+            seed: Seed for best-effort determinism
+            **kwargs: Additional provider-specific parameters
+            
+        Yields:
+            Generated tokens/chunks
+        """
+        pass
+    
+    def embed(
+        self,
+        text: Union[str, List[str]],
+        seed: int = 42,
+        **kwargs
+    ) -> Optional[Any]:
+        """Generate embeddings if supported by provider.
+        
+        Most providers don't support seeded embeddings.
+        
+        Args:
+            text: Text or list of texts to embed
+            seed: Seed (may be ignored by provider)
+            **kwargs: Additional provider-specific parameters
+            
+        Returns:
+            Embeddings or None if not supported
+        """
+        logger.warning(f"{self.provider_name} does not support embeddings")
+        return None
+    
+    def supports_embeddings(self) -> bool:
+        """Check if provider supports embeddings."""
+        return False
+    
+    def supports_streaming(self) -> bool:
+        """Check if provider supports streaming generation."""
+        return True
+    
+    def get_supported_models(self) -> List[str]:
+        """Get list of supported model names."""
+        return []

@@ -6,6 +6,7 @@ from .models import models
 from .vector import vector
 from .index import index
 from .completion import completion
+from .unsafe import unsafe
 
 __all__ = [
     "generate",
@@ -16,4 +17,5 @@ __all__ = [
     "vector",
     "index",
     "completion",
+    "unsafe",
 ]
