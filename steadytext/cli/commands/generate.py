@@ -157,13 +157,8 @@ def generate(
         logging.getLogger("steadytext").setLevel(logging.ERROR)
         logging.getLogger("llama_cpp").setLevel(logging.ERROR)
 
-    # Handle unsafe mode - flag enables it directly
+    # Handle unsafe mode - validate remote model if specified
     if unsafe_mode:
-        # Set the environment variable to enable unsafe mode
-        import os
-
-        os.environ["STEADYTEXT_UNSAFE_MODE"] = "true"
-
         # Check if model is a remote model
         if model and ":" in model:
             from ...providers.registry import is_remote_model
@@ -276,6 +271,7 @@ def generate(
             model_filename=model_filename,
             size=size,
             seed=seed,
+            unsafe_mode=unsafe_mode,
         ):
             if logprobs and isinstance(token, dict):
                 # Handle logprobs output
@@ -340,6 +336,7 @@ def generate(
                 schema=schema_obj,
                 regex=regex,
                 choices=choices_list,
+                unsafe_mode=unsafe_mode,
             )
             # Unpack the tuple result
             if result is not None and isinstance(result, tuple):
@@ -357,6 +354,7 @@ def generate(
                     model_filename=model_filename,
                     size=size,
                     seed=seed,
+                    unsafe_mode=unsafe_mode,
                 ):
                     generated_text += str(
                         token.get("token", "") if isinstance(token, dict) else token
@@ -398,6 +396,7 @@ def generate(
                 schema=schema_obj,
                 regex=regex,
                 choices=choices_list,
+                unsafe_mode=unsafe_mode,
             )
             if output_format == "json":
                 metadata = {

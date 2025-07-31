@@ -162,6 +162,7 @@ class DaemonClient:
         schema: Optional[Union[Dict[str, Any], Type, object]] = None,
         regex: Optional[str] = None,
         choices: Optional[List[str]] = None,
+        unsafe_mode: bool = False,
     ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None]]:
         """Generate text via daemon."""
         if not self.connect():
@@ -184,6 +185,7 @@ class DaemonClient:
                 "schema": schema,
                 "regex": regex,
                 "choices": choices,
+                "unsafe_mode": unsafe_mode,
             }
 
             request = Request(method="generate", params=params)
@@ -223,6 +225,7 @@ class DaemonClient:
         size: Optional[str] = None,
         seed: int = DEFAULT_SEED,
         max_new_tokens: Optional[int] = None,
+        unsafe_mode: bool = False,
     ) -> Iterator[Union[str, Dict[str, Any]]]:
         """Generate text iteratively via daemon.
 
@@ -243,6 +246,7 @@ class DaemonClient:
                 "size": size,
                 "seed": seed,
                 "max_new_tokens": max_new_tokens,
+                "unsafe_mode": unsafe_mode,
             }
 
             request = Request(method="generate_iter", params=params)

@@ -955,6 +955,7 @@ def core_generate(
     schema: Optional[Union[Dict[str, Any], Type, object]] = None,
     regex: Optional[str] = None,
     choices: Optional[List[str]] = None,
+    unsafe_mode: bool = False,
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None]]:
     """Generate text deterministically with optional model switching and structured output.
 
@@ -1019,6 +1020,11 @@ def core_generate(
     from ..providers.registry import is_remote_model, get_provider
 
     if model and is_remote_model(model):
+        # AIDEV-NOTE: Temporarily enable unsafe mode for this call if requested
+        old_unsafe_mode = os.environ.get("STEADYTEXT_UNSAFE_MODE")
+        if unsafe_mode:
+            os.environ["STEADYTEXT_UNSAFE_MODE"] = "true"
+
         try:
             validate_seed(seed)
             set_deterministic_environment(seed)
@@ -1071,6 +1077,13 @@ def core_generate(
                 return None, None
             else:
                 return None
+        finally:
+            # AIDEV-NOTE: Restore original unsafe mode state
+            if unsafe_mode:
+                if old_unsafe_mode is None:
+                    os.environ.pop("STEADYTEXT_UNSAFE_MODE", None)
+                else:
+                    os.environ["STEADYTEXT_UNSAFE_MODE"] = old_unsafe_mode
 
         # AIDEV-NOTE: This point should never be reached for remote models
         # since we either return the result or return None on error above
@@ -1103,6 +1116,7 @@ def core_generate_iter(
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
     seed: int = DEFAULT_SEED,
+    unsafe_mode: bool = False,
 ) -> Iterator[Union[str, Dict[str, Any]]]:
     """Generate text iteratively with optional model switching.
 
@@ -1128,6 +1142,11 @@ def core_generate_iter(
     from ..providers.registry import is_remote_model, get_provider
 
     if model and is_remote_model(model):
+        # AIDEV-NOTE: Temporarily enable unsafe mode for this call if requested
+        old_unsafe_mode = os.environ.get("STEADYTEXT_UNSAFE_MODE")
+        if unsafe_mode:
+            os.environ["STEADYTEXT_UNSAFE_MODE"] = "true"
+
         try:
             validate_seed(seed)
             set_deterministic_environment(seed)
@@ -1161,6 +1180,13 @@ def core_generate_iter(
         except Exception as e:
             logger.error(f"Remote model streaming generation failed: {e}")
             return
+        finally:
+            # AIDEV-NOTE: Restore original unsafe mode state
+            if unsafe_mode:
+                if old_unsafe_mode is None:
+                    os.environ.pop("STEADYTEXT_UNSAFE_MODE", None)
+                else:
+                    os.environ["STEADYTEXT_UNSAFE_MODE"] = old_unsafe_mode
 
     # Use local model for non-remote models
     return _get_generator_instance().generate_iter(

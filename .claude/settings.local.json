@@ -6,7 +6,8 @@
       "Bash(psql:*)",
       "Bash(ls:*)",
       "Bash(cat:*)",
-      "Bash(poe:*)"
+      "Bash(poe:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

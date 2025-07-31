@@ -52,6 +52,7 @@ def generate(
     schema: Optional[Union[Dict[str, Any], Type, object]] = None,
     regex: Optional[str] = None,
     choices: Optional[List[str]] = None,
+    unsafe_mode: bool = False,
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None]]:
     """Generate text deterministically from a prompt with optional structured output.
 
@@ -70,6 +71,7 @@ def generate(
         schema: JSON schema, Pydantic model, or Python type for structured output
         regex: Regular expression pattern for output format
         choices: List of allowed string choices for output
+        unsafe_mode: Enable remote models with best-effort determinism (non-deterministic)
 
     Returns:
         Generated text string, or tuple (text, logprobs) if return_logprobs=True
@@ -131,6 +133,7 @@ def generate(
                     schema=schema,
                     regex=regex,
                     choices=choices,
+                    unsafe_mode=unsafe_mode,
                 )
             except ConnectionError as e:
                 # Fall back to direct generation
@@ -152,6 +155,7 @@ def generate(
         schema=schema,
         regex=regex,
         choices=choices,
+        unsafe_mode=unsafe_mode,
     )
 
     # AIDEV-NOTE: Return None if generation failed
@@ -171,6 +175,7 @@ def generate_iter(
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
     seed: int = DEFAULT_SEED,
+    unsafe_mode: bool = False,
 ) -> Iterator[Union[str, Dict[str, Any]]]:
     """Generate text iteratively, yielding tokens as they are produced.
 
@@ -188,6 +193,7 @@ def generate_iter(
         model_repo: Custom Hugging Face repository ID
         model_filename: Custom model filename
         size: Size identifier ("small", "large")
+        unsafe_mode: Enable remote models with best-effort determinism (non-deterministic)
 
     Yields:
         str: Generated tokens/words as they are produced (if include_logprobs=False)
@@ -211,6 +217,7 @@ def generate_iter(
                     model_filename=model_filename,
                     size=size,
                     seed=seed,
+                    unsafe_mode=unsafe_mode,
                 )
                 return
             except ConnectionError as e:
@@ -229,6 +236,7 @@ def generate_iter(
         model_filename=model_filename,
         size=size,
         seed=seed,
+        unsafe_mode=unsafe_mode,
     )
 
 

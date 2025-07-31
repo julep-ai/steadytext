@@ -104,6 +104,7 @@ class DaemonServer:
         size = params.get("size")
         seed = params.get("seed", DEFAULT_SEED)
         max_new_tokens = params.get("max_new_tokens")
+        unsafe_mode = params.get("unsafe_mode", False)
 
         # AIDEV-NOTE: Check cache first for non-logprobs requests using default model
         # This mirrors the caching logic in core/generator.py
@@ -114,17 +115,34 @@ class DaemonServer:
                 logger.debug(f"Daemon: Cache hit for prompt: {str(prompt)[:50]}...")
                 return cached
 
-        result = self.generator.generate(
-            prompt=prompt,
-            return_logprobs=return_logprobs,
-            eos_string=eos_string,
-            model=model,
-            model_repo=model_repo,
-            model_filename=model_filename,
-            size=size,
-            seed=seed,
-            max_new_tokens=max_new_tokens,
-        )
+        # AIDEV-NOTE: For remote models, we need to call core_generate directly to pass unsafe_mode
+        from ..core.generator import core_generate
+        from ..providers.registry import is_remote_model
+
+        if model and is_remote_model(model):
+            # Remote model - use core_generate with unsafe_mode
+            result = core_generate(
+                prompt=prompt,
+                return_logprobs=return_logprobs,
+                eos_string=eos_string,
+                model=model,
+                seed=seed,
+                max_new_tokens=max_new_tokens,
+                unsafe_mode=unsafe_mode,
+            )
+        else:
+            # Local model - use the generator instance
+            result = self.generator.generate(
+                prompt=prompt,
+                return_logprobs=return_logprobs,
+                eos_string=eos_string,
+                model=model,
+                model_repo=model_repo,
+                model_filename=model_filename,
+                size=size,
+                seed=seed,
+                max_new_tokens=max_new_tokens,
+            )
 
         # AIDEV-NOTE: Cache the result for non-logprobs requests using default model
         # This ensures cache consistency between daemon and direct access
@@ -157,6 +175,7 @@ class DaemonServer:
         size = params.get("size")
         seed = params.get("seed", DEFAULT_SEED)
         max_new_tokens = params.get("max_new_tokens")
+        unsafe_mode = params.get("unsafe_mode", False)
 
         # AIDEV-NOTE: Check cache for non-logprobs streaming requests using default model
         # If cached, simulate streaming by yielding words from cached result
@@ -191,17 +210,37 @@ class DaemonServer:
         # No cache hit or logprobs requested - use actual streaming
         # AIDEV-NOTE: Collect tokens during streaming to populate cache after completion
         collected_tokens = []
-        for token in self.generator.generate_iter(
-            prompt=prompt,
-            eos_string=eos_string,
-            include_logprobs=include_logprobs,
-            model=model,
-            model_repo=model_repo,
-            model_filename=model_filename,
-            size=size,
-            seed=seed,
-            max_new_tokens=max_new_tokens,
-        ):
+
+        # AIDEV-NOTE: For remote models, use core_generate_iter directly
+        from ..core.generator import core_generate_iter
+        from ..providers.registry import is_remote_model
+
+        if model and is_remote_model(model):
+            # Remote model - use core_generate_iter with unsafe_mode
+            token_iterator = core_generate_iter(
+                prompt=prompt,
+                eos_string=eos_string,
+                include_logprobs=include_logprobs,
+                model=model,
+                seed=seed,
+                max_new_tokens=max_new_tokens,
+                unsafe_mode=unsafe_mode,
+            )
+        else:
+            # Local model - use the generator instance
+            token_iterator = self.generator.generate_iter(
+                prompt=prompt,
+                eos_string=eos_string,
+                include_logprobs=include_logprobs,
+                model=model,
+                model_repo=model_repo,
+                model_filename=model_filename,
+                size=size,
+                seed=seed,
+                max_new_tokens=max_new_tokens,
+            )
+
+        for token in token_iterator:
             # For consistency, always yield just the token - main loop will wrap it
             # Token is already a dict if include_logprobs=True, otherwise it's a string
             yield token
