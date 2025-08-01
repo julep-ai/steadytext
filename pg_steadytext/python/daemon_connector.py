@@ -265,6 +265,10 @@ class SteadyTextConnector:
         # AIDEV-NOTE: Handle both parameter names for compatibility
         if max_new_tokens is None:
             max_new_tokens = max_tokens or 512
+        
+        # AIDEV-NOTE: Validate that unsafe_mode requires a model to be specified
+        if unsafe_mode and not kwargs.get('model'):
+            raise ValueError("unsafe_mode=True requires a model parameter to be specified")
 
         if not STEADYTEXT_AVAILABLE:
             # Return deterministic fallback if SteadyText not available
@@ -321,6 +325,9 @@ class SteadyTextConnector:
         Yields:
             Text tokens as they are generated
         """
+        # AIDEV-NOTE: Validate that unsafe_mode requires a model to be specified
+        if unsafe_mode and not kwargs.get('model'):
+            raise ValueError("unsafe_mode=True requires a model parameter to be specified")
         if not STEADYTEXT_AVAILABLE:
             # Yield fallback in chunks
             result = self._fallback_generate(prompt, max_tokens)
@@ -420,6 +427,9 @@ class SteadyTextConnector:
         Returns:
             JSON string that conforms to the schema
         """
+        # AIDEV-NOTE: For structured generation functions, unsafe_mode is not supported without model selection
+        if unsafe_mode:
+            raise ValueError("unsafe_mode is not supported for structured generation functions")
         if not STEADYTEXT_AVAILABLE:
             # Return fallback JSON
             return self._fallback_generate_json(prompt, schema, max_tokens)
@@ -477,6 +487,9 @@ class SteadyTextConnector:
         Returns:
             Text that matches the pattern
         """
+        # AIDEV-NOTE: For structured generation functions, unsafe_mode is not supported without model selection
+        if unsafe_mode:
+            raise ValueError("unsafe_mode is not supported for structured generation functions")
         if not STEADYTEXT_AVAILABLE:
             # Return simple fallback
             return self._fallback_generate(prompt, max_tokens)
@@ -534,6 +547,9 @@ class SteadyTextConnector:
         Returns:
             One of the provided choices
         """
+        # AIDEV-NOTE: For structured generation functions, unsafe_mode is not supported without model selection
+        if unsafe_mode:
+            raise ValueError("unsafe_mode is not supported for structured generation functions")
         if not STEADYTEXT_AVAILABLE:
             # Return deterministic choice
             return choices[abs(hash(prompt)) % len(choices)] if choices else ""

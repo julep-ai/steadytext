@@ -427,6 +427,10 @@ if resolved_seed < 0:
 if not unsafe_mode and model and ':' in model:
     plpy.error("Remote models (containing ':') require unsafe_mode=TRUE")
 
+# AIDEV-NOTE: Validate that unsafe_mode requires a model to be specified
+if unsafe_mode and not model:
+    plpy.error("unsafe_mode=TRUE requires a model parameter to be specified")
+
 # Check if we should use cache
 if use_cache:
     # Generate cache key consistent with SteadyText format
@@ -1138,6 +1142,10 @@ if not prompt or not prompt.strip():
 if not schema:
     plpy.error("Schema cannot be empty")
 
+# AIDEV-NOTE: For structured generation functions, unsafe_mode is not supported without model selection
+if unsafe_mode:
+    plpy.error("unsafe_mode is not supported for structured generation functions")
+
 # Convert JSONB to dict if needed
 schema_dict = schema
 if isinstance(schema, str):
@@ -1295,6 +1303,10 @@ if not prompt or not prompt.strip():
 if not pattern or not pattern.strip():
     plpy.error("Pattern cannot be empty")
 
+# AIDEV-NOTE: For structured generation functions, unsafe_mode is not supported without model selection
+if unsafe_mode:
+    plpy.error("unsafe_mode is not supported for structured generation functions")
+
 # Check if we should use cache
 if use_cache:
     # Generate cache key including pattern
@@ -1442,6 +1454,10 @@ if not prompt or not prompt.strip():
 
 if not choices or len(choices) == 0:
     plpy.error("Choices list cannot be empty")
+
+# AIDEV-NOTE: For structured generation functions, unsafe_mode is not supported without model selection
+if unsafe_mode:
+    plpy.error("unsafe_mode is not supported for structured generation functions")
 
 # Convert PostgreSQL array to Python list
 choices_list = list(choices)
