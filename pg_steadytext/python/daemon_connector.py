@@ -202,12 +202,15 @@ class SteadyTextConnector:
             return False
 
         try:
-            # AIDEV-NOTE: First try the steadytext daemon module's built-in check
-            # This is the most reliable way if available
+            # AIDEV-NOTE: First try the steadytext CLI module's daemon check
+            # This function checks the PID file to see if daemon is running
             try:
-                from steadytext.daemon import is_daemon_running as check_daemon
+                from steadytext.cli.commands.daemon import (
+                    is_daemon_running as check_daemon,
+                )
+                from steadytext.cli.commands.daemon import get_pid_file
 
-                return check_daemon()
+                return check_daemon(get_pid_file())
             except ImportError:
                 pass  # Module not available, try alternative
 
@@ -238,7 +241,7 @@ class SteadyTextConnector:
                     response = socket.recv_json()
                     # Any valid JSON response means daemon is running
                     return isinstance(response, dict)
-                except zmq.error.Again:
+                except zmq.Again:
                     # Timeout - daemon not responding
                     return False
 
@@ -508,20 +511,38 @@ class SteadyTextConnector:
             prompt: Input text prompt
             schema: JSON schema dictionary
             max_tokens: Maximum tokens to generate
-            **kwargs: Additional generation parameters
+            unsafe_mode: Enable remote models (requires model parameter)
+            **kwargs: Additional generation parameters (including model)
 
         Returns:
             JSON string that conforms to the schema
         """
-        # AIDEV-NOTE: For structured generation functions, unsafe_mode is not supported without model selection
-        if unsafe_mode:
+        # AIDEV-NOTE: Validate that unsafe_mode requires a model to be specified
+        if unsafe_mode and not kwargs.get("model"):
             raise ValueError(
-                "unsafe_mode is not supported for structured generation functions"
+                "unsafe_mode=True requires a model parameter to be specified"
             )
         if not STEADYTEXT_AVAILABLE:
             # Return fallback JSON
             return self._fallback_generate_json(prompt, schema, max_tokens)
 
+        # AIDEV-NOTE: For remote models with unsafe_mode, skip daemon entirely
+        model = kwargs.get("model")
+        if unsafe_mode and model and ":" in model:
+            try:
+                result = generate_json(
+                    prompt,
+                    schema=schema,
+                    max_tokens=max_tokens,
+                    unsafe_mode=unsafe_mode,
+                    **kwargs,
+                )
+                return cast(str, result)
+            except Exception as e:
+                logger.error(f"Remote model JSON generation failed: {e}")
+                return self._fallback_generate_json(prompt, schema, max_tokens)
+
+        # For local models, try daemon first
         try:
             # Try using daemon first
             with use_daemon():
@@ -570,20 +591,38 @@ class SteadyTextConnector:
             prompt: Input text prompt
             pattern: Regular expression pattern
             max_tokens: Maximum tokens to generate
-            **kwargs: Additional generation parameters
+            unsafe_mode: Enable remote models (requires model parameter)
+            **kwargs: Additional generation parameters (including model)
 
         Returns:
             Text that matches the pattern
         """
-        # AIDEV-NOTE: For structured generation functions, unsafe_mode is not supported without model selection
-        if unsafe_mode:
+        # AIDEV-NOTE: Validate that unsafe_mode requires a model to be specified
+        if unsafe_mode and not kwargs.get("model"):
             raise ValueError(
-                "unsafe_mode is not supported for structured generation functions"
+                "unsafe_mode=True requires a model parameter to be specified"
             )
         if not STEADYTEXT_AVAILABLE:
             # Return simple fallback
             return self._fallback_generate(prompt, max_tokens)
 
+        # AIDEV-NOTE: For remote models with unsafe_mode, skip daemon entirely
+        model = kwargs.get("model")
+        if unsafe_mode and model and ":" in model:
+            try:
+                result = generate_regex(
+                    prompt,
+                    pattern=pattern,
+                    max_tokens=max_tokens,
+                    unsafe_mode=unsafe_mode,
+                    **kwargs,
+                )
+                return cast(str, result)
+            except Exception as e:
+                logger.error(f"Remote model regex generation failed: {e}")
+                return self._fallback_generate(prompt, max_tokens)
+
+        # For local models, try daemon first
         try:
             # Try using daemon first
             with use_daemon():
@@ -632,20 +671,39 @@ class SteadyTextConnector:
             prompt: Input text prompt
             choices: List of allowed string choices
             max_tokens: Maximum tokens to generate
-            **kwargs: Additional generation parameters
+            unsafe_mode: Enable remote models (requires model parameter)
+            **kwargs: Additional generation parameters (including model)
 
         Returns:
             One of the provided choices
         """
-        # AIDEV-NOTE: For structured generation functions, unsafe_mode is not supported without model selection
-        if unsafe_mode:
+        # AIDEV-NOTE: Validate that unsafe_mode requires a model to be specified
+        if unsafe_mode and not kwargs.get("model"):
             raise ValueError(
-                "unsafe_mode is not supported for structured generation functions"
+                "unsafe_mode=True requires a model parameter to be specified"
             )
         if not STEADYTEXT_AVAILABLE:
             # Return deterministic choice
             return choices[abs(hash(prompt)) % len(choices)] if choices else ""
 
+        # AIDEV-NOTE: For remote models with unsafe_mode, skip daemon entirely
+        model = kwargs.get("model")
+        if unsafe_mode and model and ":" in model:
+            try:
+                result = generate_choice(
+                    prompt,
+                    choices=choices,
+                    max_tokens=max_tokens,
+                    unsafe_mode=unsafe_mode,
+                    **kwargs,
+                )
+                return cast(str, result)
+            except Exception as e:
+                logger.error(f"Remote model choice generation failed: {e}")
+                # Return deterministic choice
+                return choices[abs(hash(prompt)) % len(choices)] if choices else ""
+
+        # For local models, try daemon first
         try:
             # Try using daemon first
             with use_daemon():
