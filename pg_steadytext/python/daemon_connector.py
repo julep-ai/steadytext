@@ -10,6 +10,7 @@ import json
 import time
 import subprocess
 import logging
+import os
 from typing import List, Optional, cast
 import numpy as np
 
@@ -41,6 +42,37 @@ except ImportError as e:
 logger = logging.getLogger(__name__)
 
 
+def _setup_env_vars_from_gd():
+    """
+    Load environment variables from PostgreSQL's GD (Global Dictionary).
+    
+    AIDEV-NOTE: This function checks if we're running inside PostgreSQL
+    and loads any API keys stored in GD['env_vars'] into os.environ.
+    When running inside PL/Python, GD is a global variable, not in plpy.
+    """
+    try:
+        # Check if we're in PostgreSQL context
+        import plpy
+        
+        # In PL/Python, GD is a global variable
+        if 'GD' in globals():
+            global GD
+            if 'env_vars' in GD:
+                for key, value in GD['env_vars'].items():
+                    if value and key not in os.environ:
+                        os.environ[key] = value
+                        plpy.notice(f"Loaded {key} from GD into environment")
+    except ImportError:
+        # Not in PostgreSQL context, ignore
+        pass
+    except Exception as e:
+        try:
+            import plpy
+            plpy.warning(f"Failed to load env vars from GD: {e}")
+        except:
+            logger.warning(f"Failed to load env vars from GD: {e}")
+
+
 class SteadyTextConnector:
     """
     PostgreSQL-friendly wrapper for SteadyText daemon communication.
@@ -60,6 +92,8 @@ class SteadyTextConnector:
             port: Daemon port number
             auto_start: Whether to auto-start daemon if not running
         """
+        # AIDEV-NOTE: Load environment variables from PostgreSQL GD if available
+        _setup_env_vars_from_gd()
         # AIDEV-NOTE: Validate host parameter to prevent injection attacks
         if not host:
             raise ValueError("Host cannot be empty")
@@ -289,6 +323,8 @@ class SteadyTextConnector:
 
             # Fall back to direct generation
             try:
+                # AIDEV-NOTE: Ensure env vars are loaded before direct generation
+                _setup_env_vars_from_gd()
                 result = generate(
                     prompt,
                     max_new_tokens=max_new_tokens,
