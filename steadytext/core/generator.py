@@ -1019,7 +1019,7 @@ def core_generate(
     # AIDEV-NOTE: Validate that unsafe_mode requires a model to be specified
     if unsafe_mode and not model:
         raise ValueError("unsafe_mode=True requires a model parameter to be specified")
-    
+
     # AIDEV-NOTE: Check for remote models first to avoid loading local models unnecessarily
     from ..providers.registry import is_remote_model, get_provider
 
@@ -1146,7 +1146,7 @@ def core_generate_iter(
     if unsafe_mode and not model:
         logger.error("unsafe_mode=True requires a model parameter to be specified")
         return  # Return empty iterator
-    
+
     # AIDEV-NOTE: Check for remote models first to avoid loading local models unnecessarily
     from ..providers.registry import is_remote_model, get_provider
 

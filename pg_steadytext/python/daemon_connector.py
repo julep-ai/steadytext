@@ -115,7 +115,7 @@ class SteadyTextConnector:
         # Use the lightweight check first
         if self.is_daemon_running():
             return True
-            
+
         # Daemon not running
         if self.auto_start:
             logger.info("Attempting to start SteadyText daemon...")
@@ -206,32 +206,33 @@ class SteadyTextConnector:
             # This is the most reliable way if available
             try:
                 from steadytext.daemon import is_daemon_running as check_daemon
+
                 return check_daemon()
             except ImportError:
                 pass  # Module not available, try alternative
-            
+
             # AIDEV-NOTE: Fallback to checking ZMQ socket connectivity
             # This avoids model loading that happens with generate()
             import zmq
-            
+
             context = zmq.Context()
             socket = context.socket(zmq.REQ)
             socket.setsockopt(zmq.RCVTIMEO, 1000)  # 1 second timeout
             socket.setsockopt(zmq.LINGER, 0)  # Don't linger on close
             socket.setsockopt(zmq.SNDTIMEO, 1000)  # Send timeout
-            
+
             try:
                 socket.connect(self.daemon_endpoint)
-                
+
                 # Try a minimal message that daemon might respond to
                 # Some daemons may not support ping/pong but will respond to invalid requests
                 test_msg = {
                     "method": "status",  # Try a status request
                     "id": "test-connection",
-                    "params": {}
+                    "params": {},
                 }
                 socket.send_json(test_msg)
-                
+
                 # Try to receive any response
                 try:
                     response = socket.recv_json()
@@ -240,11 +241,11 @@ class SteadyTextConnector:
                 except zmq.error.Again:
                     # Timeout - daemon not responding
                     return False
-                    
+
             finally:
                 socket.close()
                 context.term()
-                
+
         except Exception:
             # Any exception means daemon is not running
             return False
@@ -297,10 +298,12 @@ class SteadyTextConnector:
         # AIDEV-NOTE: Handle both parameter names for compatibility
         if max_new_tokens is None:
             max_new_tokens = max_tokens or 512
-        
+
         # AIDEV-NOTE: Validate that unsafe_mode requires a model to be specified
-        if unsafe_mode and not kwargs.get('model'):
-            raise ValueError("unsafe_mode=True requires a model parameter to be specified")
+        if unsafe_mode and not kwargs.get("model"):
+            raise ValueError(
+                "unsafe_mode=True requires a model parameter to be specified"
+            )
 
         if not STEADYTEXT_AVAILABLE:
             # Return deterministic fallback if SteadyText not available
@@ -308,8 +311,8 @@ class SteadyTextConnector:
 
         # AIDEV-NOTE: For remote models with unsafe_mode, skip daemon entirely
         # Remote models don't benefit from daemon and trying to use it causes delays
-        model = kwargs.get('model')
-        if unsafe_mode and model and ':' in model:
+        model = kwargs.get("model")
+        if unsafe_mode and model and ":" in model:
             try:
                 result = generate(
                     prompt,
@@ -331,7 +334,7 @@ class SteadyTextConnector:
             # Ensure daemon is running only when we actually need it
             if self.auto_start and not self.is_daemon_running():
                 self._start_daemon()
-                
+
             # Try using daemon first
             with use_daemon():
                 result = generate(
@@ -383,8 +386,10 @@ class SteadyTextConnector:
             Text tokens as they are generated
         """
         # AIDEV-NOTE: Validate that unsafe_mode requires a model to be specified
-        if unsafe_mode and not kwargs.get('model'):
-            raise ValueError("unsafe_mode=True requires a model parameter to be specified")
+        if unsafe_mode and not kwargs.get("model"):
+            raise ValueError(
+                "unsafe_mode=True requires a model parameter to be specified"
+            )
         if not STEADYTEXT_AVAILABLE:
             # Yield fallback in chunks
             result = self._fallback_generate(prompt, max_tokens)
@@ -393,8 +398,8 @@ class SteadyTextConnector:
             return
 
         # AIDEV-NOTE: For remote models with unsafe_mode, skip daemon entirely
-        model = kwargs.get('model')
-        if unsafe_mode and model and ':' in model:
+        model = kwargs.get("model")
+        if unsafe_mode and model and ":" in model:
             try:
                 for token in generate_iter(
                     prompt,
@@ -416,7 +421,7 @@ class SteadyTextConnector:
             # Ensure daemon is running only when we actually need it
             if self.auto_start and not self.is_daemon_running():
                 self._start_daemon()
-                
+
             # Try streaming with daemon
             with use_daemon():
                 for token in generate_iter(
@@ -510,7 +515,9 @@ class SteadyTextConnector:
         """
         # AIDEV-NOTE: For structured generation functions, unsafe_mode is not supported without model selection
         if unsafe_mode:
-            raise ValueError("unsafe_mode is not supported for structured generation functions")
+            raise ValueError(
+                "unsafe_mode is not supported for structured generation functions"
+            )
         if not STEADYTEXT_AVAILABLE:
             # Return fallback JSON
             return self._fallback_generate_json(prompt, schema, max_tokens)
@@ -570,7 +577,9 @@ class SteadyTextConnector:
         """
         # AIDEV-NOTE: For structured generation functions, unsafe_mode is not supported without model selection
         if unsafe_mode:
-            raise ValueError("unsafe_mode is not supported for structured generation functions")
+            raise ValueError(
+                "unsafe_mode is not supported for structured generation functions"
+            )
         if not STEADYTEXT_AVAILABLE:
             # Return simple fallback
             return self._fallback_generate(prompt, max_tokens)
@@ -630,7 +639,9 @@ class SteadyTextConnector:
         """
         # AIDEV-NOTE: For structured generation functions, unsafe_mode is not supported without model selection
         if unsafe_mode:
-            raise ValueError("unsafe_mode is not supported for structured generation functions")
+            raise ValueError(
+                "unsafe_mode is not supported for structured generation functions"
+            )
         if not STEADYTEXT_AVAILABLE:
             # Return deterministic choice
             return choices[abs(hash(prompt)) % len(choices)] if choices else ""
