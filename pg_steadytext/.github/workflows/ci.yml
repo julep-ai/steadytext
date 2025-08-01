@@ -71,7 +71,7 @@ jobs:
     - name: Run tests
       run: |
         cd pg_steadytext
-        ./run_tests.sh
+        ./run_pgtap_tests.sh
       env:
         PGHOST: localhost
         PGPORT: 5432

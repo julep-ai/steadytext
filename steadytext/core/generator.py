@@ -1018,11 +1018,7 @@ def core_generate(
     """
     # AIDEV-NOTE: Validate that unsafe_mode requires a model to be specified
     if unsafe_mode and not model:
-        logger.error("unsafe_mode=True requires a model parameter to be specified")
-        if return_logprobs:
-            return None, None
-        else:
-            return None
+        raise ValueError("unsafe_mode=True requires a model parameter to be specified")
     
     # AIDEV-NOTE: Check for remote models first to avoid loading local models unnecessarily
     from ..providers.registry import is_remote_model, get_provider

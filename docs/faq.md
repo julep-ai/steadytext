@@ -346,7 +346,7 @@ docker run -d -p 5432:5432 pg_steadytext
 
 # Manual installation
 cd pg_steadytext
-./install.sh
+make && sudo make install
 ```
 
 ### How do I use it in SQL?
