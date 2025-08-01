@@ -381,7 +381,7 @@ IMMUTABLE PARALLEL SAFE
 AS $c$
 # AIDEV-NOTE: Main text generation function that integrates with SteadyText daemon
 # v1.4.5: Added support for eos_string, model, model_repo, model_filename, size parameters
-# v1.4.5: Added unsafe_mode parameter for remote model access
+# v1.4.5: Added model parameter for remote model access
 import json
 import hashlib
 
@@ -1100,12 +1100,12 @@ AS $c$
     SELECT '1.4.5'::TEXT;
 $c$;
 
-CREATE OR REPLACE FUNCTION steadytext_config_get(key TEXT)
+CREATE OR REPLACE FUNCTION steadytext_config_get(config_key TEXT)
 RETURNS TEXT
 LANGUAGE sql
 STABLE PARALLEL SAFE LEAKPROOF
 AS $c$
-    SELECT value::text FROM steadytext_config WHERE key = $1;
+    SELECT value::text FROM steadytext_config WHERE key = config_key;
 $c$;
 
 -- AIDEV-SECTION: STRUCTURED_GENERATION_FUNCTIONS
@@ -1142,7 +1142,7 @@ IMMUTABLE PARALLEL SAFE
 AS $c$
 # AIDEV-NOTE: Generate JSON that conforms to a schema using llama.cpp grammars
 # Fixed in v1.4.1 to use SELECT-only cache reads for true immutability
-# v1.4.5: Added unsafe_mode parameter for remote model access
+# v1.4.5: Added model parameter for remote model access
 import json
 import hashlib
 
@@ -1304,7 +1304,7 @@ IMMUTABLE PARALLEL SAFE
 AS $c$
 # AIDEV-NOTE: Generate text matching a regex pattern using llama.cpp grammars
 # Fixed in v1.4.1 to use SELECT-only cache reads for true immutability
-# v1.4.5: Added unsafe_mode parameter for remote model access
+# v1.4.5: Added model parameter for remote model access
 import json
 import hashlib
 
@@ -1457,7 +1457,7 @@ IMMUTABLE PARALLEL SAFE
 AS $c$
 # AIDEV-NOTE: Generate text constrained to one of the provided choices
 # Fixed in v1.4.1 to use SELECT-only cache reads for true immutability
-# v1.4.5: Added unsafe_mode parameter for remote model access
+# v1.4.5: Added model parameter for remote model access
 import json
 import hashlib
 

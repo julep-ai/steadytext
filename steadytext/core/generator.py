@@ -1016,9 +1016,8 @@ def core_generate(
     AIDEV-NOTE: Model switching allows using different models without changing environment variables. Models are cached after the first load.
     AIDEV-NOTE: Structured output parameters enable JSON, regex, and choice-constrained generation.
     """
-    # AIDEV-NOTE: Validate that unsafe_mode requires a model to be specified
-    if unsafe_mode and not model:
-        raise ValueError("unsafe_mode=True requires a model parameter to be specified")
+    # AIDEV-NOTE: unsafe_mode is only meaningful for remote models, but we allow it
+    # to be set without a model parameter for backwards compatibility
 
     # AIDEV-NOTE: Check for remote models first to avoid loading local models unnecessarily
     from ..providers.registry import is_remote_model, get_provider

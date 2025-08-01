@@ -202,12 +202,15 @@ class SteadyTextConnector:
             return False
 
         try:
-            # AIDEV-NOTE: First try the steadytext daemon module's built-in check
-            # This is the most reliable way if available
+            # AIDEV-NOTE: First try the steadytext CLI module's daemon check
+            # This function checks the PID file to see if daemon is running
             try:
-                from steadytext.daemon import is_daemon_running as check_daemon
+                from steadytext.cli.commands.daemon import (
+                    is_daemon_running as check_daemon,
+                )
+                from steadytext.cli.commands.daemon import get_pid_file
 
-                return check_daemon()
+                return check_daemon(get_pid_file())
             except ImportError:
                 pass  # Module not available, try alternative
 
@@ -238,7 +241,7 @@ class SteadyTextConnector:
                     response = socket.recv_json()
                     # Any valid JSON response means daemon is running
                     return isinstance(response, dict)
-                except zmq.error.Again:
+                except zmq.Again:
                     # Timeout - daemon not responding
                     return False
 

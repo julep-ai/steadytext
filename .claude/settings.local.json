@@ -20,7 +20,12 @@
       "Bash(echo:*)",
       "Bash(sudo service:*)",
       "Bash(sudo systemctl status:*)",
-      "Bash(PGPASSWORD=password psql:*)"
+      "Bash(PGPASSWORD=password psql:*)",
+      "Bash(gh release list:*)",
+      "Bash(gh release view:*)",
+      "Bash(git checkout:*)",
+      "Bash(git pull:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }

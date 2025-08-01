@@ -17,8 +17,8 @@ from typing import Any, Dict, List, Union, Type, Optional
 from pydantic import BaseModel
 
 from ..models.loader import get_generator_model_instance
-from ..utils import suppress_llama_output
-from .generator import _validate_input_length
+from ..utils import suppress_llama_output, DEFAULT_SEED
+from .generator import _validate_input_length, core_generate
 from .grammar import json_schema_to_grammar, regex_to_grammar, choices_to_grammar
 
 # AIDEV-NOTE: Import LlamaGrammar for creating grammar objects from GBNF strings
@@ -288,6 +288,9 @@ def generate_json(
     prompt: str,
     schema: Union[Dict[str, Any], Type["BaseModel"], Type],
     max_tokens: int = 512,
+    model: Optional[str] = None,
+    unsafe_mode: bool = False,
+    seed: int = DEFAULT_SEED,
     **kwargs,
 ) -> str:
     """Generate JSON that conforms to a schema.
@@ -318,19 +321,59 @@ def generate_json(
 
         >>> # Using a basic type
         >>> result = generate_json("Pick a number", int)
+
+        >>> # Using a remote model
+        >>> result = generate_json(
+        ...     "Create a person",
+        ...     {"type": "object", "properties": {"name": {"type": "string"}}},
+        ...     model="openai:gpt-4o-mini",
+        ...     unsafe_mode=True
+        ... )
     """
+    # AIDEV-NOTE: Check if this is a remote model request
+    from ..providers.registry import is_remote_model
+
+    if model and is_remote_model(model):
+        # For remote models, check if they support structured output
+
+        # Validate unsafe_mode requirement
+        if not unsafe_mode:
+            raise ValueError(f"Remote model '{model}' requires unsafe_mode=True")
+
+        # Use core_generate with schema parameter for remote models
+        result = core_generate(
+            prompt=prompt,
+            max_new_tokens=max_tokens,
+            schema=schema,
+            model=model,
+            unsafe_mode=unsafe_mode,
+            seed=seed,
+            **kwargs,
+        )
+
+        if result is None:
+            raise RuntimeError(f"Failed to generate JSON with remote model '{model}'")
+
+        # Extract string result (handle logprobs tuple if present)
+        if isinstance(result, tuple):
+            return result[0]  # Return just the string part
+        # Type narrowing: at this point result must be str since it's not None or tuple
+        assert isinstance(result, str)
+        return result
+
+    # For local models, use the structured generator
     generator = get_structured_generator()
-    return generator.generate_json(prompt, schema, max_tokens, **kwargs)
+    return generator.generate_json(prompt, schema, max_tokens, seed=seed, **kwargs)
 
 
 def generate_regex(
-    prompt: str, 
-    pattern: str, 
+    prompt: str,
+    pattern: str,
     max_tokens: int = 512,
     model: Optional[str] = None,
     unsafe_mode: bool = False,
     seed: int = DEFAULT_SEED,
-    **kwargs
+    **kwargs,
 ) -> str:
     r"""Generate text that matches a regex pattern.
 
@@ -349,7 +392,7 @@ def generate_regex(
 
         >>> # Generate an email
         >>> result = generate_regex("Email:", r"[a-z]+@[a-z]+\.[a-z]+")
-        
+
         >>> # Using a remote model
         >>> result = generate_regex(
         ...     "Call me at",
@@ -360,17 +403,14 @@ def generate_regex(
     """
     # AIDEV-NOTE: Check if this is a remote model request
     from ..providers.registry import is_remote_model
-    
+
     if model and is_remote_model(model):
         # For remote models, check if they support structured output
-        from ..providers.registry import get_provider
-        
+
         # Validate unsafe_mode requirement
         if not unsafe_mode:
-            raise ValueError(
-                f"Remote model '{model}' requires unsafe_mode=True"
-            )
-        
+            raise ValueError(f"Remote model '{model}' requires unsafe_mode=True")
+
         # Use core_generate with regex parameter for remote models
         result = core_generate(
             prompt=prompt,
@@ -379,21 +419,32 @@ def generate_regex(
             model=model,
             unsafe_mode=unsafe_mode,
             seed=seed,
-            **kwargs
+            **kwargs,
         )
-        
+
         if result is None:
             raise RuntimeError(f"Failed to generate regex with remote model '{model}'")
-        
+
+        # Extract string result (handle logprobs tuple if present)
+        if isinstance(result, tuple):
+            return result[0]  # Return just the string part
+        # Type narrowing: at this point result must be str since it's not None or tuple
+        assert isinstance(result, str)
         return result
-    
+
     # For local models, use the structured generator
     generator = get_structured_generator()
     return generator.generate_regex(prompt, pattern, max_tokens, seed=seed, **kwargs)
 
 
 def generate_choice(
-    prompt: str, choices: List[str], max_tokens: int = 512, **kwargs
+    prompt: str,
+    choices: List[str],
+    max_tokens: int = 512,
+    model: Optional[str] = None,
+    unsafe_mode: bool = False,
+    seed: int = DEFAULT_SEED,
+    **kwargs,
 ) -> str:
     """Generate text that is one of the given choices.
 
@@ -412,7 +463,7 @@ def generate_choice(
         ...     "Is Python good?",
         ...     ["yes", "no", "maybe"]
         ... )
-        
+
         >>> # Using a remote model
         >>> result = generate_choice(
         ...     "Is Python good?",
@@ -423,17 +474,14 @@ def generate_choice(
     """
     # AIDEV-NOTE: Check if this is a remote model request
     from ..providers.registry import is_remote_model
-    
+
     if model and is_remote_model(model):
         # For remote models, check if they support structured output
-        from ..providers.registry import get_provider
-        
+
         # Validate unsafe_mode requirement
         if not unsafe_mode:
-            raise ValueError(
-                f"Remote model '{model}' requires unsafe_mode=True"
-            )
-        
+            raise ValueError(f"Remote model '{model}' requires unsafe_mode=True")
+
         # Use core_generate with choices parameter for remote models
         result = core_generate(
             prompt=prompt,
@@ -442,27 +490,32 @@ def generate_choice(
             model=model,
             unsafe_mode=unsafe_mode,
             seed=seed,
-            **kwargs
+            **kwargs,
         )
-        
+
         if result is None:
             raise RuntimeError(f"Failed to generate choice with remote model '{model}'")
-        
+
+        # Extract string result (handle logprobs tuple if present)
+        if isinstance(result, tuple):
+            return result[0]  # Return just the string part
+        # Type narrowing: at this point result must be str since it's not None or tuple
+        assert isinstance(result, str)
         return result
-    
+
     # For local models, use the structured generator
     generator = get_structured_generator()
     return generator.generate_choice(prompt, choices, max_tokens, seed=seed, **kwargs)
 
 
 def generate_format(
-    prompt: str, 
-    format_type: Type, 
+    prompt: str,
+    format_type: Type,
     max_tokens: int = 512,
     model: Optional[str] = None,
     unsafe_mode: bool = False,
     seed: int = DEFAULT_SEED,
-    **kwargs
+    **kwargs,
 ) -> str:
     r"""Generate text of a specific type.
 
@@ -481,6 +534,50 @@ def generate_format(
 
         >>> # Generate a boolean
         >>> result = generate_format("True or false?", bool)
+
+        >>> # Using a remote model
+        >>> result = generate_format(
+        ...     "How many?",
+        ...     int,
+        ...     model="openai:gpt-4o-mini",
+        ...     unsafe_mode=True
+        ... )
     """
+    # AIDEV-NOTE: Check if this is a remote model request
+    from ..providers.registry import is_remote_model
+
+    if model and is_remote_model(model):
+        # For remote models, validate unsafe_mode requirement
+        if not unsafe_mode:
+            raise ValueError(f"Remote model '{model}' requires unsafe_mode=True")
+
+        # Convert format_type to JSON schema
+        generator = get_structured_generator()
+        json_schema = generator._schema_to_json_schema(format_type)
+
+        # Use core_generate with schema parameter for remote models
+        result = core_generate(
+            prompt=prompt,
+            max_new_tokens=max_tokens,
+            schema=json_schema,
+            model=model,
+            unsafe_mode=unsafe_mode,
+            seed=seed,
+            **kwargs,
+        )
+
+        if result is None:
+            raise RuntimeError(f"Failed to generate format with remote model '{model}'")
+
+        # Extract string result (handle logprobs tuple if present)
+        if isinstance(result, tuple):
+            return result[0]  # Return just the string part
+        # Type narrowing: at this point result must be str since it's not None or tuple
+        assert isinstance(result, str)
+        return result
+
+    # For local models, use the structured generator
     generator = get_structured_generator()
-    return generator.generate_format(prompt, format_type, max_tokens, **kwargs)
+    return generator.generate_format(
+        prompt, format_type, max_tokens, seed=seed, **kwargs
+    )

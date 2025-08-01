@@ -108,6 +108,7 @@ When responding to user instructions, the AI assistant (Claude, Cursor, GPT, etc
 
 - AIDEV-NOTE: Uses llama.cpp GBNF grammars instead of Outlines (fixes Gemma-3n compatibility)
 - Conversion support: JSON schemas, Pydantic models, regex, choices, Python types → GBNF
+- AIDEV-NOTE: Remote models (v2.6.2+) support structured generation via unsafe_mode=True
 - AIDEV-TODO: Expand regex conversion and add recursive schema support
 
 SteadyText supports structured text generation using llama.cpp grammars, enabling:
@@ -141,6 +142,14 @@ answer = generate("Is Python good?", choices=["yes", "no", "maybe"])
 # JSON schema
 schema = {"type": "object", "properties": {"color": {"type": "string"}}}
 result = generate_json("Pick a color", schema)
+
+# Remote models with structured generation (v2.6.2+)
+result = generate_json(
+    "Create a person", 
+    Person,
+    model="openai:gpt-4o-mini",
+    unsafe_mode=True
+)
 ```
 
 - AIDEV-NOTE: Two-phase generation: reasoning → `<json-` tag → grammar-constrained output
