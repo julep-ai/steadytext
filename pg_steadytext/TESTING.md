@@ -65,11 +65,8 @@ End-to-end test that builds and tests the extension in a fresh Docker container.
 ./test_e2e_docker.sh --keep-container
 ```
 
-### 3. `run_tests.sh` (existing)
-Runs tests against a local PostgreSQL installation.
-
-### 4. `test_docker.sh` (existing)
-Tests pre-built Docker image functionality.
+### 3. `run_pgtap_tests.sh`
+Runs pgTAP tests against a local PostgreSQL installation.
 
 ## Test Categories
 

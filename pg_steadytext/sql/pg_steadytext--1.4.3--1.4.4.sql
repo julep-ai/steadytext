@@ -100,6 +100,10 @@ if resolved_seed < 0:
 if not unsafe_mode and model and ':' in model:
     plpy.error("Remote models (containing ':') require unsafe_mode=TRUE")
 
+# AIDEV-NOTE: Validate that unsafe_mode requires a model to be specified
+if unsafe_mode and not model:
+    plpy.error("unsafe_mode=TRUE requires a model parameter to be specified")
+
 # Check if we should use cache
 if use_cache:
     # Generate cache key consistent with SteadyText format
@@ -129,57 +133,93 @@ host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
 port_rv = plpy.execute(plan, ["daemon_port"])  
 port = json.loads(port_rv[0]["value"]) if port_rv else 5555
 
-# Create daemon connector
-connector = daemon_connector.SteadyTextConnector(host=host, port=port)
+# AIDEV-NOTE: For remote models with unsafe_mode, skip daemon entirely
+# Remote models don't need daemon and checking it causes unnecessary delays
+is_remote_model = unsafe_mode and model and ':' in model
 
-# Check if daemon should auto-start
-auto_start_rv = plpy.execute(plan, ["daemon_auto_start"])
-auto_start = json.loads(auto_start_rv[0]["value"]) if auto_start_rv else True
-
-if auto_start and not connector.is_daemon_running():
-    plpy.notice("Starting SteadyText daemon...")
-    started = connector.start_daemon()
-    if not started:
-        plpy.warning("Failed to auto-start daemon, will try direct generation")
-
-# Build kwargs for additional parameters
-generation_kwargs = {
-    "seed": resolved_seed,
-    "eos_string": eos_string
-}
-
-# Add optional model parameters if provided
-if model is not None:
-    generation_kwargs["model"] = model
-if model_repo is not None:
-    generation_kwargs["model_repo"] = model_repo
-if model_filename is not None:
-    generation_kwargs["model_filename"] = model_filename
-if size is not None:
-    generation_kwargs["size"] = size
-if unsafe_mode:
-    generation_kwargs["unsafe_mode"] = unsafe_mode
-
-# Try to generate via daemon or direct fallback
-try:
-    if connector.is_daemon_running():
-        result = connector.generate(
-            prompt=prompt,
-            max_tokens=resolved_max_tokens,
-            **generation_kwargs
-        )
-    else:
-        # Direct generation fallback
+if is_remote_model:
+    # Skip daemon for remote models - go directly to generation
+    plpy.notice(f"Using remote model {model} with unsafe_mode - skipping daemon")
+    
+    # Build kwargs for generation
+    generation_kwargs = {
+        "seed": resolved_seed,
+        "eos_string": eos_string,
+        "model": model,
+        "unsafe_mode": unsafe_mode
+    }
+    
+    # Add optional model parameters if provided
+    if model_repo is not None:
+        generation_kwargs["model_repo"] = model_repo
+    if model_filename is not None:
+        generation_kwargs["model_filename"] = model_filename
+    if size is not None:
+        generation_kwargs["size"] = size
+    
+    # Direct generation for remote models
+    try:
         from steadytext import generate as steadytext_generate
         result = steadytext_generate(
             prompt=prompt, 
             max_new_tokens=resolved_max_tokens,
             **generation_kwargs
         )
-    return result
-    
-except Exception as e:
-    plpy.error(f"Generation failed: {str(e)}")
+        return result
+    except Exception as e:
+        plpy.error(f"Remote model generation failed: {str(e)}")
+else:
+    # Local model path - use daemon if available
+    # Create daemon connector
+    connector = daemon_connector.SteadyTextConnector(host=host, port=port)
+
+    # Check if daemon should auto-start
+    auto_start_rv = plpy.execute(plan, ["daemon_auto_start"])
+    auto_start = json.loads(auto_start_rv[0]["value"]) if auto_start_rv else True
+
+    if auto_start and not connector.is_daemon_running():
+        plpy.notice("Starting SteadyText daemon...")
+        started = connector.start_daemon()
+        if not started:
+            plpy.warning("Failed to auto-start daemon, will try direct generation")
+
+    # Build kwargs for additional parameters
+    generation_kwargs = {
+        "seed": resolved_seed,
+        "eos_string": eos_string
+    }
+
+    # Add optional model parameters if provided
+    if model is not None:
+        generation_kwargs["model"] = model
+    if model_repo is not None:
+        generation_kwargs["model_repo"] = model_repo
+    if model_filename is not None:
+        generation_kwargs["model_filename"] = model_filename
+    if size is not None:
+        generation_kwargs["size"] = size
+    if unsafe_mode:
+        generation_kwargs["unsafe_mode"] = unsafe_mode
+
+    # Try to generate via daemon or direct fallback
+    try:
+        if connector.is_daemon_running():
+            result = connector.generate(
+                prompt=prompt,
+                max_tokens=resolved_max_tokens,
+                **generation_kwargs
+            )
+        else:
+            # Direct generation fallback
+            from steadytext import generate as steadytext_generate
+            result = steadytext_generate(
+                prompt=prompt, 
+                max_new_tokens=resolved_max_tokens,
+                **generation_kwargs
+            )
+        return result
+    except Exception as e:
+        plpy.error(f"Generation failed: {str(e)}")
 $c$;
 
 -- Add new function to extension (idempotent)
@@ -259,6 +299,10 @@ if not prompt or not prompt.strip():
 
 if not schema:
     plpy.error("Schema cannot be empty")
+
+# AIDEV-NOTE: For structured generation functions, unsafe_mode is not supported without model selection
+if unsafe_mode:
+    plpy.error("unsafe_mode is not supported for structured generation functions")
 
 # Convert JSONB to dict if needed
 schema_dict = schema
@@ -409,6 +453,10 @@ if not prompt or not prompt.strip():
 if not pattern or not pattern.strip():
     plpy.error("Pattern cannot be empty")
 
+# AIDEV-NOTE: For structured generation functions, unsafe_mode is not supported without model selection
+if unsafe_mode:
+    plpy.error("unsafe_mode is not supported for structured generation functions")
+
 # Check if we should use cache
 if use_cache:
     # Generate cache key for regex generation
@@ -555,6 +603,10 @@ if not prompt or not prompt.strip():
 if not choices or len(choices) == 0:
     plpy.error("Choices list cannot be empty")
 
+# AIDEV-NOTE: For structured generation functions, unsafe_mode is not supported without model selection
+if unsafe_mode:
+    plpy.error("unsafe_mode is not supported for structured generation functions")
+
 # Convert PostgreSQL array to Python list
 choices_list = list(choices)
 
@@ -636,6 +688,52 @@ BEGIN
         -- Function is already part of extension
         NULL;
     END;
+END $$;
+
+-- Configuration management functions
+-- Function to set configuration values
+DROP FUNCTION IF EXISTS steadytext_config_set(TEXT, TEXT);
+CREATE OR REPLACE FUNCTION steadytext_config_set(
+    config_key TEXT,
+    config_value TEXT
+)
+RETURNS VOID
+LANGUAGE plpgsql
+VOLATILE PARALLEL SAFE STRICT
+AS $$
+BEGIN
+    -- Update or insert configuration value
+    INSERT INTO steadytext_config (key, value, description, updated_at, updated_by)
+    VALUES (config_key, to_jsonb(config_value), NULL, NOW(), current_user)
+    ON CONFLICT (key) DO UPDATE
+    SET value = to_jsonb(config_value),
+        updated_at = NOW(),
+        updated_by = current_user;
+END;
+$$;
+
+-- Function to get configuration values
+DROP FUNCTION IF EXISTS steadytext_config_get(TEXT);
+CREATE OR REPLACE FUNCTION steadytext_config_get(
+    config_key TEXT
+)
+RETURNS TEXT
+LANGUAGE sql
+STABLE PARALLEL SAFE STRICT
+AS $$
+    SELECT value #>> '{}' FROM steadytext_config WHERE key = config_key;
+$$;
+
+-- Add config functions to extension
+DO $$
+BEGIN
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION steadytext_config_set(text, text);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION steadytext_config_get(text);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
 END $$;
 
 -- Create short aliases for all steadytext functions
@@ -731,7 +829,7 @@ CREATE OR REPLACE FUNCTION st_rerank(
     return_scores BOOLEAN DEFAULT TRUE,
     seed INT DEFAULT 42
 )
-RETURNS TABLE(document TEXT, score DOUBLE PRECISION)
+RETURNS TABLE(document TEXT, score FLOAT)
 LANGUAGE sql
 IMMUTABLE PARALLEL SAFE
 AS $alias$
@@ -767,15 +865,462 @@ $alias$;
 
 -- Add all manually created aliases to extension
 -- AIDEV-NOTE: Each alias function needs to be explicitly added to the extension
-ALTER EXTENSION pg_steadytext ADD FUNCTION st_generate(text, integer, boolean, integer, text, text, text, text, text, boolean);
-ALTER EXTENSION pg_steadytext ADD FUNCTION st_embed(text, boolean, integer);
-ALTER EXTENSION pg_steadytext ADD FUNCTION st_generate_json(text, jsonb, integer, boolean, integer, boolean);
-ALTER EXTENSION pg_steadytext ADD FUNCTION st_generate_regex(text, text, integer, boolean, integer, boolean);
-ALTER EXTENSION pg_steadytext ADD FUNCTION st_generate_choice(text, text[], integer, boolean, integer, boolean);
-ALTER EXTENSION pg_steadytext ADD FUNCTION st_rerank(text, text[], text, boolean, integer);
-ALTER EXTENSION pg_steadytext ADD FUNCTION st_version();
-ALTER EXTENSION pg_steadytext ADD FUNCTION st_daemon_status();
-ALTER EXTENSION pg_steadytext ADD FUNCTION st_cache_stats();
+-- Check if function is already part of extension before adding
+DO $$
+BEGIN
+    -- Try to add function to extension
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_generate(text, integer, boolean, integer, text, text, text, text, text, boolean);
+    EXCEPTION WHEN OTHERS THEN
+        -- Function is already part of extension
+        NULL;
+    END;
+END $$;
+-- Add remaining aliases with error handling
+DO $$
+BEGIN
+    -- st_embed
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_embed(text, boolean, integer);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    -- st_generate_json
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_generate_json(text, jsonb, integer, boolean, integer, boolean);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    -- st_generate_regex
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_generate_regex(text, text, integer, boolean, integer, boolean);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    -- st_generate_choice
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_generate_choice(text, text[], integer, boolean, integer, boolean);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    -- st_rerank
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_rerank(text, text[], text, boolean, integer);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    -- st_version
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_version();
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    -- st_daemon_status
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_daemon_status();
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    -- st_cache_stats
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_cache_stats();
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+END $$;
+
+-- Additional cache management aliases
+-- st_cache_clear alias
+CREATE OR REPLACE FUNCTION st_cache_clear()
+RETURNS BIGINT
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_cache_clear();
+$alias$;
+
+-- st_cache_evict_by_age alias
+CREATE OR REPLACE FUNCTION st_cache_evict_by_age(
+    target_entries INT DEFAULT NULL,
+    target_size_mb DOUBLE PRECISION DEFAULT NULL,
+    batch_size INT DEFAULT 100,
+    min_age_hours INT DEFAULT 1
+)
+RETURNS TABLE(evicted_count INTEGER, freed_size_mb DOUBLE PRECISION, remaining_entries BIGINT, remaining_size_mb DOUBLE PRECISION)
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT * FROM steadytext_cache_evict_by_age($1, $2, $3, $4);
+$alias$;
+
+-- st_cache_preview_eviction alias
+CREATE OR REPLACE FUNCTION st_cache_preview_eviction(
+    preview_count INT DEFAULT 10
+)
+RETURNS TABLE(cache_key TEXT, prompt TEXT, access_count INTEGER, last_accessed TIMESTAMP WITH TIME ZONE, created_at TIMESTAMP WITH TIME ZONE, age_days DOUBLE PRECISION, size_bytes BIGINT)
+LANGUAGE sql
+STABLE PARALLEL SAFE
+AS $alias$
+    SELECT * FROM steadytext_cache_preview_eviction($1);
+$alias$;
+
+-- st_cache_analyze_usage alias
+CREATE OR REPLACE FUNCTION st_cache_analyze_usage()
+RETURNS TABLE(age_bucket TEXT, entry_count BIGINT, avg_access_count DOUBLE PRECISION, total_size_mb DOUBLE PRECISION, percentage_of_cache DOUBLE PRECISION)
+LANGUAGE sql
+STABLE PARALLEL SAFE
+AS $alias$
+    SELECT * FROM steadytext_cache_analyze_usage();
+$alias$;
+
+-- st_cache_scheduled_eviction alias
+CREATE OR REPLACE FUNCTION st_cache_scheduled_eviction()
+RETURNS VOID
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_cache_scheduled_eviction();
+$alias$;
+
+-- Daemon management aliases
+-- st_daemon_start alias
+CREATE OR REPLACE FUNCTION st_daemon_start()
+RETURNS BOOLEAN
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_daemon_start();
+$alias$;
+
+-- st_daemon_stop alias
+CREATE OR REPLACE FUNCTION st_daemon_stop()
+RETURNS BOOLEAN
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_daemon_stop();
+$alias$;
+
+-- Configuration aliases
+-- st_config_get alias
+CREATE OR REPLACE FUNCTION st_config_get(
+    key TEXT
+)
+RETURNS TEXT
+LANGUAGE sql
+STABLE PARALLEL SAFE STRICT
+AS $alias$
+    SELECT steadytext_config_get($1);
+$alias$;
+
+-- st_config_set alias
+CREATE OR REPLACE FUNCTION st_config_set(
+    key TEXT,
+    value TEXT
+)
+RETURNS VOID
+LANGUAGE sql
+VOLATILE PARALLEL SAFE STRICT
+AS $alias$
+    SELECT steadytext_config_set($1, $2);
+$alias$;
+
+-- Cached generation aliases
+-- st_embed_cached alias
+CREATE OR REPLACE FUNCTION st_embed_cached(
+    text_input TEXT,
+    seed INT DEFAULT 42
+)
+RETURNS vector(1024)
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_embed_cached($1, $2);
+$alias$;
+
+-- st_generate_cached alias
+CREATE OR REPLACE FUNCTION st_generate_cached(
+    prompt TEXT,
+    max_tokens INT DEFAULT NULL,
+    seed INT DEFAULT 42
+)
+RETURNS TEXT
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_generate_cached($1, $2, $3);
+$alias$;
+
+-- Rerank aliases
+-- st_rerank_docs_only alias
+CREATE OR REPLACE FUNCTION st_rerank_docs_only(
+    query TEXT,
+    documents TEXT[],
+    task TEXT DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    seed INT DEFAULT 42
+)
+RETURNS TABLE(document TEXT)
+LANGUAGE sql
+IMMUTABLE PARALLEL SAFE
+AS $alias$
+    SELECT * FROM steadytext_rerank_docs_only($1, $2, $3, $4);
+$alias$;
+
+-- st_rerank_top_k alias
+CREATE OR REPLACE FUNCTION st_rerank_top_k(
+    query TEXT,
+    documents TEXT[],
+    k INT DEFAULT 10,
+    task TEXT DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    return_scores BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42
+)
+RETURNS TABLE(document TEXT, score DOUBLE PRECISION)
+LANGUAGE sql
+IMMUTABLE PARALLEL SAFE
+AS $alias$
+    SELECT * FROM steadytext_rerank_top_k($1, $2, $3, $4, $5, $6);
+$alias$;
+
+-- st_rerank_batch alias
+-- Drop the old function if it exists with different return type
+DROP FUNCTION IF EXISTS st_rerank_batch(TEXT[], TEXT[], TEXT, BOOLEAN, INT);
+
+CREATE OR REPLACE FUNCTION st_rerank_batch(
+    queries TEXT[],
+    documents TEXT[],
+    task TEXT DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    return_scores BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42
+)
+RETURNS TABLE(query_index INTEGER, document TEXT, score DOUBLE PRECISION)
+LANGUAGE sql
+IMMUTABLE PARALLEL SAFE
+AS $alias$
+    SELECT * FROM steadytext_rerank_batch($1, $2, $3, $4, $5);
+$alias$;
+
+-- Add all missing aliases to extension
+DO $$
+BEGIN
+    -- Cache management aliases
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_cache_clear();
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_cache_evict_by_age(integer, double precision, integer, integer);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_cache_preview_eviction(integer);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_cache_analyze_usage();
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_cache_scheduled_eviction();
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    -- Daemon management aliases
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_daemon_start();
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_daemon_stop();
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    -- Configuration aliases
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_config_get(text);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_config_set(text, text);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    -- Cached generation aliases
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_embed_cached(text, integer);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_generate_cached(text, integer, integer);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    -- Rerank aliases
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_rerank_docs_only(text, text[], text, integer);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_rerank_top_k(text, text[], integer, text, boolean, integer);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_rerank_batch(text[], text[], text, boolean, integer);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+END $$;
+
+-- Async generate function (missing from previous versions)
+-- AIDEV-NOTE: Added in v1.4.4 - was missing despite being referenced in aliases and TODO lists
+CREATE OR REPLACE FUNCTION steadytext_generate_async(
+    prompt TEXT,
+    max_tokens INT DEFAULT 512
+)
+RETURNS UUID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    request_id UUID;
+BEGIN
+    -- AIDEV-NOTE: Queue a generation request for async processing
+    
+    -- Validate input
+    IF prompt IS NULL OR trim(prompt) = '' THEN
+        RAISE EXCEPTION 'Prompt cannot be empty';
+    END IF;
+    
+    IF max_tokens < 1 OR max_tokens > 4096 THEN
+        RAISE EXCEPTION 'max_tokens must be between 1 and 4096';
+    END IF;
+    
+    -- Generate UUID for this request
+    request_id := gen_random_uuid();
+    
+    -- Insert into queue
+    INSERT INTO steadytext_queue (
+        request_id,
+        request_type,
+        prompt,
+        params,
+        status
+    ) VALUES (
+        request_id,
+        'generate',
+        prompt,
+        jsonb_build_object(
+            'max_tokens', max_tokens,
+            'use_cache', true,
+            'seed', 42
+        ),
+        'pending'
+    );
+    
+    -- Notify workers
+    PERFORM pg_notify('steadytext_queue', request_id::text);
+    
+    RETURN request_id;
+END;
+$$;
+
+-- Add function to extension
+DO $$
+BEGIN
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION steadytext_generate_async(text, integer);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+END $$;
+
+-- Async function aliases
+-- st_generate_async alias
+CREATE OR REPLACE FUNCTION st_generate_async(
+    prompt TEXT,
+    max_tokens INT DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_generate_async($1, $2);
+$alias$;
+
+-- st_rerank_async alias
+CREATE OR REPLACE FUNCTION st_rerank_async(
+    query TEXT,
+    documents TEXT[],
+    task TEXT DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    return_scores BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42
+)
+RETURNS UUID
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_rerank_async($1, $2, $3, $4, $5);
+$alias$;
+
+-- st_rerank_batch_async alias
+CREATE OR REPLACE FUNCTION st_rerank_batch_async(
+    queries TEXT[],
+    documents TEXT[],
+    task TEXT DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    return_scores BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42
+)
+RETURNS UUID[]
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_rerank_batch_async($1, $2, $3, $4, $5);
+$alias$;
+
+-- st_check_async alias
+CREATE OR REPLACE FUNCTION st_check_async(
+    request_id UUID
+)
+RETURNS TABLE(
+    status TEXT,
+    result TEXT,
+    results TEXT[],
+    embedding vector(1024),
+    embeddings vector(1024)[],
+    error TEXT,
+    created_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    processing_time_ms INT,
+    request_type TEXT
+)
+LANGUAGE sql
+STABLE PARALLEL SAFE
+AS $alias$
+    SELECT * FROM steadytext_check_async($1);
+$alias$;
+
+-- st_get_async_result alias
+CREATE OR REPLACE FUNCTION st_get_async_result(
+    request_id UUID,
+    timeout_seconds INT DEFAULT 30
+)
+RETURNS TEXT
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_get_async_result($1, $2);
+$alias$;
+
+-- Add async aliases to extension
+DO $$
+BEGIN
+    -- st_generate_async
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_generate_async(text, integer);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    -- st_rerank_async
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_rerank_async(text, text[], text, boolean, integer);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    -- st_rerank_batch_async
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_rerank_batch_async(text[], text[], text, boolean, integer);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    -- st_check_async
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_check_async(uuid);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    -- st_get_async_result
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_get_async_result(uuid, integer);
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+END $$;
 
 -- AIDEV-NOTE: Migration completed successfully
 -- Changes in v1.4.4:
@@ -791,3 +1336,4 @@ ALTER EXTENSION pg_steadytext ADD FUNCTION st_cache_stats();
 -- 4. Remote models (containing ':') require unsafe_mode=TRUE
 -- 5. Added manual alias creation for all steadytext_* functions as st_*
 --    Manual creation is required to preserve default parameter values
+-- 6. Added missing steadytext_generate_async function and async aliases

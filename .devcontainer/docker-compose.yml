@@ -5,6 +5,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+      cache_from:
+        - type=local,src=/tmp/.buildx-cache
+      cache_to:
+        - type=local,dest=/tmp/.buildx-cache,mode=max
     volumes:
       - ..:/workspace:cached
     command: sleep infinity
@@ -12,9 +18,19 @@ services:
       - default
     environment:
       - DEBIAN_FRONTEND=noninteractive
+      - COMPOSE_DOCKER_CLI_BUILD=1
+      - DOCKER_BUILDKIT=1
 
   postgres:
-    build: ../pg_steadytext
+    build: 
+      context: ../pg_steadytext
+      dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+      cache_from:
+        - type=local,src=/tmp/.buildx-cache-pg
+      cache_to:
+        - type=local,dest=/tmp/.buildx-cache-pg,mode=max
     container_name: pg_steadytext_db
     environment:
       POSTGRES_USER: postgres

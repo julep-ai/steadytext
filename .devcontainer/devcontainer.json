@@ -14,7 +14,8 @@
   "postCreateCommand": "cd /workspace && UV_CACHE_DIR=/tmp/.uv-cache PYTHONUSERBASE=/tmp/.local uv sync --no-cache && UV_CACHE_DIR=/tmp/.uv-cache PYTHONUSERBASE=/tmp/.local uv run pip install -e . && if [ -d pg_steadytext ]; then UV_CACHE_DIR=/tmp/.uv-cache PYTHONUSERBASE=/tmp/.local uv run pip install -e pg_steadytext/; fi",
   "postStartCommand": "docker compose up -d postgres && echo 'Waiting for PostgreSQL...' && for i in {1..30}; do docker compose exec -T postgres pg_isready -U postgres >/dev/null 2>&1 && echo 'PostgreSQL is ready!' && break || { echo -n '.'; sleep 1; }; done",
   "features": {
-    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
   },
   "customizations": {
     "vscode": {
@@ -30,10 +31,8 @@
         "ms-vscode-remote.remote-containers",
         "anysphere.remote-containers",
         "anthropic.claude-code",
-        "andrepimenta.claude-code-chat",
-        "dbaeumer.vscode-eslint",
         "github.vscode-pull-request-github",
-        "esbenp.prettier-vscode"
+        "github.vscode-github-actions"
       ],
       "settings": {
         "dev.containers.dockerComposePath": "docker compose",
