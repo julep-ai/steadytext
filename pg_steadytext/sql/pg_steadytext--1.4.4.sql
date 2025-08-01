@@ -307,6 +307,35 @@ try:
     GD['steadytext_initialized'] = True
 
     plpy.notice(f"pg_steadytext Python environment initialized successfully from {python_module_dir}")
+    
+    # AIDEV-NOTE: Load environment variables for unsafe mode providers
+    # This ensures the extension can use remote models when unsafe_mode=TRUE
+    env_vars_to_load = [
+        'OPENAI_API_KEY',
+        'ANTHROPIC_API_KEY', 
+        'CEREBRAS_API_KEY',
+        'TOGETHER_API_KEY',
+        'GROQ_API_KEY',
+        'MISTRAL_API_KEY',
+        'COHERE_API_KEY',
+        'AI21_API_KEY',
+        'DEEPSEEK_API_KEY',
+        'PERPLEXITY_API_KEY'
+    ]
+    
+    loaded_env_vars = []
+    for var_name in env_vars_to_load:
+        var_value = os.environ.get(var_name)
+        if var_value:
+            # Store in GD for persistence across function calls
+            if 'env_vars' not in GD:
+                GD['env_vars'] = {}
+            GD['env_vars'][var_name] = var_value
+            loaded_env_vars.append(var_name)
+    
+    if loaded_env_vars:
+        plpy.notice(f"Loaded environment variables: {', '.join(loaded_env_vars)}")
+    
 except ImportError as e:
     GD['steadytext_initialized'] = False
     pg_lib_dir = GD.get('pg_lib_dir', '/usr/lib/postgresql/17/lib')
@@ -497,6 +526,13 @@ try:
         )
     else:
         # Direct generation fallback
+        # AIDEV-NOTE: Load environment variables before direct generation
+        if 'env_vars' in GD:
+            import os
+            for key, value in GD['env_vars'].items():
+                if value and key not in os.environ:
+                    os.environ[key] = value
+        
         from steadytext import generate as steadytext_generate
         result = steadytext_generate(
             prompt=prompt, 
