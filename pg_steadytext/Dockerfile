@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Dockerfile for pg_steadytext PostgreSQL extension
 # AIDEV-NOTE: This creates a PostgreSQL image with pg_steadytext pre-installed
 # Optimized for build caching - dependencies first, source code last
@@ -12,7 +13,9 @@ ENV STEADYTEXT_USE_FALLBACK_MODEL=${STEADYTEXT_USE_FALLBACK_MODEL}
 # Install build dependencies
 # AIDEV-NOTE: This layer is cached and rarely changes
 # AIDEV-NOTE: pgTAP added for PostgreSQL TAP testing framework
-RUN apt-get update && apt-get install -y \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y \
     postgresql-server-dev-17 \
     postgresql-plpython3-17 \
     postgresql-17-pgvector \
@@ -26,7 +29,8 @@ RUN apt-get update && apt-get install -y \
 
 # Install Python dependencies
 # AIDEV-NOTE: This layer is cached when requirements don't change
-RUN pip3 install --break-system-packages \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip3 install --break-system-packages \
     'steadytext[unsafe]>=2.6.0' \
     pyzmq>=22.0.0 \
     numpy>=1.20.0
@@ -53,12 +57,15 @@ COPY python/ ./python/
 # AIDEV-NOTE: This layer rebuilds only when source files change
 RUN make install
 
-RUN git clone https://github.com/pgmq/pgmq.git && \
-    cd pgmq/pgmq-extension && \
-    make && \
-    make install && \
-    cd ../.. && \
-    rm -rf pgmq
+# Install PGMQ extension
+# AIDEV-NOTE: Using cache mount for git operations
+RUN --mount=type=cache,target=/tmp/git-cache \
+    cd /tmp/git-cache && \
+    if [ ! -d pgmq ]; then git clone https://github.com/pgmq/pgmq.git; fi && \
+    cd pgmq && git pull && \
+    cd pgmq-extension && \
+    make clean && make && \
+    make install
 
 # Copy the entrypoint script separately
 # AIDEV-NOTE: This ensures the entrypoint can be updated without rebuilding everything

@@ -95,9 +95,8 @@ class SteadyTextConnector:
         self.auto_start = auto_start
         self.daemon_endpoint = f"tcp://{host}:{port}"
 
-        # AIDEV-NOTE: Check if daemon is running and optionally start it
-        if auto_start:
-            self._ensure_daemon_running()
+        # AIDEV-NOTE: Skip daemon checks - they will be done lazily when needed
+        # This avoids unnecessary model loading for remote models with unsafe_mode
 
     def _ensure_daemon_running(self) -> bool:
         """
@@ -113,19 +112,14 @@ class SteadyTextConnector:
             logger.error("SteadyText not available - cannot start daemon")
             return False
 
-        try:
-            # Try to use daemon context manager first
-            with use_daemon():
-                # Try a simple generation to verify daemon is responding
-                test_result = generate("test", max_new_tokens=1)
-                if test_result:
-                    return True
-        except Exception as e:
-            logger.info(f"Daemon not responding at {self.daemon_endpoint}: {e}")
-
-            if self.auto_start:
-                logger.info("Attempting to start SteadyText daemon...")
-                return self._start_daemon()
+        # Use the lightweight check first
+        if self.is_daemon_running():
+            return True
+            
+        # Daemon not running
+        if self.auto_start:
+            logger.info("Attempting to start SteadyText daemon...")
+            return self._start_daemon()
 
         return False
 
@@ -208,11 +202,49 @@ class SteadyTextConnector:
             return False
 
         try:
-            # Try to use daemon context manager
-            with use_daemon():
-                # Try a simple generation to verify daemon is responding
-                test_result = generate("test", max_new_tokens=1)
-                return test_result is not None
+            # AIDEV-NOTE: First try the steadytext daemon module's built-in check
+            # This is the most reliable way if available
+            try:
+                from steadytext.daemon import is_daemon_running as check_daemon
+                return check_daemon()
+            except ImportError:
+                pass  # Module not available, try alternative
+            
+            # AIDEV-NOTE: Fallback to checking ZMQ socket connectivity
+            # This avoids model loading that happens with generate()
+            import zmq
+            
+            context = zmq.Context()
+            socket = context.socket(zmq.REQ)
+            socket.setsockopt(zmq.RCVTIMEO, 1000)  # 1 second timeout
+            socket.setsockopt(zmq.LINGER, 0)  # Don't linger on close
+            socket.setsockopt(zmq.SNDTIMEO, 1000)  # Send timeout
+            
+            try:
+                socket.connect(self.daemon_endpoint)
+                
+                # Try a minimal message that daemon might respond to
+                # Some daemons may not support ping/pong but will respond to invalid requests
+                test_msg = {
+                    "method": "status",  # Try a status request
+                    "id": "test-connection",
+                    "params": {}
+                }
+                socket.send_json(test_msg)
+                
+                # Try to receive any response
+                try:
+                    response = socket.recv_json()
+                    # Any valid JSON response means daemon is running
+                    return isinstance(response, dict)
+                except zmq.error.Again:
+                    # Timeout - daemon not responding
+                    return False
+                    
+            finally:
+                socket.close()
+                context.term()
+                
         except Exception:
             # Any exception means daemon is not running
             return False
@@ -274,7 +306,32 @@ class SteadyTextConnector:
             # Return deterministic fallback if SteadyText not available
             return self._fallback_generate(prompt, max_new_tokens)
 
+        # AIDEV-NOTE: For remote models with unsafe_mode, skip daemon entirely
+        # Remote models don't benefit from daemon and trying to use it causes delays
+        model = kwargs.get('model')
+        if unsafe_mode and model and ':' in model:
+            try:
+                result = generate(
+                    prompt,
+                    max_new_tokens=max_new_tokens,
+                    unsafe_mode=unsafe_mode,
+                    **kwargs,
+                )
+                # Handle both str and tuple returns
+                if isinstance(result, tuple):
+                    return cast(str, result[0])  # First element is always the text
+                else:
+                    return cast(str, result)
+            except Exception as e:
+                logger.error(f"Remote model generation failed: {e}")
+                return self._fallback_generate(prompt, max_new_tokens)
+
+        # For local models, try daemon first
         try:
+            # Ensure daemon is running only when we actually need it
+            if self.auto_start and not self.is_daemon_running():
+                self._start_daemon()
+                
             # Try using daemon first
             with use_daemon():
                 result = generate(
@@ -335,7 +392,31 @@ class SteadyTextConnector:
                 yield word + " "
             return
 
+        # AIDEV-NOTE: For remote models with unsafe_mode, skip daemon entirely
+        model = kwargs.get('model')
+        if unsafe_mode and model and ':' in model:
+            try:
+                for token in generate_iter(
+                    prompt,
+                    max_new_tokens=max_tokens,
+                    unsafe_mode=unsafe_mode,
+                    **kwargs,
+                ):
+                    yield token
+            except Exception as e:
+                logger.error(f"Remote model streaming failed: {e}")
+                # Yield fallback in chunks
+                result = self._fallback_generate(prompt, max_tokens)
+                for word in result.split():
+                    yield word + " "
+            return
+
+        # For local models, try daemon first
         try:
+            # Ensure daemon is running only when we actually need it
+            if self.auto_start and not self.is_daemon_running():
+                self._start_daemon()
+                
             # Try streaming with daemon
             with use_daemon():
                 for token in generate_iter(

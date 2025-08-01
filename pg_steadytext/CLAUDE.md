@@ -4,7 +4,7 @@ This file contains important development notes and architectural decisions for A
 
 ## Recent Fixes
 
-### v1.4.4 - Extended Model Parameters, Unsafe Mode, and Short Aliases
+### v1.4.4 - Extended Model Parameters, Unsafe Mode, and Short Aliases (Updated)
 - **Added**: Support for additional generation parameters:
   - `eos_string`: End-of-sequence string (default: '[EOS]')
   - `model`: Specific model to use
@@ -16,6 +16,9 @@ This file contains important development notes and architectural decisions for A
   - Examples: `st_generate()`, `st_embed()`, `st_generate_json()`, etc.
   - Aliases preserve all function properties (IMMUTABLE, PARALLEL SAFE, etc.)
   - Created dynamically during migration to catch all current and future functions
+- **Added**: Missing `steadytext_generate_async()` function and async aliases
+  - Function was referenced but never implemented in earlier versions
+  - Added `st_generate_async`, `st_rerank_async`, `st_check_async`, etc.
 - **Security**: Remote models (containing ':' in name) require `unsafe_mode=TRUE`
 - **Fixed**: Upgrade script pattern for changing function signatures
 - AIDEV-NOTE: Cache key includes eos_string when non-default
@@ -39,6 +42,11 @@ This file contains important development notes and architectural decisions for A
   $$;
   ```
   Dynamic generation would lose default values, requiring all parameters.
+- **Fixed**: Remote model performance issue (2025-08-01):
+  - SQL function now skips daemon checks entirely for remote models (containing ':')
+  - `is_daemon_running()` now uses lightweight ZMQ ping instead of model loading
+  - Prevents unnecessary delays when using OpenAI or other remote models with unsafe_mode
+  - AIDEV-NOTE: Remote models go directly to steadytext.generate() without daemon involvement
 
 ### v1.4.3 - Parameter Naming
 - **Fixed**: `max_tokens` → `max_new_tokens` in direct generation fallback
@@ -141,10 +149,19 @@ This file contains important development notes and architectural decisions for A
 ## Async Functions (v1.1.0)
 
 - AIDEV-NOTE: Queue-based async with UUID returns, worker processes with SKIP LOCKED
+- AIDEV-NOTE: `steadytext_generate_async` was missing until v1.4.4 (only JSON/regex/choice async existed)
 
 **Components**: Queue table → *_async functions → Python worker → Result retrieval
 
-**Test**: `SELECT steadytext_generate_async('Test', 10);`
+**Available async functions**:
+- `steadytext_generate_async()` - Basic text generation (added v1.4.4)
+- `steadytext_embed_async()` - Embeddings
+- `steadytext_generate_json_async()` - JSON with schema
+- `steadytext_generate_regex_async()` - Regex-constrained
+- `steadytext_generate_choice_async()` - Choice-constrained
+- `steadytext_rerank_async()` - Document reranking
+
+**Test**: `SELECT st_generate_async('Test', 100);`
 
 - AIDEV-TODO: SSE streaming, worker auto-scaling, distributed workers
 

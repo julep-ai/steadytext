@@ -460,57 +460,93 @@ host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
 port_rv = plpy.execute(plan, ["daemon_port"])  
 port = json.loads(port_rv[0]["value"]) if port_rv else 5555
 
-# Create daemon connector
-connector = daemon_connector.SteadyTextConnector(host=host, port=port)
+# AIDEV-NOTE: For remote models with unsafe_mode, skip daemon entirely
+# Remote models don't need daemon and checking it causes unnecessary delays
+is_remote_model = unsafe_mode and model and ':' in model
 
-# Check if daemon should auto-start
-auto_start_rv = plpy.execute(plan, ["daemon_auto_start"])
-auto_start = json.loads(auto_start_rv[0]["value"]) if auto_start_rv else True
-
-if auto_start and not connector.is_daemon_running():
-    plpy.notice("Starting SteadyText daemon...")
-    started = connector.start_daemon()
-    if not started:
-        plpy.warning("Failed to auto-start daemon, will try direct generation")
-
-# Build kwargs for additional parameters
-generation_kwargs = {
-    "seed": resolved_seed,
-    "eos_string": eos_string
-}
-
-# Add optional model parameters if provided
-if model is not None:
-    generation_kwargs["model"] = model
-if model_repo is not None:
-    generation_kwargs["model_repo"] = model_repo
-if model_filename is not None:
-    generation_kwargs["model_filename"] = model_filename
-if size is not None:
-    generation_kwargs["size"] = size
-if unsafe_mode:
-    generation_kwargs["unsafe_mode"] = unsafe_mode
-
-# Try to generate via daemon or direct fallback
-try:
-    if connector.is_daemon_running():
-        result = connector.generate(
-            prompt=prompt,
-            max_tokens=resolved_max_tokens,
-            **generation_kwargs
-        )
-    else:
-        # Direct generation fallback
+if is_remote_model:
+    # Skip daemon for remote models - go directly to generation
+    plpy.notice(f"Using remote model {model} with unsafe_mode - skipping daemon")
+    
+    # Build kwargs for generation
+    generation_kwargs = {
+        "seed": resolved_seed,
+        "eos_string": eos_string,
+        "model": model,
+        "unsafe_mode": unsafe_mode
+    }
+    
+    # Add optional model parameters if provided
+    if model_repo is not None:
+        generation_kwargs["model_repo"] = model_repo
+    if model_filename is not None:
+        generation_kwargs["model_filename"] = model_filename
+    if size is not None:
+        generation_kwargs["size"] = size
+    
+    # Direct generation for remote models
+    try:
         from steadytext import generate as steadytext_generate
         result = steadytext_generate(
             prompt=prompt, 
             max_new_tokens=resolved_max_tokens,
             **generation_kwargs
         )
-    return result
-    
-except Exception as e:
-    plpy.error(f"Generation failed: {str(e)}")
+        return result
+    except Exception as e:
+        plpy.error(f"Remote model generation failed: {str(e)}")
+else:
+    # Local model path - use daemon if available
+    # Create daemon connector
+    connector = daemon_connector.SteadyTextConnector(host=host, port=port)
+
+    # Check if daemon should auto-start
+    auto_start_rv = plpy.execute(plan, ["daemon_auto_start"])
+    auto_start = json.loads(auto_start_rv[0]["value"]) if auto_start_rv else True
+
+    if auto_start and not connector.is_daemon_running():
+        plpy.notice("Starting SteadyText daemon...")
+        started = connector.start_daemon()
+        if not started:
+            plpy.warning("Failed to auto-start daemon, will try direct generation")
+
+    # Build kwargs for additional parameters
+    generation_kwargs = {
+        "seed": resolved_seed,
+        "eos_string": eos_string
+    }
+
+    # Add optional model parameters if provided
+    if model is not None:
+        generation_kwargs["model"] = model
+    if model_repo is not None:
+        generation_kwargs["model_repo"] = model_repo
+    if model_filename is not None:
+        generation_kwargs["model_filename"] = model_filename
+    if size is not None:
+        generation_kwargs["size"] = size
+    if unsafe_mode:
+        generation_kwargs["unsafe_mode"] = unsafe_mode
+
+    # Try to generate via daemon or direct fallback
+    try:
+        if connector.is_daemon_running():
+            result = connector.generate(
+                prompt=prompt,
+                max_tokens=resolved_max_tokens,
+                **generation_kwargs
+            )
+        else:
+            # Direct generation fallback
+            from steadytext import generate as steadytext_generate
+            result = steadytext_generate(
+                prompt=prompt, 
+                max_new_tokens=resolved_max_tokens,
+                **generation_kwargs
+            )
+        return result
+    except Exception as e:
+        plpy.error(f"Generation failed: {str(e)}")
 $c$;
 
 -- Add new function to extension (idempotent)
@@ -1061,7 +1097,7 @@ RETURNS TEXT
 LANGUAGE sql
 IMMUTABLE PARALLEL SAFE LEAKPROOF
 AS $c$
-    SELECT '1.4.2'::TEXT;
+    SELECT '1.4.4'::TEXT;
 $c$;
 
 CREATE OR REPLACE FUNCTION steadytext_config_get(key TEXT)
@@ -2071,6 +2107,59 @@ AS $c$
         return [{"document": row["document"], "score": None} for row in results]
 $c$ LANGUAGE plpython3u IMMUTABLE PARALLEL SAFE;
 
+-- Async generate function
+-- AIDEV-NOTE: Added in v1.4.4 - was missing despite being referenced in aliases and TODO lists
+CREATE OR REPLACE FUNCTION steadytext_generate_async(
+    prompt TEXT,
+    max_tokens INT DEFAULT 512
+)
+RETURNS UUID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    request_id UUID;
+BEGIN
+    -- AIDEV-NOTE: Queue a generation request for async processing
+    -- AIDEV-NOTE: Uses same pattern as other async functions (JSON, regex, choice)
+    
+    -- Validate input
+    IF prompt IS NULL OR trim(prompt) = '' THEN
+        RAISE EXCEPTION 'Prompt cannot be empty';
+    END IF;
+    
+    IF max_tokens < 1 OR max_tokens > 4096 THEN
+        RAISE EXCEPTION 'max_tokens must be between 1 and 4096';
+    END IF;
+    
+    -- Generate UUID for this request
+    request_id := gen_random_uuid();
+    
+    -- Insert into queue
+    INSERT INTO steadytext_queue (
+        request_id,
+        request_type,
+        prompt,
+        params,
+        status
+    ) VALUES (
+        request_id,
+        'generate',
+        prompt,
+        jsonb_build_object(
+            'max_tokens', max_tokens,
+            'use_cache', true,
+            'seed', 42
+        ),
+        'pending'
+    );
+    
+    -- Notify workers
+    PERFORM pg_notify('steadytext_queue', request_id::text);
+    
+    RETURN request_id;
+END;
+$$;
+
 -- Async rerank function
 CREATE OR REPLACE FUNCTION steadytext_rerank_async(
     query text,
@@ -2227,6 +2316,214 @@ COMMENT ON FUNCTION steadytext_rerank_top_k IS 'Rerank documents and return only
 COMMENT ON FUNCTION steadytext_rerank_async IS 'Asynchronously rerank documents (returns request UUID)';
 COMMENT ON FUNCTION steadytext_rerank_batch IS 'Rerank documents for multiple queries in batch';
 COMMENT ON FUNCTION steadytext_rerank_batch_async IS 'Asynchronously rerank documents for multiple queries';
+
+-- AIDEV-SECTION: CONFIGURATION_MANAGEMENT
+-- Functions for managing configuration
+
+-- Function to set configuration values
+DROP FUNCTION IF EXISTS steadytext_config_set(TEXT, TEXT);
+CREATE OR REPLACE FUNCTION steadytext_config_set(
+    config_key TEXT,
+    config_value TEXT
+)
+RETURNS VOID
+LANGUAGE plpgsql
+VOLATILE PARALLEL SAFE STRICT
+AS $$
+BEGIN
+    -- Update or insert configuration value
+    INSERT INTO steadytext_config (key, value, description, updated_at, updated_by)
+    VALUES (config_key, to_jsonb(config_value), NULL, NOW(), current_user)
+    ON CONFLICT (key) DO UPDATE
+    SET value = to_jsonb(config_value),
+        updated_at = NOW(),
+        updated_by = current_user;
+END;
+$$;
+
+-- Function to get configuration values
+DROP FUNCTION IF EXISTS steadytext_config_get(TEXT);
+CREATE OR REPLACE FUNCTION steadytext_config_get(
+    config_key TEXT
+)
+RETURNS TEXT
+LANGUAGE sql
+STABLE PARALLEL SAFE STRICT
+AS $$
+    SELECT value #>> '{}' FROM steadytext_config WHERE key = config_key;
+$$;
+
+-- AIDEV-SECTION: ASYNC_RESULT_RETRIEVAL
+-- Functions for checking and retrieving async operation results
+
+-- Enhanced async check function that handles all result types
+CREATE OR REPLACE FUNCTION steadytext_check_async(
+    request_id UUID
+)
+RETURNS TABLE(
+    status TEXT,
+    result TEXT,
+    results TEXT[],
+    embedding vector(1024),
+    embeddings vector(1024)[],
+    error TEXT,
+    created_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    processing_time_ms INT,
+    request_type TEXT
+)
+LANGUAGE sql
+STABLE PARALLEL SAFE LEAKPROOF
+AS $$
+    SELECT 
+        status,
+        result,
+        results,
+        embedding,
+        embeddings,
+        error,
+        created_at,
+        completed_at,
+        processing_time_ms,
+        request_type
+    FROM steadytext_queue
+    WHERE steadytext_queue.request_id = steadytext_check_async.request_id;
+$$;
+
+-- Convenience function to get result directly (blocks until ready or timeout)
+CREATE OR REPLACE FUNCTION steadytext_get_async_result(
+    request_id UUID,
+    timeout_seconds INT DEFAULT 30
+)
+RETURNS TEXT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    start_time TIMESTAMPTZ := clock_timestamp();
+    check_result RECORD;
+BEGIN
+    -- AIDEV-NOTE: Polls for async result with timeout
+    
+    LOOP
+        -- Check status
+        SELECT * INTO check_result
+        FROM steadytext_check_async(request_id);
+        
+        -- Check if request exists
+        IF check_result IS NULL THEN
+            RAISE EXCEPTION 'Request ID % not found', request_id;
+        END IF;
+        
+        -- Return result if completed
+        IF check_result.status = 'completed' THEN
+            RETURN check_result.result;
+        END IF;
+        
+        -- Return error if failed
+        IF check_result.status = 'failed' THEN
+            RAISE EXCEPTION 'Async request failed: %', check_result.error;
+        END IF;
+        
+        -- Check timeout
+        IF clock_timestamp() - start_time > interval '1 second' * timeout_seconds THEN
+            RAISE EXCEPTION 'Timeout waiting for async result (% seconds)', timeout_seconds;
+        END IF;
+        
+        -- Wait a bit before checking again
+        PERFORM pg_sleep(0.1);
+    END LOOP;
+END;
+$$;
+
+-- Function to cancel an async request
+CREATE OR REPLACE FUNCTION steadytext_cancel_async(
+    request_id UUID
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    rows_updated INT;
+BEGIN
+    -- AIDEV-NOTE: Cancel a pending async request
+    
+    UPDATE steadytext_queue
+    SET status = 'cancelled',
+        completed_at = NOW()
+    WHERE steadytext_queue.request_id = steadytext_cancel_async.request_id
+    AND status IN ('pending', 'processing');
+    
+    GET DIAGNOSTICS rows_updated = ROW_COUNT;
+    
+    RETURN rows_updated > 0;
+END;
+$$;
+
+-- Batch async functions for checking multiple requests
+CREATE OR REPLACE FUNCTION steadytext_embed_batch_async(
+    texts TEXT[]
+)
+RETURNS UUID[]
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    request_ids UUID[] := '{}';
+    request_id UUID;
+    i INT;
+BEGIN
+    -- AIDEV-NOTE: Queue multiple embedding requests
+    
+    -- Validate input
+    IF texts IS NULL OR array_length(texts, 1) IS NULL THEN
+        RAISE EXCEPTION 'texts array cannot be null or empty';
+    END IF;
+    
+    -- Create a request for each text
+    FOR i IN 1..array_length(texts, 1) LOOP
+        -- Insert into queue
+        INSERT INTO steadytext_queue (
+            request_type,
+            prompt
+        ) VALUES (
+            'embed',
+            texts[i]
+        )
+        RETURNING steadytext_queue.request_id INTO request_id;
+        
+        request_ids := array_append(request_ids, request_id);
+        
+        -- Notify workers
+        PERFORM pg_notify('steadytext_queue', request_id::text);
+    END LOOP;
+    
+    RETURN request_ids;
+END;
+$$;
+
+-- Function to check multiple async requests at once
+CREATE OR REPLACE FUNCTION steadytext_check_async_batch(
+    request_ids UUID[]
+)
+RETURNS TABLE(
+    request_id UUID,
+    status TEXT,
+    result TEXT,
+    error TEXT,
+    completed_at TIMESTAMPTZ
+)
+LANGUAGE sql
+STABLE PARALLEL SAFE
+AS $$
+    SELECT 
+        request_id,
+        status,
+        result,
+        error,
+        completed_at
+    FROM steadytext_queue
+    WHERE request_id = ANY(request_ids)
+    ORDER BY array_position(request_ids, request_id);
+$$;
 
 -- AIDEV-SECTION: VOLATILE_WRAPPER_FUNCTIONS
 -- These functions provide cache-writing capability for users who need it
@@ -2550,7 +2847,7 @@ $alias$;
 CREATE OR REPLACE FUNCTION st_rerank_top_k(
     query TEXT,
     documents TEXT[],
-    top_k INT DEFAULT 5,
+    k INT DEFAULT 5,
     task TEXT DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
     return_scores BOOLEAN DEFAULT TRUE,
     seed INT DEFAULT 42
@@ -2563,6 +2860,7 @@ AS $alias$
 $alias$;
 
 -- st_rerank_batch alias
+DROP FUNCTION IF EXISTS st_rerank_batch(TEXT[], TEXT[], TEXT, BOOLEAN, INTEGER);
 CREATE OR REPLACE FUNCTION st_rerank_batch(
     queries TEXT[],
     documents TEXT[],
@@ -2624,7 +2922,18 @@ $alias$;
 CREATE OR REPLACE FUNCTION st_check_async(
     request_id UUID
 )
-RETURNS TABLE(status TEXT, result TEXT, error TEXT, created_at TIMESTAMP WITH TIME ZONE, completed_at TIMESTAMP WITH TIME ZONE)
+RETURNS TABLE(
+    status TEXT,
+    result TEXT,
+    results TEXT[],
+    embedding vector(1024),
+    embeddings vector(1024)[],
+    error TEXT,
+    created_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    processing_time_ms INT,
+    request_type TEXT
+)
 LANGUAGE sql
 STABLE PARALLEL SAFE
 AS $alias$
