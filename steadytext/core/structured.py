@@ -323,8 +323,16 @@ def generate_json(
     return generator.generate_json(prompt, schema, max_tokens, **kwargs)
 
 
-def generate_regex(prompt: str, pattern: str, max_tokens: int = 512, **kwargs) -> str:
-    """Generate text that matches a regex pattern.
+def generate_regex(
+    prompt: str, 
+    pattern: str, 
+    max_tokens: int = 512,
+    model: Optional[str] = None,
+    unsafe_mode: bool = False,
+    seed: int = DEFAULT_SEED,
+    **kwargs
+) -> str:
+    r"""Generate text that matches a regex pattern.
 
     Args:
         prompt: The input prompt
@@ -341,9 +349,47 @@ def generate_regex(prompt: str, pattern: str, max_tokens: int = 512, **kwargs) -
 
         >>> # Generate an email
         >>> result = generate_regex("Email:", r"[a-z]+@[a-z]+\.[a-z]+")
+        
+        >>> # Using a remote model
+        >>> result = generate_regex(
+        ...     "Call me at",
+        ...     r"\d{3}-\d{3}-\d{4}",
+        ...     model="openai:gpt-4o-mini",
+        ...     unsafe_mode=True
+        ... )
     """
+    # AIDEV-NOTE: Check if this is a remote model request
+    from ..providers.registry import is_remote_model
+    
+    if model and is_remote_model(model):
+        # For remote models, check if they support structured output
+        from ..providers.registry import get_provider
+        
+        # Validate unsafe_mode requirement
+        if not unsafe_mode:
+            raise ValueError(
+                f"Remote model '{model}' requires unsafe_mode=True"
+            )
+        
+        # Use core_generate with regex parameter for remote models
+        result = core_generate(
+            prompt=prompt,
+            max_new_tokens=max_tokens,
+            regex=pattern,
+            model=model,
+            unsafe_mode=unsafe_mode,
+            seed=seed,
+            **kwargs
+        )
+        
+        if result is None:
+            raise RuntimeError(f"Failed to generate regex with remote model '{model}'")
+        
+        return result
+    
+    # For local models, use the structured generator
     generator = get_structured_generator()
-    return generator.generate_regex(prompt, pattern, max_tokens, **kwargs)
+    return generator.generate_regex(prompt, pattern, max_tokens, seed=seed, **kwargs)
 
 
 def generate_choice(
@@ -366,15 +412,59 @@ def generate_choice(
         ...     "Is Python good?",
         ...     ["yes", "no", "maybe"]
         ... )
+        
+        >>> # Using a remote model
+        >>> result = generate_choice(
+        ...     "Is Python good?",
+        ...     ["yes", "no", "maybe"],
+        ...     model="openai:gpt-4o-mini",
+        ...     unsafe_mode=True
+        ... )
     """
+    # AIDEV-NOTE: Check if this is a remote model request
+    from ..providers.registry import is_remote_model
+    
+    if model and is_remote_model(model):
+        # For remote models, check if they support structured output
+        from ..providers.registry import get_provider
+        
+        # Validate unsafe_mode requirement
+        if not unsafe_mode:
+            raise ValueError(
+                f"Remote model '{model}' requires unsafe_mode=True"
+            )
+        
+        # Use core_generate with choices parameter for remote models
+        result = core_generate(
+            prompt=prompt,
+            max_new_tokens=max_tokens,
+            choices=choices,
+            model=model,
+            unsafe_mode=unsafe_mode,
+            seed=seed,
+            **kwargs
+        )
+        
+        if result is None:
+            raise RuntimeError(f"Failed to generate choice with remote model '{model}'")
+        
+        return result
+    
+    # For local models, use the structured generator
     generator = get_structured_generator()
-    return generator.generate_choice(prompt, choices, max_tokens, **kwargs)
+    return generator.generate_choice(prompt, choices, max_tokens, seed=seed, **kwargs)
 
 
 def generate_format(
-    prompt: str, format_type: Type, max_tokens: int = 512, **kwargs
+    prompt: str, 
+    format_type: Type, 
+    max_tokens: int = 512,
+    model: Optional[str] = None,
+    unsafe_mode: bool = False,
+    seed: int = DEFAULT_SEED,
+    **kwargs
 ) -> str:
-    """Generate text of a specific type.
+    r"""Generate text of a specific type.
 
     Args:
         prompt: The input prompt
