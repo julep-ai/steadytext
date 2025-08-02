@@ -2,10 +2,11 @@
 
 This document outlines the major versions of SteadyText and the key features introduced in each.
 
-**Latest Version**: 2.4.1 - Structured Generation with Native Grammar Support
+**Latest Version**: 2.6.1 - Unsafe Mode Support for Structured Generation
 
 | Version | Key Features                                                                                                                            | Default Generation Model                               | Default Embedding Model                                | Default Reranking Model | Python Versions |
 | :------ | :-------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------- | :----------------------------------------------------- | :---------------------- | :-------------- |
+| **2.6.x** | - **Unsafe Mode Structured Generation**: Added support for structured generation (JSON, regex, choices) with remote models.<br>- **Remote Model Support**: Full structured output capabilities for OpenAI and Cerebras models.<br>- **Maintenance Release**: Version bumps and dependency updates. | `ggml-org/gemma-3n-E2B-it-GGUF` (gemma-3n-E2B-it-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `Qwen/Qwen3-Reranker-4B-GGUF` (Qwen3-Reranker-4B-Q8_0.gguf) | `>=3.10, <3.14` |
 | **2.4.x** | - **Native Grammar Support**: Replaced Outlines with llama.cpp's native GBNF grammars for structured generation.<br>- **PostgreSQL Structured Generation**: Added `steadytext_generate_json()`, `steadytext_generate_regex()`, `steadytext_generate_choice()` SQL functions.<br>- **Better Compatibility**: Fixes issues with Gemma-3n and other models. | `ggml-org/gemma-3n-E2B-it-GGUF` (gemma-3n-E2B-it-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `Qwen/Qwen3-Reranker-4B-GGUF` (Qwen3-Reranker-4B-Q8_0.gguf) | `>=3.10, <3.14` |
 | **2.3.x** | - **Document Reranking**: Added reranking functionality with `Qwen3-Reranker-4B` model.<br>- **Structured Generation**: Added support for JSON, Regex, and Choice-constrained generation via `outlines`.<br>- **New API parameters**: `schema`, `regex`, `choices` added to `generate()`.<br>- **New convenience functions**: `generate_json()`, `generate_regex()`, `generate_choice()`. | `ggml-org/gemma-3n-E2B-it-GGUF` (gemma-3n-E2B-it-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `Qwen/Qwen3-Reranker-4B-GGUF` (Qwen3-Reranker-4B-Q8_0.gguf) | `>=3.10, <3.14` |
 | **2.1.x** | - **Custom Seeds**: Added seed parameter to all generation and embedding functions.<br>- **PostgreSQL Extension**: Released pg_steadytext extension.<br>- **Enhanced Reproducibility**: Full control over deterministic generation. | `ggml-org/gemma-3n-E2B-it-GGUF` (gemma-3n-E2B-it-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | - | `>=3.10, <3.14` |
@@ -14,6 +15,67 @@ This document outlines the major versions of SteadyText and the key features int
 | **0.x** | - **Initial Release**: Deterministic text generation and embedding.                                                                      | `Qwen/Qwen1.5-0.5B-Chat-GGUF` (qwen1_5-0_5b-chat-q4_k_m.gguf) | `Qwen/Qwen1.5-0.5B-Chat-GGUF` (qwen1_5-0_5b-chat-q8_0.gguf) | - | `>=3.10`        |
 
 ## Detailed Release Notes
+
+### Version 2.6.1 - Unsafe Mode Support for Structured Generation
+
+**Release Date**: August 2025
+
+#### 🚀 Remote Model Structured Generation
+
+**Major Feature**: Extended unsafe mode to support full structured generation capabilities with remote models.
+
+**Key Improvements**:
+- **Full Structured Output**: Remote models now support JSON schemas, regex patterns, and choice constraints
+- **Seamless Integration**: Same API as local models - just add `model` and `unsafe_mode` parameters
+- **Provider Support**: Works with OpenAI (gpt-4o, gpt-4o-mini) and Cerebras (llama3.1) models
+- **Best-Effort Determinism**: Uses seed parameters for reproducibility when available
+
+**Example Usage**:
+```python
+import steadytext
+from pydantic import BaseModel
+
+class Product(BaseModel):
+    name: str
+    price: float
+
+# JSON generation with remote models
+result = steadytext.generate_json(
+    "Create a laptop product",
+    schema=Product,
+    model="openai:gpt-4o-mini",
+    unsafe_mode=True
+)
+
+# Regex patterns with remote models
+phone = steadytext.generate_regex(
+    "Contact: ",
+    pattern=r"\d{3}-\d{3}-\d{4}",
+    model="cerebras:llama3.1-8b",
+    unsafe_mode=True
+)
+
+# Choice constraints with remote models
+sentiment = steadytext.generate_choice(
+    "Great product!",
+    choices=["positive", "negative", "neutral"],
+    model="openai:gpt-4o-mini",
+    unsafe_mode=True
+)
+```
+
+#### 🔧 PostgreSQL Extension Updates
+
+**Version 1.4.5**: Maintenance release with updated dependencies
+- Updated SteadyText dependency to >= 2.6.1
+- Improved compatibility with latest Python and PostgreSQL versions
+- Enhanced async function support for structured generation
+
+#### 📋 Requirements
+
+- **Python**: 3.10+ (unchanged)
+- **Optional**: OpenAI client for remote model support (`pip install openai`)
+- **Environment**: Set `STEADYTEXT_UNSAFE_MODE=true` for remote models
 
 ### Version 2.4.1 - Native Grammar Support
 

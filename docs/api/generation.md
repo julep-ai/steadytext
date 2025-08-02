@@ -32,11 +32,15 @@ def generate(
 | `max_new_tokens` | `int` | `512` | Maximum number of tokens to generate |
 | `return_logprobs` | `bool` | `False` | Return log probabilities with text |
 | `eos_string` | `str` | `"[EOS]"` | Custom end-of-sequence string |
-| `model` | `str` | `None` | Model name from registry (deprecated) |
+| `model` | `str` | `None` | Model name from registry or remote model (e.g., "openai:gpt-4o-mini") |
 | `model_repo` | `str` | `None` | Custom Hugging Face repository ID |
 | `model_filename` | `str` | `None` | Custom model filename |
 | `size` | `str` | `None` | Size shortcut: "small" or "large" |
 | `seed` | `int` | `42` | Random seed for deterministic generation |
+| `schema` | `Dict/Type` | `None` | JSON schema, Pydantic model, or Python type for structured output |
+| `regex` | `str` | `None` | Regular expression pattern to constrain output |
+| `choices` | `List[str]` | `None` | List of choices to constrain output |
+| `unsafe_mode` | `bool` | `False` | Enable remote models with best-effort determinism (v2.6.1+) |
 
 ### Returns
 
@@ -104,6 +108,43 @@ def generate(
     print(text)
     ```
 
+=== "Structured Output"
+
+    ```python
+    from pydantic import BaseModel
+    
+    class Product(BaseModel):
+        name: str
+        price: float
+    
+    # Generate structured JSON
+    result = steadytext.generate(
+        "Create a laptop product",
+        schema=Product
+    )
+    # Returns JSON wrapped in <json-output> tags
+    ```
+
+=== "Remote Models (v2.6.1+)"
+
+    ```python
+    # Use OpenAI with structured generation
+    result = steadytext.generate(
+        "Write a haiku",
+        model="openai:gpt-4o-mini",
+        unsafe_mode=True,
+        seed=42
+    )
+    
+    # With structured output
+    result = steadytext.generate(
+        "Classify sentiment",
+        model="openai:gpt-4o-mini",
+        choices=["positive", "negative", "neutral"],
+        unsafe_mode=True
+    )
+    ```
+
 ---
 
 ## generate_iter()
@@ -132,11 +173,12 @@ def generate_iter(
 | `max_new_tokens` | `int` | `512` | Maximum number of tokens to generate |
 | `eos_string` | `str` | `"[EOS]"` | Custom end-of-sequence string |
 | `include_logprobs` | `bool` | `False` | Yield log probabilities with tokens |
-| `model` | `str` | `None` | Model name from registry (deprecated) |
+| `model` | `str` | `None` | Model name from registry or remote model (e.g., "openai:gpt-4o-mini") |
 | `model_repo` | `str` | `None` | Custom Hugging Face repository ID |
 | `model_filename` | `str` | `None` | Custom model filename |
 | `size` | `str` | `None` | Size shortcut: "small" or "large" |
 | `seed` | `int` | `42` | Random seed for deterministic generation |
+| `unsafe_mode` | `bool` | `False` | Enable remote models with best-effort determinism (v2.6.1+) |
 
 ### Returns
 

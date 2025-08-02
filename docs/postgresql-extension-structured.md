@@ -20,9 +20,12 @@ steadytext_generate_json(
     schema JSONB,
     max_tokens INTEGER DEFAULT 512,
     use_cache BOOLEAN DEFAULT true,
-    seed INTEGER DEFAULT 42
+    seed INTEGER DEFAULT 42,
+    model TEXT DEFAULT NULL,
+    unsafe_mode BOOLEAN DEFAULT false
 ) RETURNS TEXT
 -- Returns NULL if generation fails
+-- v2.6.1+: Added model and unsafe_mode parameters for remote model support
 ```
 
 **Examples:**
@@ -94,9 +97,12 @@ steadytext_generate_regex(
     pattern TEXT,
     max_tokens INTEGER DEFAULT 512,
     use_cache BOOLEAN DEFAULT true,
-    seed INTEGER DEFAULT 42
+    seed INTEGER DEFAULT 42,
+    model TEXT DEFAULT NULL,
+    unsafe_mode BOOLEAN DEFAULT false
 ) RETURNS TEXT
 -- Returns NULL if generation fails
+-- v2.6.1+: Added model and unsafe_mode parameters for remote model support
 ```
 
 **Examples:**
@@ -152,9 +158,12 @@ steadytext_generate_choice(
     choices TEXT[],
     max_tokens INTEGER DEFAULT 512,
     use_cache BOOLEAN DEFAULT true,
-    seed INTEGER DEFAULT 42
+    seed INTEGER DEFAULT 42,
+    model TEXT DEFAULT NULL,
+    unsafe_mode BOOLEAN DEFAULT false
 ) RETURNS TEXT
 -- Returns NULL if generation fails
+-- v2.6.1+: Added model and unsafe_mode parameters for remote model support
 ```
 
 **Examples:**
@@ -205,6 +214,39 @@ $$ LANGUAGE plpgsql;
 
 -- Usage
 SELECT * FROM classify_document('Apple announced new iPhone features...');
+```
+
+### Using Remote Models (v2.6.1+)
+
+The structured generation functions now support remote models through the `model` and `unsafe_mode` parameters:
+
+```sql
+-- JSON generation with OpenAI
+SELECT steadytext_generate_json(
+    'Create a product listing',
+    '{"type": "object", "properties": {"name": {"type": "string"}, "price": {"type": "number"}}}'::jsonb,
+    model := 'openai:gpt-4o-mini',
+    unsafe_mode := true
+);
+
+-- Regex pattern with Cerebras
+SELECT steadytext_generate_regex(
+    'My email is',
+    '[a-z]+@[a-z]+\.com',
+    model := 'cerebras:llama3.1-8b',
+    unsafe_mode := true
+);
+
+-- Choice constraint with OpenAI
+SELECT steadytext_generate_choice(
+    'This review is',
+    ARRAY['positive', 'negative', 'neutral'],
+    model := 'openai:gpt-4o-mini',
+    unsafe_mode := true
+);
+
+-- Note: Requires STEADYTEXT_UNSAFE_MODE environment variable to be set
+-- and appropriate API keys (OPENAI_API_KEY or CEREBRAS_API_KEY)
 ```
 
 ### Structured Generation Best Practices
