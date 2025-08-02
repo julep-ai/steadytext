@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 2.6.1 (2025-08-02)
+
+### Internal Changes
+- **Version Bump:** Incremented version number for maintenance release
+
 ## Version 2.6.0 (2025-07-31)
 
 ### New Features

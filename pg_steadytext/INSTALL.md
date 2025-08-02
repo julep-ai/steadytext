@@ -40,7 +40,7 @@ RUN apt-get install -y postgresql-17-omni-python || \
 RUN python3 -m pip install --upgrade pip && \
     python3 -m pip install --break-system-packages \
       pgai[vectorizer-worker] \
-      steadytext>=2.2.0 \
+      steadytext>=2.6.1 \
       pyzmq>=22.0.0 \
       numpy>=1.20.0
 
@@ -131,10 +131,10 @@ make install PG_CONFIG=/path/to/pg_config
 sudo pip3 install --target=$(pg_config --pkglibdir)/pg_steadytext/site-packages steadytext pyzmq numpy
 
 # Or install system-wide
-sudo pip3 install steadytext>=2.2.0 pyzmq>=22.0.0 numpy>=1.20.0
+sudo pip3 install steadytext>=2.6.1 pyzmq>=22.0.0 numpy>=1.20.0
 
 # Or install to user directory
-pip3 install --user steadytext>=2.2.0 pyzmq>=22.0.0 numpy>=1.20.0
+pip3 install --user steadytext>=2.6.1 pyzmq>=22.0.0 numpy>=1.20.0
 ```
 
 **Troubleshooting:** If you encounter issues with Python package visibility:

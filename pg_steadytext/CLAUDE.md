@@ -4,6 +4,10 @@ This file contains important development notes and architectural decisions for A
 
 ## Recent Fixes
 
+### v1.4.5 - Version Bump and Library Update
+- **Updated**: SteadyText library dependency to >= 2.6.1
+- **Version**: Extension version bumped to 1.4.5
+
 ### v1.4.4 - Extended Model Parameters, Unsafe Mode, and Short Aliases (Updated)
 - **Added**: Support for additional generation parameters:
   - `eos_string`: End-of-sequence string (default: '[EOS]')

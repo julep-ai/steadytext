@@ -5,6 +5,12 @@ All notable changes to the pg_steadytext PostgreSQL extension will be documented
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.5] - 2025-08-02
+
+### Changed
+- **Version Bump:** Updated version number for maintenance release
+- Updated SteadyText library dependency to >= 2.6.1
+
 ## [1.4.4] - 2025-01-31
 
 ### Added
