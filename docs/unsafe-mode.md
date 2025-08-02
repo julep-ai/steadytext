@@ -97,20 +97,36 @@ for token in steadytext.generate_iter(
 ):
     print(token, end='')
 
-# Structured generation (JSON schemas)
+# Structured generation (v2.6.1+: full support)
 from pydantic import BaseModel
 
 class Person(BaseModel):
     name: str
     age: int
 
-# Generate structured JSON with remote models
+# JSON generation with schemas
 result = steadytext.generate(
     "Create a person named Alice, age 30",
     model="openai:gpt-4o-mini",
-    schema=Person
+    schema=Person,
+    unsafe_mode=True
 )
-# Result contains JSON wrapped in <json-output> tags
+
+# Regex-constrained generation
+phone = steadytext.generate(
+    "My phone number is",
+    model="openai:gpt-4o-mini",
+    regex=r"\d{3}-\d{3}-\d{4}",
+    unsafe_mode=True
+)
+
+# Choice-constrained generation
+sentiment = steadytext.generate(
+    "This product is amazing!",
+    model="openai:gpt-4o-mini",
+    choices=["positive", "negative", "neutral"],
+    unsafe_mode=True
+)
 ```
 
 ### CLI
@@ -138,7 +154,7 @@ echo "Create a person" | st --unsafe-mode --model openai:gpt-4o-mini \
 
 When using unsafe mode:
 
-1. **Limited Structured Output**: Remote models support JSON schemas but not regex or choices constraints
+1. **Full Structured Output (v2.6.1+)**: Remote models now support JSON schemas, regex patterns, and choice constraints
 2. **No Logprobs**: Log probabilities are not available from remote APIs
 3. **No Embeddings**: Only generation is supported, not embeddings
 4. **Best-Effort Only**: Determinism is not guaranteed despite seed parameters

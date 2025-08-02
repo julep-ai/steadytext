@@ -84,6 +84,36 @@ class User(BaseModel):
 result = steadytext.generate_json("Create a user named Charlie, age 25", schema=User)
 ```
 
+### Using Remote Models (v2.6.1+)
+
+Starting in v2.6.1, structured generation supports remote models through the `unsafe_mode` parameter:
+
+```python
+import steadytext
+from pydantic import BaseModel
+
+class Product(BaseModel):
+    name: str
+    price: float
+    description: str
+
+# Using OpenAI models with structured generation
+result = steadytext.generate_json(
+    "Create a product listing for a laptop",
+    schema=Product,
+    model="openai:gpt-4o-mini",
+    unsafe_mode=True
+)
+
+# Using Cerebras models
+result = steadytext.generate_json(
+    "Generate user data",
+    {"type": "object", "properties": {"email": {"type": "string"}}},
+    model="cerebras:llama3.1-8b",
+    unsafe_mode=True
+)
+```
+
 ## Regex-Constrained Generation
 
 Generate text that matches a regular expression using the `regex` parameter.
@@ -122,6 +152,31 @@ print(date)
 # Output: 2025-07-03
 ```
 
+### Using Remote Models (v2.6.1+)
+
+Regex-constrained generation now supports remote models:
+
+```python
+import steadytext
+
+# Generate formatted phone number with OpenAI
+phone = steadytext.generate_regex(
+    "Call me at: ",
+    pattern=r"\(\d{3}\) \d{3}-\d{4}",
+    model="openai:gpt-4o-mini",
+    unsafe_mode=True
+)
+# Output: (555) 123-4567
+
+# Generate email with Cerebras
+email = steadytext.generate_regex(
+    "Contact: ",
+    pattern=r"[a-z]+@[a-z]+\.com",
+    model="cerebras:llama3.1-8b",
+    unsafe_mode=True
+)
+```
+
 ## Multiple Choice
 
 Force the model to choose from a list of options using the `choices` parameter.
@@ -148,6 +203,30 @@ answer = steadytext.generate_choice(
 )
 print(answer)
 # Output: No
+```
+
+### Using Remote Models (v2.6.1+)
+
+Choice-constrained generation works with remote models:
+
+```python
+import steadytext
+
+# Sentiment analysis with OpenAI
+sentiment = steadytext.generate_choice(
+    "The product exceeded my expectations!",
+    choices=["positive", "negative", "neutral"],
+    model="openai:gpt-4o-mini",
+    unsafe_mode=True
+)
+
+# Multi-choice classification with Cerebras
+category = steadytext.generate_choice(
+    "This article discusses neural networks",
+    choices=["technology", "business", "health", "sports"],
+    model="cerebras:llama3.1-8b",
+    unsafe_mode=True
+)
 ```
 
 ## Type-Constrained Generation
