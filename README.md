@@ -168,8 +168,9 @@ SteadyText uses a daemon architecture by default for optimal performance:
 * **Background operation:** Daemon runs silently in the background
 
 ```python
-# Daemon is used automatically - no setup needed
-text = steadytext.generate("Hello world")  # Uses daemon by default
+# Daemon provides better performance when running
+# Start it first with: st daemon start
+text = steadytext.generate("Hello world")  # Uses daemon if available
 
 # Explicit daemon usage (ensures connection)
 from steadytext.daemon import use_daemon
@@ -470,7 +471,7 @@ st daemon start --host 127.0.0.1 --port 5678  # Custom host/port
 ### Text Generation
 
 ```bash
-# Generate text (streams by default, uses daemon automatically)
+# Generate text (streams by default, uses daemon if running)
 echo "write a hello world function" | st
 
 # Disable streaming (wait for complete output)
@@ -787,7 +788,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ### Daemon Architecture (v1.2.0+)
 - **Persistent model serving** with ZeroMQ for 10-100x faster repeated calls
 - **Automatic fallback** to direct model loading when daemon unavailable
-- **Zero configuration** - daemon starts automatically on first use
+- **Explicit startup required** - start daemon with `st daemon start`
 - **Background operation** - daemon runs silently in the background
 
 ### Centralized Cache System

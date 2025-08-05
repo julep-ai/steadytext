@@ -50,6 +50,7 @@ os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 ### AIDEV Considerations
 
 - AIDEV-NOTE: The daemon maintains singleton model instances and falls back to direct loading on connection failure
+- AIDEV-NOTE: Daemon requires explicit startup with 'st daemon start' - no automatic startup in main library
 - AIDEV-NOTE: Cache integration: Daemon and direct access share the same centralized SQLite cache for consistency
 - AIDEV-NOTE: Streaming handles caching by collecting tokens and populating cache after completion
 - AIDEV-NOTE: Special cases: Logprobs bypass cache, custom eos_string included in cache keys

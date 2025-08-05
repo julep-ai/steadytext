@@ -103,7 +103,7 @@ SteadyText includes a daemon mode that keeps models loaded in memory for instant
 * **160x faster first request**: No model loading overhead
 * **Persistent cache**: Shared across all operations
 * **Automatic fallback**: Works without daemon if unavailable
-* **Zero configuration**: Daemon used by default when available
+* **Explicit startup**: Start daemon with `st daemon start` for best performance
 
 ```bash
 # Start daemon
@@ -112,8 +112,8 @@ st daemon start
 # Check status
 st daemon status
 
-# All operations now use daemon automatically
-echo "hello" | st  # Instant response!
+# All operations now use daemon if available
+echo "hello" | st  # Instant response with daemon!
 ```
 
 ### FAISS Indexing (v1.3.3+)
