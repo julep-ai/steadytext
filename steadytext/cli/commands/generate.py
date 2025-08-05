@@ -6,6 +6,7 @@ from pathlib import Path
 
 from ... import generate as steady_generate, generate_iter as steady_generate_iter
 from .index import search_index_for_context, get_default_index_path
+from ...config import get_defaults_manager
 
 
 @click.command()
@@ -146,6 +147,58 @@ def generate(
         export STEADYTEXT_UNSAFE_MODE=true
         echo "Explain AI" | st --model openai:gpt-4o-mini
     """
+    # AIDEV-NOTE: Apply saved defaults with proper precedence
+    manager = get_defaults_manager()
+    saved_defaults = manager.get_defaults("generate")
+    
+    # Apply saved defaults for parameters that weren't explicitly provided
+    # Check each parameter to see if it was explicitly set
+    if saved_defaults:
+        # For each saved default, check if the current value is the Click default
+        params = ctx.command.params
+        param_defaults = {}
+        for param in params:
+            if hasattr(param, 'default'):
+                param_defaults[param.name] = param.default
+        
+        # Apply saved defaults where CLI args match Click defaults
+        if "model" in saved_defaults and model == param_defaults.get("model"):
+            model = saved_defaults["model"]
+        if "model_repo" in saved_defaults and model_repo == param_defaults.get("model_repo"):
+            model_repo = saved_defaults["model_repo"]
+        if "model_filename" in saved_defaults and model_filename == param_defaults.get("model_filename"):
+            model_filename = saved_defaults["model_filename"]
+        if "size" in saved_defaults and size == param_defaults.get("size"):
+            size = saved_defaults["size"]
+        if "seed" in saved_defaults and seed == param_defaults.get("seed"):
+            seed = saved_defaults["seed"]
+        if "max_new_tokens" in saved_defaults and max_new_tokens == param_defaults.get("max_new_tokens"):
+            max_new_tokens = saved_defaults["max_new_tokens"]
+        if "wait" in saved_defaults and wait == param_defaults.get("wait"):
+            wait = saved_defaults["wait"]
+        if "eos_string" in saved_defaults and eos_string == param_defaults.get("eos_string"):
+            eos_string = saved_defaults["eos_string"]
+        if "output_format" in saved_defaults:
+            # Handle output format flags (--json sets output_format to "json")
+            if saved_defaults["output_format"] == "json" and output_format == "raw":
+                output_format = "json"
+        if "logprobs" in saved_defaults and logprobs == param_defaults.get("logprobs"):
+            logprobs = saved_defaults["logprobs"]
+        if "no_index" in saved_defaults and no_index == param_defaults.get("no_index"):
+            no_index = saved_defaults["no_index"]
+        if "index_file" in saved_defaults and index_file == param_defaults.get("index_file"):
+            index_file = saved_defaults["index_file"]
+        if "top_k" in saved_defaults and top_k == param_defaults.get("top_k"):
+            top_k = saved_defaults["top_k"]
+        if "schema" in saved_defaults and schema == param_defaults.get("schema"):
+            schema = saved_defaults["schema"]
+        if "regex" in saved_defaults and regex == param_defaults.get("regex"):
+            regex = saved_defaults["regex"]
+        if "choices" in saved_defaults and choices == param_defaults.get("choices"):
+            choices = saved_defaults["choices"]
+        if "unsafe_mode" in saved_defaults and unsafe_mode == param_defaults.get("unsafe_mode"):
+            unsafe_mode = saved_defaults["unsafe_mode"]
+    
     # Handle verbosity - verbose overrides quiet
     if verbose:
         quiet = False

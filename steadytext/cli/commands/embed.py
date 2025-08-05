@@ -24,7 +24,10 @@ import numpy as np
     help="Seed for deterministic embedding.",
     show_default=True,
 )
-def embed(text, output_json, output_numpy, output_hex, output_format, seed):
+@click.option("--quiet", "-q", is_flag=True, default=True, help="Silence log output (default)")
+@click.option("--verbose", "-v", is_flag=True, help="Enable informational output")
+@click.pass_context
+def embed(ctx, text, output_json, output_numpy, output_hex, output_format, seed, quiet, verbose):
     """Generate embedding vector for text.
 
     Examples:
@@ -36,6 +39,38 @@ def embed(text, output_json, output_numpy, output_hex, output_format, seed):
     import sys
     import time
     from ...core.embedder import core_embed as create_embedding
+    from ...config import get_defaults_manager
+    
+    # AIDEV-NOTE: Apply saved defaults with proper precedence
+    manager = get_defaults_manager()
+    saved_defaults = manager.get_defaults("embed")
+    
+    if saved_defaults:
+        # Get Click defaults
+        params = ctx.command.params
+        param_defaults = {}
+        for param in params:
+            if hasattr(param, 'default'):
+                param_defaults[param.name] = param.default
+        
+        # Apply saved defaults where CLI args match Click defaults
+        if "seed" in saved_defaults and seed == param_defaults.get("seed"):
+            seed = saved_defaults["seed"]
+        if "json" in saved_defaults and output_json == param_defaults.get("output_json", False):
+            output_json = saved_defaults["json"]
+        if "numpy" in saved_defaults and output_numpy == param_defaults.get("output_numpy", False):
+            output_numpy = saved_defaults["numpy"]
+        if "hex" in saved_defaults and output_hex == param_defaults.get("output_hex", False):
+            output_hex = saved_defaults["hex"]
+    
+    # Handle verbosity
+    if verbose:
+        quiet = False
+    
+    if quiet:
+        import logging
+        logging.getLogger("steadytext").setLevel(logging.ERROR)
+        logging.getLogger("llama_cpp").setLevel(logging.ERROR)
 
     # Determine output format
     if output_format:
