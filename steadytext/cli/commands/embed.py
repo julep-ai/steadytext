@@ -2,6 +2,8 @@ import click
 import json
 import numpy as np
 
+from ...config import with_defaults
+
 
 # AIDEV-NOTE: Fixed CLI consistency issue (2025-06-28) - Changed from single --format option
 # to individual flags (--json, --numpy, --hex) to match generate command pattern

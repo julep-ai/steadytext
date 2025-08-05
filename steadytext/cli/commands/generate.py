@@ -6,6 +6,7 @@ from pathlib import Path
 
 from ... import generate as steady_generate, generate_iter as steady_generate_iter
 from .index import search_index_for_context, get_default_index_path
+from ...config import with_defaults
 
 
 @click.command()
@@ -95,6 +96,7 @@ from .index import search_index_for_context, get_default_index_path
     help="Enable remote models with best-effort determinism",
 )
 @click.pass_context
+@with_defaults("generate")
 def generate(
     ctx,
     prompt: str,
