@@ -49,7 +49,7 @@ def daemon():
     pass
 
 
-@daemon.command()
+@daemon.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option("--host", default=DEFAULT_DAEMON_HOST, help="Host to bind to")
 @click.option("--port", type=int, default=DEFAULT_DAEMON_PORT, help="Port to bind to")
 @click.option(
@@ -150,7 +150,7 @@ def start(
             sys.exit(1)
 
 
-@daemon.command()
+@daemon.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option("--force", is_flag=True, help="Force kill the daemon process")
 def stop(force: bool):
     """Stop the SteadyText daemon server."""
@@ -191,7 +191,7 @@ def stop(force: bool):
         sys.exit(1)
 
 
-@daemon.command()
+@daemon.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option("--json", "output_json", is_flag=True, help="Output status as JSON")
 def status(output_json: bool):
     """Check the status of the SteadyText daemon."""
@@ -232,7 +232,7 @@ def status(output_json: bool):
         click.echo(f"Responsive: {'Yes' if status_info['responsive'] else 'No'}")
 
 
-@daemon.command()
+@daemon.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option("--host", default=DEFAULT_DAEMON_HOST, help="Host to bind to")
 @click.option("--port", type=int, default=DEFAULT_DAEMON_PORT, help="Port to bind to")
 @click.option("--no-preload", is_flag=True, help="Don't preload models on startup")

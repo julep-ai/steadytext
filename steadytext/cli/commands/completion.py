@@ -115,7 +115,7 @@ Alternative (for current session only):
     return instructions
 
 
-@click.command()
+@click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option(
     "--shell",
     type=click.Choice(["bash", "zsh", "fish"]),
