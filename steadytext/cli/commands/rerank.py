@@ -6,7 +6,7 @@ from typing import List
 
 # AIDEV-NOTE: CLI command for reranking documents based on query relevance
 # Uses the Qwen3-Reranker model to score query-document pairs
-@click.command()
+@click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("query")
 @click.argument("documents", nargs=-1)
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")

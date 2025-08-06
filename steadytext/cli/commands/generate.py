@@ -8,7 +8,7 @@ from ... import generate as steady_generate, generate_iter as steady_generate_it
 from .index import search_index_for_context, get_default_index_path
 
 
-@click.command()
+@click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("prompt", default="-", required=False)
 @click.option(
     "--raw",
