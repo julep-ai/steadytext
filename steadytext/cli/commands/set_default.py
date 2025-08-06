@@ -6,32 +6,29 @@ for SteadyText CLI commands.
 """
 
 import click
-import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 from ...config import get_config_manager, get_config_file
 
 
 @click.group(name="set-default", invoke_without_command=True)
 @click.option(
-    "--reset-all",
-    is_flag=True,
-    help="Reset all stored defaults for all commands"
+    "--reset-all", is_flag=True, help="Reset all stored defaults for all commands"
 )
 @click.pass_context
 def set_default(ctx, reset_all):
     """Set, view, or reset default parameters for CLI commands.
-    
+
     Examples:
         # Set defaults for generate command
         st set-default generate --model gemma-3n-2b --size large
-        
+
         # View current defaults for generate
         st set-default generate --show
-        
+
         # Reset generate defaults to built-in values
         st set-default generate
-        
+
         # Reset all defaults
         st set-default --reset-all
     """
@@ -40,7 +37,7 @@ def set_default(ctx, reset_all):
         config_manager.reset_all_defaults()
         click.echo("All defaults have been reset.")
         return
-    
+
     # If no subcommand, show help
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
@@ -111,7 +108,7 @@ def index(show, **kwargs):
 def _handle_command_defaults(command: str, show: bool, params: Dict[str, Any]) -> None:
     """Handle setting, showing, or resetting defaults for a command."""
     config_manager = get_config_manager()
-    
+
     if show:
         # Show current defaults
         defaults = config_manager.get_command_defaults(command)
@@ -121,16 +118,15 @@ def _handle_command_defaults(command: str, show: bool, params: Dict[str, Any]) -
                 click.echo(f"  --{key.replace('_', '-')}: {value}")
         else:
             click.echo(f"No defaults set for '{command}' command.")
-        
+
         # Also show config file location
         config_file = get_config_file()
         click.echo(f"\nConfiguration file: {config_file}")
         return
-    
+
     # Filter out None values and the 'show' parameter
-    filtered_params = {k: v for k, v in params.items() 
-                      if v is not None and k != 'show'}
-    
+    filtered_params = {k: v for k, v in params.items() if v is not None and k != "show"}
+
     # Handle special cases for flag parameters
     # Convert flag parameters to their appropriate values
     flag_params = {}
@@ -140,7 +136,7 @@ def _handle_command_defaults(command: str, show: bool, params: Dict[str, Any]) -
                 flag_params[key] = value
         else:
             flag_params[key] = value
-    
+
     if not flag_params:
         # No parameters provided - reset to defaults
         config_manager.reset_command_defaults(command)
@@ -151,7 +147,7 @@ def _handle_command_defaults(command: str, show: bool, params: Dict[str, Any]) -
         click.echo(f"Defaults for '{command}' command have been updated:")
         for key, value in flag_params.items():
             click.echo(f"  --{key.replace('_', '-')}: {value}")
-    
+
     # Show config file location
     config_file = get_config_file()
     click.echo(f"\nConfiguration file: {config_file}")
@@ -162,7 +158,7 @@ def _handle_command_defaults(command: str, show: bool, params: Dict[str, Any]) -
 def all(show):
     """Show all current defaults or reset everything."""
     config_manager = get_config_manager()
-    
+
     if show:
         all_defaults = config_manager.get_all_defaults()
         if all_defaults:
@@ -173,7 +169,7 @@ def all(show):
                     click.echo(f"  --{key.replace('_', '-')}: {value}")
         else:
             click.echo("No defaults are currently set.")
-        
+
         # Show config file location
         config_file = get_config_file()
         click.echo(f"\nConfiguration file: {config_file}")
