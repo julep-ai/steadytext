@@ -40,28 +40,26 @@ def embed(ctx, text, output_json, output_numpy, output_hex, output_format, seed,
     import time
     from ...core.embedder import core_embed as create_embedding
     from ...config import get_defaults_manager
+    from ..utils import apply_saved_defaults_to_params
     
-    # AIDEV-NOTE: Apply saved defaults with proper precedence
-    manager = get_defaults_manager()
-    saved_defaults = manager.get_defaults("embed")
+    # AIDEV-NOTE: Apply saved defaults with proper precedence using helper function
     
-    if saved_defaults:
-        # Get Click defaults
-        params = ctx.command.params
-        param_defaults = {}
-        for param in params:
-            if hasattr(param, 'default'):
-                param_defaults[param.name] = param.default
-        
-        # Apply saved defaults where CLI args match Click defaults
-        if "seed" in saved_defaults and seed == param_defaults.get("seed"):
-            seed = saved_defaults["seed"]
-        if "json" in saved_defaults and output_json == param_defaults.get("output_json", False):
-            output_json = saved_defaults["json"]
-        if "numpy" in saved_defaults and output_numpy == param_defaults.get("output_numpy", False):
-            output_numpy = saved_defaults["numpy"]
-        if "hex" in saved_defaults and output_hex == param_defaults.get("output_hex", False):
-            output_hex = saved_defaults["hex"]
+    # Collect current parameter values
+    current_params = {
+        "seed": seed,
+        "json": output_json,  # Note: parameter name mapping
+        "numpy": output_numpy,
+        "hex": output_hex,
+    }
+    
+    # Apply saved defaults using the helper function
+    updated_params = apply_saved_defaults_to_params("embed", ctx, **current_params)
+    
+    # Update local variables with the results
+    seed = updated_params.get("seed", seed)
+    output_json = updated_params.get("json", output_json)
+    output_numpy = updated_params.get("numpy", output_numpy)
+    output_hex = updated_params.get("hex", output_hex)
     
     # Handle verbosity
     if verbose:

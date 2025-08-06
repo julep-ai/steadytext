@@ -68,30 +68,28 @@ def rerank(ctx, query, documents, output_json, scores, task, top_k, doc_file, se
     import time
     from ... import rerank as do_rerank
     from ...config import get_defaults_manager
+    from ..utils import apply_saved_defaults_to_params
     
-    # AIDEV-NOTE: Apply saved defaults with proper precedence
-    manager = get_defaults_manager()
-    saved_defaults = manager.get_defaults("rerank")
+    # AIDEV-NOTE: Apply saved defaults with proper precedence using helper function
     
-    if saved_defaults:
-        # Get Click defaults
-        params = ctx.command.params
-        param_defaults = {}
-        for param in params:
-            if hasattr(param, 'default'):
-                param_defaults[param.name] = param.default
-        
-        # Apply saved defaults where CLI args match Click defaults
-        if "seed" in saved_defaults and seed == param_defaults.get("seed"):
-            seed = saved_defaults["seed"]
-        if "task" in saved_defaults and task == param_defaults.get("task"):
-            task = saved_defaults["task"]
-        if "top_k" in saved_defaults and top_k == param_defaults.get("top_k"):
-            top_k = saved_defaults["top_k"]
-        if "scores" in saved_defaults and scores == param_defaults.get("scores"):
-            scores = saved_defaults["scores"]
-        if "json" in saved_defaults and output_json == param_defaults.get("output_json", False):
-            output_json = saved_defaults["json"]
+    # Collect current parameter values
+    current_params = {
+        "seed": seed,
+        "task": task,
+        "top_k": top_k,
+        "scores": scores,
+        "json": output_json,  # Note: parameter name mapping
+    }
+    
+    # Apply saved defaults using the helper function
+    updated_params = apply_saved_defaults_to_params("rerank", ctx, **current_params)
+    
+    # Update local variables with the results
+    seed = updated_params.get("seed", seed)
+    task = updated_params.get("task", task)
+    top_k = updated_params.get("top_k", top_k)
+    scores = updated_params.get("scores", scores)
+    output_json = updated_params.get("json", output_json)
     
     # Handle verbosity
     if verbose:

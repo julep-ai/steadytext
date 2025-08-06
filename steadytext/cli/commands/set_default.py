@@ -64,6 +64,12 @@ def parse_cli_args(args: tuple) -> Dict[str, Any]:
             elif value.replace(".", "", 1).isdigit():
                 parsed[key] = float(value)
             else:
+                # AIDEV-NOTE: Special handling for choices parameter
+                if key == "choices":
+                    # Validate choices format (comma-separated non-empty strings)
+                    choices_list = [c.strip() for c in value.split(",")]
+                    if not all(choices_list):
+                        raise click.ClickException(f"Invalid choices format: '{value}'. Choices must be non-empty strings separated by commas.")
                 parsed[key] = value
             
             i += 2

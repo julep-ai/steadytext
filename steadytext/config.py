@@ -11,8 +11,6 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 import toml
 
-from .utils import get_cache_dir
-
 
 def get_config_dir() -> Path:
     """Get the configuration directory for steadytext.
@@ -83,9 +81,18 @@ class DefaultsManager:
         for key, value in kwargs.items():
             if value is not None:
                 # Handle special conversions
-                if key == "choices" and isinstance(value, list):
-                    # Convert list back to comma-separated string for storage
-                    value = ",".join(value)
+                if key == "choices":
+                    # AIDEV-NOTE: Validate and normalize choices parameter
+                    if isinstance(value, list):
+                        # Convert list back to comma-separated string for storage
+                        value = ",".join(value)
+                    elif isinstance(value, str):
+                        # Validate format: should be comma-separated non-empty strings
+                        choices_list = [c.strip() for c in value.split(",")]
+                        if not all(choices_list):  # Check for empty strings
+                            raise ValueError(f"Invalid choices format: '{value}'. Choices must be non-empty strings separated by commas.")
+                        # Normalize by removing extra spaces
+                        value = ",".join(choices_list)
                 elif key == "schema" and isinstance(value, dict):
                     # Convert dict to JSON string for storage
                     value = json.dumps(value)
