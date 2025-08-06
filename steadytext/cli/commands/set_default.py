@@ -12,9 +12,14 @@ from typing import Dict, Any, Optional
 from ...config import get_config_manager, get_config_file
 
 
-@click.group(name="set-default")
+@click.group(name="set-default", invoke_without_command=True)
+@click.option(
+    "--reset-all",
+    is_flag=True,
+    help="Reset all stored defaults for all commands"
+)
 @click.pass_context
-def set_default(ctx):
+def set_default(ctx, reset_all):
     """Set, view, or reset default parameters for CLI commands.
     
     Examples:
@@ -30,17 +35,6 @@ def set_default(ctx):
         # Reset all defaults
         st set-default --reset-all
     """
-    pass
-
-
-@click.option(
-    "--reset-all",
-    is_flag=True,
-    help="Reset all stored defaults for all commands"
-)
-@click.pass_context
-def set_default_main(ctx, reset_all):
-    """Main set-default command handler."""
     if reset_all:
         config_manager = get_config_manager()
         config_manager.reset_all_defaults()
@@ -50,11 +44,6 @@ def set_default_main(ctx, reset_all):
     # If no subcommand, show help
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
-
-
-# Add the reset-all option to the main group
-set_default.params.extend(set_default_main.params)
-set_default.callback = set_default_main.callback
 
 
 @set_default.command()
