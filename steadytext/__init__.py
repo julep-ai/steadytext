@@ -137,8 +137,9 @@ def generate(
                 )
             except ConnectionError as e:
                 # Fall back to direct generation
-                logger.debug(
-                    f"Daemon not available ({e}), falling back to direct generation"
+                logger.info(
+                    f"Daemon not available ({e}), falling back to direct generation. "
+                    "For better performance, start the daemon with 'st daemon start'"
                 )
 
     result = _generate(
@@ -222,8 +223,9 @@ def generate_iter(
                 return
             except ConnectionError as e:
                 # Fall back to direct generation
-                logger.debug(
-                    f"Daemon not available ({e}), falling back to direct streaming generation"
+                logger.info(
+                    f"Daemon not available ({e}), falling back to direct streaming generation. "
+                    "For better performance, start the daemon with 'st daemon start'"
                 )
 
     yield from _generate_iter(
@@ -252,7 +254,10 @@ def embed(
                 return client.embed(text_input, seed=seed)
             except ConnectionError:
                 # Fall back to direct embedding
-                logger.debug("Daemon not available, falling back to direct embedding")
+                logger.info(
+                    "Daemon not available, falling back to direct embedding. "
+                    "For better performance, start the daemon with 'st daemon start'"
+                )
 
     try:
         result = core_embed(text_input, seed=seed)
@@ -324,7 +329,10 @@ def rerank(
                 )
             except ConnectionError:
                 # Fall back to direct reranking
-                logger.debug("Daemon not available, falling back to direct reranking")
+                logger.info(
+                    "Daemon not available, falling back to direct reranking. "
+                    "For better performance, start the daemon with 'st daemon start'"
+                )
 
     try:
         result = core_rerank(

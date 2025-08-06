@@ -1,5 +1,14 @@
 # Changelog
 
+## Version 2.6.2 (Unreleased)
+
+### Documentation Changes
+- **Clarified Daemon Behavior:** Updated documentation to clarify that daemon requires explicit startup
+  - Removed misleading "zero configuration" and "automatic startup" claims
+  - Added clear messages when daemon is not available, directing users to start it with `st daemon start`
+  - Updated README, docs, and examples to reflect that daemon must be started explicitly
+  - Main library already behaves correctly (no automatic startup), only documentation was misleading
+
 ## Version 2.6.1 (2025-08-02)
 
 ### Internal Changes

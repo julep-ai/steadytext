@@ -101,11 +101,11 @@ SteadyText includes a daemon mode for faster responses:
 # Start the daemon
 st daemon start
 
-# All generation now uses the daemon automatically
+# All generation uses the daemon if available
 echo "Write a function" | st
 
 # Python code also uses daemon when available
-uv run python examples/basic_usage.py  # Uses daemon automatically
+uv run python examples/basic_usage.py  # Uses daemon if available
 
 # Check daemon status
 st daemon status
@@ -120,7 +120,7 @@ st daemon stop
 import steadytext
 from steadytext.daemon import use_daemon
 
-# Daemon is used automatically when available
+# Daemon is used if available (fallback to direct if not)
 text = steadytext.generate("Hello world")  # Fast if daemon running
 
 # Explicitly use daemon for a scope

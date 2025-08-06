@@ -428,7 +428,10 @@ def use_daemon(
     connected = client.connect()
 
     if required and not connected:
-        raise RuntimeError("Daemon connection required but not available")
+        raise RuntimeError(
+            "Daemon connection required but not available. "
+            "Start the daemon with 'st daemon start' or use required=False"
+        )
 
     # AIDEV-NOTE: Force daemon usage within this context (disable fallback)
     old_disable_val = os.environ.get("STEADYTEXT_DISABLE_DAEMON")
