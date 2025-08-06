@@ -5,7 +5,7 @@ import numpy as np
 
 # AIDEV-NOTE: Fixed CLI consistency issue (2025-06-28) - Changed from single --format option
 # to individual flags (--json, --numpy, --hex) to match generate command pattern
-@click.command()
+@click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("text", nargs=-1)
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
 @click.option("--numpy", "output_numpy", is_flag=True, help="Output as numpy array")

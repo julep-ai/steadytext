@@ -37,7 +37,7 @@ def models():
     pass
 
 
-@models.command("list")
+@models.command("list", context_settings={"help_option_names": ["-h", "--help"]})
 def list_models():
     """Check model download status."""
     model_dir = get_cache_dir()
@@ -79,7 +79,7 @@ def list_models():
     click.echo(json.dumps(status_data, indent=2))
 
 
-@models.command()
+@models.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option(
     "--size",
     type=click.Choice(["small", "large"]),
@@ -186,13 +186,13 @@ def download(size: Optional[str], model: Optional[str], all: bool):
             click.echo(f" ✗ Failed: {e}")
 
 
-@models.command()
+@models.command(context_settings={"help_option_names": ["-h", "--help"]})
 def path():
     """Show model cache directory."""
     click.echo(str(get_cache_dir()))
 
 
-@models.command()
+@models.command(context_settings={"help_option_names": ["-h", "--help"]})
 def list():
     """List available models."""
     # Show size shortcuts
@@ -212,7 +212,7 @@ def list():
             )
 
 
-@models.command()
+@models.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option(
     "--size", type=click.Choice(["small", "large"]), help="Model size to preload"
 )
@@ -263,7 +263,7 @@ def preload(ctx, size: Optional[str]):
         click.echo(f"\nError preloading models: {e}", err=True)
 
 
-@models.command()
+@models.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option(
     "--size",
     type=click.Choice(["small", "large"]),

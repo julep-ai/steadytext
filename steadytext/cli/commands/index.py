@@ -146,7 +146,7 @@ def index():
     pass
 
 
-@index.command()
+@index.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("input_files", nargs=-1, required=True, type=click.Path(exists=True))
 @click.option("--output", "-o", default="default.faiss", help="Output index filename")
 @click.option("--chunk-size", default=512, help="Maximum tokens per chunk")
@@ -267,7 +267,7 @@ def create(
     click.echo(f"  Dimension: {dimension}")
 
 
-@index.command()
+@index.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("index_file", type=click.Path(exists=True))
 def info(index_file: str):
     """Show information about a FAISS index.
@@ -312,7 +312,7 @@ def info(index_file: str):
         click.echo(f"    Size: {file_info['size']:,} bytes")
 
 
-@index.command()
+@index.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("index_file", type=click.Path(exists=True))
 @click.argument("query")
 @click.option("--top-k", "-k", default=3, help="Number of results to return")

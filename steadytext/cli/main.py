@@ -14,7 +14,10 @@ from .commands.completion import completion
 from .commands.set_default import set_default
 
 
-@click.group(invoke_without_command=True)
+@click.group(
+    invoke_without_command=True,
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 @click.pass_context
 @click.option("--version", is_flag=True, help="Show version")
 @click.option(
