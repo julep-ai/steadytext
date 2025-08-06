@@ -11,6 +11,7 @@ from .commands.vector import vector
 from .commands.index import index
 from .commands.daemon import daemon
 from .commands.completion import completion
+from .commands.set_default import set_default
 
 
 @click.group(
@@ -110,6 +111,7 @@ cli.add_command(vector)
 cli.add_command(index)
 cli.add_command(daemon)
 cli.add_command(completion)
+cli.add_command(set_default)
 
 
 def main():
