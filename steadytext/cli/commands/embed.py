@@ -3,7 +3,6 @@ import json
 import numpy as np
 
 
-
 # AIDEV-NOTE: Fixed CLI consistency issue (2025-06-28) - Changed from single --format option
 # to individual flags (--json, --numpy, --hex) to match generate command pattern
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
