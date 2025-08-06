@@ -9,7 +9,7 @@ from .index import search_index_for_context, get_default_index_path
 from ...config import with_defaults
 
 
-@click.command()
+@click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("prompt", default="-", required=False)
 @click.option(
     "--raw",

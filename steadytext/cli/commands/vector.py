@@ -38,7 +38,7 @@ def _manhattan_distance(vec1: np.ndarray, vec2: np.ndarray) -> float:
     return float(np.sum(np.abs(vec1 - vec2)))
 
 
-@vector.command()
+@vector.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("text1")
 @click.argument("text2")
 @click.option(
@@ -84,7 +84,7 @@ def similarity(text1: str, text2: str, metric: str, output_json: bool, seed: int
         click.echo(f"{score:.6f}")
 
 
-@vector.command()
+@vector.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("text1")
 @click.argument("text2")
 @click.option(
@@ -131,7 +131,7 @@ def distance(text1: str, text2: str, metric: str, output_json: bool, seed: int):
         click.echo(f"{dist:.6f}")
 
 
-@vector.command()
+@vector.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("query")
 @click.option(
     "--candidates",
@@ -238,7 +238,7 @@ def search(
             click.echo(f"{text}\t{score:.6f}")
 
 
-@vector.command()
+@vector.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("texts", nargs=-1, required=True)
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
 @click.option(
@@ -282,7 +282,7 @@ def average(texts: Tuple[str, ...], output_json: bool, seed: int):
         click.echo(np.array2string(avg_embedding[:50], separator=", "))
 
 
-@vector.command()
+@vector.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("base")
 @click.argument("add_terms", nargs=-1)
 @click.option("--subtract", multiple=True, help="Terms to subtract from the result")

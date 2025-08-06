@@ -15,14 +15,14 @@ def cache():
     pass
 
 
-@cache.command()
+@cache.command(context_settings={"help_option_names": ["-h", "--help"]})
 def path():
     """Show the cache directory path."""
     cache_dir = get_cache_dir() / "caches"
     click.echo(str(cache_dir))
 
 
-@cache.command()
+@cache.command(context_settings={"help_option_names": ["-h", "--help"]})
 def status():
     """Show cache status."""
     cache_manager = get_cache_manager()
@@ -44,7 +44,7 @@ def status():
     click.echo(f"  Capacity: {embed_stats.get('capacity', 0)}")
 
 
-@cache.command()
+@cache.command(context_settings={"help_option_names": ["-h", "--help"]})
 def stats():
     """Show cache statistics."""
     cache_dir = get_cache_dir() / "caches"
@@ -78,7 +78,7 @@ def stats():
     click.echo(json.dumps(stats_data, indent=2))
 
 
-@cache.command()
+@cache.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option("--generation", is_flag=True, help="Clear only generation cache")
 @click.option("--embedding", is_flag=True, help="Clear only embedding cache")
 @click.confirmation_option(prompt="Are you sure you want to clear the cache(s)?")
@@ -116,7 +116,7 @@ def clear(generation: bool, embedding: bool):
         click.echo("No caches were cleared")
 
 
-@cache.command()
+@cache.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("output_file", type=click.Path())
 def export(output_file: str):
     """Export cache to file."""
