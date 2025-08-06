@@ -25,7 +25,9 @@
       "Bash(gh release view:*)",
       "Bash(git checkout:*)",
       "Bash(git pull:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }
