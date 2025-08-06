@@ -430,7 +430,7 @@ def use_daemon(
     if required and not connected:
         raise RuntimeError(
             "Daemon connection required but not available. "
-            "Start the daemon with 'st daemon start' or use daemon_required=False"
+            "Start the daemon with 'st daemon start' or use required=False"
         )
 
     # AIDEV-NOTE: Force daemon usage within this context (disable fallback)
