@@ -187,3 +187,180 @@ class TestModelsCli:
         )
         assert result.exit_code == 0
         assert "Preloading models... (skipped in test environment)" in result.output
+
+
+class TestHelpOptionAlias:
+    """Test suite for -h as an alias for --help across all commands."""
+
+    def test_main_help_short(self, runner):
+        """Test `st -h` shows help."""
+        result = runner.invoke(cli, ["-h"])
+        assert result.exit_code == 0
+        assert "SteadyText: Deterministic text generation" in result.output
+        assert "Commands:" in result.output
+
+    def test_main_help_long(self, runner):
+        """Test `st --help` shows help."""
+        result = runner.invoke(cli, ["--help"])
+        assert result.exit_code == 0
+        assert "SteadyText: Deterministic text generation" in result.output
+        assert "Commands:" in result.output
+
+    def test_generate_help_short(self, runner):
+        """Test `st generate -h` shows help."""
+        result = runner.invoke(cli, ["generate", "-h"])
+        assert result.exit_code == 0
+        assert "Generate text from a prompt" in result.output
+        assert "Examples:" in result.output
+
+    def test_generate_help_long(self, runner):
+        """Test `st generate --help` shows help."""
+        result = runner.invoke(cli, ["generate", "--help"])
+        assert result.exit_code == 0
+        assert "Generate text from a prompt" in result.output
+        assert "Examples:" in result.output
+
+    def test_embed_help_short(self, runner):
+        """Test `st embed -h` shows help."""
+        result = runner.invoke(cli, ["embed", "-h"])
+        assert result.exit_code == 0
+        assert "Generate embedding vector for text" in result.output
+
+    def test_embed_help_long(self, runner):
+        """Test `st embed --help` shows help."""
+        result = runner.invoke(cli, ["embed", "--help"])
+        assert result.exit_code == 0
+        assert "Generate embedding vector for text" in result.output
+
+    def test_rerank_help_short(self, runner):
+        """Test `st rerank -h` shows help."""
+        result = runner.invoke(cli, ["rerank", "-h"])
+        assert result.exit_code == 0
+        assert "Rerank documents by relevance to a query" in result.output
+
+    def test_rerank_help_long(self, runner):
+        """Test `st rerank --help` shows help."""
+        result = runner.invoke(cli, ["rerank", "--help"])
+        assert result.exit_code == 0
+        assert "Rerank documents by relevance to a query" in result.output
+
+    def test_cache_help_short(self, runner):
+        """Test `st cache -h` shows help."""
+        result = runner.invoke(cli, ["cache", "-h"])
+        assert result.exit_code == 0
+        assert "Manage SteadyText cache" in result.output
+        assert "Commands:" in result.output
+
+    def test_cache_help_long(self, runner):
+        """Test `st cache --help` shows help."""
+        result = runner.invoke(cli, ["cache", "--help"])
+        assert result.exit_code == 0
+        assert "Manage SteadyText cache" in result.output
+        assert "Commands:" in result.output
+
+    def test_cache_subcommand_help_short(self, runner):
+        """Test `st cache path -h` shows help."""
+        result = runner.invoke(cli, ["cache", "path", "-h"])
+        assert result.exit_code == 0
+        assert "Show the cache directory path" in result.output
+
+    def test_models_help_short(self, runner):
+        """Test `st models -h` shows help."""
+        result = runner.invoke(cli, ["models", "-h"])
+        assert result.exit_code == 0
+        assert "Manage SteadyText models" in result.output
+        assert "Commands:" in result.output
+
+    def test_models_help_long(self, runner):
+        """Test `st models --help` shows help."""
+        result = runner.invoke(cli, ["models", "--help"])
+        assert result.exit_code == 0
+        assert "Manage SteadyText models" in result.output
+        assert "Commands:" in result.output
+
+    def test_models_subcommand_help_short(self, runner):
+        """Test `st models list -h` shows help."""
+        result = runner.invoke(cli, ["models", "list", "-h"])
+        assert result.exit_code == 0
+        assert "List available models" in result.output
+
+    def test_vector_help_short(self, runner):
+        """Test `st vector -h` shows help."""
+        result = runner.invoke(cli, ["vector", "-h"])
+        assert result.exit_code == 0
+        assert "Perform vector operations on embeddings" in result.output
+        assert "Commands:" in result.output
+
+    def test_vector_help_long(self, runner):
+        """Test `st vector --help` shows help."""
+        result = runner.invoke(cli, ["vector", "--help"])
+        assert result.exit_code == 0
+        assert "Perform vector operations on embeddings" in result.output
+        assert "Commands:" in result.output
+
+    def test_index_help_short(self, runner):
+        """Test `st index -h` shows help."""
+        result = runner.invoke(cli, ["index", "-h"])
+        assert result.exit_code == 0
+        assert "Manage FAISS indices for vector search" in result.output
+        assert "Commands:" in result.output
+
+    def test_index_help_long(self, runner):
+        """Test `st index --help` shows help."""
+        result = runner.invoke(cli, ["index", "--help"])
+        assert result.exit_code == 0
+        assert "Manage FAISS indices for vector search" in result.output
+        assert "Commands:" in result.output
+
+    def test_daemon_help_short(self, runner):
+        """Test `st daemon -h` shows help."""
+        result = runner.invoke(cli, ["daemon", "-h"])
+        assert result.exit_code == 0
+        assert "Manage the SteadyText daemon server" in result.output
+        assert "Commands:" in result.output
+
+    def test_daemon_help_long(self, runner):
+        """Test `st daemon --help` shows help."""
+        result = runner.invoke(cli, ["daemon", "--help"])
+        assert result.exit_code == 0
+        assert "Manage the SteadyText daemon server" in result.output
+        assert "Commands:" in result.output
+
+    def test_completion_help_short(self, runner):
+        """Test `st completion -h` shows help."""
+        result = runner.invoke(cli, ["completion", "-h"])
+        assert result.exit_code == 0
+        assert "Generate shell completion script" in result.output
+
+    def test_completion_help_long(self, runner):
+        """Test `st completion --help` shows help."""
+        result = runner.invoke(cli, ["completion", "--help"])
+        assert result.exit_code == 0
+        assert "Generate shell completion script" in result.output
+
+    # AIDEV-NOTE: Test that -h and --help produce identical output
+    def test_help_output_identical(self, runner):
+        """Test that -h and --help produce identical output for all commands."""
+        # Test main command
+        result_h = runner.invoke(cli, ["-h"])
+        result_help = runner.invoke(cli, ["--help"])
+        assert result_h.output == result_help.output
+
+        # Test each subcommand
+        subcommands = [
+            "generate",
+            "embed",
+            "rerank",
+            "cache",
+            "models",
+            "vector",
+            "index",
+            "daemon",
+            "completion",
+        ]
+        for cmd in subcommands:
+            result_h = runner.invoke(cli, [cmd, "-h"])
+            result_help = runner.invoke(cli, [cmd, "--help"])
+            assert result_h.output == result_help.output, (
+                f"Help output differs for '{cmd}' command"
+            )
