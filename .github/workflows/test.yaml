@@ -37,5 +37,11 @@ jobs:
     - name: Set up Python
       run: uv python install ${{ matrix.python-version }}
 
+    - name: Install dependencies with CMAKE flags
+      env:
+        FORCE_CMAKE: "1"
+        CMAKE_ARGS: "-DLLAVA_BUILD=OFF -DGGML_ACCELERATE=OFF -DGGML_BLAS=OFF -DGGML_CUDA=OFF -DGGML_BUILD_TESTS=OFF -DGGML_BUILD_EXAMPLES=OFF"
+      run: uv sync --locked --all-extras --dev
+
     - name: Format code
       run: uv run poe test

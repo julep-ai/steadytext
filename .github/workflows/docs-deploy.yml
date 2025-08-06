@@ -16,41 +16,27 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Fetch all history for proper git info
-      
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
       - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      
-      - name: Install UV package manager
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-      
-      - name: Cache virtual environment
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ hashFiles('**/uv.lock') }}
-          restore-keys: |
-            venv-${{ runner.os }}-
+        run: uv python install 3.12
       
       - name: Install dependencies
         run: |
-          uv venv
-          source .venv/bin/activate
-          uv sync --all-extras --dev
-          # Ensure mkdocs and poethepoet are available
+          uv sync --locked --all-extras --dev
           uv pip install mkdocs mkdocs-material poethepoet
       
       - name: Build documentation
         run: |
-          source .venv/bin/activate
-          poe docs-build
+          uv run poe docs-build
       
       - name: Deploy to GitHub Pages
         run: |
-          source .venv/bin/activate
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          poe docs-deploy --force
+          uv run poe docs-deploy --force

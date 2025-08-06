@@ -31,7 +31,7 @@ jobs:
         env:
           FORCE_CMAKE: "1"
           CMAKE_ARGS: "-DLLAVA_BUILD=OFF -DGGML_ACCELERATE=OFF -DGGML_BLAS=OFF -DGGML_CUDA=OFF -DGGML_BUILD_TESTS=OFF -DGGML_BUILD_EXAMPLES=OFF"
-        run: uv sync --all-extras --dev
+        run: uv sync --locked --all-extras --dev
 
       - name: Format code
         run: uv run poe format
