@@ -1223,7 +1223,7 @@ def core_generate_iter(
                     os.environ["STEADYTEXT_UNSAFE_MODE"] = old_unsafe_mode
 
     # Use local model for non-remote models
-    return _get_generator_instance().generate_iter(
+    yield from _get_generator_instance().generate_iter(
         prompt=prompt,
         max_new_tokens=max_new_tokens,
         eos_string=eos_string,
