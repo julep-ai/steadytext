@@ -130,7 +130,7 @@ class GrammarConverter:
                 self._additional_rules.append(prop_rule)
 
             # Create key-value rule for this property
-            kv_rule = f'{name}_{self._sanitize_name(prop_name)}_kv ::= "\\"" "{prop_name}" "\\"" ws ":" ws {prop_rule_name}'
+            kv_rule = f'{name}_{self._sanitize_name(prop_name)}_kv ::= "\\"{prop_name}\\"" ws ":" ws {prop_rule_name}'
             self._additional_rules.append(kv_rule)
 
             if prop_name in required:
@@ -195,7 +195,7 @@ class GrammarConverter:
             GBNF rule string
         """
         # Convert all values to quoted strings
-        options = [f'"\\"" "{str(v)}" "\\""' for v in values]
+        options = [f'"\\"{str(v)}\\""' for v in values]
         return f"{name} ::= {' | '.join(options)}"
 
     def _generate_union_rule(self, name: str, schemas: List[Dict[str, Any]]) -> str:
