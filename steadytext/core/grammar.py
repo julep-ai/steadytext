@@ -130,7 +130,9 @@ class GrammarConverter:
                 self._additional_rules.append(prop_rule)
 
             # Create key-value rule for this property
-            kv_rule = f'{name}_{self._sanitize_name(prop_name)}_kv ::= "\\"{prop_name}\\"" ws ":" ws {prop_rule_name}'
+            # Escape special characters in property name for GBNF literal
+            escaped_prop = str(prop_name).replace("\\", "\\\\").replace('"', '\\"')
+            kv_rule = f'{name}_{self._sanitize_name(prop_name)}_kv ::= "\\"{escaped_prop}\\"" ws ":" ws {prop_rule_name}'
             self._additional_rules.append(kv_rule)
 
             if prop_name in required:
@@ -194,8 +196,12 @@ class GrammarConverter:
         Returns:
             GBNF rule string
         """
-        # Convert all values to quoted strings
-        options = [f'"\\"{str(v)}\\""' for v in values]
+        # Convert all values to quoted strings with proper escaping
+        options = []
+        for v in values:
+            # Escape special characters in enum value for GBNF literal
+            escaped_val = str(v).replace("\\", "\\\\").replace('"', '\\"')
+            options.append(f'"\\"{escaped_val}\\""')
         return f"{name} ::= {' | '.join(options)}"
 
     def _generate_union_rule(self, name: str, schemas: List[Dict[str, Any]]) -> str:

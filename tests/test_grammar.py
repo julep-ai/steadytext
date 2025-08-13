@@ -178,3 +178,111 @@ class TestGrammarConverter:
         assert '"\\"" "user" "\\""' not in grammar
         assert '"\\\"" "id" "\\\""' not in grammar
         assert '"\\"" "id" "\\""' not in grammar
+    
+    def test_property_with_special_characters(self):
+        """Test that property names with special characters are properly escaped."""
+        converter = GrammarConverter()
+        
+        schema = {
+            "type": "object",
+            "properties": {
+                'name"with"quotes': {"type": "string"},
+                "path\\with\\backslashes": {"type": "string"},
+                'complex"name\\combo': {"type": "integer"}
+            },
+            "required": ['name"with"quotes']
+        }
+        
+        grammar = converter.json_schema_to_gbnf(schema)
+        
+        # Check that special characters are properly escaped
+        # Property with quotes should have escaped quotes within the literal
+        assert '"\\\"name\\\\\\"with\\\\\\"quotes\\\""' in grammar or '"\\"name\\\\"with\\\\"quotes\\""' in grammar
+        
+        # Property with backslashes should have escaped backslashes
+        assert '"\\\"path\\\\\\\\with\\\\\\\\backslashes\\\""' in grammar or '"\\"path\\\\\\\\with\\\\\\\\backslashes\\""' in grammar
+        
+        # Property with both should have both escaped
+        assert '"\\\"complex\\\\\\"name\\\\\\\\combo\\\""' in grammar or '"\\"complex\\\\"name\\\\\\\\combo\\""' in grammar
+        
+        # Make sure unescaped versions are NOT present
+        assert '"name"with"quotes"' not in grammar
+        assert 'path\\with\\backslashes' not in grammar
+        
+    def test_enum_with_special_characters(self):
+        """Test that enum values with special characters are properly escaped."""
+        converter = GrammarConverter()
+        
+        schema = {
+            "type": "string",
+            "enum": [
+                'value"with"quotes',
+                "path\\to\\file",
+                'mixed"value\\here',
+                "normal_value"
+            ]
+        }
+        
+        grammar = converter.json_schema_to_gbnf(schema)
+        
+        # Check that special characters in enum values are properly escaped
+        assert '"\\\"value\\\\\\"with\\\\\\"quotes\\\""' in grammar or '"\\"value\\\\"with\\\\"quotes\\""' in grammar
+        assert '"\\\"path\\\\\\\\to\\\\\\\\file\\\""' in grammar or '"\\"path\\\\\\\\to\\\\\\\\file\\""' in grammar
+        assert '"\\\"mixed\\\\\\"value\\\\\\\\here\\\""' in grammar or '"\\"mixed\\\\"value\\\\\\\\here\\""' in grammar
+        assert '"\\\"normal_value\\\""' in grammar or '"\\"normal_value\\""' in grammar
+        
+        # Make sure unescaped versions are NOT present
+        assert 'value"with"quotes' not in grammar or '"value"with"quotes"' not in grammar
+        assert 'path\\to\\file' not in grammar
+        
+    def test_edge_case_property_names(self):
+        """Test various edge case property names."""
+        converter = GrammarConverter()
+        
+        schema = {
+            "type": "object",
+            "properties": {
+                '': {"type": "string"},  # Empty property name
+                '"""': {"type": "string"},  # Only quotes
+                '\\\\': {"type": "string"},  # Only backslashes
+                '\\"\\"\\"': {"type": "string"},  # Mixed escape sequences
+            }
+        }
+        
+        grammar = converter.json_schema_to_gbnf(schema)
+        
+        # Check that edge cases are handled
+        # Empty property name
+        assert '"\\"\\""' in grammar or '"\\"\\"' in grammar
+        
+        # Property with only quotes
+        assert '"\\\"' in grammar
+        
+        # Property with only backslashes
+        assert '\\\\\\\\' in grammar
+        
+    def test_enum_edge_cases(self):
+        """Test various edge case enum values."""
+        converter = GrammarConverter()
+        
+        schema = {
+            "type": "string",
+            "enum": [
+                '',  # Empty string
+                '""',  # Just quotes
+                '\\',  # Single backslash
+                '\\\\"\\\\',  # Complex escape sequence
+            ]
+        }
+        
+        grammar = converter.json_schema_to_gbnf(schema)
+        
+        # Check that edge cases are handled
+        # Empty enum value
+        assert '"\\"\\""' in grammar or '"\\"\\"' in grammar
+        
+        # Enum with quotes
+        assert '\\\\\\"' in grammar or '\\\\"' in grammar
+        
+        # Enum with backslashes
+        assert '\\\\' in grammar
