@@ -515,6 +515,7 @@ class DeterministicGenerator:
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
         seed: int = DEFAULT_SEED,
+        temperature: float = 0.0,
     ) -> Iterator[Union[str, Dict[str, Any]]]:
         """Generate text iteratively, yielding tokens as they are produced.
 
@@ -529,6 +530,7 @@ class DeterministicGenerator:
             model_filename: Custom model filename
             size: Size identifier ("small", "large")
             seed: Seed for deterministic generation
+            temperature: Temperature for sampling (0.0 = deterministic, higher = more random)
 
 
         """
@@ -545,6 +547,7 @@ class DeterministicGenerator:
                     prompt=prompt,
                     max_new_tokens=max_new_tokens,
                     seed=seed,
+                    temperature=temperature,
                 ):
                     # Remote models return strings, not dicts with logprobs
                     if include_logprobs:

@@ -281,6 +281,7 @@ def generate(
             model_filename=model_filename,
             size=size,
             seed=seed,
+            temperature=temperature,
             unsafe_mode=unsafe_mode,
         ):
             if logprobs and isinstance(token, dict):
