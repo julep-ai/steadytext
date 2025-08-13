@@ -103,13 +103,14 @@ class DaemonServer:
         model_filename = params.get("model_filename")
         size = params.get("size")
         seed = params.get("seed", DEFAULT_SEED)
+        temperature = params.get("temperature", 0.0)
         max_new_tokens = params.get("max_new_tokens")
         unsafe_mode = params.get("unsafe_mode", False)
 
         # AIDEV-NOTE: Check cache first for non-logprobs requests using default model
         # This mirrors the caching logic in core/generator.py
         if should_use_cache_for_generation(return_logprobs, model_repo, model_filename):
-            cache_key = generate_cache_key(prompt, eos_string)
+            cache_key = generate_cache_key(prompt, eos_string, temperature)
             cached = get_generation_cache().get(cache_key)
             if cached is not None:
                 logger.debug(f"Daemon: Cache hit for prompt: {str(prompt)[:50]}...")
@@ -127,6 +128,7 @@ class DaemonServer:
                 eos_string=eos_string,
                 model=model,
                 seed=seed,
+                temperature=temperature,
                 max_new_tokens=max_new_tokens,
                 unsafe_mode=unsafe_mode,
             )
@@ -141,13 +143,14 @@ class DaemonServer:
                 model_filename=model_filename,
                 size=size,
                 seed=seed,
+                temperature=temperature,
                 max_new_tokens=max_new_tokens,
             )
 
         # AIDEV-NOTE: Cache the result for non-logprobs requests using default model
         # This ensures cache consistency between daemon and direct access
         if should_use_cache_for_generation(return_logprobs, model_repo, model_filename):
-            cache_key = generate_cache_key(prompt, eos_string)
+            cache_key = generate_cache_key(prompt, eos_string, temperature)
             # Extract text from result if it's a tuple (shouldn't be for non-logprobs, but safety check)
             text_to_cache = result[0] if isinstance(result, tuple) else result
             get_generation_cache().set(cache_key, text_to_cache)
@@ -174,6 +177,7 @@ class DaemonServer:
         model_filename = params.get("model_filename")
         size = params.get("size")
         seed = params.get("seed", DEFAULT_SEED)
+        temperature = params.get("temperature", 0.0)
         max_new_tokens = params.get("max_new_tokens")
         unsafe_mode = params.get("unsafe_mode", False)
 
@@ -182,7 +186,7 @@ class DaemonServer:
         if should_use_cache_for_streaming(
             include_logprobs, model, model_repo, model_filename, size
         ):
-            cache_key = generate_cache_key(prompt, eos_string)
+            cache_key = generate_cache_key(prompt, eos_string, temperature)
             cached = get_generation_cache().get(cache_key)
             if cached is not None:
                 logger.debug(
@@ -223,6 +227,7 @@ class DaemonServer:
                 include_logprobs=include_logprobs,
                 model=model,
                 seed=seed,
+                temperature=temperature,
                 max_new_tokens=max_new_tokens,
                 unsafe_mode=unsafe_mode,
             )
@@ -237,6 +242,7 @@ class DaemonServer:
                 model_filename=model_filename,
                 size=size,
                 seed=seed,
+                temperature=temperature,
                 max_new_tokens=max_new_tokens,
             )
 
@@ -263,7 +269,7 @@ class DaemonServer:
             # Join collected tokens to form complete text
             complete_text = "".join(collected_tokens)
 
-            cache_key = generate_cache_key(prompt, eos_string)
+            cache_key = generate_cache_key(prompt, eos_string, temperature)
             get_generation_cache().set(cache_key, complete_text)
             logger.debug(
                 f"Daemon streaming: Cached result for prompt: {str(prompt)[:50]}..."

@@ -20,6 +20,7 @@ from ..utils import (
     DEFAULT_STOP_SEQUENCES,
     GENERATION_MAX_NEW_TOKENS,
     LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC,
+    get_sampling_params_with_temperature,
     logger,
     resolve_model_params,
     generate_cache_key,
@@ -215,6 +216,7 @@ class DeterministicGenerator:
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
         seed: int = DEFAULT_SEED,
+        temperature: float = 0.0,
         response_format: Optional[Dict[str, Any]] = None,
         schema: Optional[Union[Dict[str, Any], Type, object]] = None,
         regex: Optional[str] = None,
@@ -231,6 +233,7 @@ class DeterministicGenerator:
             model_filename: Custom model filename
             size: Size identifier ("small", "large")
             seed: Seed for deterministic generation
+            temperature: Temperature for sampling (0.0 = deterministic, higher = more random)
             response_format: Dict specifying output format (e.g., {"type": "json_object"})
             schema: JSON schema, Pydantic model, or Python type for structured output
             regex: Regular expression pattern for output format
@@ -238,6 +241,9 @@ class DeterministicGenerator:
 
         AIDEV-NOTE: Model switching parameters allow using different models without restarting.
         AIDEV-NOTE: Structured output parameters delegate to the structured generator when provided.
+        AIDEV-NOTE: Temperature controls randomness in generation (0.0 = deterministic, higher = more random).
+        When temperature > 0, top_k and top_p are adjusted to allow sampling from more tokens while
+        still maintaining reproducibility with the same seed.
         """
         validate_seed(seed)
         set_deterministic_environment(seed)
@@ -255,6 +261,7 @@ class DeterministicGenerator:
                         prompt=prompt,
                         max_new_tokens=max_new_tokens,
                         seed=seed,
+                        temperature=temperature,
                         response_format=response_format,
                         schema=schema,
                     )
@@ -265,6 +272,7 @@ class DeterministicGenerator:
                         prompt=enhanced_prompt,
                         max_new_tokens=max_new_tokens,
                         seed=seed,
+                        temperature=temperature,
                     )
                 elif choices:
                     # Convert choices to prompt instruction for remote models
@@ -274,6 +282,7 @@ class DeterministicGenerator:
                         prompt=enhanced_prompt,
                         max_new_tokens=max_new_tokens,
                         seed=seed,
+                        temperature=temperature,
                     )
                 else:
                     # Regular generation
@@ -281,6 +290,7 @@ class DeterministicGenerator:
                         prompt=prompt,
                         max_new_tokens=max_new_tokens,
                         seed=seed,
+                        temperature=temperature,
                     )
 
                 # Remote models don't support logprobs in our implementation
@@ -362,7 +372,7 @@ class DeterministicGenerator:
 
         # Handle caching only for non-logprobs requests and default model
         if should_use_cache_for_generation(return_logprobs, repo_id, filename):
-            cache_key = generate_cache_key(prompt, eos_string)
+            cache_key = generate_cache_key(prompt, eos_string, temperature)
             cached = get_generation_cache().get(cache_key)
             if cached is not None:
                 return cached
@@ -432,7 +442,8 @@ class DeterministicGenerator:
 
             final_prompt = prompt
 
-            sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
+            # AIDEV-NOTE: Use temperature-aware sampling parameters
+            sampling_params = get_sampling_params_with_temperature(temperature)
             # AIDEV-NOTE: Handle custom eos_string by adding it to the stop sequences.
             if eos_string == "[EOS]":
                 sampling_params["stop"] = DEFAULT_STOP_SEQUENCES
@@ -479,7 +490,7 @@ class DeterministicGenerator:
 
             # Only cache non-logprobs results for default model
             if should_use_cache_for_generation(return_logprobs, repo_id, filename):
-                cache_key = generate_cache_key(prompt, eos_string)
+                cache_key = generate_cache_key(prompt, eos_string, temperature)
                 get_generation_cache().set(cache_key, generated_text)
 
             return (generated_text, logprobs) if return_logprobs else generated_text
@@ -557,7 +568,7 @@ class DeterministicGenerator:
         if should_use_cache_for_streaming(
             include_logprobs, model, model_repo, model_filename, size
         ):
-            cache_key = generate_cache_key(prompt, eos_string)
+            cache_key = generate_cache_key(prompt, eos_string, temperature)
             cached = get_generation_cache().get(cache_key)
             if cached is not None:
                 if logger.isEnabledFor(logging.DEBUG):
@@ -611,7 +622,7 @@ class DeterministicGenerator:
                 if should_use_cache_for_streaming(
                     include_logprobs, model, model_repo, model_filename, size
                 ):
-                    cache_key = generate_cache_key(prompt, eos_string)
+                    cache_key = generate_cache_key(prompt, eos_string, temperature)
                     get_generation_cache().set(cache_key, fallback_text)
                 return
 
@@ -673,7 +684,8 @@ class DeterministicGenerator:
 
             final_prompt = prompt
 
-            sampling_params = {**LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC}
+            # AIDEV-NOTE: Use temperature-aware sampling parameters
+            sampling_params = get_sampling_params_with_temperature(temperature)
             # AIDEV-NOTE: Handle custom eos_string for streaming generation
             if eos_string == "[EOS]":
                 sampling_params["stop"] = DEFAULT_STOP_SEQUENCES
@@ -728,7 +740,7 @@ class DeterministicGenerator:
 
                 # Cache the full response if eligible
                 if should_cache and complete_text:
-                    cache_key = generate_cache_key(prompt, eos_string)
+                    cache_key = generate_cache_key(prompt, eos_string, temperature)
                     get_generation_cache().set(cache_key, complete_text)
                     if logger.isEnabledFor(logging.DEBUG):
                         logger.debug(
@@ -951,6 +963,7 @@ def core_generate(
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
     seed: int = DEFAULT_SEED,
+    temperature: float = 0.0,
     response_format: Optional[Dict[str, Any]] = None,
     schema: Optional[Union[Dict[str, Any], Type, object]] = None,
     regex: Optional[str] = None,
@@ -972,6 +985,7 @@ def core_generate(
         model_filename: Custom model filename
         size: Size identifier ("small", "large")
         seed: Seed for deterministic generation
+        temperature: Temperature for sampling (0.0 = deterministic, higher = more random)
         response_format: Dict specifying output format (e.g., {"type": "json_object"})
         schema: JSON schema, Pydantic model, or Python type for structured output
         regex: Regular expression pattern for output format
@@ -1040,6 +1054,7 @@ def core_generate(
                     prompt=prompt,
                     max_new_tokens=max_new_tokens,
                     seed=seed,
+                    temperature=temperature,
                     response_format=response_format,
                     schema=schema,
                 )
@@ -1050,6 +1065,7 @@ def core_generate(
                     prompt=enhanced_prompt,
                     max_new_tokens=max_new_tokens,
                     seed=seed,
+                    temperature=temperature,
                 )
             elif choices:
                 # Convert choices to prompt instruction for remote models
@@ -1059,6 +1075,7 @@ def core_generate(
                     prompt=enhanced_prompt,
                     max_new_tokens=max_new_tokens,
                     seed=seed,
+                    temperature=temperature,
                 )
             else:
                 # Regular generation
@@ -1066,6 +1083,7 @@ def core_generate(
                     prompt=prompt,
                     max_new_tokens=max_new_tokens,
                     seed=seed,
+                    temperature=temperature,
                 )
 
             if return_logprobs:
@@ -1102,6 +1120,7 @@ def core_generate(
         model_filename=model_filename,
         size=size,
         seed=seed,
+        temperature=temperature,
         response_format=response_format,
         schema=schema,
         regex=regex,
@@ -1119,6 +1138,7 @@ def core_generate_iter(
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
     seed: int = DEFAULT_SEED,
+    temperature: float = 0.0,
     unsafe_mode: bool = False,
 ) -> Iterator[Union[str, Dict[str, Any]]]:
     """Generate text iteratively with optional model switching.
@@ -1135,6 +1155,7 @@ def core_generate_iter(
         model_filename: Custom model filename
         size: Size identifier ("small", "large")
         seed: Seed for deterministic generation
+        temperature: Temperature for sampling (0.0 = deterministic, higher = more random)
 
     Yields:
         String tokens, or dicts with 'token' and 'logprobs' if include_logprobs=True
@@ -1167,6 +1188,7 @@ def core_generate_iter(
                     prompt=prompt,
                     max_new_tokens=max_new_tokens,
                     seed=seed,
+                    temperature=temperature,
                 )
             else:
                 # Fall back to non-streaming generation and yield word by word
@@ -1174,6 +1196,7 @@ def core_generate_iter(
                     prompt=prompt,
                     max_new_tokens=max_new_tokens,
                     seed=seed,
+                    temperature=temperature,
                 )
                 if result:
                     # Split result into words and yield them
@@ -1207,4 +1230,5 @@ def core_generate_iter(
         model_filename=model_filename,
         size=size,
         seed=seed,
+        temperature=temperature,
     )

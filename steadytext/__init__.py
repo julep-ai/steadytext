@@ -48,6 +48,7 @@ def generate(
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
     seed: int = DEFAULT_SEED,
+    temperature: float = 0.0,
     response_format: Optional[Dict[str, Any]] = None,
     schema: Optional[Union[Dict[str, Any], Type, object]] = None,
     regex: Optional[str] = None,
@@ -67,6 +68,7 @@ def generate(
         model_filename: Custom model filename
         size: Size identifier ("small", "large")
         seed: Seed for deterministic generation
+        temperature: Temperature for sampling (0.0 = deterministic, higher = more random)
         response_format: Dict specifying output format (e.g., {"type": "json_object"})
         schema: JSON schema, Pydantic model, or Python type for structured output
         regex: Regular expression pattern for output format
@@ -129,6 +131,7 @@ def generate(
                     model_filename=model_filename,
                     size=size,
                     seed=seed,
+                    temperature=temperature,
                     response_format=response_format,
                     schema=schema,
                     regex=regex,
@@ -152,6 +155,7 @@ def generate(
         model_filename=model_filename,
         size=size,
         seed=seed,
+        temperature=temperature,
         response_format=response_format,
         schema=schema,
         regex=regex,
@@ -176,6 +180,7 @@ def generate_iter(
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
     seed: int = DEFAULT_SEED,
+    temperature: float = 0.0,
     unsafe_mode: bool = False,
 ) -> Iterator[Union[str, Dict[str, Any]]]:
     """Generate text iteratively, yielding tokens as they are produced.
@@ -194,6 +199,7 @@ def generate_iter(
         model_repo: Custom Hugging Face repository ID
         model_filename: Custom model filename
         size: Size identifier ("small", "large")
+        temperature: Temperature for sampling (0.0 = deterministic, higher = more random)
         unsafe_mode: Enable remote models with best-effort determinism (non-deterministic)
 
     Yields:
@@ -218,6 +224,7 @@ def generate_iter(
                     model_filename=model_filename,
                     size=size,
                     seed=seed,
+                    temperature=temperature,
                     unsafe_mode=unsafe_mode,
                 )
                 return
@@ -238,6 +245,7 @@ def generate_iter(
         model_filename=model_filename,
         size=size,
         seed=seed,
+        temperature=temperature,
         unsafe_mode=unsafe_mode,
     )
 
