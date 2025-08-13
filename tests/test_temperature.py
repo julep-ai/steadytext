@@ -73,28 +73,30 @@ class TestTemperatureSupport(unittest.TestCase):
 
     def test_generate_iter_accepts_temperature(self):
         """Test that generate_iter function accepts temperature parameter."""
-        with patch("steadytext.core.generator._get_generator_instance") as mock_gen:
-            mock_instance = Mock()
-            mock_instance.generate_iter = Mock(return_value=iter(["Test", " ", "output"]))
-            mock_gen.return_value = mock_instance
+        # Disable daemon to ensure direct generation path is used
+        with patch.dict(os.environ, {"STEADYTEXT_DISABLE_DAEMON": "1"}):
+            with patch("steadytext.core.generator._get_generator_instance") as mock_gen:
+                mock_instance = Mock()
+                mock_instance.generate_iter = Mock(return_value=iter(["Test", " ", "output"]))
+                mock_gen.return_value = mock_instance
 
-            # Test with temperature
-            tokens = list(generate_iter("Test prompt", temperature=0.5))
-            self.assertEqual(tokens, ["Test", " ", "output"])
-            
-            # Verify temperature was passed
-            mock_instance.generate_iter.assert_called_with(
-                prompt="Test prompt",
-                max_new_tokens=None,
-                eos_string="[EOS]",
-                include_logprobs=False,
-                model=None,
-                model_repo=None,
-                model_filename=None,
-                size=None,
-                seed=DEFAULT_SEED,
-                temperature=0.5,
-            )
+                # Test with temperature
+                tokens = list(generate_iter("Test prompt", temperature=0.5))
+                self.assertEqual(tokens, ["Test", " ", "output"])
+                
+                # Verify temperature was passed
+                mock_instance.generate_iter.assert_called_with(
+                    prompt="Test prompt",
+                    max_new_tokens=None,
+                    eos_string="[EOS]",
+                    include_logprobs=False,
+                    model=None,
+                    model_repo=None,
+                    model_filename=None,
+                    size=None,
+                    seed=DEFAULT_SEED,
+                    temperature=0.5,
+                )
 
     def test_cache_key_includes_temperature(self):
         """Test that cache key generation includes temperature."""
@@ -197,7 +199,7 @@ class TestTemperatureSupport(unittest.TestCase):
             # Mock successful connection
             mock_socket.connect = Mock()
             mock_socket.send = Mock()
-            mock_socket.recv = Mock(return_value=b'{"result": "Test output"}')
+            mock_socket.recv = Mock(return_value=b'{"id": "test-id", "result": "Test output"}')
             
             client = DaemonClient()
             client._connected = True
