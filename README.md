@@ -288,7 +288,7 @@ echo "Is Python good?" | st --choices "yes,no,maybe" --wait
 
 ## ⚠️ Unsafe Mode: Remote Models (Experimental)
 
-SteadyText now supports remote AI models (OpenAI, Cerebras) with **best-effort determinism** via seed parameters. This feature is explicitly marked as "unsafe" because remote models cannot guarantee reproducibility.
+SteadyText now supports remote AI models (OpenAI, Cerebras, VoyageAI, Jina) with **best-effort determinism** via seed parameters. This feature is explicitly marked as "unsafe" because remote models cannot guarantee reproducibility.
 
 ### Why Use Unsafe Mode?
 
@@ -307,11 +307,17 @@ pip install steadytext[unsafe]
 # Enable unsafe mode
 export STEADYTEXT_UNSAFE_MODE=true
 
-# Use OpenAI
+# Use OpenAI for generation
 echo "Explain quantum computing" | st --unsafe-mode --model openai:gpt-4o-mini
 
-# Use Cerebras  
+# Use Cerebras for fast generation
 echo "Write Python code" | st --unsafe-mode --model cerebras:llama3.1-8b
+
+# Use VoyageAI for embeddings
+echo "Advanced search query" | st embed --unsafe-mode --model voyageai:voyage-3
+
+# Use Jina for multilingual embeddings
+echo "你好世界" | st embed --unsafe-mode --model jina:jina-embeddings-v3
 
 # List available remote models
 st unsafe list-models
@@ -333,6 +339,15 @@ text = steadytext.generate(
     seed=42  # Best-effort determinism only
 )
 ```
+
+### Supported Remote Providers
+
+| Provider | Generation | Embeddings | Determinism | API Key |
+|----------|------------|------------|-------------|---------|
+| **OpenAI** | ✅ gpt-4o, gpt-4o-mini | ✅ text-embedding-3-* | Best-effort (seed param) | `OPENAI_API_KEY` |
+| **Cerebras** | ✅ Llama models | ❌ | Best-effort (seed param) | `CEREBRAS_API_KEY` |
+| **VoyageAI** | ❌ | ✅ voyage-3, voyage-large-2 | No seed support | `VOYAGE_API_KEY` |
+| **Jina AI** | ❌ | ✅ jina-embeddings-v3/v2 | No seed support | `JINA_API_KEY` |
 
 ⚠️ **WARNING**: Remote models may produce different outputs despite using the same seed. Use local GGUF models for guaranteed determinism.
 
@@ -510,8 +525,12 @@ st models preload
 ### Other Operations
 
 ```bash
-# Get embeddings
+# Get embeddings (local model - deterministic)
 echo "machine learning" | st embed
+
+# Remote embeddings (requires unsafe mode)
+echo "machine learning" | st embed --model openai:text-embedding-3-small --unsafe-mode
+echo "document text" | st embed --model voyageai:voyage-3-lite --unsafe-mode --json
 
 # Document reranking (v2.3.0+)
 st rerank "what is Python?" document1.txt document2.txt document3.txt
@@ -704,20 +723,41 @@ for token in steadytext.generate_iter("Tell me a story"):
 
 ### Embeddings
 
-#### `embed(text_input: Union[str, List[str]]) -> np.ndarray`
+#### `embed(text_input: Union[str, List[str]], model: Optional[str] = None, unsafe_mode: bool = False) -> np.ndarray`
 
-Create deterministic embeddings for text input.
+Create deterministic embeddings for text input, with optional remote provider support.
 
 ```python
-# Single string
+# Local model (deterministic)
 vec = steadytext.embed("Hello world")
 
 # List of strings (averaged)
 vecs = steadytext.embed(["Hello", "world"])
+
+# Remote models (requires unsafe_mode)
+vec = steadytext.embed(
+    "Hello world",
+    model="openai:text-embedding-3-small",
+    unsafe_mode=True
+)
+
+vec = steadytext.embed(
+    "Hello world", 
+    model="voyageai:voyage-3-lite",
+    unsafe_mode=True
+)
+
+vec = steadytext.embed(
+    "Hello world",
+    model="jina:jina-embeddings-v3",
+    unsafe_mode=True
+)
 ```
 
 - **Parameters:**
   - `text_input`: String or list of strings to embed
+  - `model`: Optional remote model (e.g., "openai:text-embedding-3-small", "voyageai:voyage-3-lite", "jina:jina-embeddings-v3")
+  - `unsafe_mode`: Enable remote models (non-deterministic)
 - **Returns:** 1024-dimensional L2-normalized numpy array (float32)
 
 ### Utilities

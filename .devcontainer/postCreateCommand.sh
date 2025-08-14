@@ -25,6 +25,10 @@ if [ ! -f "pyproject.toml" ]; then
     exit 1
 fi
 
+# Install node utils
+echo "Installing node utils..."
+npm install -g claude-code-inject claude-code-generic-hooks pyright
+
 # Install Python dependencies
 echo "Installing Python dependencies with uv..."
 uv sync --all-extras

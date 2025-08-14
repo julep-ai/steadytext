@@ -1,5 +1,5 @@
--- pg_steadytext--1.4.5.sql
--- Complete schema for pg_steadytext extension version 1.4.5
+-- pg_steadytext--1.4.6.sql
+-- Complete schema for pg_steadytext extension version 1.4.6
 
 -- AIDEV-SECTION: CORE_TABLE_DEFINITIONS
 -- AIDEV-NOTE: Drop tables before creating to ensure proper extension membership
@@ -575,94 +575,99 @@ END $$;
 CREATE OR REPLACE FUNCTION steadytext_embed(
     text_input TEXT,
     use_cache BOOLEAN DEFAULT TRUE,
-    seed INT DEFAULT 42
+    seed INT DEFAULT 42,
+    model TEXT DEFAULT NULL,
+    unsafe_mode BOOLEAN DEFAULT FALSE
 )
 RETURNS vector(1024)
 LANGUAGE plpython3u
 IMMUTABLE PARALLEL SAFE LEAKPROOF
 AS $c$
-# AIDEV-NOTE: Embedding function that returns deterministic embeddings
-# Fixed in v1.4.1 to use SELECT-only cache reads for true immutability
+# AIDEV-NOTE: Embedding function with remote model support via unsafe_mode
+# Added in v1.4.6 to support OpenAI and other remote embedding providers
+# Uses runtime inspection to maintain backward compatibility with older steadytext versions
+
 import json
 import numpy as np
-import hashlib
 
-# Check if initialized, if not, initialize now
-if not GD.get('steadytext_initialized', False):
-    # Initialize on demand
-    plpy.execute("SELECT _steadytext_init_python()")
-    # Check again after initialization
-    if not GD.get('steadytext_initialized', False):
-        plpy.error("Failed to initialize pg_steadytext Python environment")
-
-# Get cached modules from GD
-daemon_connector = GD.get('module_daemon_connector')
-if not daemon_connector:
-    plpy.error("daemon_connector module not loaded")
-
-# Resolve seed, using the provided value or fetching the default
-plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
-resolved_seed = seed
-if resolved_seed is None:
-    rv = plpy.execute(plan, ["default_seed"])
-    resolved_seed = json.loads(rv[0]["value"]) if rv else 42
-
-# Validate input
-if not text_input or not text_input.strip():
-    plpy.warning("Empty text input provided, returning NULL")
-    return None
-
-if resolved_seed < 0:
-    plpy.error("seed must be non-negative")
-
-# Check cache first if enabled
-if use_cache:
-    # Generate cache key for embedding
-    # AIDEV-NOTE: Use SHA256 for embeddings to match SteadyText's format
-    # Embeddings use SHA256 hash of "embed:{text}"
-    cache_key_input = f"embed:{text_input}"
-    cache_key = hashlib.sha256(cache_key_input.encode()).hexdigest()
-
-    # SELECT ONLY - no UPDATE for immutability
-    cache_plan = plpy.prepare("""
-        SELECT embedding 
-        FROM steadytext_cache 
-        WHERE cache_key = $1
-    """, ["text"])
-    
-    cache_result = plpy.execute(cache_plan, [cache_key])
-    if cache_result and cache_result[0]["embedding"] is not None:
-        plpy.notice(f"Cache hit for embedding key: {cache_key[:8]}...")
-        return cache_result[0]["embedding"]
-
-# Cache miss - generate new embedding
-plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
-
-host_rv = plpy.execute(plan, ["daemon_host"])
-host = json.loads(host_rv[0]["value"]) if host_rv else "localhost"
-
-port_rv = plpy.execute(plan, ["daemon_port"])
-port = json.loads(port_rv[0]["value"]) if port_rv else 5555
-
-# Create connector
-connector = daemon_connector.SteadyTextConnector(host=host, port=port)
-
-# Auto-start daemon if configured
-auto_start_rv = plpy.execute(plan, ["daemon_auto_start"])
-auto_start = json.loads(auto_start_rv[0]["value"]) if auto_start_rv else True
-
-if auto_start and not connector.is_daemon_running():
-    plpy.notice("Starting SteadyText daemon...")
-    connector.start_daemon()
-
-# Generate embedding
+# Initialize Python environment if needed
 try:
-    if connector.is_daemon_running():
-        result = connector.embed(text=text_input)
-    else:
-        # Direct embedding fallback
-        from steadytext import embed as steadytext_embed
-        result = steadytext_embed(text_input)
+    if 'steadytext_initialized' not in GD:
+        plpy.execute("SELECT _steadytext_init_python()")
+except:
+    pass
+
+# Validate remote model requirements
+if model and ':' in model and not unsafe_mode:
+    plpy.error("Remote models (containing ':') require unsafe_mode=TRUE")
+
+# Check cache if enabled (IMMUTABLE functions only read cache)
+if use_cache:
+    # Generate cache key including model if specified
+    cache_key_parts = ['embed', text_input]
+    if model:
+        cache_key_parts.append(model)
+    cache_key_input = ':'.join(cache_key_parts)
+    
+    import hashlib
+    cache_key = hashlib.sha256(cache_key_input.encode()).hexdigest()
+    
+    # Try to get from cache (read-only for IMMUTABLE)
+    plan = plpy.prepare(
+        "SELECT embedding FROM steadytext_cache WHERE cache_key = $1",
+        ["text"]
+    )
+    rv = plpy.execute(plan, [cache_key])
+    
+    if rv and len(rv) > 0:
+        cached_embedding = rv[0]['embedding']
+        if cached_embedding:
+            return cached_embedding
+
+# Try daemon first for local models
+if not (model and ':' in model):
+    try:
+        # Check if daemon is running
+        plan = plpy.prepare("SELECT * FROM steadytext_daemon_status()")
+        status = plpy.execute(plan)
+        
+        if status and status[0]['is_running']:
+            # Try using daemon (pass None for model/unsafe_mode if not set to avoid issues)
+            from pg_steadytext import SteadyTextConnector
+            connector = SteadyTextConnector()
+            # Pass None instead of NULL from SQL
+            py_model = model if model is not None else None
+            py_unsafe = unsafe_mode if unsafe_mode is not None else False
+            result = connector.embed(text_input, seed=seed, model=py_model, unsafe_mode=py_unsafe)
+            
+            if result is not None:
+                # Ensure it's a list
+                if hasattr(result, 'tolist'):
+                    embedding_list = result.tolist()
+                else:
+                    embedding_list = list(result)
+                
+                return embedding_list
+    except Exception as e:
+        # Fall through to direct embedding
+        pass
+
+# Direct embedding fallback or remote model usage
+try:
+    from steadytext import embed as steadytext_embed
+    import inspect
+    
+    # Check if embed supports the new parameters
+    embed_sig = inspect.signature(steadytext_embed)
+    
+    # Call with model and unsafe_mode if specified and supported
+    kwargs = {'seed': seed}
+    if model and 'model' in embed_sig.parameters:
+        kwargs['model'] = model
+    if unsafe_mode and 'unsafe_mode' in embed_sig.parameters:
+        kwargs['unsafe_mode'] = unsafe_mode
+    
+    result = steadytext_embed(text_input, **kwargs)
     
     # Convert to vector format if needed
     if result is not None:
@@ -672,14 +677,12 @@ try:
         else:
             embedding_list = list(result)
         
-        # AIDEV-NOTE: Cache writes removed for IMMUTABLE compliance
-        
         return embedding_list
-    else:
-        plpy.error("Failed to generate embedding")
-        
 except Exception as e:
-    plpy.error(f"Embedding generation failed: {str(e)}")
+    plpy.error(f"Embedding generation failed: {e}")
+
+# Should not reach here
+return None
 $c$;
 
 -- AIDEV-SECTION: DAEMON_MANAGEMENT_FUNCTIONS
@@ -2597,7 +2600,9 @@ $c$;
 
 CREATE OR REPLACE FUNCTION steadytext_embed_cached(
     text_input TEXT,
-    seed INT DEFAULT 42
+    seed INT DEFAULT 42,
+    model TEXT DEFAULT NULL,
+    unsafe_mode BOOLEAN DEFAULT FALSE
 )
 RETURNS vector(1024)
 LANGUAGE plpgsql
@@ -2608,15 +2613,24 @@ DECLARE
     v_cache_key TEXT;
     v_cache_key_input TEXT;
 BEGIN
-    -- AIDEV-NOTE: This VOLATILE wrapper allows cache writes
+    -- AIDEV-NOTE: This VOLATILE wrapper allows cache writes with remote model support
+    
+    -- Validate remote model requirements
+    IF model IS NOT NULL AND position(':' IN model) > 0 AND NOT unsafe_mode THEN
+        RAISE EXCEPTION 'Remote models (containing '':'' ) require unsafe_mode=TRUE';
+    END IF;
     
     -- Generate result using IMMUTABLE function
-    v_result := steadytext_embed(text_input, true, seed);
+    v_result := steadytext_embed(text_input, true, seed, model, unsafe_mode);
     
     -- If result was generated, store it
     IF v_result IS NOT NULL THEN
-        -- Generate cache key
-        v_cache_key_input := 'embed:' || text_input;
+        -- Generate cache key including model if specified
+        IF model IS NOT NULL THEN
+            v_cache_key_input := 'embed:' || text_input || ':' || model;
+        ELSE
+            v_cache_key_input := 'embed:' || text_input;
+        END IF;
         v_cache_key := encode(digest(v_cache_key_input, 'sha256'), 'hex');
         
         -- Check if already cached
@@ -2625,8 +2639,8 @@ BEGIN
         IF NOT FOUND THEN
             -- Store in cache
             INSERT INTO steadytext_cache 
-            (cache_key, prompt, embedding, model_name, seed)
-            VALUES (v_cache_key, text_input, v_result, 'steadytext-embedding', seed)
+            (cache_key, prompt, embedding, created_at)
+            VALUES (v_cache_key, text_input, v_result, NOW())
             ON CONFLICT (cache_key) DO NOTHING;
         END IF;
     END IF;
@@ -2635,12 +2649,76 @@ BEGIN
 END;
 $c$;
 
+-- Create async embedding function with model and unsafe_mode parameters
+CREATE OR REPLACE FUNCTION steadytext_embed_async(
+    text_input TEXT,
+    use_cache BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42,
+    model TEXT DEFAULT NULL,
+    unsafe_mode BOOLEAN DEFAULT FALSE
+)
+RETURNS UUID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    request_id UUID;
+BEGIN
+    -- AIDEV-NOTE: Queue an embedding request for async processing with remote model support
+    
+    -- Validate remote model requirements
+    IF model IS NOT NULL AND position(':' IN model) > 0 AND NOT unsafe_mode THEN
+        RAISE EXCEPTION 'Remote models (containing '':'' ) require unsafe_mode=TRUE';
+    END IF;
+    
+    request_id := gen_random_uuid();
+    
+    -- Build params JSON including new parameters
+    DECLARE
+        params_json JSONB;
+    BEGIN
+        params_json := jsonb_build_object(
+            'text_input', text_input,
+            'use_cache', use_cache,
+            'seed', seed
+        );
+        
+        IF model IS NOT NULL THEN
+            params_json := params_json || jsonb_build_object('model', model);
+        END IF;
+        
+        IF unsafe_mode IS NOT NULL THEN
+            params_json := params_json || jsonb_build_object('unsafe_mode', unsafe_mode);
+        END IF;
+        
+        INSERT INTO steadytext_queue (
+            request_id,
+            request_type,
+            params,
+            status
+        ) VALUES (
+            request_id,
+            'embed',
+            params_json,
+            'pending'
+        );
+    END;
+    
+    -- Notify worker
+    PERFORM pg_notify('steadytext_async', request_id::text);
+    
+    RETURN request_id;
+END;
+$$;
+
 -- Add comments explaining the wrapper functions
 COMMENT ON FUNCTION steadytext_generate_cached IS 
 'VOLATILE wrapper for steadytext_generate that handles cache population. Use when automatic caching is needed.';
 
 COMMENT ON FUNCTION steadytext_embed_cached IS 
 'VOLATILE wrapper for steadytext_embed that handles cache population. Use when automatic caching is needed.';
+
+COMMENT ON FUNCTION steadytext_embed_async IS
+'Async embedding generation with remote model support. Returns UUID for checking status with steadytext_get_result.';
 
 -- Add note about cache population strategies
 COMMENT ON FUNCTION steadytext_generate(text, integer, boolean, integer, text, text, text, text, text, boolean) IS 
@@ -2744,25 +2822,44 @@ $alias$;
 CREATE OR REPLACE FUNCTION st_embed(
     text_input TEXT,
     use_cache BOOLEAN DEFAULT TRUE,
-    seed INT DEFAULT 42
+    seed INT DEFAULT 42,
+    model TEXT DEFAULT NULL,
+    unsafe_mode BOOLEAN DEFAULT FALSE
 )
 RETURNS vector(1024)
 LANGUAGE sql
 IMMUTABLE PARALLEL SAFE
 AS $alias$
-    SELECT steadytext_embed($1, $2, $3);
+    SELECT steadytext_embed($1, $2, $3, $4, $5);
 $alias$;
 
 -- st_embed_cached alias
 CREATE OR REPLACE FUNCTION st_embed_cached(
     text_input TEXT,
-    seed INT DEFAULT 42
+    seed INT DEFAULT 42,
+    model TEXT DEFAULT NULL,
+    unsafe_mode BOOLEAN DEFAULT FALSE
 )
 RETURNS vector(1024)
 LANGUAGE sql
 VOLATILE PARALLEL SAFE
 AS $alias$
-    SELECT steadytext_embed_cached($1, $2);
+    SELECT steadytext_embed_cached($1, $2, $3, $4);
+$alias$;
+
+-- st_embed_async alias
+CREATE OR REPLACE FUNCTION st_embed_async(
+    text_input TEXT,
+    use_cache BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42,
+    model TEXT DEFAULT NULL,
+    unsafe_mode BOOLEAN DEFAULT FALSE
+)
+RETURNS UUID
+LANGUAGE sql
+VOLATILE PARALLEL SAFE
+AS $alias$
+    SELECT steadytext_embed_async($1, $2, $3, $4, $5);
 $alias$;
 
 -- st_generate_cached alias

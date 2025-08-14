@@ -418,8 +418,11 @@ def generate(
                     "model": model or "gemma-3n-E2B-it-GGUF",
                     "usage": {
                         "prompt_tokens": len(prompt.split()),
-                        "completion_tokens": len(generated.split()),
-                        "total_tokens": len(prompt.split()) + len(generated.split()),
+                        "completion_tokens": len(generated.split())
+                        if isinstance(generated, str)
+                        else 0,
+                        "total_tokens": len(prompt.split())
+                        + (len(generated.split()) if isinstance(generated, str) else 0),
                     },
                     "prompt": prompt,
                     "generated": generated,

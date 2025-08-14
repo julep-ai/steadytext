@@ -453,42 +453,88 @@ class SteadyTextConnector:
                 for word in result.split():
                     yield word + " "
 
-    def embed(self, text: str, seed: int = 42) -> np.ndarray:
+    def embed(
+        self,
+        text: str,
+        seed: int = 42,
+        model: Optional[str] = None,
+        unsafe_mode: bool = False,
+    ) -> np.ndarray:
         """
-        Generate embedding for text using SteadyText.
+        Generate embedding for text using SteadyText with optional remote models.
 
         AIDEV-NOTE: Returns a 1024-dimensional normalized embedding vector.
-        Falls back to zero vector if generation fails.
+        Falls back to zero vector if generation fails. Supports remote models
+        (e.g., OpenAI) with unsafe_mode.
 
         Args:
             text: Input text to embed
             seed: Random seed for deterministic embeddings (default: 42)
+            model: Optional remote model string (e.g., "openai:text-embedding-3-small")
+            unsafe_mode: Enable remote models with best-effort determinism
 
         Returns:
             1024-dimensional numpy array
         """
+        # AIDEV-NOTE: Validate that unsafe_mode requires a model to be specified
+        if unsafe_mode and not model:
+            raise ValueError(
+                "unsafe_mode=True requires a model parameter to be specified"
+            )
+
         if not STEADYTEXT_AVAILABLE:
             # Return zero vector as fallback
             return np.zeros(1024, dtype=np.float32)
 
-        try:
-            # Try using daemon first
-            with use_daemon():
-                result = embed(text, seed=seed)
-                if result is not None:
-                    return result
-                # If None, fall through to return zero vector
-        except Exception as e:
-            logger.warning(f"Daemon embedding failed: {e}, using direct embedding")
-
-            # Fall back to direct embedding
+        # AIDEV-NOTE: For remote models with unsafe_mode, skip daemon entirely
+        # Remote models don't benefit from daemon and trying to use it causes delays
+        if unsafe_mode and model and ":" in model:
             try:
-                result = embed(text, seed=seed)
+                result = embed(text, seed=seed, model=model, unsafe_mode=unsafe_mode)
                 if result is not None:
                     return result
                 # If None, fall through to return zero vector
-            except Exception as e2:
-                logger.error(f"Direct embedding also failed: {e2}")
+            except Exception as e:
+                logger.error(f"Remote model embedding failed: {e}")
+                # Fall through to return zero vector
+        else:
+            # For local models, try daemon first
+            try:
+                # Try using daemon first
+                with use_daemon():
+                    # Check if embed supports unsafe_mode parameter
+                    import inspect
+
+                    embed_sig = inspect.signature(embed)
+                    kwargs = {"seed": seed}
+                    if model:
+                        kwargs["model"] = model
+                    if unsafe_mode and "unsafe_mode" in embed_sig.parameters:
+                        kwargs["unsafe_mode"] = unsafe_mode
+                    result = embed(text, **kwargs)
+                    if result is not None:
+                        return result
+                    # If None, fall through to return zero vector
+            except Exception as e:
+                logger.warning(f"Daemon embedding failed: {e}, using direct embedding")
+
+                # Fall back to direct embedding
+                try:
+                    # Check if embed supports unsafe_mode parameter
+                    import inspect
+
+                    embed_sig = inspect.signature(embed)
+                    kwargs = {"seed": seed}
+                    if model:
+                        kwargs["model"] = model
+                    if unsafe_mode and "unsafe_mode" in embed_sig.parameters:
+                        kwargs["unsafe_mode"] = unsafe_mode
+                    result = embed(text, **kwargs)
+                    if result is not None:
+                        return result
+                    # If None, fall through to return zero vector
+                except Exception as e2:
+                    logger.error(f"Direct embedding also failed: {e2}")
 
         # Return zero vector as fallback
         return np.zeros(1024, dtype=np.float32)
@@ -911,10 +957,12 @@ def pg_generate(prompt: str, max_tokens: int = 512, **kwargs) -> str:
     return connector.generate(prompt, max_tokens, **kwargs)
 
 
-def pg_embed(text: str) -> List[float]:
-    """PostgreSQL-friendly wrapper for embedding generation."""
+def pg_embed(
+    text: str, seed: int = 42, model: Optional[str] = None, unsafe_mode: bool = False
+) -> List[float]:
+    """PostgreSQL-friendly wrapper for embedding generation with remote model support."""
     connector = get_default_connector()
-    embedding = connector.embed(text)
+    embedding = connector.embed(text, seed=seed, model=model, unsafe_mode=unsafe_mode)
     return embedding.tolist()  # Convert to list for PostgreSQL
 
 

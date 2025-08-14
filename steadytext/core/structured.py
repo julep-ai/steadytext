@@ -12,9 +12,10 @@ instead of Outlines to avoid compatibility issues with models like Gemma-3n.
 
 import logging
 import re
-from typing import Any, Dict, List, Union, Type, Optional
+from typing import Any, Dict, List, Union, Type, Optional, overload, Literal, TypeVar
 
 from pydantic import BaseModel
+from llama_cpp import LlamaGrammar
 
 from ..models.loader import get_generator_model_instance
 from ..utils import suppress_llama_output, DEFAULT_SEED
@@ -24,7 +25,9 @@ from .grammar import json_schema_to_grammar, regex_to_grammar, choices_to_gramma
 # AIDEV-NOTE: Import LlamaGrammar for creating grammar objects from GBNF strings
 # llama-cpp-python expects LlamaGrammar objects, not raw GBNF strings
 # Fixed issue #28: AttributeError: 'str' object has no attribute '_grammar'
-from llama_cpp import LlamaGrammar
+
+# Type variable for Pydantic models
+T = TypeVar("T", bound=BaseModel)
 
 
 logger = logging.getLogger(__name__)
@@ -284,6 +287,22 @@ def get_structured_generator() -> StructuredGenerator:
 
 
 # AIDEV-NOTE: Public API functions for structured generation
+# Overload for when return_pydantic=True with a Pydantic model
+@overload
+def generate_json(
+    prompt: str,
+    schema: Type[T],
+    max_tokens: int = 512,
+    model: Optional[str] = None,
+    unsafe_mode: bool = False,
+    seed: int = DEFAULT_SEED,
+    return_pydantic: Literal[True] = True,
+    **kwargs,
+) -> T: ...
+
+
+# Overload for when return_pydantic=False (default)
+@overload
 def generate_json(
     prompt: str,
     schema: Union[Dict[str, Any], Type["BaseModel"], Type],
@@ -291,21 +310,55 @@ def generate_json(
     model: Optional[str] = None,
     unsafe_mode: bool = False,
     seed: int = DEFAULT_SEED,
+    return_pydantic: Literal[False] = False,
     **kwargs,
-) -> str:
+) -> str: ...
+
+
+# Overload for when return_pydantic is a bool variable (runtime determined)
+@overload
+def generate_json(
+    prompt: str,
+    schema: Union[Dict[str, Any], Type["BaseModel"], Type],
+    max_tokens: int = 512,
+    model: Optional[str] = None,
+    unsafe_mode: bool = False,
+    seed: int = DEFAULT_SEED,
+    return_pydantic: bool = False,
+    **kwargs,
+) -> Union[str, "BaseModel"]: ...
+
+
+def generate_json(
+    prompt: str,
+    schema: Union[Dict[str, Any], Type["BaseModel"], Type],
+    max_tokens: int = 512,
+    model: Optional[str] = None,
+    unsafe_mode: bool = False,
+    seed: int = DEFAULT_SEED,
+    return_pydantic: bool = False,
+    **kwargs,
+) -> Union[str, "BaseModel"]:
     """Generate JSON that conforms to a schema.
 
     This function generates text that conforms to a JSON schema, Pydantic model,
-    or basic Python type. The output is wrapped in <json-output> tags.
+    or basic Python type. The output is wrapped in <json-output> tags by default,
+    or can return a Pydantic model instance when return_pydantic=True.
 
     Args:
         prompt: The input prompt
         schema: JSON schema dict, Pydantic model, or Python type
         max_tokens: Maximum tokens to generate
+        model: Optional model name for remote models
+        unsafe_mode: Enable remote models with best-effort determinism
+        seed: Random seed for deterministic generation
+        return_pydantic: If True and schema is a Pydantic model, return the instantiated model
         **kwargs: Additional generation parameters
 
     Returns:
-        JSON string with thoughts and structured output in XML tags
+        If return_pydantic=False: JSON string with thoughts and structured output in XML tags
+        If return_pydantic=True and schema is a Pydantic model: Instantiated Pydantic model
+        Otherwise: JSON string with thoughts and structured output in XML tags
 
     Examples:
         >>> # Using a JSON schema
@@ -356,14 +409,40 @@ def generate_json(
 
         # Extract string result (handle logprobs tuple if present)
         if isinstance(result, tuple):
-            return result[0]  # Return just the string part
+            result = result[0]  # Get just the string part
         # Type narrowing: at this point result must be str since it's not None or tuple
         assert isinstance(result, str)
+
+        # Handle Pydantic model instantiation for remote models
+        if (
+            return_pydantic
+            and isinstance(schema, type)
+            and issubclass(schema, BaseModel)
+        ):
+            # Extract JSON from tags
+            json_start = result.find("<json-output>") + len("<json-output>")
+            json_end = result.find("</json-output>")
+            if json_start > len("<json-output>") - 1 and json_end > json_start:
+                json_str = result[json_start:json_end]
+                return schema.model_validate_json(json_str)
+
         return result
 
     # For local models, use the structured generator
     generator = get_structured_generator()
-    return generator.generate_json(prompt, schema, max_tokens, seed=seed, **kwargs)
+    result = generator.generate_json(prompt, schema, max_tokens, seed=seed, **kwargs)
+
+    # AIDEV-NOTE: Handle Pydantic model instantiation if requested
+    if return_pydantic and isinstance(schema, type) and issubclass(schema, BaseModel):
+        # Extract JSON from the <json-output> tags
+        json_start = result.find("<json-output>") + len("<json-output>")
+        json_end = result.find("</json-output>")
+        if json_start > len("<json-output>") - 1 and json_end > json_start:
+            json_str = result[json_start:json_end]
+            # Parse and validate with Pydantic
+            return schema.model_validate_json(json_str)
+
+    return result
 
 
 def generate_regex(
@@ -581,3 +660,75 @@ def generate_format(
     return generator.generate_format(
         prompt, format_type, max_tokens, seed=seed, **kwargs
     )
+
+
+def generate_pydantic(
+    prompt: str,
+    model_class: Type[T],
+    max_tokens: int = 512,
+    model: Optional[str] = None,
+    unsafe_mode: bool = False,
+    seed: int = DEFAULT_SEED,
+    **kwargs,
+) -> T:
+    """Generate a Pydantic model instance that conforms to the given model class.
+
+    This is a convenience function that always returns an instantiated Pydantic model.
+    It's equivalent to calling generate_json() with return_pydantic=True.
+
+    Args:
+        prompt: The input prompt
+        model_class: Pydantic BaseModel class to generate
+        max_tokens: Maximum tokens to generate
+        model: Optional model name for remote models
+        unsafe_mode: Enable remote models with best-effort determinism
+        seed: Random seed for deterministic generation
+        **kwargs: Additional generation parameters
+
+    Returns:
+        An instance of the provided Pydantic model class
+
+    Raises:
+        ValueError: If model_class is not a Pydantic BaseModel
+        ValidationError: If the generated JSON doesn't match the model schema
+
+    Examples:
+        >>> from pydantic import BaseModel
+        >>> class User(BaseModel):
+        ...     name: str
+        ...     age: int
+        >>>
+        >>> user = generate_pydantic("Create user Alice age 30", User)
+        >>> print(user.name)  # "Alice"
+        >>> print(user.age)   # 30
+
+        >>> # Using a remote model
+        >>> user = generate_pydantic(
+        ...     "Create user Bob age 25",
+        ...     User,
+        ...     model="openai:gpt-4o-mini",
+        ...     unsafe_mode=True
+        ... )
+    """
+    # AIDEV-NOTE: Validate that model_class is a Pydantic BaseModel
+    if not (isinstance(model_class, type) and issubclass(model_class, BaseModel)):
+        raise ValueError(
+            f"model_class must be a Pydantic BaseModel class, got {type(model_class)}"
+        )
+
+    # Call generate_json with return_pydantic=True
+    result = generate_json(
+        prompt=prompt,
+        schema=model_class,
+        max_tokens=max_tokens,
+        model=model,
+        unsafe_mode=unsafe_mode,
+        seed=seed,
+        return_pydantic=True,
+        **kwargs,
+    )
+
+    # AIDEV-NOTE: Result should always be a Pydantic model instance at this point
+    # but we assert for type safety
+    assert isinstance(result, BaseModel)
+    return result

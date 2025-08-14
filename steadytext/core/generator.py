@@ -221,7 +221,10 @@ class DeterministicGenerator:
         schema: Optional[Union[Dict[str, Any], Type, object]] = None,
         regex: Optional[str] = None,
         choices: Optional[List[str]] = None,
-    ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None]]:
+        return_pydantic: bool = False,
+    ) -> Union[
+        str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None], object
+    ]:
         """Generate text with optional model switching and structured output.
 
         Args:
@@ -335,6 +338,7 @@ class DeterministicGenerator:
                     schema=schema,
                     max_tokens=max_new_tokens or GENERATION_MAX_NEW_TOKENS,
                     seed=seed,
+                    return_pydantic=return_pydantic,
                 )
                 return (result, None) if return_logprobs else result
             elif regex is not None:
@@ -972,7 +976,8 @@ def core_generate(
     regex: Optional[str] = None,
     choices: Optional[List[str]] = None,
     unsafe_mode: bool = False,
-) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None]]:
+    return_pydantic: bool = False,
+) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None], object]:
     """Generate text deterministically with optional model switching and structured output.
 
     This is the main public API for text generation. It maintains backward
@@ -1128,6 +1133,7 @@ def core_generate(
         schema=schema,
         regex=regex,
         choices=choices,
+        return_pydantic=return_pydantic,
     )
 
 

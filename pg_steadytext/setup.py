@@ -33,7 +33,7 @@ def get_pg_python_path():
 # Package metadata
 setup(
     name="pg_steadytext",
-    version="1.4.5",
+    version="1.4.6",
     description="PostgreSQL extension for SteadyText - Python modules",
     author="Julep AI",
     author_email="noreply@julep.ai",
@@ -44,7 +44,7 @@ setup(
     package_dir={"pg_steadytext": "python"},
     # Dependencies
     install_requires=[
-        "steadytext>=2.6.1",
+        "steadytext>=2.6.2",
         "pyzmq>=22.0.0",
         "numpy>=1.20.0",
     ],

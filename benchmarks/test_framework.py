@@ -2,6 +2,7 @@
 """Test the benchmarking framework independently of SteadyText."""
 
 import sys
+import types
 from pathlib import Path
 
 # Add parent directory to path
@@ -89,57 +90,64 @@ def mock_steadytext_functions():
         if module_name in sys.modules:
             original_modules[module_name] = sys.modules[module_name]
 
-    class MockSteadyText:
-        @staticmethod
-        def generate(prompt, **kwargs):
-            # Mock deterministic generation
-            return f"Generated text for: {prompt[:20]}..."
+    # Create mock SteadyText module
+    mock_steadytext = types.ModuleType("steadytext")
 
-        @staticmethod
-        def generate_iter(prompt, **kwargs):
-            # Mock streaming
-            text = MockSteadyText.generate(prompt)
-            for word in text.split():
-                yield word + " "
+    # Define mock functions
+    def mock_generate(prompt, **kwargs):
+        # Mock deterministic generation
+        return f"Generated text for: {prompt[:20]}..."
 
-        @staticmethod
-        def embed(text):
-            # Mock embedding
-            import numpy as np
+    def mock_generate_iter(prompt, **kwargs):
+        # Mock streaming
+        text = mock_generate(prompt)
+        for word in text.split():
+            yield word + " "
 
-            if isinstance(text, list):
-                # Average of mock embeddings
-                return np.random.rand(1024).astype(np.float32)
+    def mock_embed(text):
+        # Mock embedding
+        import numpy as np
+
+        if isinstance(text, list):
+            # Average of mock embeddings
             return np.random.rand(1024).astype(np.float32)
+        return np.random.rand(1024).astype(np.float32)
 
-        @staticmethod
-        def preload_models(verbose=False):
-            if verbose:
-                print("Mock: Models preloaded")
+    def mock_preload_models(verbose=False):
+        if verbose:
+            print("Mock: Models preloaded")
 
-        DEFAULT_SEED = 42
-        GENERATION_MAX_NEW_TOKENS = 512
-        EMBEDDING_DIMENSION = 1024
-        __version__ = "0.2.3-mock"
+    # Set module attributes
+    mock_steadytext.generate = mock_generate  # type: ignore[attr-defined]
+    mock_steadytext.generate_iter = mock_generate_iter  # type: ignore[attr-defined]
+    mock_steadytext.embed = mock_embed  # type: ignore[attr-defined]
+    mock_steadytext.preload_models = mock_preload_models  # type: ignore[attr-defined]
+    mock_steadytext.DEFAULT_SEED = 42  # type: ignore[attr-defined]
+    mock_steadytext.GENERATION_MAX_NEW_TOKENS = 512  # type: ignore[attr-defined]
+    mock_steadytext.EMBEDDING_DIMENSION = 1024  # type: ignore[attr-defined]
+    mock_steadytext.__version__ = "0.2.3-mock"  # type: ignore[attr-defined]
 
     # Inject mock into sys.modules
-    sys.modules["steadytext"] = MockSteadyText
+    sys.modules["steadytext"] = mock_steadytext
 
     # Mock the model loader
-    class MockLoader:
-        @staticmethod
-        def clear_model_cache():
-            pass
+    mock_loader = types.ModuleType("steadytext.models.loader")
 
-        @staticmethod
-        def get_generator_model_instance():
-            return None
+    def mock_clear_model_cache():
+        pass
 
-        @staticmethod
-        def get_embedding_model_instance():
-            return None
+    def mock_get_generator_model_instance():
+        return None
 
-    sys.modules["steadytext.models.loader"] = MockLoader
+    def mock_get_embedding_model_instance():
+        return None
+
+    # Set module attributes
+    mock_loader.clear_model_cache = mock_clear_model_cache  # type: ignore[attr-defined]
+    mock_loader.get_generator_model_instance = mock_get_generator_model_instance  # type: ignore[attr-defined]
+    mock_loader.get_embedding_model_instance = mock_get_embedding_model_instance  # type: ignore[attr-defined]
+
+    sys.modules["steadytext.models.loader"] = mock_loader
 
     # Mock caches
     class MockCache:
@@ -166,23 +174,22 @@ def mock_steadytext_functions():
 
     mock_cache_manager = MockCacheManager()
 
-    sys.modules["steadytext.cache_manager"] = type(
-        "Module",
-        (),
-        {
-            "get_generation_cache": mock_cache_manager.get_generation_cache,
-            "get_embedding_cache": mock_cache_manager.get_embedding_cache,
-        },
-    )
+    # Create cache_manager module
+    cache_manager_module = types.ModuleType("steadytext.cache_manager")
+    cache_manager_module.get_generation_cache = mock_cache_manager.get_generation_cache  # type: ignore[attr-defined]
+    cache_manager_module.get_embedding_cache = mock_cache_manager.get_embedding_cache  # type: ignore[attr-defined]
 
-    sys.modules["steadytext.core.generator"] = type(
-        "Module",
-        (),
-        {
-            "_deterministic_fallback_generate": lambda x: f"Fallback: {x}",
-        },
-    )
-    sys.modules["steadytext.core.embedder"] = type("Module", (), {})
+    sys.modules["steadytext.cache_manager"] = cache_manager_module
+
+    # Create generator module
+    generator_module = types.ModuleType("steadytext.core.generator")
+    generator_module._deterministic_fallback_generate = lambda x: f"Fallback: {x}"  # type: ignore[attr-defined]
+
+    sys.modules["steadytext.core.generator"] = generator_module
+
+    # Create embedder module
+    embedder_module = types.ModuleType("steadytext.core.embedder")
+    sys.modules["steadytext.core.embedder"] = embedder_module
 
     def cleanup():
         """Restore original modules."""
@@ -193,7 +200,7 @@ def mock_steadytext_functions():
                 # Remove module if it wasn't there before
                 sys.modules.pop(module_name, None)
 
-    return MockSteadyText, cleanup
+    return mock_steadytext, cleanup
 
 
 def test_with_mock():

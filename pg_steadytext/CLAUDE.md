@@ -2,7 +2,34 @@
 
 This file contains important development notes and architectural decisions for AI assistants working on pg_steadytext.
 
+## Extension Table Creation Pattern
+
+### IMPORTANT: Table Creation in Extension Scripts
+- **AIDEV-NOTE**: Always use `DROP TABLE IF EXISTS table_name CASCADE;` before `CREATE TABLE`
+- **Issue**: Using `CREATE TABLE IF NOT EXISTS` can cause tables to not be added to extension
+- **Why**: PostgreSQL only adds objects to extensions when they're created within the extension script
+- **Pattern**:
+  ```sql
+  -- Wrong: Table won't be added to extension if it already exists
+  CREATE TABLE IF NOT EXISTS my_table (...);
+  
+  -- Correct: Ensures table is always added to extension
+  DROP TABLE IF EXISTS my_table CASCADE;
+  CREATE TABLE my_table (...);
+  ```
+- **Fixed in**: v1.4.5 and v1.4.6 (2025-08-14)
+
 ## Recent Fixes
+
+### v1.4.6 - Unsafe Mode Support for Embeddings
+- **Added**: `model` and `unsafe_mode` parameters to embedding functions
+  - `steadytext_embed()`, `steadytext_embed_cached()`, `steadytext_embed_async()`
+  - Remote embedding models (e.g., `openai:text-embedding-3-small`) supported with `unsafe_mode=TRUE`
+  - Cache keys include model name when specified: `embed:{text}:{model}`
+- **Updated**: Python `daemon_connector.py` embed() method supports new parameters
+- **Security**: Remote embedding models require explicit `unsafe_mode=TRUE`
+- AIDEV-NOTE: Skip daemon for remote embedding models to improve performance
+- AIDEV-NOTE: Consistent behavior with generation functions' unsafe_mode support
 
 ### v1.4.5 - Version Bump and Library Update
 - **Updated**: SteadyText library dependency to >= 2.6.1
@@ -127,6 +154,107 @@ This file contains important development notes and architectural decisions for A
 **Security**: Input validation, rate limiting (implemented)
 
 - AIDEV-TODO: Connection pooling, prepared statements, batch optimizations
+
+## DevContainer Testing Instructions
+
+### Testing Extension Changes in DevContainer
+
+When working inside the devcontainer (you can check if `/workspace` exists with source code), PostgreSQL runs in a separate container. Follow these steps to test extension changes:
+
+**1. Check Container Status:**
+```bash
+# PostgreSQL is available at: postgres://postgres:password@postgres
+docker ps | grep pg_steadytext_db  # Should show the postgres container
+```
+
+**2. Copy Modified Files to Container:**
+```bash
+# The container uses PostgreSQL 17 (check with: docker exec pg_steadytext_db psql -V)
+# Extension files are in /usr/share/postgresql/17/extension/
+
+# Copy SQL files to container (example for v1.4.6)
+docker cp /workspace/pg_steadytext/sql/pg_steadytext--1.4.6.sql \
+  pg_steadytext_db:/tmp/
+
+# Move to extension directory inside container
+docker exec pg_steadytext_db cp /tmp/pg_steadytext--1.4.6.sql \
+  /usr/share/postgresql/17/extension/
+
+# For multiple files, repeat or use a loop
+for file in /workspace/pg_steadytext/sql/*.sql; do
+  docker cp "$file" pg_steadytext_db:/tmp/
+  docker exec pg_steadytext_db cp "/tmp/$(basename $file)" \
+    /usr/share/postgresql/17/extension/
+done
+```
+
+**3. Copy Python Files (if modified):**
+```bash
+# Python files are in the container's Python path
+docker cp /workspace/pg_steadytext/python/*.py \
+  pg_steadytext_db:/usr/lib/postgresql/17/lib/pg_steadytext/
+```
+
+**4. Test Extension Installation:**
+```bash
+# Connect to PostgreSQL
+PGPASSWORD=password psql -h postgres -U postgres -d postgres
+
+# Clean install (removes all data!)
+DROP EXTENSION IF EXISTS pg_steadytext CASCADE;
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+
+# Install prerequisites
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS plpython3u;
+
+# Install specific version
+CREATE EXTENSION pg_steadytext VERSION '1.4.6';
+
+# Verify installation
+SELECT steadytext_version();
+SELECT extname, extversion FROM pg_extension WHERE extname = 'pg_steadytext';
+
+# Check table ownership (should list all tables)
+SELECT c.relname FROM pg_class c 
+JOIN pg_depend d ON c.oid = d.objid 
+JOIN pg_extension e ON d.refobjid = e.oid 
+WHERE e.extname = 'pg_steadytext' AND c.relkind = 'r';
+```
+
+**5. Quick Test Script:**
+```bash
+# Save as test_extension.sh
+#!/bin/bash
+VERSION=${1:-"1.4.6"}
+
+# Copy files
+docker cp /workspace/pg_steadytext/sql/pg_steadytext--${VERSION}.sql \
+  pg_steadytext_db:/tmp/
+docker exec pg_steadytext_db cp /tmp/pg_steadytext--${VERSION}.sql \
+  /usr/share/postgresql/17/extension/
+
+# Test installation
+PGPASSWORD=password psql -h postgres -U postgres -d postgres <<EOF
+DROP EXTENSION IF EXISTS pg_steadytext CASCADE;
+CREATE EXTENSION pg_steadytext VERSION '${VERSION}';
+SELECT steadytext_version();
+EOF
+```
+
+**6. Run Tests:**
+```bash
+# pgTAP tests (after installation)
+docker exec pg_steadytext_db bash -c "cd /tmp/pg_steadytext && ./run_pgtap_tests.sh"
+
+# Or specific test
+docker exec pg_steadytext_db psql -U postgres -f /tmp/pg_steadytext/test/pgtap/01_basic.sql
+```
+
+- AIDEV-NOTE: The postgres container mounts volumes read-only, so always copy files first
+- AIDEV-NOTE: Use `docker exec pg_steadytext_db` to run commands inside the container
+- AIDEV-NOTE: PostgreSQL version may vary - check with `docker exec pg_steadytext_db psql -V`
 
 ## Development Quick Reference
 

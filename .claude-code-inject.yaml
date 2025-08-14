@@ -35,27 +35,27 @@ hooks:
     - matcher: ".*"
       hooks:
         - type: command
-          command: claude-generic-hooks store ~/.claude/hooks.db
+          command: claude-code-generic-hooks store ~/.claude/hooks.db
         - type: command
-          command: claude-generic-hooks yolo
+          command: claude-code-generic-hooks yolo
   PostToolUse:
     - matcher: ".*"
       hooks:
         - type: command
-          command: claude-generic-hooks store ~/.claude/hooks.db
+          command: claude-code-generic-hooks store ~/.claude/hooks.db
   Notification:
     - matcher: ""
       hooks:
         - type: command
-          command: claude-generic-hooks store ~/.claude/hooks.db
+          command: claude-code-generic-hooks store ~/.claude/hooks.db
   Stop:
     - matcher: ""
       hooks:
         - type: command
-          command: claude-generic-hooks store ~/.claude/hooks.db
+          command: claude-code-generic-hooks store ~/.claude/hooks.db
   SubagentStop:
     - matcher: ""
       hooks:
         - type: command
-          command: claude-generic-hooks store ~/.claude/hooks.db
+          command: claude-code-generic-hooks store ~/.claude/hooks.db
 
