@@ -12,7 +12,7 @@ for CLI commands, implementing the precedence order:
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Any, Optional, Callable
+from typing import Dict, Any, Optional, Callable, cast
 import functools
 
 # Handle TOML imports for different Python versions
@@ -188,7 +188,7 @@ def get_config_manager() -> ConfigManager:
     global _config_manager
     if _config_manager is None:
         _config_manager = ConfigManager()
-    return _config_manager
+    return cast(ConfigManager, _config_manager)
 
 
 # Convenience functions

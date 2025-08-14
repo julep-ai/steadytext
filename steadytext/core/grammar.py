@@ -131,7 +131,12 @@ class GrammarConverter:
 
             # Create key-value rule for this property
             # Escape special characters in property name for GBNF literal
-            escaped_prop = str(prop_name).replace("\\", "\\\\").replace('"', '\\"')
+            # In GBNF, inside a quoted literal:
+            # - Backslashes need to be escaped as \\
+            # - Quotes need to be escaped as \\\" (backslash-backslash-quote)
+            escaped_prop = (
+                str(prop_name).replace("\\", "\\\\\\\\").replace('"', '\\\\"')
+            )
             kv_rule = f'{name}_{self._sanitize_name(prop_name)}_kv ::= "\\"{escaped_prop}\\"" ws ":" ws {prop_rule_name}'
             self._additional_rules.append(kv_rule)
 
@@ -200,7 +205,10 @@ class GrammarConverter:
         options = []
         for v in values:
             # Escape special characters in enum value for GBNF literal
-            escaped_val = str(v).replace("\\", "\\\\").replace('"', '\\"')
+            # In GBNF, inside a quoted literal:
+            # - Backslashes need to be escaped as \\
+            # - Quotes need to be escaped as \\\" (backslash-backslash-quote)
+            escaped_val = str(v).replace("\\", "\\\\\\\\").replace('"', '\\\\"')
             options.append(f'"\\"{escaped_val}\\""')
         return f"{name} ::= {' | '.join(options)}"
 
