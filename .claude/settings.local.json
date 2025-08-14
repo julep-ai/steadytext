@@ -27,8 +27,72 @@
       "Bash(git pull:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true uv run python -m pytest tests/test_structured.py::TestStructuredGeneration::test_generate_with_pydantic_model -xvs)",
+      "Bash(STEADYTEXT_USE_FALLBACK_MODEL=true uv run python test_with_model.py)"
     ],
-    "deny": []
+    "deny": [],
+    "defaultMode": "plan"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "claude-code-generic-hooks store ~/.claude/hooks.db"
+          },
+          {
+            "type": "command",
+            "command": "claude-code-generic-hooks yolo"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "claude-code-generic-hooks store ~/.claude/hooks.db"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "claude-code-generic-hooks store ~/.claude/hooks.db"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "claude-code-generic-hooks store ~/.claude/hooks.db"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "claude-code-generic-hooks store ~/.claude/hooks.db"
+          }
+        ]
+      }
+    ]
   }
 }

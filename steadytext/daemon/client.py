@@ -163,7 +163,10 @@ class DaemonClient:
         regex: Optional[str] = None,
         choices: Optional[List[str]] = None,
         unsafe_mode: bool = False,
-    ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None]]:
+        return_pydantic: bool = False,
+    ) -> Union[
+        str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None], object
+    ]:
         """Generate text via daemon."""
         if not self.connect():
             # AIDEV-NOTE: Fallback to direct generation handled by caller
@@ -186,6 +189,7 @@ class DaemonClient:
                 "regex": regex,
                 "choices": choices,
                 "unsafe_mode": unsafe_mode,
+                "return_pydantic": return_pydantic,
             }
 
             request = Request(method="generate", params=params)

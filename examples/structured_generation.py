@@ -18,6 +18,7 @@ from steadytext import (
     generate_regex,
     generate_choice,
     generate_format,
+    generate_pydantic,
 )
 
 
@@ -95,22 +96,41 @@ def example_pydantic_model():
     """Example using Pydantic models for type-safe generation."""
     print("=== Pydantic Model Example ===")
 
-    # Generate a product
+    # Old way: Generate JSON string and manually parse
     result = generate_json("Create a product listing for a wireless keyboard", Product)
+    print(f"Traditional output (string with XML tags):\n{result}\n")
 
-    print(f"Generated output:\n{result}\n")
-
-    # Extract and validate with Pydantic
+    # Extract and validate with Pydantic manually
+    # Type assertion - result is a string when return_pydantic=False
+    assert isinstance(result, str)
     json_start = result.find("<json-output>") + len("<json-output>")
     json_end = result.find("</json-output>")
     json_str = result[json_start:json_end]
+    Product.model_validate_json(json_str)
 
-    product = Product.model_validate_json(json_str)
-    print("Validated product:")
+    # New way: Get Pydantic model directly using return_pydantic
+    product = generate_json(
+        "Create a product listing for a wireless keyboard",
+        Product,
+        return_pydantic=True,
+    )
+    print("Using return_pydantic=True (direct Pydantic model):")
+    print(f"  Type: {type(product)}")
+    # Type assertion to help type checker
+    assert isinstance(product, Product)
     print(f"  Name: {product.name}")
     print(f"  Price: ${product.price}")
     print(f"  In Stock: {product.in_stock}")
     print(f"  Tags: {', '.join(product.tags)}\n")
+
+    # Even simpler: Use generate_pydantic convenience function
+    product2 = generate_pydantic("Create a gaming mouse product", Product)
+    print("Using generate_pydantic() convenience function:")
+    # Type assertion to help type checker
+    assert isinstance(product2, Product)
+    print(f"  Name: {product2.name}")
+    print(f"  Price: ${product2.price}")
+    print(f"  In Stock: {product2.in_stock}\n")
 
 
 def example_regex_patterns():
@@ -296,6 +316,8 @@ def example_with_seed():
     print("Generating with seed=42:")
     for i in range(3):
         result = generate_json("Say hello", schema, seed=42)
+        # Type assertion - result is a string
+        assert isinstance(result, str)
         json_start = result.find("<json-output>") + len("<json-output>")
         json_end = result.find("</json-output>")
         greeting = json.loads(result[json_start:json_end])
@@ -303,6 +325,8 @@ def example_with_seed():
 
     print("\nGenerating with seed=123:")
     result = generate_json("Say hello", schema, seed=123)
+    # Type assertion - result is a string
+    assert isinstance(result, str)
     json_start = result.find("<json-output>") + len("<json-output>")
     json_end = result.find("</json-output>")
     greeting = json.loads(result[json_start:json_end])

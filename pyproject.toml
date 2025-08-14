@@ -151,6 +151,12 @@ addopts = [
     "-p no:doctest",
 ]
 
+[tool.ty.src]
+exclude = [
+    "examples/",
+    "benchmarks/",
+]
+
 [tool.ty.rules]
 unused-ignore-comment = "ignore"
 redundant-cast = "ignore"

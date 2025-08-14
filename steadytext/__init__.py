@@ -11,7 +11,16 @@ __version__ = "2.6.1"
 # Import core functions and classes for public API
 import os
 import numpy as np
-from typing import Optional, Any, Union, Tuple, Dict, Iterator, List, Type
+from typing import (
+    Optional,
+    Any,
+    Union,
+    Tuple,
+    Dict,
+    Iterator,
+    List,
+    Type,
+)
 from .core.generator import (
     core_generate as _generate,
     core_generate_iter as _generate_iter,
@@ -35,6 +44,7 @@ from .core.structured import (
     generate_regex,
     generate_choice,
     generate_format,
+    generate_pydantic,
 )
 
 
@@ -53,7 +63,8 @@ def generate(
     regex: Optional[str] = None,
     choices: Optional[List[str]] = None,
     unsafe_mode: bool = False,
-) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None]]:
+    return_pydantic: bool = False,
+) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None], object]:
     """Generate text deterministically from a prompt with optional structured output.
 
     Args:
@@ -72,10 +83,12 @@ def generate(
         regex: Regular expression pattern for output format
         choices: List of allowed string choices for output
         unsafe_mode: Enable remote models with best-effort determinism (non-deterministic)
+        return_pydantic: If True and schema is a Pydantic model, return the instantiated model
 
     Returns:
         Generated text string, or tuple (text, logprobs) if return_logprobs=True
         For structured output, JSON is wrapped in <json-output> tags
+        If return_pydantic=True and schema is a Pydantic model, returns the instantiated model
 
     Examples:
         # Use default model
@@ -102,6 +115,10 @@ def generate(
 
         result = generate("Create a person", schema=Person)
         # Returns: "Let me create...<json-output>{"name": "John", "age": 30}</json-output>"
+
+        # Or get a Pydantic model instance directly
+        person = generate("Create a person", schema=Person, return_pydantic=True)
+        # Returns: Person(name="John", age=30)
 
         # Generate with regex pattern
         phone = generate("My phone is", regex=r"\\d{3}-\\d{3}-\\d{4}")
@@ -134,6 +151,7 @@ def generate(
                     regex=regex,
                     choices=choices,
                     unsafe_mode=unsafe_mode,
+                    return_pydantic=return_pydantic,
                 )
             except ConnectionError as e:
                 # Fall back to direct generation
@@ -157,6 +175,7 @@ def generate(
         regex=regex,
         choices=choices,
         unsafe_mode=unsafe_mode,
+        return_pydantic=return_pydantic,
     )
 
     # AIDEV-NOTE: Return None if generation failed
@@ -415,4 +434,5 @@ __all__ = [
     "generate_regex",
     "generate_choice",
     "generate_format",
+    "generate_pydantic",
 ]

@@ -66,6 +66,8 @@ class TestStructuredGeneration:
         assert "</json-output>" in result
 
         # Extract and validate JSON
+        # Type assertion for type checker
+        assert isinstance(result, str)
         json_start = result.find("<json-output>") + len("<json-output>")
         json_end = result.find("</json-output>")
         json_str = result[json_start:json_end]
@@ -91,6 +93,8 @@ class TestStructuredGeneration:
         assert "</json-output>" in result
 
         # Extract JSON
+        # Type assertion for type checker
+        assert isinstance(result, str)
         json_start = result.find("<json-output>") + len("<json-output>")
         json_end = result.find("</json-output>")
         json_str = result[json_start:json_end]
@@ -99,6 +103,58 @@ class TestStructuredGeneration:
         person = Person.model_validate_json(json_str)
         assert isinstance(person.name, str)
         assert isinstance(person.age, int)
+
+    def test_generate_with_pydantic_return(self):
+        """Test generation with return_pydantic=True."""
+        # Generate and return a Pydantic model instance
+        result = generate(
+            "Create a person named Bob who is 25", schema=Person, return_pydantic=True
+        )
+
+        # Should return a Person instance, not a string
+        assert isinstance(result, Person)
+        assert isinstance(result.name, str)
+        assert isinstance(result.age, int)
+        # Could have the expected values based on prompt
+        # Note: Due to determinism, these values should be consistent
+
+    def test_generate_pydantic_function(self):
+        """Test the generate_pydantic convenience function."""
+        from steadytext import generate_pydantic
+
+        # Create a person using the convenience function
+        person = generate_pydantic("Create a person named Carol who is 35", Person)
+
+        # Should always return a Person instance
+        assert isinstance(person, Person)
+        assert isinstance(person.name, str)
+        assert isinstance(person.age, int)
+
+    def test_generate_pydantic_with_complex_model(self):
+        """Test generate_pydantic with a model containing optional fields."""
+        from steadytext import generate_pydantic
+
+        person = generate_pydantic(
+            "Create a person who likes reading and hiking", Person
+        )
+
+        assert isinstance(person, Person)
+        assert isinstance(person.name, str)
+        assert isinstance(person.age, int)
+        # hobbies is optional, so it could be None or a list
+        assert person.hobbies is None or isinstance(person.hobbies, list)
+
+    def test_generate_with_pydantic_backwards_compat(self):
+        """Test that default behavior (return_pydantic=False) is unchanged."""
+        # Default behavior should return string with XML tags
+        result = generate("Create a person", schema=Person)
+
+        assert isinstance(result, str)
+        assert "<json-output>" in result
+        assert "</json-output>" in result
+
+        # Should NOT return a Pydantic model by default
+        assert not isinstance(result, Person)
 
     def test_generate_with_regex(self):
         """Test generation with regex pattern."""
@@ -141,6 +197,8 @@ class TestStructuredGeneration:
         assert "</json-output>" in result
 
         # Extract and validate JSON
+        # Type assertion for type checker
+        assert isinstance(result, str)
         json_start = result.find("<json-output>") + len("<json-output>")
         json_end = result.find("</json-output>")
         json_str = result[json_start:json_end]
@@ -232,6 +290,8 @@ class TestStructuredGeneration:
         assert isinstance(result, str)
 
         # Extract JSON and validate
+        # Type assertion for type checker
+        assert isinstance(result, str)
         json_start = result.find("<json-output>") + len("<json-output>")
         json_end = result.find("</json-output>")
         json_str = result[json_start:json_end]
@@ -284,6 +344,7 @@ class TestStructuredGeneration:
         assert json_start > 0  # There should be thoughts before JSON
 
         # Thoughts should contain some text
+        # json_start is already computed after the type assertion above
         thoughts = result[:json_start]
         assert len(thoughts.strip()) > 0
 
@@ -319,6 +380,8 @@ class TestStructuredEdgeCases:
         assert isinstance(result, str)
 
         # Extract and validate nested structure
+        # Type assertion for type checker
+        assert isinstance(result, str)
         json_start = result.find("<json-output>") + len("<json-output>")
         json_end = result.find("</json-output>")
         json_str = result[json_start:json_end]
@@ -338,6 +401,17 @@ class TestStructuredEdgeCases:
         assert re.match(pattern, result) is not None
         assert len(result) == 3
         assert result.isupper()
+
+    def test_generate_pydantic_with_invalid_model(self):
+        """Test that generate_pydantic raises error for non-Pydantic models."""
+        from steadytext import generate_pydantic
+
+        # Should raise ValueError for non-Pydantic model
+        with pytest.raises(ValueError, match="must be a Pydantic BaseModel"):
+            generate_pydantic("Create something", dict)
+
+        with pytest.raises(ValueError, match="must be a Pydantic BaseModel"):
+            generate_pydantic("Create something", str)
 
     def test_multiple_structured_params_error(self):
         """Test that multiple structured parameters are handled correctly."""
