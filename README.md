@@ -288,7 +288,7 @@ echo "Is Python good?" | st --choices "yes,no,maybe" --wait
 
 ## ⚠️ Unsafe Mode: Remote Models (Experimental)
 
-SteadyText now supports remote AI models (OpenAI, Cerebras) with **best-effort determinism** via seed parameters. This feature is explicitly marked as "unsafe" because remote models cannot guarantee reproducibility.
+SteadyText now supports remote AI models (OpenAI, Cerebras, VoyageAI, Jina) with **best-effort determinism** via seed parameters. This feature is explicitly marked as "unsafe" because remote models cannot guarantee reproducibility.
 
 ### Why Use Unsafe Mode?
 
@@ -731,11 +731,17 @@ vec = steadytext.embed(
     model="voyageai:voyage-3-lite",
     unsafe_mode=True
 )
+
+vec = steadytext.embed(
+    "Hello world",
+    model="jina:jina-embeddings-v3",
+    unsafe_mode=True
+)
 ```
 
 - **Parameters:**
   - `text_input`: String or list of strings to embed
-  - `model`: Optional remote model (e.g., "openai:text-embedding-3-small", "voyageai:voyage-3-lite")
+  - `model`: Optional remote model (e.g., "openai:text-embedding-3-small", "voyageai:voyage-3-lite", "jina:jina-embeddings-v3")
   - `unsafe_mode`: Enable remote models (non-deterministic)
 - **Returns:** 1024-dimensional L2-normalized numpy array (float32)
 
