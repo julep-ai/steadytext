@@ -1,8 +1,9 @@
 # AIDEV-NOTE: Core embedding module with L2 normalization and fallback
 # to zero vectors. Handles both single strings and lists of strings
-# with averaging.
+# with averaging. Now supports remote providers with unsafe_mode.
 
 import logging
+import os
 from typing import (
     List,
     Optional,
@@ -51,13 +52,16 @@ def _normalize_l2(vector: np.ndarray, tolerance: float = 1e-9) -> np.ndarray:
 
 # AIDEV-NOTE: Main embedding function with comprehensive error handling and fallback
 # Supports both string and list inputs with proper dimension validation
+# Now supports remote models with unsafe_mode parameter
 def core_embed(
     text_input: Union[str, List[str]],
     seed: int = DEFAULT_SEED,
+    model: Optional[str] = None,
+    unsafe_mode: bool = False,
 ) -> np.ndarray:
     """
     Creates a fixed-dimension, L2-normalized embedding for the input text(s)
-    using the pre-loaded GGUF model configured for embeddings.
+    using the pre-loaded GGUF model configured for embeddings or remote providers.
 
     Args:
         text_input (Union[str, List[str]]): The input text or a list of texts to embed.
@@ -66,6 +70,9 @@ def core_embed(
               are computed and then averaged to produce a single embedding vector.
             - Empty strings, empty lists, or lists with only empty/whitespace
               strings will result in a zero vector of EMBEDDING_DIMENSION.
+        seed: Seed for deterministic behavior (ignored by most remote providers)
+        model: Optional remote model string (e.g., "openai:text-embedding-3-small")
+        unsafe_mode: Enable remote models with best-effort determinism
 
     Returns:
         numpy.ndarray: A 1D numpy array of shape (EMBEDDING_DIMENSION,)
@@ -78,6 +85,72 @@ def core_embed(
                    by the public API layer for a "Never Fails" zero vector response).
     """
     validate_seed(seed)
+
+    # AIDEV-NOTE: Check for remote models first
+    if model:
+        from ..providers.registry import is_remote_model, get_provider
+
+        if is_remote_model(model):
+            # AIDEV-NOTE: Temporarily enable unsafe mode for this call if requested
+            old_unsafe_mode = os.environ.get("STEADYTEXT_UNSAFE_MODE")
+            if unsafe_mode:
+                os.environ["STEADYTEXT_UNSAFE_MODE"] = "true"
+
+            try:
+                provider = get_provider(model)
+
+                # Check if provider supports embeddings
+                if not provider.supports_embeddings():
+                    logger.error(f"Provider for {model} does not support embeddings")
+                    return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
+
+                # Generate embedding using remote provider
+                embedding = provider.embed(text_input, seed=seed)
+
+                if embedding is None:
+                    logger.error(f"Remote embedding generation failed for {model}")
+                    return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
+
+                # Ensure it's the right shape and normalized
+                if embedding.shape != (EMBEDDING_DIMENSION,):
+                    # Some providers may return different dimensions
+                    # For now, we'll pad or truncate to match EMBEDDING_DIMENSION
+                    logger.warning(
+                        f"Remote embedding has dimension {embedding.shape[0]}, "
+                        f"expected {EMBEDDING_DIMENSION}. Adjusting..."
+                    )
+                    if embedding.shape[0] < EMBEDDING_DIMENSION:
+                        # Pad with zeros
+                        padding = np.zeros(
+                            EMBEDDING_DIMENSION - embedding.shape[0], dtype=np.float32
+                        )
+                        embedding = np.concatenate([embedding, padding])
+                    else:
+                        # Truncate
+                        embedding = embedding[:EMBEDDING_DIMENSION]
+
+                # Normalize the embedding
+                normalized_embedding = _normalize_l2(embedding)
+
+                # Cache the result
+                if isinstance(text_input, str):
+                    cache_key = (text_input,)
+                else:
+                    cache_key = tuple(text_input)
+                get_embedding_cache().set(cache_key, normalized_embedding)
+
+                return normalized_embedding
+
+            except Exception as e:
+                logger.error(f"Remote embedding generation failed: {e}")
+                return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
+            finally:
+                # AIDEV-NOTE: Restore original unsafe mode state
+                if unsafe_mode:
+                    if old_unsafe_mode is None:
+                        os.environ.pop("STEADYTEXT_UNSAFE_MODE", None)
+                    else:
+                        os.environ["STEADYTEXT_UNSAFE_MODE"] = old_unsafe_mode
 
     if not isinstance(text_input, (str, list)):
         logger.error(

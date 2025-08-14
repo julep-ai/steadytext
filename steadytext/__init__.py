@@ -6,12 +6,21 @@ AIDEV-NOTE: Fixed "Never Fails" - embed() now catches TypeErrors & returns zero 
 
 # Version of the steadytext package - should match pyproject.toml
 # AIDEV-NOTE: Always update this when bumping the lib version
-__version__ = "2.6.1"
+__version__ = "2.6.2"
 
 # Import core functions and classes for public API
 import os
 import numpy as np
-from typing import Optional, Any, Union, Tuple, Dict, Iterator, List, Type
+from typing import (
+    Optional,
+    Any,
+    Union,
+    Tuple,
+    Dict,
+    Iterator,
+    List,
+    Type,
+)
 from .core.generator import (
     core_generate as _generate,
     core_generate_iter as _generate_iter,
@@ -35,6 +44,7 @@ from .core.structured import (
     generate_regex,
     generate_choice,
     generate_format,
+    generate_pydantic,
 )
 
 
@@ -53,7 +63,8 @@ def generate(
     regex: Optional[str] = None,
     choices: Optional[List[str]] = None,
     unsafe_mode: bool = False,
-) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None]]:
+    return_pydantic: bool = False,
+) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None], object]:
     """Generate text deterministically from a prompt with optional structured output.
 
     Args:
@@ -72,10 +83,12 @@ def generate(
         regex: Regular expression pattern for output format
         choices: List of allowed string choices for output
         unsafe_mode: Enable remote models with best-effort determinism (non-deterministic)
+        return_pydantic: If True and schema is a Pydantic model, return the instantiated model
 
     Returns:
         Generated text string, or tuple (text, logprobs) if return_logprobs=True
         For structured output, JSON is wrapped in <json-output> tags
+        If return_pydantic=True and schema is a Pydantic model, returns the instantiated model
 
     Examples:
         # Use default model
@@ -102,6 +115,10 @@ def generate(
 
         result = generate("Create a person", schema=Person)
         # Returns: "Let me create...<json-output>{"name": "John", "age": 30}</json-output>"
+
+        # Or get a Pydantic model instance directly
+        person = generate("Create a person", schema=Person, return_pydantic=True)
+        # Returns: Person(name="John", age=30)
 
         # Generate with regex pattern
         phone = generate("My phone is", regex=r"\\d{3}-\\d{3}-\\d{4}")
@@ -134,6 +151,7 @@ def generate(
                     regex=regex,
                     choices=choices,
                     unsafe_mode=unsafe_mode,
+                    return_pydantic=return_pydantic,
                 )
             except ConnectionError as e:
                 # Fall back to direct generation
@@ -157,6 +175,7 @@ def generate(
         regex=regex,
         choices=choices,
         unsafe_mode=unsafe_mode,
+        return_pydantic=return_pydantic,
     )
 
     # AIDEV-NOTE: Return None if generation failed
@@ -243,15 +262,30 @@ def generate_iter(
 
 
 def embed(
-    text_input: Union[str, List[str]], seed: int = DEFAULT_SEED
+    text_input: Union[str, List[str]],
+    seed: int = DEFAULT_SEED,
+    model: Optional[str] = None,
+    unsafe_mode: bool = False,
 ) -> Optional[np.ndarray]:
-    """Create embeddings for text input."""
+    """Create embeddings for text input.
+
+    Args:
+        text_input: Text or list of texts to embed
+        seed: Seed for deterministic behavior (ignored by most remote providers)
+        model: Optional remote model string (e.g., "openai:text-embedding-3-small")
+        unsafe_mode: Enable remote models with best-effort determinism
+
+    Returns:
+        Numpy array of embeddings or None if error
+    """
     # AIDEV-NOTE: Use daemon by default for embeddings unless explicitly disabled
     if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
         client = get_daemon_client()
         if client is not None:
             try:
-                return client.embed(text_input, seed=seed)
+                return client.embed(
+                    text_input, seed=seed, model=model, unsafe_mode=unsafe_mode
+                )
             except ConnectionError:
                 # Fall back to direct embedding
                 logger.info(
@@ -260,7 +294,7 @@ def embed(
                 )
 
     try:
-        result = core_embed(text_input, seed=seed)
+        result = core_embed(text_input, seed=seed, model=model, unsafe_mode=unsafe_mode)
         if result is None:
             logger.error(
                 "Embedding creation failed - model not available or invalid input"
@@ -415,4 +449,5 @@ __all__ = [
     "generate_regex",
     "generate_choice",
     "generate_format",
+    "generate_pydantic",
 ]

@@ -299,6 +299,59 @@ SELECT unnest(steadytext_generate_batch_async(
 
 See [docs/ASYNC_FUNCTIONS.md](docs/ASYNC_FUNCTIONS.md) for complete async documentation.
 
+### Unsafe Mode: Remote Models (v1.4.4+)
+
+pg_steadytext supports using remote AI models with best-effort determinism via the `unsafe_mode` parameter.
+
+**Supported Providers:**
+- **OpenAI** - Text generation (gpt-4o, gpt-4o-mini) and embeddings (text-embedding-3-small/large)
+- **Cerebras** - Fast Llama model generation
+- **VoyageAI** - Specialized embeddings (voyage-large-2, voyage-3, etc.)
+- **Jina AI** - Multilingual embeddings (jina-embeddings-v3, v2-base variants)
+
+**Usage Examples:**
+
+```sql
+-- Using remote generation models (v1.4.4+)
+SELECT steadytext_generate(
+    'Explain quantum computing',
+    max_tokens := 500,
+    model := 'openai:gpt-4o-mini',
+    unsafe_mode := TRUE  -- Required for remote models
+);
+
+-- Using remote embedding models (v1.4.6+)
+SELECT steadytext_embed(
+    'PostgreSQL is a powerful database',
+    model := 'openai:text-embedding-3-small',
+    unsafe_mode := TRUE  -- Required for remote models
+);
+
+-- VoyageAI embeddings (v1.4.6+)
+SELECT steadytext_embed(
+    'Advanced vector search',
+    model := 'voyageai:voyage-large-2-instruct',
+    unsafe_mode := TRUE
+);
+
+-- Jina AI multilingual embeddings (v1.4.6+)
+SELECT steadytext_embed(
+    'Multilingual text analysis',
+    model := 'jina:jina-embeddings-v3',
+    unsafe_mode := TRUE
+);
+```
+
+**Important Notes:**
+- Remote models (containing ':' in the model name) require `unsafe_mode := TRUE`
+- Remote models use seed parameters for best-effort determinism but are not guaranteed to be deterministic
+- The daemon is automatically bypassed for remote models to improve performance
+- Environment variables for API keys must be set:
+  - OpenAI: `OPENAI_API_KEY`
+  - Cerebras: `CEREBRAS_API_KEY`
+  - VoyageAI: `VOYAGE_API_KEY`
+  - Jina AI: `JINA_API_KEY`
+
 
 ## Architecture
 
@@ -327,8 +380,8 @@ PostgreSQL Client
 ## Functions
 
 ### Core Functions
-- `steadytext_generate(prompt, max_tokens, use_cache, seed)` - Generate text
-- `steadytext_embed(text, use_cache)` - Generate embedding
+- `steadytext_generate(prompt, max_tokens, use_cache, seed, eos_string, model, model_repo, model_filename, size, unsafe_mode)` - Generate text with optional remote models (v1.4.4+)
+- `steadytext_embed(text, use_cache, seed, model, unsafe_mode)` - Generate embedding with optional remote models (v1.4.6+)
 - `steadytext_generate_stream(prompt, max_tokens)` - Stream text generation
 
 ### Structured Generation Functions (v2.4.1+)

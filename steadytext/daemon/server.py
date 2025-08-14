@@ -105,6 +105,12 @@ class DaemonServer:
         seed = params.get("seed", DEFAULT_SEED)
         max_new_tokens = params.get("max_new_tokens")
         unsafe_mode = params.get("unsafe_mode", False)
+        # Structured generation parameters
+        response_format = params.get("response_format")
+        schema = params.get("schema")
+        regex = params.get("regex")
+        choices = params.get("choices")
+        return_pydantic = params.get("return_pydantic", False)
 
         # AIDEV-NOTE: Check cache first for non-logprobs requests using default model
         # This mirrors the caching logic in core/generator.py
@@ -129,6 +135,11 @@ class DaemonServer:
                 seed=seed,
                 max_new_tokens=max_new_tokens,
                 unsafe_mode=unsafe_mode,
+                response_format=response_format,
+                schema=schema,
+                regex=regex,
+                choices=choices,
+                return_pydantic=return_pydantic,
             )
         else:
             # Local model - use the generator instance
@@ -142,6 +153,11 @@ class DaemonServer:
                 size=size,
                 seed=seed,
                 max_new_tokens=max_new_tokens,
+                response_format=response_format,
+                schema=schema,
+                regex=regex,
+                choices=choices,
+                return_pydantic=return_pydantic,
             )
 
         # AIDEV-NOTE: Cache the result for non-logprobs requests using default model
@@ -273,7 +289,15 @@ class DaemonServer:
         """Handle embedding generation request."""
         text_input = params.get("text_input", "")
         seed = params.get("seed", DEFAULT_SEED)
-        embedding = core_embed(text_input, seed=seed)
+        model = params.get("model")
+        unsafe_mode = params.get("unsafe_mode", False)
+
+        embedding = core_embed(
+            text_input,
+            seed=seed,
+            model=model,
+            unsafe_mode=unsafe_mode,
+        )
 
         # AIDEV-NOTE: Convert numpy array to list for JSON serialization
         return embedding.tolist()

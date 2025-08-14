@@ -34,27 +34,48 @@ class GrammarConverter:
         Returns:
             GBNF grammar string
         """
-        rules = []
+        # AIDEV-NOTE: We use an OrderedDict-like approach where rules are stored
+        # with their definitions to ensure proper dependency ordering
+        self._rules_dict: Dict[str, str] = {}
         self._defined_rules: Set[str] = set()
-        self._additional_rules: List[
-            str
-        ] = []  # Collect rules generated during traversal
 
-        # Add primitive rules
+        # Add primitive rules first
         for name, rule in self._primitive_rules.items():
-            rules.append(rule)
+            self._rules_dict[name] = rule
             self._defined_rules.add(name)
 
         # Add whitespace rule
-        rules.append("ws ::= [ \\t\\n]*")
+        self._rules_dict["ws"] = "ws ::= [ \\t\\n]*"
         self._defined_rules.add("ws")
 
-        # Generate root rule
+        # Generate root rule and all its dependencies
         root_rule = self._generate_rule("root", schema)
-        rules.insert(0, root_rule)
+        self._rules_dict["root"] = root_rule
 
-        # Add any additional rules that were generated
-        rules.extend(self._additional_rules)
+        # Build the final rules list in the correct order
+        # Primitive rules first, then generated rules, then root
+        rules = []
+
+        # Add primitives and ws
+        for name in ["boolean", "number", "integer", "string", "null", "ws"]:
+            if name in self._rules_dict:
+                rules.append(self._rules_dict[name])
+
+        # Add all other rules except root
+        for name, rule in self._rules_dict.items():
+            if name not in [
+                "boolean",
+                "number",
+                "integer",
+                "string",
+                "null",
+                "ws",
+                "root",
+            ]:
+                rules.append(rule)
+
+        # Add root rule last
+        rules.append(self._rules_dict["root"])
 
         return "\n".join(rules)
 
@@ -126,41 +147,54 @@ class GrammarConverter:
             if prop_rule_name not in self._defined_rules:
                 prop_rule = self._generate_rule(prop_rule_name, prop_schema)
                 self._defined_rules.add(prop_rule_name)
-                # Add the rule to the additional rules collection
-                self._additional_rules.append(prop_rule)
+                # Add the rule to the rules dictionary
+                self._rules_dict[prop_rule_name] = prop_rule
 
             # Create key-value rule for this property
-            kv_rule = f'{name}_{self._sanitize_name(prop_name)}_kv ::= "\\"" "{prop_name}" "\\"" ws ":" ws {prop_rule_name}'
-            self._additional_rules.append(kv_rule)
+            # Escape special characters in property name for GBNF literal
+            # In GBNF, inside a quoted literal:
+            # - Backslashes need to be escaped as \\
+            # - Quotes need to be escaped as \\\" (backslash-backslash-quote)
+            escaped_prop = (
+                str(prop_name).replace("\\", "\\\\\\\\").replace('"', '\\\\"')
+            )
+            kv_rule_name = f"{name}_{self._sanitize_name(prop_name)}_kv"
+            kv_rule = (
+                f'{kv_rule_name} ::= "\\"{escaped_prop}\\"" ws ":" ws {prop_rule_name}'
+            )
+            self._rules_dict[kv_rule_name] = kv_rule
 
             if prop_name in required:
                 prop_kv_rules.append(f"{name}_{self._sanitize_name(prop_name)}_kv")
 
         # Build the object rule
         if properties:
-            # Fixed order for required properties
-            required_props = [
-                f"{name}_{self._sanitize_name(p)}_kv"
-                for p in properties.keys()
-                if p in required
-            ]
-            optional_props = [
-                f"{name}_{self._sanitize_name(p)}_kv"
-                for p in properties.keys()
-                if p not in required
-            ]
+            # Get all property names in schema order
+            all_props = list(properties.keys())
 
-            rule_parts = ['"{"']
-            if required_props:
-                joiner = ' ws "," ws '
-                rule_parts.append(f" ws {joiner.join(required_props)}")
-            if optional_props:
-                # AIDEV-NOTE: Simplified optional property handling
-                # Full implementation would need more complex grammar
-                pass
-            rule_parts.append(' ws "}"')
+            # AIDEV-NOTE: GBNF doesn't have good support for optional properties,
+            # so we include all properties in the generated JSON.
+            # For objects with optional fields, we'll rely on the model to generate
+            # appropriate values (or null) for optional fields.
+            all_prop_kvs = []
+            for prop_name in all_props:
+                kv_name = f"{name}_{self._sanitize_name(prop_name)}_kv"
+                all_prop_kvs.append(kv_name)
 
-            return f"{name} ::= {''.join(rule_parts)}"
+            if all_prop_kvs:
+                # Create rule with all properties in order, separated by commas
+                # AIDEV-NOTE: Fixed to ensure proper spacing and comma separation
+                rule_parts = ['"{"', " ws "]
+                for i, kv in enumerate(all_prop_kvs):
+                    if i > 0:
+                        rule_parts.append('"," ws ')
+                    rule_parts.append(kv + " ws ")
+                rule_parts.append('"}"')
+                rule = f"{name} ::= {''.join(rule_parts)}"
+            else:
+                rule = f'{name} ::= "{{" ws "}}"'
+
+            return rule
         else:
             return f'{name} ::= "{{" ws "}}"'
 
@@ -180,7 +214,7 @@ class GrammarConverter:
         if item_rule_name not in self._defined_rules:
             item_rule = self._generate_rule(item_rule_name, items)
             self._defined_rules.add(item_rule_name)
-            self._additional_rules.append(item_rule)
+            self._rules_dict[item_rule_name] = item_rule
 
         return f'{name} ::= "[" ws "]" | "[" ws {item_rule_name} ("," ws {item_rule_name})* ws "]"'
 
@@ -194,8 +228,15 @@ class GrammarConverter:
         Returns:
             GBNF rule string
         """
-        # Convert all values to quoted strings
-        options = [f'"\\"" "{str(v)}" "\\""' for v in values]
+        # Convert all values to quoted strings with proper escaping
+        options = []
+        for v in values:
+            # Escape special characters in enum value for GBNF literal
+            # In GBNF, inside a quoted literal:
+            # - Backslashes need to be escaped as \\
+            # - Quotes need to be escaped as \\\" (backslash-backslash-quote)
+            escaped_val = str(v).replace("\\", "\\\\\\\\").replace('"', '\\\\"')
+            options.append(f'"\\"{escaped_val}\\""')
         return f"{name} ::= {' | '.join(options)}"
 
     def _generate_union_rule(self, name: str, schemas: List[Dict[str, Any]]) -> str:
@@ -214,7 +255,7 @@ class GrammarConverter:
             if option_name not in self._defined_rules:
                 option_rule = self._generate_rule(option_name, schema)
                 self._defined_rules.add(option_name)
-                self._additional_rules.append(option_rule)
+                self._rules_dict[option_name] = option_rule
             options.append(option_name)
 
         return f"{name} ::= {' | '.join(options)}"
