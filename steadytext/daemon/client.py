@@ -292,14 +292,25 @@ class DaemonClient:
                 logger.error(f"Daemon generate_iter error: {e}")
                 raise
 
-    def embed(self, text_input: Any, seed: int = DEFAULT_SEED) -> np.ndarray:
+    def embed(
+        self, 
+        text_input: Any, 
+        seed: int = DEFAULT_SEED,
+        model: Optional[str] = None,
+        unsafe_mode: bool = False,
+    ) -> np.ndarray:
         """Generate embeddings via daemon."""
         if not self.connect():
             raise ConnectionError("Daemon not available")
 
         assert self.socket is not None  # Type guard for mypy
         try:
-            params = {"text_input": text_input, "seed": seed}
+            params = {
+                "text_input": text_input, 
+                "seed": seed,
+                "model": model,
+                "unsafe_mode": unsafe_mode,
+            }
             request = Request(method="embed", params=params)
             self.socket.send(request.to_json().encode())
             response_data = self.socket.recv()

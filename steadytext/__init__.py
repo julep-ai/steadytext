@@ -243,15 +243,28 @@ def generate_iter(
 
 
 def embed(
-    text_input: Union[str, List[str]], seed: int = DEFAULT_SEED
+    text_input: Union[str, List[str]], 
+    seed: int = DEFAULT_SEED,
+    model: Optional[str] = None,
+    unsafe_mode: bool = False,
 ) -> Optional[np.ndarray]:
-    """Create embeddings for text input."""
+    """Create embeddings for text input.
+    
+    Args:
+        text_input: Text or list of texts to embed
+        seed: Seed for deterministic behavior (ignored by most remote providers)
+        model: Optional remote model string (e.g., "openai:text-embedding-3-small")
+        unsafe_mode: Enable remote models with best-effort determinism
+    
+    Returns:
+        Numpy array of embeddings or None if error
+    """
     # AIDEV-NOTE: Use daemon by default for embeddings unless explicitly disabled
     if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
         client = get_daemon_client()
         if client is not None:
             try:
-                return client.embed(text_input, seed=seed)
+                return client.embed(text_input, seed=seed, model=model, unsafe_mode=unsafe_mode)
             except ConnectionError:
                 # Fall back to direct embedding
                 logger.info(
@@ -260,7 +273,7 @@ def embed(
                 )
 
     try:
-        result = core_embed(text_input, seed=seed)
+        result = core_embed(text_input, seed=seed, model=model, unsafe_mode=unsafe_mode)
         if result is None:
             logger.error(
                 "Embedding creation failed - model not available or invalid input"

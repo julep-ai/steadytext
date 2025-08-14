@@ -510,8 +510,12 @@ st models preload
 ### Other Operations
 
 ```bash
-# Get embeddings
+# Get embeddings (local model - deterministic)
 echo "machine learning" | st embed
+
+# Remote embeddings (requires unsafe mode)
+echo "machine learning" | st embed --model openai:text-embedding-3-small --unsafe-mode
+echo "document text" | st embed --model voyageai:voyage-3-lite --unsafe-mode --json
 
 # Document reranking (v2.3.0+)
 st rerank "what is Python?" document1.txt document2.txt document3.txt
@@ -704,20 +708,35 @@ for token in steadytext.generate_iter("Tell me a story"):
 
 ### Embeddings
 
-#### `embed(text_input: Union[str, List[str]]) -> np.ndarray`
+#### `embed(text_input: Union[str, List[str]], model: Optional[str] = None, unsafe_mode: bool = False) -> np.ndarray`
 
-Create deterministic embeddings for text input.
+Create deterministic embeddings for text input, with optional remote provider support.
 
 ```python
-# Single string
+# Local model (deterministic)
 vec = steadytext.embed("Hello world")
 
 # List of strings (averaged)
 vecs = steadytext.embed(["Hello", "world"])
+
+# Remote models (requires unsafe_mode)
+vec = steadytext.embed(
+    "Hello world",
+    model="openai:text-embedding-3-small",
+    unsafe_mode=True
+)
+
+vec = steadytext.embed(
+    "Hello world", 
+    model="voyageai:voyage-3-lite",
+    unsafe_mode=True
+)
 ```
 
 - **Parameters:**
   - `text_input`: String or list of strings to embed
+  - `model`: Optional remote model (e.g., "openai:text-embedding-3-small", "voyageai:voyage-3-lite")
+  - `unsafe_mode`: Enable remote models (non-deterministic)
 - **Returns:** 1024-dimensional L2-normalized numpy array (float32)
 
 ### Utilities

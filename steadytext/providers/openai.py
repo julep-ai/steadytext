@@ -7,6 +7,7 @@ but explicitly states it's not guaranteed across all conditions.
 import os
 from typing import Optional, Iterator, Dict, Any, List, Union
 import logging
+import numpy as np
 
 from .base import RemoteModelProvider
 
@@ -243,6 +244,77 @@ class OpenAIProvider(RemoteModelProvider):
         for chunk in stream:
             if chunk.choices[0].delta.content is not None:
                 yield chunk.choices[0].delta.content
+
+    def embed(
+        self,
+        text: Union[str, List[str]],
+        seed: int = 42,
+        model: Optional[str] = None,
+        **kwargs,
+    ) -> Optional[np.ndarray]:
+        """Generate embeddings using OpenAI.
+        
+        AIDEV-NOTE: OpenAI embeddings don't support seed parameter,
+        so embeddings are not deterministic.
+        
+        Args:
+            text: Text or list of texts to embed
+            seed: Ignored - OpenAI embeddings don't support seed
+            model: Override embedding model (default: text-embedding-3-small)
+            **kwargs: Additional OpenAI-specific parameters
+        
+        Returns:
+            Numpy array of embeddings or None if error
+        """
+        self._issue_warning()
+        
+        if seed != 42:
+            logger.warning(
+                "OpenAI embeddings do not support seed parameter. "
+                "Seed will be ignored for embeddings."
+            )
+        
+        if not self.is_available():
+            raise RuntimeError(
+                "OpenAI provider not available. Install with: pip install openai"
+            )
+        
+        client = self._get_client()
+        
+        # Use specific embedding model or default
+        embedding_model = model or "text-embedding-3-small"
+        
+        # Convert single string to list for consistent handling
+        texts = [text] if isinstance(text, str) else text
+        
+        try:
+            # Call OpenAI embeddings API
+            response = client.embeddings.create(
+                input=texts,
+                model=embedding_model,
+                **kwargs
+            )
+            
+            # Extract embeddings from response
+            embeddings = [item.embedding for item in response.data]
+            
+            # Convert to numpy array
+            embeddings_np = np.array(embeddings, dtype=np.float32)
+            
+            # If single text was input, return single embedding
+            if isinstance(text, str):
+                return embeddings_np[0]
+            
+            # For multiple texts, return average embedding (matching SteadyText behavior)
+            return np.mean(embeddings_np, axis=0)
+            
+        except Exception as e:
+            logger.error(f"OpenAI embedding generation failed: {e}")
+            return None
+    
+    def supports_embeddings(self) -> bool:
+        """OpenAI supports both generation and embeddings."""
+        return True
 
     def get_supported_models(self) -> List[str]:
         """Get list of models that support seed parameter."""
