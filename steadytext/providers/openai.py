@@ -301,12 +301,24 @@ class OpenAIProvider(RemoteModelProvider):
             # Convert to numpy array
             embeddings_np = np.array(embeddings, dtype=np.float32)
             
+            # Normalize each embedding (L2 normalization)
+            # AIDEV-NOTE: Remote embeddings need to be normalized to match SteadyText behavior
+            for i in range(embeddings_np.shape[0]):
+                norm = np.linalg.norm(embeddings_np[i])
+                if norm > 0:
+                    embeddings_np[i] = embeddings_np[i] / norm
+            
             # If single text was input, return single embedding
             if isinstance(text, str):
                 return embeddings_np[0]
             
             # For multiple texts, return average embedding (matching SteadyText behavior)
-            return np.mean(embeddings_np, axis=0)
+            # AIDEV-NOTE: SteadyText averages batch embeddings then normalizes
+            avg_embedding = np.mean(embeddings_np, axis=0)
+            norm = np.linalg.norm(avg_embedding)
+            if norm > 0:
+                avg_embedding = avg_embedding / norm
+            return avg_embedding
             
         except Exception as e:
             logger.error(f"OpenAI embedding generation failed: {e}")

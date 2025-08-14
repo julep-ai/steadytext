@@ -115,10 +115,9 @@ class TestVoyageAIProvider:
         result = provider.embed(["Text 1", "Text 2"], seed=42)
 
         assert isinstance(result, np.ndarray)
-        assert result.shape == (2, 1024)
-        # Each result should be normalized
-        assert np.allclose(np.linalg.norm(result[0]), 1.0, rtol=1e-5)
-        assert np.allclose(np.linalg.norm(result[1]), 1.0, rtol=1e-5)
+        assert result.shape == (1024,)  # Should be averaged to single embedding
+        # Result should be normalized
+        assert np.allclose(np.linalg.norm(result), 1.0, rtol=1e-5)
 
         # Verify API call
         mock_client.embed.assert_called_once()
@@ -234,10 +233,9 @@ class TestOpenAIProviderEmbeddings:
         result = provider.embed(["Text 1", "Text 2"], seed=42)
 
         assert isinstance(result, np.ndarray)
-        assert result.shape == (2, 1024)
-        # Each result should be normalized
-        assert np.allclose(np.linalg.norm(result[0]), 1.0, rtol=1e-5)
-        assert np.allclose(np.linalg.norm(result[1]), 1.0, rtol=1e-5)
+        assert result.shape == (1024,)  # Should be averaged to single embedding
+        # Result should be normalized
+        assert np.allclose(np.linalg.norm(result), 1.0, rtol=1e-5)
 
         # Verify API call
         mock_client.embeddings.create.assert_called_once()
