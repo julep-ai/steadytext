@@ -504,6 +504,7 @@ class SteadyTextConnector:
                 with use_daemon():
                     # Check if embed supports unsafe_mode parameter
                     import inspect
+
                     embed_sig = inspect.signature(embed)
                     kwargs = {"seed": seed}
                     if model:
@@ -521,6 +522,7 @@ class SteadyTextConnector:
                 try:
                     # Check if embed supports unsafe_mode parameter
                     import inspect
+
                     embed_sig = inspect.signature(embed)
                     kwargs = {"seed": seed}
                     if model:
@@ -955,7 +957,9 @@ def pg_generate(prompt: str, max_tokens: int = 512, **kwargs) -> str:
     return connector.generate(prompt, max_tokens, **kwargs)
 
 
-def pg_embed(text: str, seed: int = 42, model: Optional[str] = None, unsafe_mode: bool = False) -> List[float]:
+def pg_embed(
+    text: str, seed: int = 42, model: Optional[str] = None, unsafe_mode: bool = False
+) -> List[float]:
     """PostgreSQL-friendly wrapper for embedding generation with remote model support."""
     connector = get_default_connector()
     embedding = connector.embed(text, seed=seed, model=model, unsafe_mode=unsafe_mode)
