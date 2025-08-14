@@ -27,6 +27,7 @@ class TestRemoteModelDetection:
         """Test detection of remote model strings."""
         assert is_remote_model("openai:gpt-4")
         assert is_remote_model("cerebras:llama3.1-8b")
+        assert is_remote_model("voyageai:voyage-3-large")
         assert not is_remote_model("gemma-3n-2b")
         assert not is_remote_model("qwen2.5-3b")
         assert not is_remote_model(None)
@@ -42,6 +43,10 @@ class TestRemoteModelDetection:
         provider, model = parse_remote_model("cerebras:llama3.1-8b")
         assert provider == "cerebras"
         assert model == "llama3.1-8b"
+
+        provider, model = parse_remote_model("voyageai:voyage-3-large")
+        assert provider == "voyageai"
+        assert model == "voyage-3-large"
 
         # Test invalid formats
         with pytest.raises(ValueError, match="Invalid remote model format"):
@@ -239,7 +244,8 @@ class TestProviderRegistry:
         providers = list_providers()
         assert "openai" in providers
         assert "cerebras" in providers
-        assert len(providers) >= 2
+        assert "voyageai" in providers
+        assert len(providers) >= 3
 
     def test_get_provider_unsafe_mode_required(self, monkeypatch):
         """Test that get_provider requires unsafe mode."""

@@ -541,7 +541,7 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
         ) as mock_core_embed:
             result = steadytext.embed("test")
             mock_core_embed.assert_called_once_with(
-                "test", seed=42
+                "test", seed=42, model=None, unsafe_mode=False
             )  # Verify the mock was called
             self.assertIsNone(
                 result,
