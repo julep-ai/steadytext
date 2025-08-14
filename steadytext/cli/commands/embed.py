@@ -35,7 +35,9 @@ import numpy as np
     is_flag=True,
     help="Enable unsafe mode for remote models (non-deterministic)",
 )
-def embed(text, output_json, output_numpy, output_hex, output_format, seed, model, unsafe_mode):
+def embed(
+    text, output_json, output_numpy, output_hex, output_format, seed, model, unsafe_mode
+):
     """Generate embedding vector for text.
 
     Examples:
@@ -80,7 +82,9 @@ def embed(text, output_json, output_numpy, output_hex, output_format, seed, mode
     # AIDEV-NOTE: Create embedding directly using core function
     # Now supports remote models with unsafe_mode
     start_time = time.time()
-    embedding = create_embedding(input_text, seed=seed, model=model, unsafe_mode=unsafe_mode)
+    embedding = create_embedding(
+        input_text, seed=seed, model=model, unsafe_mode=unsafe_mode
+    )
     elapsed_time = time.time() - start_time
 
     if format_choice == "numpy":
@@ -98,7 +102,7 @@ def embed(text, output_json, output_numpy, output_hex, output_format, seed, mode
             model_name = model
         else:
             model_name = "Qwen3-Embedding-0.6B"
-        
+
         output = {
             "text": input_text,
             "embedding": embedding.tolist(),

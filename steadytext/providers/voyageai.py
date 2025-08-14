@@ -23,6 +23,7 @@ def _get_voyageai():
     if _voyageai_module is None:
         try:
             import voyageai
+
             _voyageai_module = voyageai
         except ImportError:
             logger.error(
@@ -34,11 +35,11 @@ def _get_voyageai():
 
 class VoyageAIProvider(RemoteModelProvider):
     """VoyageAI embedding provider.
-    
+
     AIDEV-NOTE: VoyageAI provides high-quality embeddings but doesn't support
     seed parameters, so embeddings are not deterministic.
     """
-    
+
     # Available embedding models
     EMBEDDING_MODELS = [
         "voyage-3",
@@ -52,7 +53,7 @@ class VoyageAIProvider(RemoteModelProvider):
         "voyage-2",
         "voyage-lite-02-instruct",
     ]
-    
+
     # Model dimensions (for reference and validation)
     MODEL_DIMENSIONS = {
         "voyage-3": 1024,
@@ -66,39 +67,39 @@ class VoyageAIProvider(RemoteModelProvider):
         "voyage-2": 1024,
         "voyage-lite-02-instruct": 1024,
     }
-    
+
     def __init__(self, api_key: Optional[str] = None, model: str = "voyage-3-lite"):
         """Initialize VoyageAI provider.
-        
+
         Args:
             api_key: VoyageAI API key. If None, uses VOYAGE_API_KEY env var
             model: Embedding model to use (default: voyage-3-lite)
         """
         super().__init__(api_key)
         self.model = model
-        
+
         # Try to get API key from environment if not provided
         if not self.api_key:
             self.api_key = os.environ.get("VOYAGE_API_KEY")
-        
+
         # Initialize client lazily
         self._client = None
-    
+
     @property
     def provider_name(self) -> str:
         return f"VoyageAI ({self.model})"
-    
+
     def is_available(self) -> bool:
         """Check if VoyageAI is available."""
         if not self.api_key:
             return False
-        
+
         voyageai = _get_voyageai()
         if voyageai is None:
             return False
-        
+
         return True
-    
+
     def _get_client(self):
         """Get or create VoyageAI client."""
         if self._client is None:
@@ -107,69 +108,66 @@ class VoyageAIProvider(RemoteModelProvider):
                 raise RuntimeError("VoyageAI library not available")
             self._client = voyageai.Client(api_key=self.api_key)
         return self._client
-    
+
     def embed(
-        self, 
-        text: Union[str, List[str]], 
+        self,
+        text: Union[str, List[str]],
         seed: int = 42,
         input_type: str = "document",
-        **kwargs
+        **kwargs,
     ) -> Optional[np.ndarray]:
         """Generate embeddings using VoyageAI.
-        
+
         Args:
             text: Text or list of texts to embed
             seed: Ignored - VoyageAI doesn't support seeded embeddings
             input_type: Type of input ("document" or "query")
             **kwargs: Additional VoyageAI-specific parameters
-        
+
         Returns:
             Numpy array of embeddings or None if error
         """
         self._issue_warning()
-        
+
         if seed != 42:
             logger.warning(
                 "VoyageAI does not support seeded embeddings. "
                 "Seed parameter will be ignored."
             )
-        
+
         if not self.is_available():
             raise RuntimeError(
                 "VoyageAI provider not available. Install with: pip install voyageai"
             )
-        
+
         client = self._get_client()
-        
+
         # Convert single string to list for batch processing
         texts = [text] if isinstance(text, str) else text
-        
+
         try:
             # Call VoyageAI API
             result = client.embed(
-                texts=texts,
-                model=self.model,
-                input_type=input_type,
-                **kwargs
+                texts=texts, model=self.model, input_type=input_type, **kwargs
             )
-            
+
             # Extract embeddings from response
             embeddings = result.embeddings
-            
+
             # Convert to numpy array
             embeddings_np = np.array(embeddings, dtype=np.float32)
-            
+
             # Normalize each embedding (L2 normalization)
             # AIDEV-NOTE: Remote embeddings need to be normalized to match SteadyText behavior
             for i in range(embeddings_np.shape[0]):
                 norm = np.linalg.norm(embeddings_np[i])
                 if norm > 0:
                     embeddings_np[i] = embeddings_np[i] / norm
-            
+
             # If single text was input, return single embedding
             if isinstance(text, str):
                 return embeddings_np[0]
-            
+
             # For multiple texts, return average embedding (matching SteadyText behavior)
             # AIDEV-NOTE: SteadyText averages batch embeddings then normalizes
             avg_embedding = np.mean(embeddings_np, axis=0)
@@ -177,19 +175,19 @@ class VoyageAIProvider(RemoteModelProvider):
             if norm > 0:
                 avg_embedding = avg_embedding / norm
             return avg_embedding
-            
+
         except Exception as e:
             logger.error(f"VoyageAI embedding generation failed: {e}")
             return None
-    
+
     def supports_embeddings(self) -> bool:
         """VoyageAI specializes in embeddings."""
         return True
-    
+
     def supports_streaming(self) -> bool:
         """VoyageAI doesn't support streaming (embeddings only)."""
         return False
-    
+
     def generate(
         self,
         prompt: str,
@@ -199,10 +197,9 @@ class VoyageAIProvider(RemoteModelProvider):
     ) -> str:
         """VoyageAI doesn't support text generation."""
         raise NotImplementedError(
-            "VoyageAI is an embedding-only provider. "
-            "Use 'embed' method for embeddings."
+            "VoyageAI is an embedding-only provider. Use 'embed' method for embeddings."
         )
-    
+
     def generate_iter(
         self,
         prompt: str,
@@ -212,28 +209,27 @@ class VoyageAIProvider(RemoteModelProvider):
     ) -> Iterator[str]:
         """VoyageAI doesn't support text generation."""
         raise NotImplementedError(
-            "VoyageAI is an embedding-only provider. "
-            "Use 'embed' method for embeddings."
+            "VoyageAI is an embedding-only provider. Use 'embed' method for embeddings."
         )
-    
+
     def get_supported_models(self) -> List[str]:
         """Get list of supported embedding models."""
         return self.EMBEDDING_MODELS
-    
+
     def _is_valid_api_key_format(self, api_key: str) -> bool:
         """Validate VoyageAI API key format.
-        
+
         VoyageAI keys typically start with 'pa-' followed by alphanumeric chars.
-        
+
         Args:
             api_key: API key to validate
-        
+
         Returns:
             True if format appears valid
         """
         if not api_key or not api_key.strip():
             return False
-        
+
         # Basic format check - VoyageAI keys start with 'pa-'
         # AIDEV-NOTE: This is a basic check, actual key validation happens on API call
         return api_key.startswith("pa-") and len(api_key) > 10

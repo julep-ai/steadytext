@@ -253,65 +253,63 @@ class OpenAIProvider(RemoteModelProvider):
         **kwargs,
     ) -> Optional[np.ndarray]:
         """Generate embeddings using OpenAI.
-        
+
         AIDEV-NOTE: OpenAI embeddings don't support seed parameter,
         so embeddings are not deterministic.
-        
+
         Args:
             text: Text or list of texts to embed
             seed: Ignored - OpenAI embeddings don't support seed
             model: Override embedding model (default: text-embedding-3-small)
             **kwargs: Additional OpenAI-specific parameters
-        
+
         Returns:
             Numpy array of embeddings or None if error
         """
         self._issue_warning()
-        
+
         if seed != 42:
             logger.warning(
                 "OpenAI embeddings do not support seed parameter. "
                 "Seed will be ignored for embeddings."
             )
-        
+
         if not self.is_available():
             raise RuntimeError(
                 "OpenAI provider not available. Install with: pip install openai"
             )
-        
+
         client = self._get_client()
-        
+
         # Use specific embedding model or default
         embedding_model = model or "text-embedding-3-small"
-        
+
         # Convert single string to list for consistent handling
         texts = [text] if isinstance(text, str) else text
-        
+
         try:
             # Call OpenAI embeddings API
             response = client.embeddings.create(
-                input=texts,
-                model=embedding_model,
-                **kwargs
+                input=texts, model=embedding_model, **kwargs
             )
-            
+
             # Extract embeddings from response
             embeddings = [item.embedding for item in response.data]
-            
+
             # Convert to numpy array
             embeddings_np = np.array(embeddings, dtype=np.float32)
-            
+
             # Normalize each embedding (L2 normalization)
             # AIDEV-NOTE: Remote embeddings need to be normalized to match SteadyText behavior
             for i in range(embeddings_np.shape[0]):
                 norm = np.linalg.norm(embeddings_np[i])
                 if norm > 0:
                     embeddings_np[i] = embeddings_np[i] / norm
-            
+
             # If single text was input, return single embedding
             if isinstance(text, str):
                 return embeddings_np[0]
-            
+
             # For multiple texts, return average embedding (matching SteadyText behavior)
             # AIDEV-NOTE: SteadyText averages batch embeddings then normalizes
             avg_embedding = np.mean(embeddings_np, axis=0)
@@ -319,11 +317,11 @@ class OpenAIProvider(RemoteModelProvider):
             if norm > 0:
                 avg_embedding = avg_embedding / norm
             return avg_embedding
-            
+
         except Exception as e:
             logger.error(f"OpenAI embedding generation failed: {e}")
             return None
-    
+
     def supports_embeddings(self) -> bool:
         """OpenAI supports both generation and embeddings."""
         return True

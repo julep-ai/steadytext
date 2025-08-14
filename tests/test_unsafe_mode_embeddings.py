@@ -5,7 +5,6 @@ actually calling remote APIs (which would be non-deterministic and costly).
 """
 
 import numpy as np
-import pytest
 import warnings
 from unittest.mock import Mock, patch
 
@@ -13,7 +12,6 @@ from steadytext.providers.base import UnsafeModeWarning
 from steadytext.providers.openai import OpenAIProvider
 from steadytext.providers.voyageai import VoyageAIProvider
 from steadytext.providers.jina import JinaProvider
-from steadytext.providers.registry import get_provider
 
 
 class TestVoyageAIProvider:
@@ -27,13 +25,13 @@ class TestVoyageAIProvider:
 
     def test_init_from_env(self, monkeypatch):
         """Test initialization from environment."""
-        monkeypatch.setenv("VOYAGEAI_API_KEY", "env-key")
+        monkeypatch.setenv("VOYAGE_API_KEY", "env-key")
         provider = VoyageAIProvider(model="voyage-3-large")
         assert provider.api_key == "env-key"
 
     def test_is_available_no_key(self, monkeypatch):
         """Test availability check without API key."""
-        monkeypatch.delenv("VOYAGEAI_API_KEY", raising=False)
+        monkeypatch.delenv("VOYAGE_API_KEY", raising=False)
         provider = VoyageAIProvider(api_key=None)
         assert not provider.is_available()
 
@@ -49,7 +47,9 @@ class TestVoyageAIProvider:
         provider = VoyageAIProvider()
         models = provider.get_supported_models()
         assert isinstance(models, list)
-        assert len(models) == 0  # Empty list returned
+        assert len(models) == 10  # Should return 10 supported models
+        assert "voyage-3" in models
+        assert "voyage-3-lite" in models
 
     @patch("steadytext.providers.voyageai._get_voyageai")
     def test_embed_single_text(self, mock_get_voyageai, monkeypatch):
@@ -62,8 +62,8 @@ class TestVoyageAIProvider:
         mock_response = Mock()
         # Create a 1024-dimensional embedding for testing
         mock_embedding = np.random.randn(1024).tolist()
-        mock_response.embeddings = [Mock(embedding=mock_embedding)]
-        
+        mock_response.embeddings = [mock_embedding]
+
         mock_client.embed.return_value = mock_response
         mock_voyageai.Client.return_value = mock_client
         mock_get_voyageai.return_value = mock_voyageai
@@ -101,11 +101,8 @@ class TestVoyageAIProvider:
         # Create 1024-dimensional embeddings for testing
         mock_embedding1 = np.random.randn(1024).tolist()
         mock_embedding2 = np.random.randn(1024).tolist()
-        mock_response.embeddings = [
-            Mock(embedding=mock_embedding1),
-            Mock(embedding=mock_embedding2)
-        ]
-        
+        mock_response.embeddings = [mock_embedding1, mock_embedding2]
+
         mock_client.embed.return_value = mock_response
         mock_voyageai.Client.return_value = mock_client
         mock_get_voyageai.return_value = mock_voyageai
@@ -135,15 +132,15 @@ class TestVoyageAIProvider:
         mock_response = Mock()
         # Create a 1024-dimensional embedding for testing
         mock_embedding = np.random.randn(1024).tolist()
-        mock_response.embeddings = [Mock(embedding=mock_embedding)]
-        
+        mock_response.embeddings = [mock_embedding]
+
         mock_client.embed.return_value = mock_response
         mock_voyageai.Client.return_value = mock_client
         mock_get_voyageai.return_value = mock_voyageai
 
         provider = VoyageAIProvider(api_key="test", model="voyage-3-large")
 
-        result = provider.embed("Query text", input_type="query")
+        provider.embed("Query text", input_type="query")
 
         # Verify API call used custom input type
         call_args = mock_client.embed.call_args
@@ -182,7 +179,7 @@ class TestOpenAIProviderEmbeddings:
         # Create a 1024-dimensional embedding for testing
         mock_embedding = np.random.randn(1024).tolist()
         mock_response.data = [Mock(embedding=mock_embedding)]
-        
+
         mock_client.embeddings.create.return_value = mock_response
         mock_openai.OpenAI.return_value = mock_client
         mock_get_openai.return_value = mock_openai
@@ -204,7 +201,7 @@ class TestOpenAIProviderEmbeddings:
         # Verify API call
         mock_client.embeddings.create.assert_called_once()
         call_args = mock_client.embeddings.create.call_args
-        assert call_args.kwargs["model"] == "text-embedding-3-large"
+        assert call_args.kwargs["model"] == "text-embedding-3-small"  # Default model
         assert call_args.kwargs["input"] == ["Test text"]
 
     @patch("steadytext.providers.openai._get_openai")
@@ -221,9 +218,9 @@ class TestOpenAIProviderEmbeddings:
         mock_embedding2 = np.random.randn(1024).tolist()
         mock_response.data = [
             Mock(embedding=mock_embedding1),
-            Mock(embedding=mock_embedding2)
+            Mock(embedding=mock_embedding2),
         ]
-        
+
         mock_client.embeddings.create.return_value = mock_response
         mock_openai.OpenAI.return_value = mock_client
         mock_get_openai.return_value = mock_openai
@@ -254,14 +251,14 @@ class TestOpenAIProviderEmbeddings:
         # Create a 1024-dimensional embedding for testing
         mock_embedding = np.random.randn(1024).tolist()
         mock_response.data = [Mock(embedding=mock_embedding)]
-        
+
         mock_client.embeddings.create.return_value = mock_response
         mock_openai.OpenAI.return_value = mock_client
         mock_get_openai.return_value = mock_openai
 
         provider = OpenAIProvider(api_key="test", model="text-embedding-ada-002")
 
-        result = provider.embed("Test text", model="text-embedding-3-small")
+        provider.embed("Test text", model="text-embedding-3-small")
 
         # Verify API call used the override model
         call_args = mock_client.embeddings.create.call_args
@@ -292,7 +289,7 @@ class TestCoreEmbedderIntegration:
     def test_embed_with_voyageai_model(self, mock_get_voyageai, monkeypatch):
         """Test core_embed function with VoyageAI model."""
         monkeypatch.setenv("STEADYTEXT_UNSAFE_MODE", "true")
-        monkeypatch.setenv("VOYAGEAI_API_KEY", "test-key")
+        monkeypatch.setenv("VOYAGE_API_KEY", "test-key")
 
         # Mock VoyageAI
         mock_voyageai = Mock()
@@ -301,7 +298,7 @@ class TestCoreEmbedderIntegration:
         # Create a 1024-dimensional embedding for testing
         mock_embedding = np.random.randn(1024).tolist()
         mock_response.embeddings = [Mock(embedding=mock_embedding)]
-        
+
         mock_client.embed.return_value = mock_response
         mock_voyageai.Client.return_value = mock_client
         mock_get_voyageai.return_value = mock_voyageai
@@ -326,7 +323,7 @@ class TestCoreEmbedderIntegration:
         # Create a 1024-dimensional embedding for testing
         mock_embedding = np.random.randn(1024).tolist()
         mock_response.data = [Mock(embedding=mock_embedding)]
-        
+
         mock_client.embeddings.create.return_value = mock_response
         mock_openai.OpenAI.return_value = mock_client
         mock_get_openai.return_value = mock_openai
@@ -334,7 +331,9 @@ class TestCoreEmbedderIntegration:
         # Import here to ensure environment is set
         from steadytext import embed
 
-        result = embed("Test text", model="openai:text-embedding-3-large", unsafe_mode=True)
+        result = embed(
+            "Test text", model="openai:text-embedding-3-large", unsafe_mode=True
+        )
         assert isinstance(result, np.ndarray)
         assert result.shape == (1024,)
 
@@ -366,7 +365,7 @@ class TestCoreEmbedderIntegration:
     def test_embed_batch_with_remote_model(self, mock_get_voyageai, monkeypatch):
         """Test batch embedding with remote model."""
         monkeypatch.setenv("STEADYTEXT_UNSAFE_MODE", "true")
-        monkeypatch.setenv("VOYAGEAI_API_KEY", "test-key")
+        monkeypatch.setenv("VOYAGE_API_KEY", "test-key")
 
         # Mock VoyageAI
         mock_voyageai = Mock()
@@ -376,11 +375,11 @@ class TestCoreEmbedderIntegration:
         mock_embedding1 = np.random.randn(1024).tolist()
         mock_embedding2 = np.random.randn(1024).tolist()
         # For batch, the embed function would average them, so return a single embedding
-        averaged_embedding = np.mean([mock_embedding1, mock_embedding2], axis=0).tolist()
-        mock_response.embeddings = [
-            Mock(embedding=averaged_embedding)
-        ]
-        
+        averaged_embedding = np.mean(
+            [mock_embedding1, mock_embedding2], axis=0
+        ).tolist()
+        mock_response.embeddings = [Mock(embedding=averaged_embedding)]
+
         mock_client.embed.return_value = mock_response
         mock_voyageai.Client.return_value = mock_client
         mock_get_voyageai.return_value = mock_voyageai
@@ -388,7 +387,9 @@ class TestCoreEmbedderIntegration:
         # Import here to ensure environment is set
         from steadytext import embed
 
-        result = embed(["Text 1", "Text 2"], model="voyageai:voyage-3-large", unsafe_mode=True)
+        result = embed(
+            ["Text 1", "Text 2"], model="voyageai:voyage-3-large", unsafe_mode=True
+        )
         assert isinstance(result, np.ndarray)
         assert result.shape == (1024,)  # Should be a single averaged embedding
 
@@ -439,11 +440,9 @@ class TestJinaProvider:
         mock_response = Mock()
         # Create a 1024-dimensional embedding for testing
         mock_embedding = np.random.randn(1024).tolist()
-        mock_response.json.return_value = {
-            "data": [{"embedding": mock_embedding}]
-        }
+        mock_response.json.return_value = {"data": [{"embedding": mock_embedding}]}
         mock_response.raise_for_status = Mock()
-        
+
         mock_requests.post.return_value = mock_response
         mock_get_requests.return_value = mock_requests
 
@@ -480,13 +479,10 @@ class TestJinaProvider:
         mock_embedding1 = np.random.randn(1024).tolist()
         mock_embedding2 = np.random.randn(1024).tolist()
         mock_response.json.return_value = {
-            "data": [
-                {"embedding": mock_embedding1},
-                {"embedding": mock_embedding2}
-            ]
+            "data": [{"embedding": mock_embedding1}, {"embedding": mock_embedding2}]
         }
         mock_response.raise_for_status = Mock()
-        
+
         mock_requests.post.return_value = mock_response
         mock_get_requests.return_value = mock_requests
 
@@ -514,17 +510,15 @@ class TestJinaProvider:
         mock_response = Mock()
         # Create a 1024-dimensional embedding for testing
         mock_embedding = np.random.randn(1024).tolist()
-        mock_response.json.return_value = {
-            "data": [{"embedding": mock_embedding}]
-        }
+        mock_response.json.return_value = {"data": [{"embedding": mock_embedding}]}
         mock_response.raise_for_status = Mock()
-        
+
         mock_requests.post.return_value = mock_response
         mock_get_requests.return_value = mock_requests
 
         provider = JinaProvider(api_key="test", model="jina-embeddings-v3")
 
-        result = provider.embed("Query text", task="retrieval.query")
+        provider.embed("Query text", task="retrieval.query")
 
         # Verify API call used task parameter
         call_args = mock_requests.post.call_args

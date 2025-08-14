@@ -297,8 +297,8 @@ class DaemonClient:
                 raise
 
     def embed(
-        self, 
-        text_input: Any, 
+        self,
+        text_input: Any,
         seed: int = DEFAULT_SEED,
         model: Optional[str] = None,
         unsafe_mode: bool = False,
@@ -310,7 +310,7 @@ class DaemonClient:
         assert self.socket is not None  # Type guard for mypy
         try:
             params = {
-                "text_input": text_input, 
+                "text_input": text_input,
                 "seed": seed,
                 "model": model,
                 "unsafe_mode": unsafe_mode,

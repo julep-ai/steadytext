@@ -48,7 +48,7 @@ class TestRemoteModelDetection:
         provider, model = parse_remote_model("voyageai:voyage-3-large")
         assert provider == "voyageai"
         assert model == "voyage-3-large"
-        
+
         provider, model = parse_remote_model("jina:jina-embeddings-v3")
         assert provider == "jina"
         assert model == "jina-embeddings-v3"

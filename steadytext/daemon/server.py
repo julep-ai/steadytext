@@ -291,9 +291,9 @@ class DaemonServer:
         seed = params.get("seed", DEFAULT_SEED)
         model = params.get("model")
         unsafe_mode = params.get("unsafe_mode", False)
-        
+
         embedding = core_embed(
-            text_input, 
+            text_input,
             seed=seed,
             model=model,
             unsafe_mode=unsafe_mode,

@@ -85,32 +85,32 @@ def core_embed(
                    by the public API layer for a "Never Fails" zero vector response).
     """
     validate_seed(seed)
-    
+
     # AIDEV-NOTE: Check for remote models first
     if model:
         from ..providers.registry import is_remote_model, get_provider
-        
+
         if is_remote_model(model):
             # AIDEV-NOTE: Temporarily enable unsafe mode for this call if requested
             old_unsafe_mode = os.environ.get("STEADYTEXT_UNSAFE_MODE")
             if unsafe_mode:
                 os.environ["STEADYTEXT_UNSAFE_MODE"] = "true"
-            
+
             try:
                 provider = get_provider(model)
-                
+
                 # Check if provider supports embeddings
                 if not provider.supports_embeddings():
                     logger.error(f"Provider for {model} does not support embeddings")
                     return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
-                
+
                 # Generate embedding using remote provider
                 embedding = provider.embed(text_input, seed=seed)
-                
+
                 if embedding is None:
                     logger.error(f"Remote embedding generation failed for {model}")
                     return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
-                
+
                 # Ensure it's the right shape and normalized
                 if embedding.shape != (EMBEDDING_DIMENSION,):
                     # Some providers may return different dimensions
@@ -121,24 +121,26 @@ def core_embed(
                     )
                     if embedding.shape[0] < EMBEDDING_DIMENSION:
                         # Pad with zeros
-                        padding = np.zeros(EMBEDDING_DIMENSION - embedding.shape[0], dtype=np.float32)
+                        padding = np.zeros(
+                            EMBEDDING_DIMENSION - embedding.shape[0], dtype=np.float32
+                        )
                         embedding = np.concatenate([embedding, padding])
                     else:
                         # Truncate
                         embedding = embedding[:EMBEDDING_DIMENSION]
-                
+
                 # Normalize the embedding
                 normalized_embedding = _normalize_l2(embedding)
-                
+
                 # Cache the result
                 if isinstance(text_input, str):
                     cache_key = (text_input,)
                 else:
                     cache_key = tuple(text_input)
                 get_embedding_cache().set(cache_key, normalized_embedding)
-                
+
                 return normalized_embedding
-                
+
             except Exception as e:
                 logger.error(f"Remote embedding generation failed: {e}")
                 return np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
