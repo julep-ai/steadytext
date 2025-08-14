@@ -81,7 +81,11 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
             try:
                 # Try a simple generation to see if generator model is available
                 gen_result = steadytext.generate("test", max_new_tokens=1)
-                gen_ok = gen_result is not None and len(gen_result) > 0
+                gen_ok = (
+                    gen_result is not None
+                    and isinstance(gen_result, str)
+                    and len(gen_result) > 0
+                )
 
                 # Try a simple embedding to see if embedding model is available
                 emb_result = steadytext.embed("test")
@@ -130,13 +134,15 @@ class TestSteadyTextAPIWithModels(unittest.TestCase):
         if (
             MODELS_ARE_ACCESSIBLE_FOR_TESTING
             and output1 is not None
+            and isinstance(output1, str)
             and not output1.startswith("Error:")
         ):
             self.assertTrue(
-                len(output1) > 0, "Successful generation should not be empty."
+                isinstance(output1, str) and len(output1) > 0,
+                "Successful generation should not be empty.",
             )
             self.assertFalse(
-                output1.startswith("Error:"),
+                isinstance(output1, str) and output1.startswith("Error:"),
                 "Successful generation output should not start with 'Error:'.",
             )
         self.assertEqual(
@@ -815,7 +821,7 @@ class TestSizeParameter(unittest.TestCase):
                     if output is not None:
                         self.assertIsInstance(output, str)
                         self.assertTrue(
-                            len(output) > 0,
+                            isinstance(output, str) and len(output) > 0,
                             f"Size {size} should generate non-empty text",
                         )
                     else:

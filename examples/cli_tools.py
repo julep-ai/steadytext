@@ -28,13 +28,19 @@ def explain_error(error_code):
 def git_command(task):
     """Generate git commands for common tasks"""
     prompt = f"Git command to {task}. Return only the command, no explanation."
-    return steadytext.generate(prompt).strip()
+    result = steadytext.generate(prompt)
+    if result is None:
+        return ""
+    return result.strip()
 
 
 def sql_query(description):
     """Generate SQL queries from descriptions"""
     prompt = f"SQL query to {description}. Return only the query."
-    return steadytext.generate(prompt).strip()
+    result = steadytext.generate(prompt)
+    if result is None:
+        return ""
+    return result.strip()
 
 
 # Click-based CLI
