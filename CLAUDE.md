@@ -468,11 +468,13 @@ AIDEV-NOTE: The devcontainer mounts Docker socket for testing containerized buil
 
 ## Unsafe Mode: Remote Models (v2.6.0+)
 
-SteadyText includes an "unsafe mode" that allows using remote AI models (OpenAI, Cerebras, etc.) with best-effort determinism via seed parameters.
+SteadyText includes an "unsafe mode" that allows using remote AI models with best-effort determinism via seed parameters.
 
-**Provider Support:**
-- OpenAI: Models with seed parameter (gpt-4o, gpt-4o-mini, etc.)
-- Cerebras: Llama models via their cloud API
+**Provider Support (v2.6.2+):**
+- **OpenAI**: Text generation (gpt-4o, gpt-4o-mini) and embeddings (text-embedding-3-small/large) with seed parameter
+- **Cerebras**: Fast Llama model generation with seed parameter
+- **VoyageAI**: Specialized embeddings (voyage-3, voyage-large-2, etc.) - no seed support
+- **Jina AI**: Multilingual embeddings (jina-embeddings-v3, v2-base variants) - no seed support
 
 AIDEV-TODO: Add support for more providers (Anthropic when they add seed support, Together.ai, etc.)
 AIDEV-TODO: Consider adding structured output support for remote models

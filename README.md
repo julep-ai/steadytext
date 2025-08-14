@@ -307,11 +307,17 @@ pip install steadytext[unsafe]
 # Enable unsafe mode
 export STEADYTEXT_UNSAFE_MODE=true
 
-# Use OpenAI
+# Use OpenAI for generation
 echo "Explain quantum computing" | st --unsafe-mode --model openai:gpt-4o-mini
 
-# Use Cerebras  
+# Use Cerebras for fast generation
 echo "Write Python code" | st --unsafe-mode --model cerebras:llama3.1-8b
+
+# Use VoyageAI for embeddings
+echo "Advanced search query" | st embed --unsafe-mode --model voyageai:voyage-3
+
+# Use Jina for multilingual embeddings
+echo "你好世界" | st embed --unsafe-mode --model jina:jina-embeddings-v3
 
 # List available remote models
 st unsafe list-models
@@ -333,6 +339,15 @@ text = steadytext.generate(
     seed=42  # Best-effort determinism only
 )
 ```
+
+### Supported Remote Providers
+
+| Provider | Generation | Embeddings | Determinism | API Key |
+|----------|------------|------------|-------------|---------|
+| **OpenAI** | ✅ gpt-4o, gpt-4o-mini | ✅ text-embedding-3-* | Best-effort (seed param) | `OPENAI_API_KEY` |
+| **Cerebras** | ✅ Llama models | ❌ | Best-effort (seed param) | `CEREBRAS_API_KEY` |
+| **VoyageAI** | ❌ | ✅ voyage-3, voyage-large-2 | No seed support | `VOYAGE_API_KEY` |
+| **Jina AI** | ❌ | ✅ jina-embeddings-v3/v2 | No seed support | `JINA_API_KEY` |
 
 ⚠️ **WARNING**: Remote models may produce different outputs despite using the same seed. Use local GGUF models for guaranteed determinism.
 

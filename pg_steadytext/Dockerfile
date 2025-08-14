@@ -31,7 +31,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # AIDEV-NOTE: This layer is cached when requirements don't change
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip3 install --break-system-packages \
-    'steadytext[unsafe]>=2.6.1' \
+    'steadytext[unsafe]>=2.6.2' \
     pyzmq>=22.0.0 \
     numpy>=1.20.0
 
