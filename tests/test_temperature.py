@@ -6,12 +6,10 @@ and that determinism is maintained with the same seed+temperature combination.
 
 import os
 import unittest
-from typing import List
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
-import steadytext
 from steadytext import generate, generate_iter
-from steadytext.utils import DEFAULT_SEED, logger
+from steadytext.utils import DEFAULT_SEED
 
 # Allow tests requiring model downloads to be skipped
 ALLOW_MODEL_DOWNLOADS = (
@@ -33,7 +31,7 @@ class TestTemperatureSupport(unittest.TestCase):
             # Test with different temperature values
             result = generate("Test prompt", temperature=0.0)
             self.assertIsNotNone(result)
-            
+
             # Verify temperature was passed to generator
             mock_instance.generate.assert_called_with(
                 prompt="Test prompt",
@@ -82,19 +80,21 @@ class TestTemperatureSupport(unittest.TestCase):
                 # Use a Mock that tracks calls but returns a generator
                 # This properly works with yield from in core_generate_iter
                 called_with = {}
+
                 def mock_gen_iter(*args, **kwargs):
                     # Store the kwargs for later assertion
                     called_with.update(kwargs)
                     yield "Test"
                     yield " "
                     yield "output"
+
                 mock_instance.generate_iter = mock_gen_iter
                 mock_gen.return_value = mock_instance
 
                 # Test with temperature
                 tokens = list(generate_iter("Test prompt", temperature=0.5))
                 self.assertEqual(tokens, ["Test", " ", "output"])
-                
+
                 # Verify temperature was passed
                 self.assertEqual(called_with.get("temperature"), 0.5)
                 self.assertEqual(called_with.get("prompt"), "Test prompt")
@@ -104,19 +104,19 @@ class TestTemperatureSupport(unittest.TestCase):
     def test_cache_key_includes_temperature(self):
         """Test that cache key generation includes temperature."""
         from steadytext.utils import generate_cache_key
-        
+
         # Same prompt, different temperatures should produce different cache keys
         key1 = generate_cache_key("Test prompt", "[EOS]", 0.0)
         key2 = generate_cache_key("Test prompt", "[EOS]", 0.5)
         key3 = generate_cache_key("Test prompt", "[EOS]", 1.0)
-        
+
         # Default temperature (0.0) should not add temperature to key
         self.assertEqual(key1, "Test prompt")
-        
+
         # Non-default temperatures should be included in key
         self.assertEqual(key2, "Test prompt::TEMP::0.5")
         self.assertEqual(key3, "Test prompt::TEMP::1.0")
-        
+
         # Different temperatures should produce different keys
         self.assertNotEqual(key1, key2)
         self.assertNotEqual(key2, key3)
@@ -124,14 +124,14 @@ class TestTemperatureSupport(unittest.TestCase):
     def test_sampling_params_with_temperature(self):
         """Test that sampling parameters are adjusted based on temperature."""
         from steadytext.utils import get_sampling_params_with_temperature
-        
+
         # Temperature 0.0 should use deterministic parameters
         params = get_sampling_params_with_temperature(0.0)
         self.assertEqual(params["temperature"], 0.0)
         self.assertEqual(params["top_k"], 1)
         self.assertEqual(params["top_p"], 1.0)
         self.assertEqual(params["min_p"], 0.0)
-        
+
         # Higher temperature should adjust sampling parameters
         params = get_sampling_params_with_temperature(0.7)
         self.assertEqual(params["temperature"], 0.7)
@@ -148,19 +148,26 @@ class TestTemperatureSupport(unittest.TestCase):
         # Skip if model loading is disabled
         if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
             self.skipTest("Model loading disabled")
-        
+
         prompt = "Hello world"
         seed = 123
         temperature = 0.5
-        
+
         # Generate text twice with same parameters
-        result1 = generate(prompt, seed=seed, temperature=temperature, max_new_tokens=20)
-        result2 = generate(prompt, seed=seed, temperature=temperature, max_new_tokens=20)
-        
+        result1 = generate(
+            prompt, seed=seed, temperature=temperature, max_new_tokens=20
+        )
+        result2 = generate(
+            prompt, seed=seed, temperature=temperature, max_new_tokens=20
+        )
+
         # Results should be identical
         if result1 is not None and result2 is not None:
-            self.assertEqual(result1, result2, 
-                           "Same seed + temperature should produce identical results")
+            self.assertEqual(
+                result1,
+                result2,
+                "Same seed + temperature should produce identical results",
+            )
 
     @unittest.skipUnless(
         ALLOW_MODEL_DOWNLOADS,
@@ -171,49 +178,52 @@ class TestTemperatureSupport(unittest.TestCase):
         # Skip if model loading is disabled
         if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") == "1":
             self.skipTest("Model loading disabled")
-        
+
         prompt = "The weather today is"
         seed = 456
-        
+
         # Generate with different temperatures
         result_0 = generate(prompt, seed=seed, temperature=0.0, max_new_tokens=20)
         result_5 = generate(prompt, seed=seed, temperature=0.5, max_new_tokens=20)
         result_10 = generate(prompt, seed=seed, temperature=1.0, max_new_tokens=20)
-        
+
         # Different temperatures should generally produce different outputs
         # (though not guaranteed for all prompts/seeds)
         if result_0 and result_5 and result_10:
             # At least one should be different
             self.assertTrue(
                 result_0 != result_5 or result_5 != result_10,
-                "Different temperatures should generally produce different outputs"
+                "Different temperatures should generally produce different outputs",
             )
 
     def test_daemon_client_passes_temperature(self):
         """Test that daemon client correctly passes temperature parameter."""
         from steadytext.daemon.client import DaemonClient
-        
+
         with patch("zmq.Context") as mock_context_class:
             mock_context = Mock()
             mock_socket = Mock()
             mock_context_class.return_value = mock_context
             mock_context.socket.return_value = mock_socket
-            
+
             # Mock successful connection
             mock_socket.connect = Mock()
             mock_socket.send = Mock()
-            mock_socket.recv = Mock(return_value=b'{"id": "test-id", "result": "Test output"}')
-            
+            mock_socket.recv = Mock(
+                return_value=b'{"id": "test-id", "result": "Test output"}'
+            )
+
             client = DaemonClient()
             client._connected = True
             client.socket = mock_socket
-            
+
             # Call generate with temperature
-            result = client.generate("Test prompt", temperature=0.8)
-            
+            client.generate("Test prompt", temperature=0.8)
+
             # Verify request included temperature
             sent_data = mock_socket.send.call_args[0][0]
             import json
+
             request = json.loads(sent_data)
             self.assertEqual(request["params"]["temperature"], 0.8)
 
@@ -221,19 +231,17 @@ class TestTemperatureSupport(unittest.TestCase):
         """Test that CLI accepts --temperature flag."""
         from click.testing import CliRunner
         from steadytext.cli.main import cli
-        
+
         runner = CliRunner()
-        
+
         # Test with temperature flag
         with patch("steadytext.generate") as mock_generate:
             mock_generate.return_value = "Test output"
-            
-            result = runner.invoke(
-                cli, 
-                ["generate", "--temperature", "0.7", "--wait"],
-                input="Test prompt"
+
+            runner.invoke(
+                cli, ["generate", "--temperature", "0.7", "--wait"], input="Test prompt"
             )
-            
+
             # Check that generate was called with temperature
             if mock_generate.called:
                 call_kwargs = mock_generate.call_args[1]
@@ -246,21 +254,21 @@ class TestTemperatureWithProviders(unittest.TestCase):
     def test_openai_provider_temperature(self):
         """Test that OpenAI provider accepts temperature."""
         from steadytext.providers.openai import OpenAIProvider
-        
+
         with patch("steadytext.providers.openai._get_openai") as mock_openai:
             # Mock OpenAI module
             mock_module = Mock()
             mock_client = Mock()
             mock_completion = Mock()
             mock_completion.choices = [Mock(message=Mock(content="Test response"))]
-            
+
             mock_module.OpenAI.return_value = mock_client
             mock_client.chat.completions.create.return_value = mock_completion
             mock_openai.return_value = mock_module
-            
+
             provider = OpenAIProvider(api_key="test-key")
-            result = provider.generate("Test prompt", temperature=0.6)
-            
+            provider.generate("Test prompt", temperature=0.6)
+
             # Verify temperature was passed to OpenAI
             create_call = mock_client.chat.completions.create
             create_call.assert_called()
@@ -270,21 +278,21 @@ class TestTemperatureWithProviders(unittest.TestCase):
     def test_cerebras_provider_temperature(self):
         """Test that Cerebras provider accepts temperature."""
         from steadytext.providers.cerebras import CerebrasProvider
-        
+
         with patch("steadytext.providers.cerebras._get_openai") as mock_openai:
             # Mock OpenAI module (used by Cerebras)
             mock_module = Mock()
             mock_client = Mock()
             mock_completion = Mock()
             mock_completion.choices = [Mock(message=Mock(content="Test response"))]
-            
+
             mock_module.OpenAI.return_value = mock_client
             mock_client.chat.completions.create.return_value = mock_completion
             mock_openai.return_value = mock_module
-            
+
             provider = CerebrasProvider(api_key="test-key")
-            result = provider.generate("Test prompt", temperature=0.9)
-            
+            provider.generate("Test prompt", temperature=0.9)
+
             # Verify temperature was passed
             create_call = mock_client.chat.completions.create
             create_call.assert_called()

@@ -19,7 +19,6 @@ from ..utils import (
     DEFAULT_SEED,
     DEFAULT_STOP_SEQUENCES,
     GENERATION_MAX_NEW_TOKENS,
-    LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC,
     get_sampling_params_with_temperature,
     logger,
     resolve_model_params,
