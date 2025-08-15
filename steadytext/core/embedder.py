@@ -234,9 +234,14 @@ def core_embed(
             # The prefix is capitalized and followed by a colon and space
             prefixed_text = f"{mode.capitalize()}: {text_item}"
 
-            token_embeddings_output = model.embed(
-                prefixed_text
-            )  # Might be List[List[float]] or List[float]
+            # AIDEV-NOTE: Wrap embed call with output suppression to prevent llama.cpp warnings
+            # from polluting stdout (e.g., "init: embeddings required..." warnings)
+            from ..utils import suppress_llama_output
+
+            with suppress_llama_output():
+                token_embeddings_output = model.embed(
+                    prefixed_text
+                )  # Might be List[List[float]] or List[float]
 
             if not token_embeddings_output:
                 logger.warning(

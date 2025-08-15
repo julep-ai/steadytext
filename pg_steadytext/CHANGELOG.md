@@ -6,11 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Versioning Scheme
 
-As of version 2025.8.15, pg_steadytext uses **date-based versioning** in the format `yyyy.mm.dd` (without zero-padding for month and day). This change was made to better reflect the rapid pace of model improvements and feature development, where the previous semantic versioning approach of tying major version bumps to model changes was no longer feasible.
+As of version 2025.8.16, pg_steadytext uses **date-based versioning** in the format `yyyy.mm.dd` (without zero-padding for month and day). This change was made to better reflect the rapid pace of model improvements and feature development, where the previous semantic versioning approach of tying major version bumps to model changes was no longer feasible.
 
-- **Format:** `yyyy.mm.dd` (e.g., `2025.8.15`, `2025.12.3`)
+- **Format:** `yyyy.mm.dd` (e.g., `2025.8.16`, `2025.12.3`)
 - **Benefits:** Clear indication of release currency and maintenance activity
 - **Rationale:** Supported models and features are evolving quickly, making date-based versioning more practical
+
+## [2025.8.16] - 2025-08-16
+
+### Changed
+- Version bump with date-based versioning
+- Updated all version references throughout the extension and documentation
+- Aligned PostgreSQL extension version with main Python package
 
 ## [2025.8.15] - 2025-08-15
 

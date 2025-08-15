@@ -2,7 +2,7 @@
   "name": "pg_steadytext",
   "abstract": "Deterministic text generation and embeddings for PostgreSQL",
   "description": "PostgreSQL extension that wraps the SteadyText library to provide deterministic AI text generation and embeddings with built-in caching, queue management, and integration with pgvector for semantic search.",
-  "version": "2025.8.15",
+  "version": "2025.8.16",
   "maintainer": [
     "SteadyText Community <singh@diwank.name>"
   ],
@@ -12,9 +12,9 @@
   "provides": {
     "pg_steadytext": {
       "abstract": "Deterministic text generation and embedding functions for PostgreSQL",
-      "file": "sql/pg_steadytext--2025.8.15.sql",
+      "file": "sql/pg_steadytext--2025.8.16.sql",
       "docfile": "README.md",
-      "version": "2025.8.15"
+      "version": "2025.8.16"
     }
   },
   "prereqs": {

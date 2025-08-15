@@ -6,7 +6,7 @@
 [![Python Versions](https://img.shields.io/pypi/pyversions/steadytext.svg)](https://pypi.org/project/steadytext/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/julep-ai/steadytext/blob/main/LICENSE)
 
-!!! important "Version 2025.8.15 - Date-Based Versioning"
+!!! important "Version 2025.8.16 - Date-Based Versioning"
     SteadyText has transitioned from semantic versioning to **date-based versioning** (yyyy.mm.dd format).
     
     **Why this change?** The rapid pace of AI model improvements and feature additions made traditional semantic versioning impractical. With models evolving weekly and new capabilities being added frequently, date-based versioning provides clearer insight into release recency and better aligns with our continuous improvement philosophy.

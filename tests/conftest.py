@@ -17,7 +17,9 @@ def pytest_addoption(parser):
     if os.environ.get("STEADYTEXT_ALLOW_MODEL_DOWNLOADS", "").lower() != "true":
         os.environ["STEADYTEXT_ALLOW_MODEL_DOWNLOADS"] = "false"
         # Only skip model loading when downloads are not allowed
-        os.environ["STEADYTEXT_SKIP_MODEL_LOAD"] = "1"
+        # AND when we're not using mini models (which work with mocks)
+        if os.environ.get("STEADYTEXT_USE_MINI_MODELS", "").lower() != "true":
+            os.environ["STEADYTEXT_SKIP_MODEL_LOAD"] = "1"
     os.environ["STEADYTEXT_DAEMON_FAILURE_CACHE_SECONDS"] = "1"
     os.environ["STEADYTEXT_DAEMON_TIMEOUT_MS"] = "50"
     os.environ["STEADYTEXT_SKIP_CACHE_INIT"] = "1"
@@ -32,7 +34,9 @@ def pytest_configure(config):
     if os.environ.get("STEADYTEXT_ALLOW_MODEL_DOWNLOADS", "").lower() != "true":
         os.environ["STEADYTEXT_ALLOW_MODEL_DOWNLOADS"] = "false"
         # Only skip model loading when downloads are not allowed
-        os.environ["STEADYTEXT_SKIP_MODEL_LOAD"] = "1"
+        # AND when we're not using mini models (which work with mocks)
+        if os.environ.get("STEADYTEXT_USE_MINI_MODELS", "").lower() != "true":
+            os.environ["STEADYTEXT_SKIP_MODEL_LOAD"] = "1"
     os.environ["STEADYTEXT_DAEMON_FAILURE_CACHE_SECONDS"] = "1"
     os.environ["STEADYTEXT_DAEMON_TIMEOUT_MS"] = "50"
     os.environ["STEADYTEXT_SKIP_CACHE_INIT"] = "1"

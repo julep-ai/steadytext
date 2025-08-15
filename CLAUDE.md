@@ -149,9 +149,11 @@ When responding to user instructions, the AI assistant (Claude, Cursor, GPT, etc
 
 ## Structured Generation (v2.4.0+)
 
-- AIDEV-NOTE: Uses llama.cpp GBNF grammars instead of Outlines for better compatibility
+- AIDEV-NOTE: Uses LlamaGrammar.from_json_schema() for JSON/Pydantic schemas - more reliable than custom GBNF generation
+- AIDEV-NOTE: Mini models (Gemma-3-270M QAT) work with LlamaGrammar.from_json_schema() but had issues with custom GBNF grammars
 - Conversion support: JSON schemas, Pydantic models, regex, choices, Python types → GBNF
 - AIDEV-NOTE: Remote models (v2.6.2+) support structured generation via unsafe_mode=True
+- AIDEV-FIXED: Resolved mini model issues by switching to LlamaGrammar.from_json_schema() instead of custom grammar generation
 - AIDEV-TODO: Expand regex conversion and add recursive schema support
 
 SteadyText supports structured text generation using llama.cpp grammars, enabling:
@@ -203,7 +205,7 @@ result = generate_json(
 
 Both SteadyText components now use **date-based versioning** instead of semantic versioning:
 
-- **Format:** `yyyy.mm.dd` (no zero-padding, e.g., `2025.8.15`, `2025.12.3`)
+- **Format:** `yyyy.mm.dd` (no zero-padding, e.g., `2025.8.16`, `2025.12.3`)
 - **Applies to:** Both the Python package (steadytext) and PostgreSQL extension (pg_steadytext)
 - **Rationale:** The rapid pace of model improvements and feature changes made semantic versioning impractical. Date-based versioning provides clearer insight into release recency and better aligns with our continuous improvement philosophy.
 - **Migration:** Existing installations can upgrade using standard commands (pip for Python, PostgreSQL extension commands for pg_steadytext)
