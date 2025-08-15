@@ -64,6 +64,10 @@ import steadytext
 code = steadytext.generate("implement binary search in Python")
 assert "def binary_search" in code  # Always passes!
 
+# Choose model size (small=4B, large=30B)
+quick = steadytext.generate("summarize this", size="small")  # Fast
+detailed = steadytext.generate("explain in detail", size="large")  # Higher quality
+
 # Generate with controlled randomness (temperature > 0)
 creative = steadytext.generate("write a poem", temperature=0.8)
 more_creative = steadytext.generate("write a poem", temperature=1.2)
@@ -72,8 +76,9 @@ more_creative = steadytext.generate("write a poem", temperature=1.2)
 for token in steadytext.generate_iter("explain quantum computing"):
     print(token, end="", flush=True)
 
-# Deterministic embeddings (uses daemon by default)
-vec = steadytext.embed("Hello world")  # 1024-dim numpy array
+# Deterministic embeddings with Query/Passage optimization
+query_vec = steadytext.embed("What is machine learning?", mode="query")  # For searches
+doc_vec = steadytext.embed("Machine learning is...", mode="passage")  # For documents
 
 # Explicit daemon usage (ensures connection)
 from steadytext.daemon import use_daemon

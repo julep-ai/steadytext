@@ -547,7 +547,7 @@ class TestSteadyTextFallbackBehavior(unittest.TestCase):
         ) as mock_core_embed:
             result = steadytext.embed("test")
             mock_core_embed.assert_called_once_with(
-                "test", seed=42, model=None, unsafe_mode=False
+                "test", seed=42, model=None, unsafe_mode=False, mode=None
             )  # Verify the mock was called
             self.assertIsNone(
                 result,
@@ -853,7 +853,13 @@ class TestSizeParameter(unittest.TestCase):
             output = steadytext.generate("Test prompt", model="non_existent_model")
             # When model loading is disabled, invalid model names return None
             # When enabled, it should return a string (fallback)
-            self.assertIsNone(output)
+            if os.environ.get("STEADYTEXT_ALLOW_MODEL_DOWNLOADS") == "true":
+                # When models are available, should fall back to default model
+                self.assertIsNotNone(output)
+                self.assertIsInstance(output, str)
+            else:
+                # When models are not available, returns None
+                self.assertIsNone(output)
             # Verify that a warning was logged
             self.assertTrue(
                 any(

@@ -29,6 +29,9 @@ fi
 echo "Installing node utils..."
 npm install -g claude-code-inject claude-code-generic-hooks pyright
 
+# Install aria2 and pgtap
+sudo apt install -yq aria2 pgtap direnv
+
 # Install Python dependencies
 echo "Installing Python dependencies with uv..."
 uv sync --all-extras

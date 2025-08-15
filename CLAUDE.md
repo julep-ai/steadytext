@@ -57,9 +57,23 @@ os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 - AIDEV-TODO: Consider adding connection pooling for high-concurrency scenarios
 - AIDEV-TODO: Add metrics/monitoring endpoints for production deployments
 
-## Gemma-3n Models
+## Qwen3 Models (v2025.8.16+)
 
-SteadyText v2.0+ uses Gemma-3n models for generation and Qwen3 for embeddings.
+SteadyText v2025.8.16+ uses Qwen3 models for generation and Jina v4 for embeddings:
+
+**Generation Models:**
+- **Small** (default): Qwen3-4B-Instruct - Fast, efficient for most tasks
+- **Large**: Qwen3-30B-A3B-Instruct - Higher quality for complex tasks
+- Use `size="small"` or `size="large"` parameter, or set `STEADYTEXT_GENERATION_SIZE` env var
+
+**Embedding Model:**
+- **Jina v4 Text Retrieval**: 2048-dim embeddings truncated to 1024 using Matryoshka
+- Requires Query/Passage prefix: `mode="query"` for searches, `mode="passage"` for documents
+- Set default mode via `STEADYTEXT_EMBEDDING_MODE` env var
+
+- AIDEV-NOTE: Jina v4 outputs 2048 dimensions but we truncate to 1024 for backward compatibility
+- AIDEV-NOTE: Query/Passage prefixes are critical for optimal retrieval performance
+- AIDEV-TODO: Consider exposing full 2048 dimensions as an option
 
 ## Temperature Parameter (v2025.8.15+)
 

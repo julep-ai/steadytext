@@ -306,6 +306,7 @@ class DaemonClient:
         seed: int = DEFAULT_SEED,
         model: Optional[str] = None,
         unsafe_mode: bool = False,
+        mode: Optional[str] = None,
     ) -> np.ndarray:
         """Generate embeddings via daemon."""
         if not self.connect():
@@ -318,6 +319,7 @@ class DaemonClient:
                 "seed": seed,
                 "model": model,
                 "unsafe_mode": unsafe_mode,
+                "mode": mode,
             }
             request = Request(method="embed", params=params)
             self.socket.send(request.to_json().encode())

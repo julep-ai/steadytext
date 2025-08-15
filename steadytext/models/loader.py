@@ -17,6 +17,7 @@ from ..utils import (
     LLAMA_CPP_EMBEDDING_PARAMS_DETERMINISTIC,
     LLAMA_CPP_MAIN_PARAMS_DETERMINISTIC,
     EMBEDDING_DIMENSION,
+    JINA_V4_FULL_DIMENSION,
     logger,
     set_deterministic_environment,
     suppress_llama_output,
@@ -301,11 +302,15 @@ class _ModelInstanceCache:
                         else 0
                     )
                     # AIDEV-NOTE: This dimension check is a critical validation step to ensure the loaded embedding model produces vectors of the expected dimension.
-                    if model_n_embd != EMBEDDING_DIMENSION:
+                    # Jina v4 outputs 2048 dimensions which we truncate to 1024 using Matryoshka
+                    if model_n_embd not in [
+                        EMBEDDING_DIMENSION,
+                        JINA_V4_FULL_DIMENSION,
+                    ]:
                         logger.error(
                             f"Embedder model n_embd ({model_n_embd}) does not "
-                            f"match expected EMBEDDING_DIMENSION "
-                            f"({EMBEDDING_DIMENSION})."
+                            f"match expected dimensions "
+                            f"({EMBEDDING_DIMENSION} or {JINA_V4_FULL_DIMENSION})."
                         )
                         if inst._embedder_model is not None:  # Safety check
                             # AIDEV-NOTE: Explicit cleanup to prevent memory leaks
@@ -318,7 +323,12 @@ class _ModelInstanceCache:
                         inst._embedder_path = model_path
                         # Only log if logger level allows INFO messages
                         if logger.isEnabledFor(logging.INFO):
-                            logger.info("Embedder model loaded successfully.")
+                            if model_n_embd == JINA_V4_FULL_DIMENSION:
+                                logger.info(
+                                    f"Jina v4 embedder model loaded successfully (will truncate from {JINA_V4_FULL_DIMENSION} to {EMBEDDING_DIMENSION})."
+                                )
+                            else:
+                                logger.info("Embedder model loaded successfully.")
                 except Exception as e:
                     logger.error(f"Failed to load embedder model: {e}", exc_info=True)
                     inst._embedder_model = None
