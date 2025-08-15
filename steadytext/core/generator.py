@@ -230,7 +230,7 @@ class DeterministicGenerator:
             prompt: Input text prompt
             return_logprobs: Whether to return token log probabilities
             eos_string: End-of-sequence string ("[EOS]" uses model defaults)
-            model: Model name from registry (e.g., "qwen2.5-3b")
+            model: Model name from registry (e.g., "qwen3-4b")
             model_repo: Custom Hugging Face repository ID
             model_filename: Custom model filename
             size: Size identifier ("small", "large")
@@ -528,7 +528,7 @@ class DeterministicGenerator:
             prompt: The input prompt to generate from
             eos_string: Custom end-of-sequence string. "[EOS]" means use model's default.
             include_logprobs: If True, yield dicts with token and logprob info
-            model: Model name from registry (e.g., "qwen2.5-3b")
+            model: Model name from registry (e.g., "qwen3-4b")
             model_repo: Custom Hugging Face repository ID
             model_filename: Custom model filename
             size: Size identifier ("small", "large")

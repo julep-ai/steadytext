@@ -17,6 +17,9 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     ca-certificates \
     gnupg \
     lsb-release \
+    aria2 \
+    direnv \
+    pgtap \
     && curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get install -y nodejs \
     && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
@@ -30,6 +33,9 @@ RUN mkdir -p /tmp/.uv-cache /tmp/.local && chmod -R 777 /tmp/.uv-cache /tmp/.loc
 
 # Set working directory
 WORKDIR /workspace
+
+# Install node utils
+RUN npm install -g claude-code-inject claude-code-generic-hooks pyright
 
 # Add cache mount points for UV
 ENV UV_CACHE_DIR=/tmp/.uv-cache

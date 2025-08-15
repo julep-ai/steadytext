@@ -6,7 +6,8 @@ AIDEV-NOTE: Fixed "Never Fails" - embed() now catches TypeErrors & returns zero 
 
 # Version of the steadytext package - should match pyproject.toml
 # AIDEV-NOTE: Always update this when bumping the lib version
-__version__ = "2.6.2"
+# AIDEV-NOTE: Using date-based versioning (yyyy.mm.dd) as of 2025.8.15
+__version__ = "2025.8.15"
 
 # Import core functions and classes for public API
 import os
@@ -274,6 +275,7 @@ def embed(
     seed: int = DEFAULT_SEED,
     model: Optional[str] = None,
     unsafe_mode: bool = False,
+    mode: Optional[str] = None,
 ) -> Optional[np.ndarray]:
     """Create embeddings for text input.
 
@@ -282,9 +284,20 @@ def embed(
         seed: Seed for deterministic behavior (ignored by most remote providers)
         model: Optional remote model string (e.g., "openai:text-embedding-3-small")
         unsafe_mode: Enable remote models with best-effort determinism
+        mode: Embedding mode for Jina v4 ("query" or "passage"). Defaults to "query".
 
     Returns:
         Numpy array of embeddings or None if error
+
+    Examples:
+        # Query embedding (default)
+        query_emb = embed("What is machine learning?")
+
+        # Passage embedding for documents
+        doc_emb = embed("Machine learning is a subset of AI...", mode="passage")
+
+        # Multiple texts with mode
+        doc_embs = embed(["Doc 1", "Doc 2"], mode="passage")
     """
     # AIDEV-NOTE: Use daemon by default for embeddings unless explicitly disabled
     if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
@@ -292,7 +305,11 @@ def embed(
         if client is not None:
             try:
                 return client.embed(
-                    text_input, seed=seed, model=model, unsafe_mode=unsafe_mode
+                    text_input,
+                    seed=seed,
+                    model=model,
+                    unsafe_mode=unsafe_mode,
+                    mode=mode,
                 )
             except ConnectionError:
                 # Fall back to direct embedding
@@ -302,7 +319,9 @@ def embed(
                 )
 
     try:
-        result = core_embed(text_input, seed=seed, model=model, unsafe_mode=unsafe_mode)
+        result = core_embed(
+            text_input, seed=seed, model=model, unsafe_mode=unsafe_mode, mode=mode
+        )
         if result is None:
             logger.error(
                 "Embedding creation failed - model not available or invalid input"

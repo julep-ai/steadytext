@@ -2,8 +2,27 @@
 
 All notable changes to the pg_steadytext PostgreSQL extension will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
+## Versioning Scheme
+
+As of version 2025.8.15, pg_steadytext uses **date-based versioning** in the format `yyyy.mm.dd` (without zero-padding for month and day). This change was made to better reflect the rapid pace of model improvements and feature development, where the previous semantic versioning approach of tying major version bumps to model changes was no longer feasible.
+
+- **Format:** `yyyy.mm.dd` (e.g., `2025.8.15`, `2025.12.3`)
+- **Benefits:** Clear indication of release currency and maintenance activity
+- **Rationale:** Supported models and features are evolving quickly, making date-based versioning more practical
+
+## [2025.8.15] - 2025-08-15
+
+### Changed
+- **BREAKING:** Switched from semantic versioning to date-based versioning (yyyy.mm.dd format)
+- All version references updated throughout the extension
+- Migration path provided from version 1.4.6
+
+### Notes
+- This is a version numbering change only - no functional changes to the extension
+- Future releases will use the yyyy.mm.dd format
+- The previous semantic versioning policy of "new major version for model changes" is discontinued
 
 ## [1.4.6] - 2025-08-14
 

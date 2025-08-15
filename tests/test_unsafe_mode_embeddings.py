@@ -4,6 +4,7 @@ AIDEV-NOTE: These tests verify the unsafe mode embedding functionality without
 actually calling remote APIs (which would be non-deterministic and costly).
 """
 
+import os
 import numpy as np
 import warnings
 from unittest.mock import Mock, patch
@@ -356,10 +357,15 @@ class TestCoreEmbedderIntegration:
         from steadytext import embed
 
         result = embed("Test text", model="invalid:model", unsafe_mode=True)
-        # Should fallback to zero vector when provider is invalid
+        # Should fallback to local model when provider is invalid
         assert isinstance(result, np.ndarray)
         assert result.shape == (1024,)
-        assert np.allclose(result, 0)  # Should be zero vector
+        # When models are loaded, falls back to local model (non-zero)
+        # When models aren't loaded, returns zero vector
+        if os.environ.get("STEADYTEXT_ALLOW_MODEL_DOWNLOADS") == "true":
+            assert not np.allclose(result, 0)  # Should be non-zero (local model)
+        else:
+            assert np.allclose(result, 0)  # Should be zero vector
 
     @patch("steadytext.providers.voyageai._get_voyageai")
     def test_embed_batch_with_remote_model(self, mock_get_voyageai, monkeypatch):

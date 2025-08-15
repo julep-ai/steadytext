@@ -168,8 +168,8 @@ class TestModelsCli:
         """Test `st models list`."""
         result = runner.invoke(cli, ["models", "list"])
         assert result.exit_code == 0
-        assert "gemma-3n-2b" in result.output
-        assert "gemma-3n-4b" in result.output
+        assert "qwen3-4b" in result.output
+        assert "qwen3-30b" in result.output
 
     def test_models_path(self, runner):
         """Test `st models path`."""

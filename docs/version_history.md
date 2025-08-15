@@ -1,8 +1,10 @@
 # Version History
 
+> **Important**: As of 2025.8.15, SteadyText has transitioned from semantic versioning to date-based versioning (yyyy.mm.dd format). This change reflects the rapid pace of AI model improvements and feature additions.
+
 This document outlines the major versions of SteadyText and the key features introduced in each.
 
-**Latest Version**: 2.6.1 - Unsafe Mode Support for Structured Generation
+**Latest Version**: 2025.8.15 - Date-Based Versioning Transition
 
 | Version | Key Features                                                                                                                            | Default Generation Model                               | Default Embedding Model                                | Default Reranking Model | Python Versions |
 | :------ | :-------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------- | :----------------------------------------------------- | :---------------------- | :-------------- |

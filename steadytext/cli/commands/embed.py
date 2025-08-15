@@ -41,6 +41,13 @@ import numpy as np
     is_flag=True,
     help="Enable unsafe mode for remote models (non-deterministic)",
 )
+@click.option(
+    "--mode",
+    type=click.Choice(["query", "passage"]),
+    default="query",
+    help="Embedding mode for Jina v4 models (query for searches, passage for documents)",
+    show_default=True,
+)
 def embed(
     text,
     output_json,
@@ -51,6 +58,7 @@ def embed(
     model,
     size,
     unsafe_mode,
+    mode,
 ):
     """Generate embedding vector for text.
 
@@ -59,6 +67,8 @@ def embed(
         st embed "hello world" --json
         st embed "text one" "text two" --json
         echo "text to embed" | st embed
+        st embed "search query" --mode query
+        st embed "document text" --mode passage
     """
     import sys
     import time
@@ -94,7 +104,7 @@ def embed(
         sys.exit(1)
 
     # AIDEV-NOTE: Create embedding directly using core function
-    # Now supports remote models with unsafe_mode and mini models
+    # Now supports remote models with unsafe_mode, mini models, and Jina v4 mode parameter
     import os
     from ...utils import resolve_embedding_model_params
 
@@ -111,7 +121,7 @@ def embed(
     try:
         start_time = time.time()
         embedding = create_embedding(
-            input_text, seed=seed, model=model, unsafe_mode=unsafe_mode
+            input_text, seed=seed, model=model, unsafe_mode=unsafe_mode, mode=mode
         )
         elapsed_time = time.time() - start_time
     finally:
@@ -140,7 +150,7 @@ def embed(
         if model:
             model_name = model
         else:
-            model_name = "Qwen3-Embedding-0.6B"
+            model_name = "jina-embeddings-v4-text-retrieval"
 
         output = {
             "text": input_text,
