@@ -13,6 +13,7 @@ from typing import Any, Optional, Dict, cast
 logger = logging.getLogger(__name__)
 
 # AIDEV-NOTE: Default configuration values
+# AIDEV-NOTE: Added support for mini models for CI/testing
 DEFAULTS = {
     "daemon_host": "localhost",
     "daemon_port": 5555,
@@ -26,6 +27,8 @@ DEFAULTS = {
     # thinking_mode removed - not supported by SteadyText
     "request_timeout": 30,  # seconds
     "batch_timeout": 120,  # seconds for batch operations
+    "use_mini_models": False,  # Enable mini models for CI/testing
+    "model_size": None,  # Can be 'mini', 'small', 'medium', 'large'
 }
 
 # PostgreSQL interaction

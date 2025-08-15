@@ -61,6 +61,14 @@ os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 
 SteadyText v2.0+ uses Gemma-3n models for generation and Qwen3 for embeddings.
 
+## Mini Models Support (v2.7.0+)
+
+- AIDEV-NOTE: Mini models provide ~10x faster CI/testing with smaller model sizes
+- Generation: Gemma-3-270M (~97MB), Embedding: BGE-large (~130MB), Reranking: BGE-base (~300MB)
+- Use STEADYTEXT_USE_MINI_MODELS=true environment variable for CI/testing
+- CLI supports --size mini flag for all commands (generate, embed, rerank, daemon)
+- AIDEV-TODO: Consider adding more mini model variants for different use cases
+
 ## Temperature Parameter (v2.6.3+)
 
 SteadyText supports temperature control for text generation, allowing fine-tuned control over output randomness:
