@@ -36,7 +36,7 @@ CREATE TABLE steadytext_cache (
 );
 
 -- Create indexes for performance
-CREATE INDEX IF NOT EXISTS idx_steadytext_cache_key ON steadytext_cache USING hash(cache_key);
+CREATE INDEX IF NOT EXISTS idx_steadytext_cache_key ON steadytext_cache(cache_key);
 CREATE INDEX IF NOT EXISTS idx_steadytext_cache_last_accessed ON steadytext_cache(last_accessed);
 CREATE INDEX IF NOT EXISTS idx_steadytext_cache_access_count ON steadytext_cache(access_count);
 
