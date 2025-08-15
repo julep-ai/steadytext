@@ -70,6 +70,13 @@ from ...config import with_defaults
     show_default=True,
 )
 @click.option(
+    "--temperature",
+    type=float,
+    default=0.0,
+    help="Temperature for sampling (0.0 = deterministic, higher = more random).",
+    show_default=True,
+)
+@click.option(
     "--max-new-tokens",
     type=int,
     default=None,
@@ -114,6 +121,7 @@ def generate(
     model_filename: str,
     size: str,
     seed: int,
+    temperature: float,
     max_new_tokens: int,
     schema: str,
     regex: str,
@@ -273,6 +281,7 @@ def generate(
             model_filename=model_filename,
             size=size,
             seed=seed,
+            temperature=temperature,
             unsafe_mode=unsafe_mode,
         ):
             if logprobs and isinstance(token, dict):
@@ -335,6 +344,7 @@ def generate(
                 model_filename=model_filename,
                 size=size,
                 seed=seed,
+                temperature=temperature,
                 schema=schema_obj,
                 regex=regex,
                 choices=choices_list,
@@ -356,6 +366,7 @@ def generate(
                     model_filename=model_filename,
                     size=size,
                     seed=seed,
+                    temperature=temperature,
                     unsafe_mode=unsafe_mode,
                 ):
                     generated_text += str(
@@ -395,6 +406,7 @@ def generate(
                 model_filename=model_filename,
                 size=size,
                 seed=seed,
+                temperature=temperature,
                 schema=schema_obj,
                 regex=regex,
                 choices=choices_list,
