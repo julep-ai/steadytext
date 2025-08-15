@@ -190,7 +190,11 @@ def core_embed(
 
     # AIDEV-NOTE: Include mode in cache key for Jina v4 to distinguish query vs passage embeddings
     # Include model identity to avoid cross-model cache collisions
-    model_identity = getattr(model, "model_path", None) or getattr(model, "model_id", None) or "local-embedder"
+    model_identity = (
+        getattr(model, "model_path", None)
+        or getattr(model, "model_id", None)
+        or "local-embedder"
+    )
     cache_key = (model_identity, mode) + tuple(texts_to_embed)
 
     if not texts_to_embed:
