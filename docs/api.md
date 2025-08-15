@@ -451,11 +451,9 @@ The following models are available:
 
 ### Deprecated Models (v1.x)
 
-> **Note:** The following models were available in SteadyText v1.x but are deprecated in v2.0.0+:
-> - `qwen3-1.7b`, `qwen3-4b`, `qwen3-8b`
-> - `qwen2.5-0.5b`, `qwen2.5-1.5b`, `qwen2.5-3b`, `qwen2.5-7b`
+> **Note:** Earlier Qwen model versions were available in SteadyText v1.x but are deprecated in v2.0.0+.
 >
-> Use the `size` parameter with Gemma-3n models instead.
+> Use the current Qwen3 models via the `size` parameter instead.
 
 ### Model Caching
 

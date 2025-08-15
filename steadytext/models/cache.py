@@ -36,20 +36,7 @@ def _download_model_if_needed(
 
     model_path = cache_dir / filename
     if not model_path.exists():
-        # AIDEV-NOTE: Display Gemma license compliance notice when downloading Gemma models
-        if "gemma" in repo_id.lower() or "gemma" in filename.lower():
-            logger.info(
-                "\n"
-                "================================================================\n"
-                "GEMMA MODEL LICENSE NOTICE\n"
-                "================================================================\n"
-                "The Gemma family of models are subject to Google's Gemma Terms of Use.\n"
-                "By downloading and using this model, you agree to comply with the terms at:\n"
-                "https://ai.google.dev/gemma/terms\n"
-                "\n"
-                "Please review LICENSE-GEMMA.txt in the SteadyText repository for details.\n"
-                "================================================================\n"
-            )
+        # AIDEV-NOTE: Model download notification
         logger.info(
             f"Model {filename} not found in cache. Downloading from {repo_id}..."
         )

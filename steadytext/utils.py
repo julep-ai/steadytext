@@ -23,12 +23,15 @@ if not logger.handlers:
 # This prevents INFO messages from appearing in quiet mode
 
 # --- Model Configuration ---
-# AIDEV-NOTE: Switched from Qwen3 to Gemma-3n for generation and are using Qwen3-Embedding-0.6B for embeddings. Users can override the models via environment variables. The ggml-org repository is used for the latest GGUF versions.
-DEFAULT_GENERATION_MODEL_REPO = "ggml-org/gemma-3n-E2B-it-GGUF"
-DEFAULT_EMBEDDING_MODEL_REPO = "Qwen/Qwen3-Embedding-0.6B-GGUF"
+# AIDEV-NOTE: Using Qwen3 models for generation (small and large variants) and Jina v4 for embeddings.
+# Generation models support size-based selection, embeddings require Query/Passage prefix.
+DEFAULT_GENERATION_MODEL_SMALL_REPO = "unsloth/Qwen3-4B-Instruct-2507-GGUF"
+DEFAULT_GENERATION_MODEL_LARGE_REPO = "unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF"
+DEFAULT_EMBEDDING_MODEL_REPO = "jinaai/jina-embeddings-v4-text-retrieval-GGUF"
 DEFAULT_RERANKING_MODEL_REPO = "QuantFactory/Qwen3-Reranker-4B-GGUF"
-GENERATION_MODEL_FILENAME = "gemma-3n-E2B-it-Q8_0.gguf"
-EMBEDDING_MODEL_FILENAME = "Qwen3-Embedding-0.6B-Q8_0.gguf"
+GENERATION_MODEL_SMALL_FILENAME = "Qwen3-4B-Instruct-2507-UD-Q6_K_XL.gguf"
+GENERATION_MODEL_LARGE_FILENAME = "Qwen3-30B-A3B-Instruct-2507-UD-Q4_K_XL.gguf"
+EMBEDDING_MODEL_FILENAME = "jina-embeddings-v4-text-retrieval-Q5_K_M.gguf"
 RERANKING_MODEL_FILENAME = "Qwen3-Reranker-4B.Q8_0.gguf"
 
 # AIDEV-NOTE: Model registry for validated alternative models
@@ -57,26 +60,21 @@ MODEL_REGISTRY = {
         "mini": True,
         "description": "Mini BGE reranker model for CI/testing (~300MB)",
     },
-    # Gemma-3n models (may have compatibility issues with inference-sh fork)
-    "gemma-3n-2b": {
-        "repo": "ggml-org/gemma-3n-E2B-it-GGUF",
-        "filename": "gemma-3n-E2B-it-Q8_0.gguf",
-        "compatibility_warning": "May not be compatible with inference-sh llama-cpp-python fork",
-    },
-    "gemma-3n-4b": {
-        "repo": "ggml-org/gemma-3n-E4B-it-GGUF",
-        "filename": "gemma-3n-E4B-it-Q8_0.gguf",
-        "compatibility_warning": "May not be compatible with inference-sh llama-cpp-python fork",
-    },
-    # Qwen models (known to work with inference-sh fork)
-    "qwen2.5-3b": {
-        "repo": "lmstudio-community/Qwen2.5-3B-Instruct-GGUF",
-        "filename": "Qwen2.5-3B-Instruct-Q8_0.gguf",
+    # Qwen3 generation models (2025 versions)
+    "qwen3-4b": {
+        "repo": "unsloth/Qwen3-4B-Instruct-2507-GGUF",
+        "filename": "Qwen3-4B-Instruct-2507-UD-Q6_K_XL.gguf",
         "verified": True,
     },
-    "qwen3-1.7b": {
-        "repo": "lmstudio-community/qwen3-1.7b-llama-cpp-python-GGUF",
-        "filename": "qwen3-1.7b-q8_0.gguf",
+    "qwen3-30b": {
+        "repo": "unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF",
+        "filename": "Qwen3-30B-A3B-Instruct-2507-UD-Q4_K_XL.gguf",
+        "verified": True,
+    },
+    # Embedding models
+    "jina-v4-retrieval": {
+        "repo": "jinaai/jina-embeddings-v4-text-retrieval-GGUF",
+        "filename": "jina-embeddings-v4-text-retrieval-Q5_K_M.gguf",
         "verified": True,
     },
     # Reranking models
@@ -90,20 +88,17 @@ MODEL_REGISTRY = {
 # AIDEV-NOTE: Size to model mapping for convenient size-based selection
 SIZE_TO_MODEL = {
     "mini": "gemma-mini-270m",  # CI/testing model (~97MB)
-    "small": "qwen3-1.7b",  # fallback to known working model
-    "medium": "qwen2.5-3b",  # fallback to known working model
-    "large": "gemma-3n-4b",  # may have compatibility issues
+    "small": "qwen3-4b",  # Default small model (4B parameters)
+    "large": "qwen3-30b",  # Large model (30B parameters, A3B architecture)
 }
 
 # Get model configuration from environment or use defaults
-# AIDEV-NOTE: If gemma-3n models fail, set STEADYTEXT_USE_FALLBACK_MODEL=true
+# AIDEV-NOTE: Support for size-based model selection via environment variable
 # AIDEV-NOTE: Use STEADYTEXT_USE_MINI_MODELS=true for fast CI/testing with mini models
-USE_FALLBACK_MODEL = (
-    os.environ.get("STEADYTEXT_USE_FALLBACK_MODEL", "false").lower() == "true"
-)
 USE_MINI_MODELS = (
     os.environ.get("STEADYTEXT_USE_MINI_MODELS", "false").lower() == "true"
 )
+DEFAULT_GENERATION_SIZE = os.environ.get("STEADYTEXT_GENERATION_SIZE", "small").lower()
 
 if USE_MINI_MODELS:
     # Use mini models for CI/testing
@@ -116,11 +111,20 @@ if USE_MINI_MODELS:
     logger.info(
         "Using mini models for CI/testing due to STEADYTEXT_USE_MINI_MODELS=true"
     )
-elif USE_FALLBACK_MODEL:
-    # Use known working Qwen model as fallback
-    DEFAULT_GENERATION_MODEL_REPO = "lmstudio-community/Qwen2.5-3B-Instruct-GGUF"
-    GENERATION_MODEL_FILENAME = "Qwen2.5-3B-Instruct-Q8_0.gguf"
-    logger.info("Using fallback Qwen model due to STEADYTEXT_USE_FALLBACK_MODEL=true")
+else:
+    # Select default generation model based on size
+    if DEFAULT_GENERATION_SIZE not in ["small", "large"]:
+        logger.warning(
+            f"Invalid STEADYTEXT_GENERATION_SIZE: {DEFAULT_GENERATION_SIZE}, using 'small'"
+        )
+        DEFAULT_GENERATION_SIZE = "small"
+
+    if DEFAULT_GENERATION_SIZE == "large":
+        DEFAULT_GENERATION_MODEL_REPO = DEFAULT_GENERATION_MODEL_LARGE_REPO
+        GENERATION_MODEL_FILENAME = GENERATION_MODEL_LARGE_FILENAME
+    else:
+        DEFAULT_GENERATION_MODEL_REPO = DEFAULT_GENERATION_MODEL_SMALL_REPO
+        GENERATION_MODEL_FILENAME = GENERATION_MODEL_SMALL_FILENAME
 
 GENERATION_MODEL_REPO = os.environ.get(
     "STEADYTEXT_GENERATION_MODEL_REPO", DEFAULT_GENERATION_MODEL_REPO
@@ -188,10 +192,9 @@ MODEL_MAX_CONTEXT_WINDOWS = {
     "gemma-mini-270m": 2048,  # Mini model uses smaller context for faster processing
     "bge-embedding-mini": 512,  # BGE embedding model context
     "bge-reranker-mini": 512,  # BGE reranker model context
-    "gemma-3n-2b": 8192,
-    "gemma-3n-4b": 8192,
-    "qwen2.5-3b": 32768,
-    "qwen3-1.7b": 8192,
+    "qwen3-4b": 32768,  # Qwen3 models support larger context
+    "qwen3-30b": 32768,  # Same context window for both sizes
+    "jina-v4-retrieval": 8192,  # Jina embeddings context window
     "qwen3-reranker-4b": 8192,
 }
 
@@ -275,7 +278,10 @@ LLAMA_CPP_MAIN_PARAMS_DETERMINISTIC: Dict[str, Any] = {
 
 # --- Output Configuration (from previous full utils.py) ---
 GENERATION_MAX_NEW_TOKENS = 1024
-EMBEDDING_DIMENSION = 1024  # Setting to 1024 as per objective
+EMBEDDING_DIMENSION = (
+    1024  # Jina v4 outputs 2048, but we truncate to 1024 using Matryoshka
+)
+JINA_V4_FULL_DIMENSION = 2048  # Full dimension before truncation
 
 LLAMA_CPP_EMBEDDING_PARAMS_DETERMINISTIC: Dict[str, Any] = {
     **LLAMA_CPP_BASE_PARAMS,
@@ -387,7 +393,7 @@ def get_model_config(model_name: str) -> Dict[str, str]:
     """Get model configuration from registry by name.
 
     Args:
-        model_name: Name of the model (e.g., "qwen2.5-3b", "qwen3-8b")
+        model_name: Name of the model (e.g., "qwen3-4b", "qwen3-30b")
 
     Returns:
         Dict with 'repo' and 'filename' keys
@@ -412,7 +418,7 @@ def resolve_model_params(
     """Resolve model parameters with precedence: explicit params > model name > size > env vars > defaults.
 
     Args:
-        model: Model name from registry (e.g., "qwen2.5-3b")
+        model: Model name from registry (e.g., "qwen3-4b")
         repo: Explicit repository ID (overrides model lookup)
         filename: Explicit filename (overrides model lookup)
         size: Size identifier ("mini", "small", "medium", "large")
@@ -433,22 +439,39 @@ def resolve_model_params(
             logger.warning(
                 f"Invalid model name '{model}' provided. Falling back to default model."
             )
-            # Fall through to default
+            # Fall through to size/default
 
     # If size provided, convert to model name and look it up
     if size:
-        if size in SIZE_TO_MODEL:
-            model_name = SIZE_TO_MODEL[size]
+        size_lower = size.lower()
+        if size_lower in SIZE_TO_MODEL:
+            model_name = SIZE_TO_MODEL[size_lower]
             config = get_model_config(model_name)
             return config["repo"], config["filename"]
         else:
             logger.warning(
-                f"Invalid size '{size}' provided. Falling back to default model."
+                f"Invalid size '{size}' provided. Valid options are 'small' or 'large'. Falling back to default model."
             )
             # Fall through to default
 
     # Otherwise use environment variables or defaults
     return GENERATION_MODEL_REPO, GENERATION_MODEL_FILENAME
+
+
+def get_default_embedding_mode() -> str:
+    """Get the default embedding mode from environment or return 'query'.
+
+    AIDEV-NOTE: Jina v4 requires Query: or Passage: prefix for optimal performance.
+    Default to 'query' for backward compatibility.
+
+    Returns:
+        'query' or 'passage' based on environment variable or default
+    """
+    mode = os.environ.get("STEADYTEXT_EMBEDDING_MODE", "query").lower()
+    if mode not in ["query", "passage"]:
+        logger.warning(f"Invalid STEADYTEXT_EMBEDDING_MODE: {mode}, using 'query'")
+        return "query"
+    return mode
 
 
 def get_mini_models() -> Dict[str, Dict[str, str]]:
@@ -662,7 +685,7 @@ def check_model_compatibility(repo_id: str, filename: str) -> tuple[bool, str]:
     if "gemma-3n" in filename.lower():
         return (
             False,
-            "Gemma-3n models may not be compatible with inference-sh llama-cpp-python fork. Consider using STEADYTEXT_USE_FALLBACK_MODEL=true",
+            "Gemma-3n models are no longer used. Please use Qwen3 models instead.",
         )
 
     # Unknown model - proceed with caution

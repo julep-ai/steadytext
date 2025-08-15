@@ -128,7 +128,7 @@ text = steadytext.generate("Hello", size="large")  # Use size parameter
 text = steadytext.generate(
     prompt="Hello",
     thinking_mode=True,  # REMOVED
-    model="qwen3-1.7b"   # CHANGED
+    model="old-model"    # CHANGED
 )
 
 # v2.0.x

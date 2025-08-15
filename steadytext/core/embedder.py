@@ -24,10 +24,12 @@ from ..models.loader import (
 )
 from ..utils import (
     EMBEDDING_DIMENSION,
+    JINA_V4_FULL_DIMENSION,
     logger,
     validate_normalized_embedding,
     DEFAULT_SEED,
     validate_seed,
+    get_default_embedding_mode,
 )
 
 # AIDEV-NOTE: Use centralized cache manager for consistent caching.
@@ -58,6 +60,7 @@ def core_embed(
     seed: int = DEFAULT_SEED,
     model: Optional[str] = None,
     unsafe_mode: bool = False,
+    mode: Optional[str] = None,
 ) -> np.ndarray:
     """
     Creates a fixed-dimension, L2-normalized embedding for the input text(s)
@@ -73,6 +76,7 @@ def core_embed(
         seed: Seed for deterministic behavior (ignored by most remote providers)
         model: Optional remote model string (e.g., "openai:text-embedding-3-small")
         unsafe_mode: Enable remote models with best-effort determinism
+        mode: Optional embedding mode ("query" or "passage") for Jina v4 models
 
     Returns:
         numpy.ndarray: A 1D numpy array of shape (EMBEDDING_DIMENSION,)
@@ -85,6 +89,15 @@ def core_embed(
                    by the public API layer for a "Never Fails" zero vector response).
     """
     validate_seed(seed)
+
+    # AIDEV-NOTE: Determine embedding mode (query or passage) for Jina v4
+    if mode is None:
+        mode = get_default_embedding_mode()
+    elif mode.lower() not in ["query", "passage"]:
+        logger.warning(f"Invalid embedding mode '{mode}', using 'query'")
+        mode = "query"
+    else:
+        mode = mode.lower()
 
     # AIDEV-NOTE: Check for remote models first
     if model:
@@ -175,7 +188,14 @@ def core_embed(
             if item.strip():  # Not empty or just whitespace
                 texts_to_embed.append(item)
 
-    cache_key = tuple(texts_to_embed)
+    # AIDEV-NOTE: Include mode in cache key for Jina v4 to distinguish query vs passage embeddings
+    # Include model identity to avoid cross-model cache collisions
+    model_identity = (
+        getattr(model, "model_path", None)
+        or getattr(model, "model_id", None)
+        or "local-embedder"
+    )
+    cache_key = (model_identity, mode) + tuple(texts_to_embed)
 
     if not texts_to_embed:
         logger.error(
@@ -210,8 +230,12 @@ def core_embed(
     try:
         all_sequence_level_embeddings: List[np.ndarray] = []
         for text_item in texts_to_embed:  # non-empty strings
+            # AIDEV-NOTE: Add Query/Passage prefix for Jina v4 models
+            # The prefix is capitalized and followed by a colon and space
+            prefixed_text = f"{mode.capitalize()}: {text_item}"
+
             token_embeddings_output = model.embed(
-                text_item
+                prefixed_text
             )  # Might be List[List[float]] or List[float]
 
             if not token_embeddings_output:
@@ -233,18 +257,35 @@ def core_embed(
                         f"result in zero token embeddings. Skipping."
                     )
                     continue
-                if token_embeddings_np.shape[1] != EMBEDDING_DIMENSION:
+                # AIDEV-NOTE: Handle Jina v4 Matryoshka truncation
+                # Jina v4 outputs 2048 dimensions, we truncate to 1024
+                if token_embeddings_np.shape[1] == JINA_V4_FULL_DIMENSION:
+                    # Truncate to EMBEDDING_DIMENSION (1024)
+                    token_embeddings_np = token_embeddings_np[:, :EMBEDDING_DIMENSION]
+                    logger.debug(
+                        f"Core.embedder: Truncated Jina v4 embedding from {JINA_V4_FULL_DIMENSION} "
+                        f"to {EMBEDDING_DIMENSION} dimensions using Matryoshka"
+                    )
+                elif token_embeddings_np.shape[1] != EMBEDDING_DIMENSION:
                     logger.warning(
                         f"Core.embedder: Token embeddings for '{text_item[:50]}...' "
                         f"have unexpected dimension {token_embeddings_np.shape[1]} "
-                        f"(expected {EMBEDDING_DIMENSION}). Skipping."
+                        f"(expected {EMBEDDING_DIMENSION} or {JINA_V4_FULL_DIMENSION}). Skipping."
                     )
                     continue
                 sequence_embedding_1d = np.mean(token_embeddings_np, axis=0)
             elif (
                 token_embeddings_np.ndim == 1
             ):  # Case: model.embed() already returned a 1D sequence embedding
-                if token_embeddings_np.shape[0] != EMBEDDING_DIMENSION:
+                # AIDEV-NOTE: Handle Jina v4 Matryoshka truncation for 1D case
+                if token_embeddings_np.shape[0] == JINA_V4_FULL_DIMENSION:
+                    # Truncate to EMBEDDING_DIMENSION (1024)
+                    token_embeddings_np = token_embeddings_np[:EMBEDDING_DIMENSION]
+                    logger.debug(
+                        f"Core.embedder: Truncated 1D Jina v4 embedding from {JINA_V4_FULL_DIMENSION} "
+                        f"to {EMBEDDING_DIMENSION} dimensions using Matryoshka"
+                    )
+                elif token_embeddings_np.shape[0] != EMBEDDING_DIMENSION:
                     logger.warning(
                         f"Core.embedder: 1D embedding for '{text_item[:50]}...' "
                         f"has unexpected dimension {token_embeddings_np.shape[0]} "

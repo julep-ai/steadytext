@@ -59,7 +59,7 @@ steadytext generate [OPTIONS] PROMPT
 | `--seed` | | int | `42` | Random seed for deterministic generation |
 | `--temperature` | | float | `0.0` | Controls randomness: 0.0 = deterministic, >0 = more random |
 | `--size` | | choice | | Model size: small (2B, default), large (4B) |
-| `--model` | | string | | Model name from registry (e.g., "qwen2.5-3b") |
+| `--model` | | string | | Model name from registry (e.g., "qwen3-4b") |
 | `--model-repo` | | string | | Custom model repository |
 | `--model-filename` | | string | | Custom model filename |
 | `--no-index` | | flag | `false` | Disable automatic index search |

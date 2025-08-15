@@ -10,6 +10,15 @@
 [![](https://img.shields.io/pypi/pyversions/steadytext.svg)](https://pypi.org/project/steadytext/)
 [![](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+> [!IMPORTANT]
+> **Version 2025.8.15 - Date-Based Versioning**
+> 
+> SteadyText has transitioned from semantic versioning to **date-based versioning** (yyyy.mm.dd format).
+> 
+> **Why this change?** The rapid pace of AI model improvements and feature additions made traditional semantic versioning impractical. With models evolving weekly and new capabilities being added frequently, date-based versioning provides clearer insight into release recency and better aligns with our continuous improvement philosophy.
+> 
+> This applies to both the Python package and the PostgreSQL extension (pg_steadytext). Existing installations can upgrade normally using pip or PostgreSQL extension commands.
+
 **Same input → same output. Every time.**
 No more flaky tests, unpredictable CLI tools, or inconsistent docs. SteadyText makes AI outputs as reliable as hash functions.
 
@@ -55,6 +64,10 @@ import steadytext
 code = steadytext.generate("implement binary search in Python")
 assert "def binary_search" in code  # Always passes!
 
+# Choose model size (small=4B, large=30B)
+quick = steadytext.generate("summarize this", size="small")  # Fast
+detailed = steadytext.generate("explain in detail", size="large")  # Higher quality
+
 # Generate with controlled randomness (temperature > 0)
 creative = steadytext.generate("write a poem", temperature=0.8)
 more_creative = steadytext.generate("write a poem", temperature=1.2)
@@ -63,8 +76,9 @@ more_creative = steadytext.generate("write a poem", temperature=1.2)
 for token in steadytext.generate_iter("explain quantum computing"):
     print(token, end="", flush=True)
 
-# Deterministic embeddings (uses daemon by default)
-vec = steadytext.embed("Hello world")  # 1024-dim numpy array
+# Deterministic embeddings with Query/Passage optimization
+query_vec = steadytext.embed("What is machine learning?", mode="query")  # For searches
+doc_vec = steadytext.embed("Machine learning is...", mode="passage")  # For documents
 
 # Explicit daemon usage (ensures connection)
 from steadytext.daemon import use_daemon

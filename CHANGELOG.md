@@ -1,6 +1,22 @@
 # Changelog
 
-## Version 2.6.3 (Unreleased)
+> [!IMPORTANT]
+> **Versioning Change Notice (2025.8.15)**
+> 
+> SteadyText has transitioned from semantic versioning to date-based versioning (yyyy.mm.dd format).
+> This change reflects the rapid pace of AI model improvements and feature additions, where traditional
+> semantic versioning became impractical. Date-based versioning provides clearer insight into release
+> recency and better aligns with our continuous improvement philosophy.
+
+## Version 2025.8.15 (2025-08-15)
+
+### Major Changes
+- **Date-Based Versioning:** Switched from semantic versioning (2.6.2) to date-based versioning (yyyy.mm.dd)
+  - This change aligns both the Python package and PostgreSQL extension versioning schemes
+  - Existing installations can upgrade normally using pip or standard upgrade commands
+  - Rationale: The rapid evolution of AI models and features made semantic versioning impractical
+
+## Version 2.6.3 (Unreleased - Now 2025.8.15)
 
 ### New Features
 - **Temperature Parameter Support:** Added temperature parameter for controlled text generation randomness

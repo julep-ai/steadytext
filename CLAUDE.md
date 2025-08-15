@@ -57,9 +57,23 @@ os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 - AIDEV-TODO: Consider adding connection pooling for high-concurrency scenarios
 - AIDEV-TODO: Add metrics/monitoring endpoints for production deployments
 
-## Gemma-3n Models
+## Qwen3 Models (v2025.8.16+)
 
-SteadyText v2.0+ uses Gemma-3n models for generation and Qwen3 for embeddings.
+SteadyText v2025.8.16+ uses Qwen3 models for generation and Jina v4 for embeddings:
+
+**Generation Models:**
+- **Small** (default): Qwen3-4B-Instruct - Fast, efficient for most tasks
+- **Large**: Qwen3-30B-A3B-Instruct - Higher quality for complex tasks
+- Use `size="small"` or `size="large"` parameter, or set `STEADYTEXT_GENERATION_SIZE` env var
+
+**Embedding Model:**
+- **Jina v4 Text Retrieval**: 2048-dim embeddings truncated to 1024 using Matryoshka
+- Requires Query/Passage prefix: `mode="query"` for searches, `mode="passage"` for documents
+- Set default mode via `STEADYTEXT_EMBEDDING_MODE` env var
+
+- AIDEV-NOTE: Jina v4 outputs 2048 dimensions but we truncate to 1024 for backward compatibility
+- AIDEV-NOTE: Query/Passage prefixes are critical for optimal retrieval performance
+- AIDEV-TODO: Consider exposing full 2048 dimensions as an option
 
 ## Mini Models Support (v2.7.0+)
 
@@ -69,7 +83,7 @@ SteadyText v2.0+ uses Gemma-3n models for generation and Qwen3 for embeddings.
 - CLI supports --size mini flag for all commands (generate, embed, rerank, daemon)
 - AIDEV-TODO: Consider adding more mini model variants for different use cases
 
-## Temperature Parameter (v2.6.3+)
+## Temperature Parameter (v2025.8.15+)
 
 SteadyText supports temperature control for text generation, allowing fine-tuned control over output randomness:
 
@@ -135,7 +149,7 @@ When responding to user instructions, the AI assistant (Claude, Cursor, GPT, etc
 
 ## Structured Generation (v2.4.0+)
 
-- AIDEV-NOTE: Uses llama.cpp GBNF grammars instead of Outlines (fixes Gemma-3n compatibility)
+- AIDEV-NOTE: Uses llama.cpp GBNF grammars instead of Outlines for better compatibility
 - Conversion support: JSON schemas, Pydantic models, regex, choices, Python types → GBNF
 - AIDEV-NOTE: Remote models (v2.6.2+) support structured generation via unsafe_mode=True
 - AIDEV-TODO: Expand regex conversion and add recursive schema support
@@ -184,6 +198,19 @@ result = generate_json(
 - AIDEV-NOTE: Two-phase generation: reasoning → `<json-` tag → grammar-constrained output
 - AIDEV-NOTE: Deterministic/cacheable, bypasses cache for logprobs, on-the-fly grammar conversion
 - AIDEV-TODO: Add streaming support and grammar caching
+
+## Versioning Policy (As of 2025.8.15)
+
+Both SteadyText components now use **date-based versioning** instead of semantic versioning:
+
+- **Format:** `yyyy.mm.dd` (no zero-padding, e.g., `2025.8.15`, `2025.12.3`)
+- **Applies to:** Both the Python package (steadytext) and PostgreSQL extension (pg_steadytext)
+- **Rationale:** The rapid pace of model improvements and feature changes made semantic versioning impractical. Date-based versioning provides clearer insight into release recency and better aligns with our continuous improvement philosophy.
+- **Migration:** Existing installations can upgrade using standard commands (pip for Python, PostgreSQL extension commands for pg_steadytext)
+- **Documentation:** The CHANGELOG.md files explain the versioning scheme and track changes
+
+- AIDEV-NOTE: When creating new releases, use current date in yyyy.mm.dd format for both components
+- AIDEV-NOTE: Version consistency - keep both Python package and pg_steadytext versions aligned when possible
 
 ## Development Commands
 
