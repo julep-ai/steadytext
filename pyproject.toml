@@ -42,6 +42,7 @@ dependencies = [
     "openai>=1.99.9",
     "httpx>=0.25.0",
     "voyageai>=0.3.2",
+    "pydantic-gbnf-grammar-generator>=0.1.1",
 ]
 
 [tool.hatch.build.targets.sdist]
@@ -76,9 +77,12 @@ steadytext = "steadytext.cli:main"
 st = "steadytext.cli:main"
 
 [tool.poe.tasks]
-test = "pytest"
-test-cov = "pytest --cov=steadytext --cov-report=term-missing --cov-report=html --cov-report=xml"
-test-parallel = "pytest -p no:xdist"
+# AIDEV-NOTE: Tests use mini models by default for fast CI/testing
+test = { cmd = "pytest", env = { STEADYTEXT_USE_MINI_MODELS = "true", STEADYTEXT_ALLOW_MODEL_DOWNLOADS = "true" } }
+test-cov = { cmd = "pytest --cov=steadytext --cov-report=term-missing --cov-report=html --cov-report=xml", env = { STEADYTEXT_USE_MINI_MODELS = "true", STEADYTEXT_ALLOW_MODEL_DOWNLOADS = "true" } }
+test-parallel = { cmd = "pytest -p no:xdist", env = { STEADYTEXT_USE_MINI_MODELS = "true", STEADYTEXT_ALLOW_MODEL_DOWNLOADS = "true" } }
+# Test with full models (not mini)
+test-full = "pytest"
 lint = "ruff check --fix --unsafe-fixes"
 format = "ruff format"
 typecheck = "ty check"

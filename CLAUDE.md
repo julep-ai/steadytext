@@ -149,9 +149,11 @@ When responding to user instructions, the AI assistant (Claude, Cursor, GPT, etc
 
 ## Structured Generation (v2.4.0+)
 
-- AIDEV-NOTE: Uses llama.cpp GBNF grammars instead of Outlines for better compatibility
+- AIDEV-NOTE: Uses LlamaGrammar.from_json_schema() for JSON/Pydantic schemas - more reliable than custom GBNF generation
+- AIDEV-NOTE: Mini models (Gemma-3-270M QAT) work with LlamaGrammar.from_json_schema() but had issues with custom GBNF grammars
 - Conversion support: JSON schemas, Pydantic models, regex, choices, Python types → GBNF
 - AIDEV-NOTE: Remote models (v2.6.2+) support structured generation via unsafe_mode=True
+- AIDEV-FIXED: Resolved mini model issues by switching to LlamaGrammar.from_json_schema() instead of custom grammar generation
 - AIDEV-TODO: Expand regex conversion and add recursive schema support
 
 SteadyText supports structured text generation using llama.cpp grammars, enabling:

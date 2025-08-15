@@ -272,6 +272,132 @@ class GrammarConverter:
         # Replace non-alphanumeric characters with underscores
         return re.sub(r"[^a-zA-Z0-9_]", "_", name)
 
+    def json_schema_to_simplified_gbnf(self, schema: Dict[str, Any]) -> str:
+        """Generate simplified GBNF grammar for mini models.
+
+        AIDEV-NOTE: Mini models (like Gemma-3-270M QAT) have issues with complex
+        grammars containing many rules and references. This method generates a
+        simplified, inline grammar that avoids those issues.
+
+        Args:
+            schema: JSON schema dictionary
+
+        Returns:
+            Simplified GBNF grammar string
+        """
+        schema_type = schema.get("type")
+
+        if schema_type == "object":
+            properties = schema.get("properties", {})
+            if not properties:
+                return 'root ::= "{" [ \\t\\n]* "}"'
+
+            # Build inline object pattern
+            parts = ['"{"', "[ \\t\\n]*"]
+            first = True
+            for prop_name, prop_schema in properties.items():
+                if not first:
+                    parts.extend(['","', "[ \\t\\n]*"])
+                first = False
+
+                # Escape property name for GBNF
+                escaped_prop = (
+                    str(prop_name).replace("\\", "\\\\\\\\").replace('"', '\\\\"')
+                )
+                parts.extend([f'"\\"{escaped_prop}\\"" [ \\t\\n]* ":" [ \\t\\n]*'])
+
+                # Add inline type pattern based on property type
+                prop_type = prop_schema.get("type")
+                if prop_type == "string":
+                    # Simplified string pattern
+                    parts.append('"\\"" ([^"\\\\] | "\\\\" .)* "\\""')
+                elif prop_type == "integer":
+                    # Integer pattern
+                    parts.append('("-"? [0-9]+)')
+                elif prop_type == "number":
+                    # Number pattern with optional decimal
+                    parts.append('("-"? [0-9]+ ("." [0-9]+)?)')
+                elif prop_type == "boolean":
+                    # Boolean literals
+                    parts.append('("true" | "false")')
+                elif prop_type == "null":
+                    # Null literal
+                    parts.append('"null"')
+                elif prop_type == "array":
+                    # Simplified array pattern
+                    item_type = prop_schema.get("items", {}).get("type", "string")
+                    if item_type == "string":
+                        item_pattern = '"\\"" ([^"\\\\] | "\\\\" .)* "\\""'
+                    elif item_type == "integer":
+                        item_pattern = '("-"? [0-9]+)'
+                    elif item_type == "number":
+                        item_pattern = '("-"? [0-9]+ ("." [0-9]+)?)'
+                    else:
+                        item_pattern = "([^,\\]]+)"
+                    parts.append(
+                        f'"[" [ \\t\\n]* ({item_pattern} [ \\t\\n]* ("," [ \\t\\n]* {item_pattern} [ \\t\\n]*)*)? "]"'
+                    )
+                else:
+                    # Generic value pattern for unknown types
+                    parts.append("([^,}]+)")
+
+                parts.append("[ \\t\\n]*")
+
+            parts.append('"}"')
+            return f"root ::= {' '.join(parts)}"
+
+        elif schema_type == "array":
+            items = schema.get("items", {})
+            item_type = items.get("type", "string")
+
+            if item_type == "string":
+                item_pattern = '"\\"" ([^"\\\\] | "\\\\" .)* "\\""'
+            elif item_type == "integer":
+                item_pattern = '("-"? [0-9]+)'
+            elif item_type == "number":
+                item_pattern = '("-"? [0-9]+ ("." [0-9]+)?)'
+            elif item_type == "boolean":
+                item_pattern = '("true" | "false")'
+            else:
+                item_pattern = "([^,\\]]+)"
+
+            return f'root ::= "[" [ \\t\\n]* ({item_pattern} [ \\t\\n]* ("," [ \\t\\n]* {item_pattern} [ \\t\\n]*)*)? "]"'
+
+        elif schema_type == "string":
+            if "enum" in schema:
+                # Enum values
+                options = []
+                for v in schema["enum"]:
+                    escaped_val = str(v).replace("\\", "\\\\\\\\").replace('"', '\\\\"')
+                    options.append(f'"\\"{escaped_val}\\""')
+                return f"root ::= {' | '.join(options)}"
+            else:
+                return 'root ::= "\\"" ([^"\\\\] | "\\\\" .)* "\\""'
+
+        elif schema_type == "integer":
+            return 'root ::= "-"? [0-9]+'
+
+        elif schema_type == "number":
+            return 'root ::= "-"? [0-9]+ ("." [0-9]+)?'
+
+        elif schema_type == "boolean":
+            return 'root ::= "true" | "false"'
+
+        elif schema_type == "null":
+            return 'root ::= "null"'
+
+        else:
+            # For complex or unknown types, fall back to standard grammar
+            # This should rarely happen with mini models
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"Complex schema type '{schema_type}' in simplified grammar generation. "
+                "Using standard grammar."
+            )
+            return self.json_schema_to_gbnf(schema)
+
     def regex_to_gbnf(self, pattern: str) -> str:
         """Convert a simple regex pattern to GBNF grammar.
 
@@ -404,3 +530,31 @@ def choices_to_grammar(choices: List[str]) -> str:
         GBNF grammar string
     """
     return _grammar_converter.choices_to_gbnf(choices)
+
+
+def json_schema_to_simplified_grammar(schema: Union[Dict[str, Any], type]) -> str:
+    """Convert a JSON schema or Python type to simplified GBNF grammar for mini models.
+
+    AIDEV-NOTE: This function generates simplified, inline grammars that work better
+    with mini models like Gemma-3-270M QAT which have issues with complex grammars.
+
+    Args:
+        schema: JSON schema dict or Python type
+
+    Returns:
+        Simplified GBNF grammar string
+    """
+    if isinstance(schema, type):
+        # Convert Python type to JSON schema
+        if schema is int:
+            schema = {"type": "integer"}
+        elif schema is float:
+            schema = {"type": "number"}
+        elif schema is str:
+            schema = {"type": "string"}
+        elif schema is bool:
+            schema = {"type": "boolean"}
+        else:
+            raise ValueError(f"Unsupported Python type: {schema}")
+
+    return _grammar_converter.json_schema_to_simplified_gbnf(schema)

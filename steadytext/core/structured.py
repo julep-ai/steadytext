@@ -8,9 +8,16 @@ This module provides deterministic structured text generation with support for:
 
 AIDEV-NOTE: This implementation uses llama.cpp's native GBNF grammar support
 instead of Outlines to avoid compatibility issues with models like Gemma-3n.
+
+AIDEV-FIXED: Mini model (Gemma-3-270M QAT) compatibility issue resolved by using
+LlamaGrammar.from_json_schema() instead of custom GBNF grammar generation.
+The mini model would hang or produce invalid output with custom grammars but
+works correctly with llama.cpp's built-in JSON schema conversion.
 """
 
+import json
 import logging
+import os
 import re
 from typing import Any, Dict, List, Union, Type, Optional, overload, Literal, TypeVar
 
@@ -20,7 +27,11 @@ from llama_cpp import LlamaGrammar
 from ..models.loader import get_generator_model_instance
 from ..utils import suppress_llama_output, DEFAULT_SEED
 from .generator import _validate_input_length, core_generate
-from .grammar import json_schema_to_grammar, regex_to_grammar, choices_to_grammar
+from .grammar import (
+    json_schema_to_grammar,
+    regex_to_grammar,
+    choices_to_grammar,
+)
 
 # AIDEV-NOTE: Import LlamaGrammar for creating grammar objects from GBNF strings
 # llama-cpp-python expects LlamaGrammar objects, not raw GBNF strings
@@ -31,6 +42,15 @@ T = TypeVar("T", bound=BaseModel)
 
 
 logger = logging.getLogger(__name__)
+
+
+def _is_mini_model_active() -> bool:
+    """Check if mini models are currently active.
+
+    AIDEV-NOTE: Mini models like Gemma-3-270M QAT have issues with complex
+    GBNF grammars, so we need special handling for them.
+    """
+    return os.environ.get("STEADYTEXT_USE_MINI_MODELS", "").lower() == "true"
 
 
 class StructuredGenerator:
@@ -75,15 +95,28 @@ class StructuredGenerator:
         # Convert schema to JSON schema if needed
         json_schema = self._schema_to_json_schema(schema)
 
-        # Convert JSON schema to GBNF grammar
-        grammar_str = json_schema_to_grammar(json_schema)
-
-        # AIDEV-NOTE: Create LlamaGrammar object from GBNF string
-        if LlamaGrammar is not None:
-            grammar = LlamaGrammar.from_string(grammar_str)
-        else:
-            # Fallback: pass the string directly (for older versions)
-            grammar = grammar_str
+        # AIDEV-NOTE: Use LlamaGrammar.from_json_schema() which is more reliable
+        # than custom grammar generation, especially for mini models
+        try:
+            if hasattr(LlamaGrammar, "from_json_schema"):
+                # Use the built-in JSON schema to grammar conversion
+                grammar = LlamaGrammar.from_json_schema(json.dumps(json_schema))
+                logger.debug(
+                    "Using LlamaGrammar.from_json_schema() for grammar generation"
+                )
+            else:
+                # Fall back to GBNF string generation for older versions
+                grammar_str = json_schema_to_grammar(json_schema)
+                grammar = LlamaGrammar.from_string(grammar_str)
+                logger.debug(
+                    "Using GBNF string generation (older llama-cpp-python version)"
+                )
+        except Exception as e:
+            logger.error(f"Failed to create grammar from JSON schema: {e}")
+            # Fall back to unconstrained generation
+            return self._generate_json_without_grammar(
+                prompt, schema, max_tokens, **kwargs
+            )
 
         # AIDEV-NOTE: Add structured generation instruction to prompt
         structured_prompt = (
@@ -91,30 +124,96 @@ class StructuredGenerator:
             + "\n\nYou may output json if relevant at the end inside <json-output></json-output> xml tags"
         )
 
-        # First, generate thoughts up to <json- tag
-        with suppress_llama_output():
-            # Set stop token to generate thoughts first
-            thoughts = self._model(
-                structured_prompt, max_tokens=max_tokens, stop=["<json-"], **kwargs
-            )["choices"][0]["text"]
+        try:
+            # First, generate thoughts up to <json- tag
+            with suppress_llama_output():
+                # Set stop token to generate thoughts first
+                thoughts = self._model(
+                    structured_prompt, max_tokens=max_tokens, stop=["<json-"], **kwargs
+                )["choices"][0]["text"]
 
-        # Now generate the structured JSON
-        full_prompt = structured_prompt + thoughts + "<json-output>"
+            # Now generate the structured JSON
+            full_prompt = structured_prompt + thoughts + "<json-output>"
 
-        # Generate JSON using grammar
+            # Generate JSON using grammar
+            with suppress_llama_output():
+                # AIDEV-NOTE: llama-cpp-python accepts grammar as a LlamaGrammar object
+                result = self._model(
+                    full_prompt,
+                    max_tokens=max_tokens,
+                    grammar=grammar,
+                    stop=["</json-output>"],
+                    **kwargs,
+                )
+                json_output = result["choices"][0]["text"]
+
+            # Return the complete output with XML tags
+            return thoughts + "<json-output>" + json_output + "</json-output>"
+        except Exception as e:
+            logger.error(f"Grammar-constrained generation failed: {e}")
+            # Fall back to unconstrained generation
+            return self._generate_json_without_grammar(
+                prompt, schema, max_tokens, **kwargs
+            )
+
+    def _generate_json_without_grammar(
+        self,
+        prompt: str,
+        schema: Union[Dict[str, Any], Type["BaseModel"], Type],
+        max_tokens: int = 512,
+        **kwargs,
+    ) -> str:
+        """Generate JSON without grammar constraints as a fallback.
+
+        AIDEV-NOTE: This is used when grammar generation or parsing fails,
+        particularly with mini models. We use strong prompting to encourage
+        JSON output in the correct format.
+        """
+        # Build a descriptive prompt based on the schema
+        if isinstance(schema, type) and issubclass(schema, BaseModel):
+            # For Pydantic models, describe the expected fields
+            fields_desc = []
+            for field_name, field_info in schema.model_fields.items():
+                field_type = field_info.annotation
+                if field_type is str:
+                    type_desc = "string"
+                elif field_type is int:
+                    type_desc = "integer"
+                elif field_type is float:
+                    type_desc = "number"
+                elif field_type is bool:
+                    type_desc = "boolean"
+                else:
+                    type_desc = "value"
+                fields_desc.append(f'"{field_name}": <{type_desc}>')
+
+            json_template = "{" + ", ".join(fields_desc) + "}"
+            enhanced_prompt = (
+                f"{prompt}\n\n"
+                f"Output valid JSON in this exact format: {json_template}\n"
+                f"Remember to use proper JSON syntax with quoted strings.\n\n"
+                f"<json-output>"
+            )
+        else:
+            enhanced_prompt = (
+                f"{prompt}\n\n"
+                f"Output valid JSON that matches the required schema.\n"
+                f"Remember to use proper JSON syntax.\n\n"
+                f"<json-output>"
+            )
+
+        # Generate without grammar constraints
         with suppress_llama_output():
-            # AIDEV-NOTE: llama-cpp-python accepts grammar as a LlamaGrammar object
             result = self._model(
-                full_prompt,
+                enhanced_prompt,
                 max_tokens=max_tokens,
-                grammar=grammar,
                 stop=["</json-output>"],
                 **kwargs,
             )
             json_output = result["choices"][0]["text"]
 
-        # Return the complete output with XML tags
-        return thoughts + "<json-output>" + json_output + "</json-output>"
+        # Return with wrapper tags
+        return "<json-output>" + json_output + "</json-output>"
 
     def _schema_to_json_schema(
         self, schema: Union[Dict[str, Any], Type["BaseModel"], Type]

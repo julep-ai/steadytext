@@ -133,25 +133,35 @@ class TestMiniModelIntegration:
 
     def test_mini_generation_model(self):
         """Test generation with mini model."""
-        # This test would actually load and use the mini model
-        # For CI without downloads, we'll mock it
-        with patch(
-            "steadytext.core.generator.get_generator_model_instance"
-        ) as mock_get_model:
-            mock_model = MagicMock()
-            mock_model.create_completion.return_value = {
-                "choices": [{"text": "Hello from mini model"}]
-            }
-            mock_get_model.return_value = mock_model
+        # Temporarily unset STEADYTEXT_SKIP_MODEL_LOAD to allow mocking
+        skip_model_load = os.environ.pop("STEADYTEXT_SKIP_MODEL_LOAD", None)
 
-            result = generate("Test prompt", size="mini")
-            assert result is not None
-            assert isinstance(result, str)
+        try:
+            # This test would actually load and use the mini model
+            # For CI without downloads, we'll mock it
+            with patch(
+                "steadytext.core.generator.get_generator_model_instance"
+            ) as mock_get_model:
+                mock_model = MagicMock()
+                mock_model.create_completion.return_value = {
+                    "choices": [{"text": "Hello from mini model"}]
+                }
+                mock_get_model.return_value = mock_model
+
+                result = generate("Test prompt", size="mini")
+                assert result is not None
+                assert isinstance(result, str)
+        finally:
+            # Restore the environment variable
+            if skip_model_load is not None:
+                os.environ["STEADYTEXT_SKIP_MODEL_LOAD"] = skip_model_load
 
     def test_mini_embedding_model(self):
         """Test embedding with mini model."""
         # Set environment variable for mini model
         os.environ["STEADYTEXT_USE_MINI_MODELS"] = "true"
+        # Temporarily unset STEADYTEXT_SKIP_MODEL_LOAD to allow mocking
+        skip_model_load = os.environ.pop("STEADYTEXT_SKIP_MODEL_LOAD", None)
 
         try:
             # Mock the embedding model loading
@@ -169,22 +179,23 @@ class TestMiniModelIntegration:
                 assert result.dtype == np.float32
         finally:
             os.environ.pop("STEADYTEXT_USE_MINI_MODELS", None)
+            # Restore the environment variable
+            if skip_model_load is not None:
+                os.environ["STEADYTEXT_SKIP_MODEL_LOAD"] = skip_model_load
 
     def test_mini_reranking_model(self):
         """Test reranking with mini model."""
         # Set environment variable for mini model
         os.environ["STEADYTEXT_USE_MINI_MODELS"] = "true"
+        # Temporarily unset STEADYTEXT_SKIP_MODEL_LOAD to allow mocking
+        skip_model_load = os.environ.pop("STEADYTEXT_SKIP_MODEL_LOAD", None)
 
         try:
-            # Mock the reranking model loading
-            with patch(
-                "steadytext.core.reranker.get_reranking_model_instance"
-            ) as mock_get_model:
-                mock_model = MagicMock()
-                mock_model.create_completion.return_value = {
-                    "choices": [{"text": "Yes"}]
-                }
-                mock_get_model.return_value = mock_model
+            # Mock the reranker
+            with patch("steadytext.core.reranker.get_reranker") as mock_get_reranker:
+                mock_reranker = MagicMock()
+                mock_reranker.rerank.return_value = [1.0, 0.8, 0.6]
+                mock_get_reranker.return_value = mock_reranker
 
                 result = rerank(
                     "test query", ["doc1", "doc2", "doc3"], return_scores=True
@@ -194,6 +205,9 @@ class TestMiniModelIntegration:
                 assert len(result) == 3
         finally:
             os.environ.pop("STEADYTEXT_USE_MINI_MODELS", None)
+            # Restore the environment variable
+            if skip_model_load is not None:
+                os.environ["STEADYTEXT_SKIP_MODEL_LOAD"] = skip_model_load
 
 
 class TestMiniModelCLI:

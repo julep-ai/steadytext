@@ -43,5 +43,6 @@ jobs:
         CMAKE_ARGS: "-DLLAVA_BUILD=OFF -DGGML_ACCELERATE=OFF -DGGML_BLAS=OFF -DGGML_CUDA=OFF -DGGML_BUILD_TESTS=OFF -DGGML_BUILD_EXAMPLES=OFF"
       run: uv sync --locked --all-extras --dev
 
-    - name: Format code
+    # AIDEV-NOTE: Tests use mini models by default for fast CI (configured in pyproject.toml)
+    - name: Run tests with mini models
       run: uv run poe test

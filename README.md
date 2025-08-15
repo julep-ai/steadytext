@@ -417,10 +417,24 @@ Size shortcuts: `mini` (270M, CI/testing), `small` (1.7B), `medium` (3B), `large
 
 SteadyText includes support for "mini" models - extremely small models (~10x smaller) designed for fast CI testing and development environments where speed matters more than quality.
 
+**🎯 Tests use mini models by default!** Running `poe test` or `pytest` via the project's configuration automatically uses mini models for faster testing.
+
 ### Mini Model Sizes
 - **Generation**: Gemma-3-270M (~97MB) - Tiny but functional text generation
 - **Embedding**: BGE-large-en-v1.5 (~130MB) - Produces compatible 1024-dim embeddings
 - **Reranking**: BGE-reranker-base (~300MB) - Basic reranking capabilities
+
+### Usage in Testing
+
+**Default test commands (use mini models automatically):**
+```bash
+# These commands use mini models by default (configured in pyproject.toml)
+uv run poe test           # Run tests with mini models
+uv run poe test-cov       # Run tests with coverage using mini models
+
+# To test with full models instead:
+uv run poe test-full      # Run tests with regular models
+```
 
 ### Usage in CI
 
