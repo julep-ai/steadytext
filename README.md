@@ -55,6 +55,10 @@ import steadytext
 code = steadytext.generate("implement binary search in Python")
 assert "def binary_search" in code  # Always passes!
 
+# Generate with controlled randomness (temperature > 0)
+creative = steadytext.generate("write a poem", temperature=0.8)
+more_creative = steadytext.generate("write a poem", temperature=1.2)
+
 # Streaming (also deterministic)
 for token in steadytext.generate_iter("explain quantum computing"):
     print(token, end="", flush=True)
@@ -253,8 +257,8 @@ class User(BaseModel):
 
 user_json = steadytext.generate(
     "Create a user: name John Doe, email john.doe@example.com",
-    schema=User
-)
+    schema=User,
+    temperature=0.0  # Fully deterministic (default)
 # Output contains: <json-output>{"name": "John Doe", "email": "john.doe@example.com"}</json-output>
 
 # Regex-constrained generation
@@ -489,6 +493,9 @@ st daemon start --host 127.0.0.1 --port 5678  # Custom host/port
 # Generate text (streams by default, uses daemon if running)
 echo "write a hello world function" | st
 
+# Generate with temperature for creativity
+echo "write a poem" | st --temperature 0.8
+
 # Disable streaming (wait for complete output)
 echo "write a function" | st --wait
 
@@ -580,12 +587,12 @@ st models --preload
 
 ```python
 # Text generation (uses daemon by default)
-steadytext.generate(prompt: str, seed: int = 42) -> str
-steadytext.generate(prompt, return_logprobs=True, seed: int = 42)
+steadytext.generate(prompt: str, seed: int = 42, temperature: float = 0.0) -> str
+steadytext.generate(prompt, return_logprobs=True, seed: int = 42, temperature: float = 0.0)
 
 
 # Streaming generation
-steadytext.generate_iter(prompt: str, seed: int = 42)
+steadytext.generate_iter(prompt: str, seed: int = 42, temperature: float = 0.0)
 
 # Embeddings (uses daemon by default)
 steadytext.embed(text: str | List[str], seed: int = 42) -> np.ndarray
@@ -692,12 +699,16 @@ export STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true
 
 ### Text Generation
 
-#### `generate(prompt: str, return_logprobs: bool = False) -> Union[str, Tuple[str, Optional[Dict]]]`
+#### `generate(prompt: str, return_logprobs: bool = False, temperature: float = 0.0) -> Union[str, Tuple[str, Optional[Dict]]]`
 
-Generate deterministic text from a prompt.
+Generate text from a prompt with optional temperature control.
 
 ```python
+# Deterministic generation (default)
 text = steadytext.generate("Write a haiku about Python")
+
+# With controlled randomness
+creative_text = steadytext.generate("Write a haiku about Python", temperature=0.8)
 
 # With log probabilities
 text, logprobs = steadytext.generate("Explain AI", return_logprobs=True)
@@ -706,19 +717,26 @@ text, logprobs = steadytext.generate("Explain AI", return_logprobs=True)
 - **Parameters:**
   - `prompt`: Input text to generate from
   - `return_logprobs`: If True, returns tuple of (text, logprobs)
+  - `temperature`: Controls randomness (0.0 = deterministic, >0 = more random)
 - **Returns:** Generated text string, or tuple if `return_logprobs=True`
 
-#### `generate_iter(prompt: str) -> Iterator[str]`
+#### `generate_iter(prompt: str, temperature: float = 0.0) -> Iterator[str]`
 
 Generate text iteratively, yielding tokens as they are produced.
 
 ```python
+# Deterministic streaming
 for token in steadytext.generate_iter("Tell me a story"):
+    print(token, end="", flush=True)
+
+# Creative streaming with temperature
+for token in steadytext.generate_iter("Tell me a story", temperature=0.7):
     print(token, end="", flush=True)
 ```
 
 - **Parameters:**
   - `prompt`: Input text to generate from
+  - `temperature`: Controls randomness (0.0 = deterministic, >0 = more random)
 - **Yields:** Text tokens/words as they are generated
 
 ### Embeddings

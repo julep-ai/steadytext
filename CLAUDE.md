@@ -61,6 +61,26 @@ os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 
 SteadyText v2.0+ uses Gemma-3n models for generation and Qwen3 for embeddings.
 
+## Temperature Parameter (v2.6.3+)
+
+SteadyText supports temperature control for text generation, allowing fine-tuned control over output randomness:
+
+**Temperature Values:**
+- `0.0` (default): Fully deterministic, always picks highest probability token
+- `0.1-0.5`: Low randomness, mostly coherent and focused
+- `0.6-1.0`: Balanced creativity, good for general use
+- `1.0-2.0`: High creativity, more varied and unpredictable outputs
+
+**Implementation Details:**
+- Temperature is integrated into cache keys to prevent collisions between different temperature values
+- Sampling parameters (top_k, top_p, min_p) automatically adjust for non-zero temperatures
+- Same seed + temperature combination always produces identical output (reproducible randomness)
+- Supported across all interfaces: Python API, CLI, daemon, and remote providers
+
+- AIDEV-NOTE: Temperature affects cache keys - "prompt::TEMP::0.5" format for non-default values
+- AIDEV-NOTE: Temperature=0.0 uses greedy decoding (top_k=1), temperature>0 uses top_k=40, top_p=0.95
+- AIDEV-TODO: Consider adding temperature presets (e.g., "creative", "balanced", "focused")
+
 ## Reranking Support (v1.3.0+)
 
 SteadyText v1.3.0+ includes document reranking functionality using the Qwen3-Reranker-4B model.

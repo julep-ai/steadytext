@@ -1,5 +1,18 @@
 # Changelog
 
+## Version 2.6.3 (Unreleased)
+
+### New Features
+- **Temperature Parameter Support:** Added temperature parameter for controlled text generation randomness
+  - Available in `generate()` and `generate_iter()` functions with default value of 0.0 (fully deterministic)
+  - CLI support via `--temperature` flag (e.g., `echo "prompt" | st --temperature 0.8`)
+  - Integrated with cache key generation to prevent temperature value collisions
+  - Automatically adjusts sampling parameters (top_k, top_p, min_p) for non-zero temperatures
+  - Full daemon support with temperature parameter passed through client/server
+  - Remote provider support for OpenAI and Cerebras models
+  - Maintains backward compatibility with default temperature=0.0 for deterministic behavior
+  - Same seed + temperature combination always produces identical output
+
 ## Version 2.6.2 (2025-08-14)
 
 ### New Features

@@ -157,6 +157,7 @@ class DaemonClient:
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
         seed: int = DEFAULT_SEED,
+        temperature: float = 0.0,
         max_new_tokens: Optional[int] = None,
         response_format: Optional[Dict[str, Any]] = None,
         schema: Optional[Union[Dict[str, Any], Type, object]] = None,
@@ -183,6 +184,7 @@ class DaemonClient:
                 "model_filename": model_filename,
                 "size": size,
                 "seed": seed,
+                "temperature": temperature,
                 "max_new_tokens": max_new_tokens,
                 "response_format": response_format,
                 "schema": schema,
@@ -228,6 +230,7 @@ class DaemonClient:
         model_filename: Optional[str] = None,
         size: Optional[str] = None,
         seed: int = DEFAULT_SEED,
+        temperature: float = 0.0,
         max_new_tokens: Optional[int] = None,
         unsafe_mode: bool = False,
     ) -> Iterator[Union[str, Dict[str, Any]]]:
@@ -249,6 +252,7 @@ class DaemonClient:
                 "model_filename": model_filename,
                 "size": size,
                 "seed": seed,
+                "temperature": temperature,
                 "max_new_tokens": max_new_tokens,
                 "unsafe_mode": unsafe_mode,
             }
