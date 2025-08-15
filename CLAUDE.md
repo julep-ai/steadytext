@@ -177,6 +177,19 @@ result = generate_json(
 - AIDEV-NOTE: Deterministic/cacheable, bypasses cache for logprobs, on-the-fly grammar conversion
 - AIDEV-TODO: Add streaming support and grammar caching
 
+## PostgreSQL Extension Versioning (pg_steadytext)
+
+As of 2025.8.15, the pg_steadytext PostgreSQL extension uses **date-based versioning** instead of semantic versioning:
+
+- **Format:** `yyyy.mm.dd` (no zero-padding, e.g., `2025.8.15`, `2025.12.3`)
+- **Rationale:** The rapid pace of model improvements and feature changes made the previous policy of "new major version for model changes" impractical
+- **Migration:** Existing installations can upgrade from 1.4.6 to 2025.8.15 using standard PostgreSQL extension upgrade commands
+- **Documentation:** The CHANGELOG.md file in pg_steadytext/ explains the versioning scheme
+- **Note:** The Python package (steadytext) continues to use semantic versioning
+
+- AIDEV-NOTE: When creating new releases, use current date in yyyy.mm.dd format for pg_steadytext
+- AIDEV-TODO: Consider aligning Python package versioning with date-based format in the future
+
 ## Development Commands
 
 ### Testing
