@@ -34,6 +34,29 @@ RERANKING_MODEL_FILENAME = "Qwen3-Reranker-4B.Q8_0.gguf"
 # AIDEV-NOTE: Model registry for validated alternative models
 # Each entry contains repo_id and filename for known working models
 MODEL_REGISTRY = {
+    # Mini models for CI/testing (small, fast models for deterministic testing)
+    # AIDEV-NOTE: Mini models enable ~10x faster CI tests with minimal resource usage
+    "gemma-mini-270m": {
+        "repo": "ggml-org/gemma-3-270m-it-qat-GGUF",
+        "filename": "gemma-3-270m-it-qat-Q4_0.gguf",
+        "verified": True,
+        "mini": True,  # Marks this as a mini model for CI/testing
+        "description": "Tiny Gemma model for CI/testing (~97MB)",
+    },
+    "bge-embedding-mini": {
+        "repo": "mradermacher/bge-large-en-v1.5-GGUF",
+        "filename": "bge-large-en-v1.5.Q2_K.gguf",
+        "verified": True,
+        "mini": True,
+        "description": "Mini BGE embedding model for CI/testing (~130MB)",
+    },
+    "bge-reranker-mini": {
+        "repo": "xinming0111/bge-reranker-base-Q8_0-GGUF",
+        "filename": "bge-reranker-base-q8_0.gguf",
+        "verified": True,
+        "mini": True,
+        "description": "Mini BGE reranker model for CI/testing (~300MB)",
+    },
     # Gemma-3n models (may have compatibility issues with inference-sh fork)
     "gemma-3n-2b": {
         "repo": "ggml-org/gemma-3n-E2B-it-GGUF",
@@ -66,6 +89,7 @@ MODEL_REGISTRY = {
 
 # AIDEV-NOTE: Size to model mapping for convenient size-based selection
 SIZE_TO_MODEL = {
+    "mini": "gemma-mini-270m",  # CI/testing model (~97MB)
     "small": "qwen3-1.7b",  # fallback to known working model
     "medium": "qwen2.5-3b",  # fallback to known working model
     "large": "gemma-3n-4b",  # may have compatibility issues
@@ -73,11 +97,24 @@ SIZE_TO_MODEL = {
 
 # Get model configuration from environment or use defaults
 # AIDEV-NOTE: If gemma-3n models fail, set STEADYTEXT_USE_FALLBACK_MODEL=true
+# AIDEV-NOTE: Use STEADYTEXT_USE_MINI_MODELS=true for fast CI/testing with mini models
 USE_FALLBACK_MODEL = (
     os.environ.get("STEADYTEXT_USE_FALLBACK_MODEL", "false").lower() == "true"
 )
+USE_MINI_MODELS = (
+    os.environ.get("STEADYTEXT_USE_MINI_MODELS", "false").lower() == "true"
+)
 
-if USE_FALLBACK_MODEL:
+if USE_MINI_MODELS:
+    # Use mini models for CI/testing
+    DEFAULT_GENERATION_MODEL_REPO = "ggml-org/gemma-3-270m-it-qat-GGUF"
+    GENERATION_MODEL_FILENAME = "gemma-3-270m-it-qat-Q4_0.gguf"
+    DEFAULT_EMBEDDING_MODEL_REPO = "mradermacher/bge-large-en-v1.5-GGUF"
+    EMBEDDING_MODEL_FILENAME = "bge-large-en-v1.5.Q2_K.gguf"
+    DEFAULT_RERANKING_MODEL_REPO = "xinming0111/bge-reranker-base-Q8_0-GGUF"
+    RERANKING_MODEL_FILENAME = "bge-reranker-base-q8_0.gguf"
+    logger.info("Using mini models for CI/testing due to STEADYTEXT_USE_MINI_MODELS=true")
+elif USE_FALLBACK_MODEL:
     # Use known working Qwen model as fallback
     DEFAULT_GENERATION_MODEL_REPO = "lmstudio-community/Qwen2.5-3B-Instruct-GGUF"
     GENERATION_MODEL_FILENAME = "Qwen2.5-3B-Instruct-Q8_0.gguf"
@@ -146,6 +183,9 @@ DEFAULT_CONTEXT_WINDOW = None  # Will be set dynamically based on model capabili
 # Maximum context window sizes for known models
 # AIDEV-NOTE: These are conservative estimates to ensure stability
 MODEL_MAX_CONTEXT_WINDOWS = {
+    "gemma-mini-270m": 2048,  # Mini model uses smaller context for faster processing
+    "bge-embedding-mini": 512,  # BGE embedding model context
+    "bge-reranker-mini": 512,  # BGE reranker model context
     "gemma-3n-2b": 8192,
     "gemma-3n-4b": 8192,
     "qwen2.5-3b": 32768,
@@ -346,7 +386,7 @@ def resolve_model_params(
         model: Model name from registry (e.g., "qwen2.5-3b")
         repo: Explicit repository ID (overrides model lookup)
         filename: Explicit filename (overrides model lookup)
-        size: Size identifier ("small", "large")
+        size: Size identifier ("mini", "small", "medium", "large")
 
     Returns:
         Tuple of (repo_id, filename) to use for model loading
@@ -380,6 +420,76 @@ def resolve_model_params(
 
     # Otherwise use environment variables or defaults
     return GENERATION_MODEL_REPO, GENERATION_MODEL_FILENAME
+
+
+def get_mini_models() -> Dict[str, Dict[str, str]]:
+    """Get the mini model configurations for CI/testing.
+    
+    Returns:
+        Dict with 'generation', 'embedding', and 'reranking' keys,
+        each containing 'repo' and 'filename' for the mini models.
+    
+    AIDEV-NOTE: Mini models are designed for fast CI/testing with ~10x smaller sizes
+    """
+    return {
+        "generation": MODEL_REGISTRY["gemma-mini-270m"],
+        "embedding": MODEL_REGISTRY["bge-embedding-mini"],
+        "reranking": MODEL_REGISTRY["bge-reranker-mini"],
+    }
+
+
+def resolve_embedding_model_params(
+    size: Optional[str] = None,
+    repo: Optional[str] = None,
+    filename: Optional[str] = None,
+) -> tuple[str, str]:
+    """Resolve embedding model parameters based on size or explicit params.
+    
+    Args:
+        size: Size identifier ("mini" for CI/testing)
+        repo: Explicit repository ID
+        filename: Explicit filename
+    
+    Returns:
+        Tuple of (repo_id, filename) for embedding model
+    
+    AIDEV-NOTE: This handles embedding-specific model resolution for mini models
+    """
+    if repo and filename:
+        return repo, filename
+    
+    if size == "mini":
+        config = MODEL_REGISTRY["bge-embedding-mini"]
+        return config["repo"], config["filename"]
+    
+    return EMBEDDING_MODEL_REPO, EMBEDDING_MODEL_FILENAME
+
+
+def resolve_reranking_model_params(
+    size: Optional[str] = None,
+    repo: Optional[str] = None,
+    filename: Optional[str] = None,
+) -> tuple[str, str]:
+    """Resolve reranking model parameters based on size or explicit params.
+    
+    Args:
+        size: Size identifier ("mini" for CI/testing)
+        repo: Explicit repository ID
+        filename: Explicit filename
+    
+    Returns:
+        Tuple of (repo_id, filename) for reranking model
+    
+    AIDEV-NOTE: This handles reranking-specific model resolution for mini models
+    """
+    if repo and filename:
+        return repo, filename
+    
+    if size == "mini":
+        config = MODEL_REGISTRY["bge-reranker-mini"]
+        return config["repo"], config["filename"]
+    
+    return RERANKING_MODEL_REPO, RERANKING_MODEL_FILENAME
 
 
 # AIDEV-NOTE: A context manager to suppress llama.cpp's direct stdout/stderr output. This is used during model loading to prevent verbose warnings in quiet mode.

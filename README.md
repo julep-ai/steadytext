@@ -391,9 +391,88 @@ text = steadytext.generate(
 
 Available models: Gemma-3n models in 2B and 4B variants
 
-Size shortcuts: `small` (2B, default), `large` (4B)
+Size shortcuts: `mini` (270M, CI/testing), `small` (1.7B), `medium` (3B), `large` (4B)
 
 > Each model produces deterministic outputs. The default model remains fixed per major version.
+
+## 🚀 Mini Models for CI/Testing
+
+SteadyText includes support for "mini" models - extremely small models (~10x smaller) designed for fast CI testing and development environments where speed matters more than quality.
+
+### Mini Model Sizes
+- **Generation**: Gemma-3-270M (~97MB) - Tiny but functional text generation
+- **Embedding**: BGE-large-en-v1.5 (~130MB) - Produces compatible 1024-dim embeddings
+- **Reranking**: BGE-reranker-base (~300MB) - Basic reranking capabilities
+
+### Usage in CI
+
+**Environment Variable (Recommended for CI):**
+```bash
+# Enable mini models globally
+export STEADYTEXT_USE_MINI_MODELS=true
+export STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true
+
+# All operations will now use mini models
+st "Generate some text"  # Uses gemma-mini-270m
+st embed "Create embedding"  # Uses bge-embedding-mini
+st rerank "query" "doc1" "doc2"  # Uses bge-reranker-mini
+```
+
+**CLI with --size flag:**
+```bash
+# Use mini models for specific commands
+st --size mini "Quick test generation"
+st embed --size mini "Test embedding"
+st rerank --size mini "query" "document"
+
+# Start daemon with mini models
+st daemon start --size mini
+```
+
+**Python API:**
+```python
+# Use mini models programmatically
+text = steadytext.generate("Test prompt", size="mini")
+```
+
+### CI Workflow Example
+
+```yaml
+name: Test with Mini Models
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install -e .
+      
+      - name: Run tests with mini models
+        env:
+          STEADYTEXT_USE_MINI_MODELS: true
+          STEADYTEXT_ALLOW_MODEL_DOWNLOADS: true
+        run: |
+          # Quick smoke test
+          echo "Test" | st --size mini
+          
+          # Run full test suite
+          pytest tests/
+```
+
+### Benefits
+- ✅ ~10x faster model downloads (530MB total vs 5GB+)
+- ✅ Faster test execution
+- ✅ Lower memory usage
+- ✅ Full API compatibility
+- ✅ Deterministic outputs maintained
+
+> **Note**: Mini models trade quality for speed. Use them for testing and CI, not production.
 
 ## Version History
 
