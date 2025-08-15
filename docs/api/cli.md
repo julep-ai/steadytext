@@ -57,6 +57,7 @@ steadytext generate [OPTIONS] PROMPT
 | `--eos-string` | `-e` | string | `"[EOS]"` | Custom end-of-sequence string |
 | `--max-new-tokens` | | int | `512` | Maximum number of tokens to generate |
 | `--seed` | | int | `42` | Random seed for deterministic generation |
+| `--temperature` | | float | `0.0` | Controls randomness: 0.0 = deterministic, >0 = more random |
 | `--size` | | choice | | Model size: small (2B, default), large (4B) |
 | `--model` | | string | | Model name from registry (e.g., "qwen2.5-3b") |
 | `--model-repo` | | string | | Custom model repository |
@@ -126,6 +127,26 @@ steadytext generate [OPTIONS] PROMPT
     # Different seeds produce different outputs
     st generate "Explain AI" --seed 100
     st generate "Explain AI" --seed 200  # Different result
+    ```
+
+=== "Temperature Control"
+
+    ```bash
+    # Fully deterministic (default)
+    echo "Write a haiku" | st --temperature 0.0
+    
+    # Low creativity, focused output
+    echo "Write a haiku" | st --temperature 0.3
+    
+    # Balanced creativity
+    echo "Write a haiku" | st --temperature 0.7
+    
+    # High creativity, more varied
+    echo "Write a haiku" | st --temperature 1.2
+    
+    # Same temperature + seed = same output
+    echo "Tell a story" | st --temperature 0.5 --seed 42
+    echo "Tell a story" | st --temperature 0.5 --seed 42  # Identical
     ```
 
 === "Custom Length"

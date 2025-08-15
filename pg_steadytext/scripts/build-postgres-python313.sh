@@ -141,7 +141,7 @@ EOF
 # Install Python packages for PostgreSQL
 echo -e "${GREEN}Installing Python packages for pg_steadytext...${NC}"
 /usr/bin/python${PYTHON_VERSION} -m pip install \
-    steadytext>=2.6.1 \
+    steadytext>=2.6.2 \
     pyzmq>=22.0.0 \
     numpy>=1.20.0
 

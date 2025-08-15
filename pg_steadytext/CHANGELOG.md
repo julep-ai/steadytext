@@ -5,6 +5,24 @@ All notable changes to the pg_steadytext PostgreSQL extension will be documented
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.6] - 2025-08-14
+
+### Added
+- **Unsafe Mode Support for Embeddings:** Extended unsafe_mode support to embedding functions
+  - Added `model` and `unsafe_mode` parameters to `steadytext_embed()`, `steadytext_embed_cached()`, and `steadytext_embed_async()`
+  - Remote embedding models (e.g., `openai:text-embedding-3-small`) now supported with `unsafe_mode := TRUE`
+  - Consistent with generation functions' unsafe_mode behavior
+  - Updated all embedding-related aliases (`st_embed`, `st_embed_cached`, `st_embed_async`)
+
+### Changed
+- Modified `daemon_connector.py` embed() method to accept model and unsafe_mode parameters
+- Enhanced cache key generation to include model name for proper caching of remote embeddings
+- Skip daemon for remote embedding models to improve performance
+
+### Security
+- Remote embedding models require explicit `unsafe_mode=TRUE` parameter, consistent with generation functions
+- Prevents accidental use of non-deterministic remote embedding providers
+
 ## [1.4.5] - 2025-08-02
 
 ### Changed

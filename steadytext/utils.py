@@ -246,6 +246,7 @@ LLAMA_CPP_EMBEDDING_PARAMS_DETERMINISTIC: Dict[str, Any] = {
 
 # --- Sampling Parameters for Generation (from previous full utils.py) ---
 # These are passed to model() or create_completion() not Llama constructor usually
+# AIDEV-NOTE: Base deterministic parameters with temperature=0.0 for backward compatibility
 LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC: Dict[str, Any] = {
     "temperature": 0.0,
     "top_k": 1,
@@ -255,6 +256,32 @@ LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC: Dict[str, Any] = {
     "max_tokens": GENERATION_MAX_NEW_TOKENS,  # Max tokens to generate
     # stop sequences will be handled by core.generator using DEFAULT_STOP_SEQUENCES
 }
+
+
+def get_sampling_params_with_temperature(temperature: float = 0.0) -> Dict[str, Any]:
+    """Get sampling parameters with specified temperature.
+
+    AIDEV-NOTE: When temperature > 0, we adjust top_k and top_p to allow
+    more diverse sampling while maintaining reproducibility with seed.
+
+    Args:
+        temperature: Temperature value for sampling (0.0 = deterministic)
+
+    Returns:
+        Dict of sampling parameters configured for the given temperature
+    """
+    params = LLAMA_CPP_GENERATION_SAMPLING_PARAMS_DETERMINISTIC.copy()
+    params["temperature"] = temperature
+
+    # Adjust sampling parameters for non-zero temperature
+    if temperature > 0:
+        # Allow more tokens to be considered for sampling
+        params["top_k"] = 40  # Consider top 40 tokens
+        params["top_p"] = 0.95  # Nucleus sampling threshold
+        params["min_p"] = 0.05  # Minimum probability threshold
+
+    return params
+
 
 # --- Stop Sequences (from previous full utils.py) ---
 DEFAULT_STOP_SEQUENCES: List[str] = [
@@ -418,20 +445,36 @@ def suppress_llama_output():
 
 # AIDEV-NOTE: Centralized cache key generation to ensure consistency
 # across all caching operations and prevent duplicate logic
-def generate_cache_key(prompt: str, eos_string: str = "[EOS]") -> str:
+def generate_cache_key(
+    prompt: str, eos_string: str = "[EOS]", temperature: float = 0.0
+) -> str:
     """Generate a consistent cache key for generation requests.
 
     Args:
         prompt: The input prompt text
         eos_string: The end-of-sequence string, defaults to "[EOS]"
+        temperature: The temperature value used for generation
 
     Returns:
-        A cache key string that includes eos_string if it's not the default
+        A cache key string that includes eos_string and temperature if they're not defaults
 
-    AIDEV-NOTE: This centralizes the cache key generation logic that was previously duplicated. The key format ensures that different eos_string values do not collide in the cache.
+    AIDEV-NOTE: This centralizes the cache key generation logic that was previously duplicated.
+    The key format ensures that different eos_string and temperature values do not collide in the cache.
+    AIDEV-NOTE: Temperature is included in cache key to ensure different temperature values
+    produce separate cache entries, maintaining reproducibility for each temperature setting.
     """
     prompt_str = prompt if isinstance(prompt, str) else str(prompt)
-    return prompt_str if eos_string == "[EOS]" else f"{prompt_str}::EOS::{eos_string}"
+    key = prompt_str
+
+    # Add EOS string if not default
+    if eos_string != "[EOS]":
+        key = f"{key}::EOS::{eos_string}"
+
+    # Add temperature if not default (0.0)
+    if temperature != 0.0:
+        key = f"{key}::TEMP::{temperature}"
+
+    return key
 
 
 def should_use_cache_for_generation(

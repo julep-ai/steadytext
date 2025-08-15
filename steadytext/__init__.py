@@ -6,7 +6,7 @@ AIDEV-NOTE: Fixed "Never Fails" - embed() now catches TypeErrors & returns zero 
 
 # Version of the steadytext package - should match pyproject.toml
 # AIDEV-NOTE: Always update this when bumping the lib version
-__version__ = "2.6.1"
+__version__ = "2.6.2"
 
 # Import core functions and classes for public API
 import os
@@ -58,6 +58,7 @@ def generate(
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
     seed: int = DEFAULT_SEED,
+    temperature: float = 0.0,
     response_format: Optional[Dict[str, Any]] = None,
     schema: Optional[Union[Dict[str, Any], Type, object]] = None,
     regex: Optional[str] = None,
@@ -78,6 +79,7 @@ def generate(
         model_filename: Custom model filename
         size: Size identifier ("small", "large")
         seed: Seed for deterministic generation
+        temperature: Temperature for sampling (0.0 = deterministic, higher = more random)
         response_format: Dict specifying output format (e.g., {"type": "json_object"})
         schema: JSON schema, Pydantic model, or Python type for structured output
         regex: Regular expression pattern for output format
@@ -146,6 +148,7 @@ def generate(
                     model_filename=model_filename,
                     size=size,
                     seed=seed,
+                    temperature=temperature,
                     response_format=response_format,
                     schema=schema,
                     regex=regex,
@@ -170,6 +173,7 @@ def generate(
         model_filename=model_filename,
         size=size,
         seed=seed,
+        temperature=temperature,
         response_format=response_format,
         schema=schema,
         regex=regex,
@@ -195,6 +199,7 @@ def generate_iter(
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
     seed: int = DEFAULT_SEED,
+    temperature: float = 0.0,
     unsafe_mode: bool = False,
 ) -> Iterator[Union[str, Dict[str, Any]]]:
     """Generate text iteratively, yielding tokens as they are produced.
@@ -213,6 +218,7 @@ def generate_iter(
         model_repo: Custom Hugging Face repository ID
         model_filename: Custom model filename
         size: Size identifier ("small", "large")
+        temperature: Temperature for sampling (0.0 = deterministic, higher = more random)
         unsafe_mode: Enable remote models with best-effort determinism (non-deterministic)
 
     Yields:
@@ -237,6 +243,7 @@ def generate_iter(
                     model_filename=model_filename,
                     size=size,
                     seed=seed,
+                    temperature=temperature,
                     unsafe_mode=unsafe_mode,
                 )
                 return
@@ -257,20 +264,36 @@ def generate_iter(
         model_filename=model_filename,
         size=size,
         seed=seed,
+        temperature=temperature,
         unsafe_mode=unsafe_mode,
     )
 
 
 def embed(
-    text_input: Union[str, List[str]], seed: int = DEFAULT_SEED
+    text_input: Union[str, List[str]],
+    seed: int = DEFAULT_SEED,
+    model: Optional[str] = None,
+    unsafe_mode: bool = False,
 ) -> Optional[np.ndarray]:
-    """Create embeddings for text input."""
+    """Create embeddings for text input.
+
+    Args:
+        text_input: Text or list of texts to embed
+        seed: Seed for deterministic behavior (ignored by most remote providers)
+        model: Optional remote model string (e.g., "openai:text-embedding-3-small")
+        unsafe_mode: Enable remote models with best-effort determinism
+
+    Returns:
+        Numpy array of embeddings or None if error
+    """
     # AIDEV-NOTE: Use daemon by default for embeddings unless explicitly disabled
     if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
         client = get_daemon_client()
         if client is not None:
             try:
-                return client.embed(text_input, seed=seed)
+                return client.embed(
+                    text_input, seed=seed, model=model, unsafe_mode=unsafe_mode
+                )
             except ConnectionError:
                 # Fall back to direct embedding
                 logger.info(
@@ -279,7 +302,7 @@ def embed(
                 )
 
     try:
-        result = core_embed(text_input, seed=seed)
+        result = core_embed(text_input, seed=seed, model=model, unsafe_mode=unsafe_mode)
         if result is None:
             logger.error(
                 "Embedding creation failed - model not available or invalid input"

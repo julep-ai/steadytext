@@ -31,7 +31,8 @@
       "Bash(STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true uv run python -m pytest tests/test_structured.py::TestStructuredGeneration::test_generate_with_pydantic_model -xvs)",
       "Bash(STEADYTEXT_USE_FALLBACK_MODEL=true uv run python test_with_model.py)"
     ],
-    "deny": []
+    "deny": [],
+    "defaultMode": "plan"
   },
   "hooks": {
     "PreToolUse": [

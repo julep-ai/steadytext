@@ -41,6 +41,7 @@ dependencies = [
     "tomli-w>=1.2.0",
     "openai>=1.99.9",
     "httpx>=0.25.0",
+    "voyageai>=0.3.2",
 ]
 
 [tool.hatch.build.targets.sdist]

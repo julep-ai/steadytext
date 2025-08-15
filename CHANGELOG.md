@@ -1,6 +1,30 @@
 # Changelog
 
-## Version 2.6.2 (Unreleased)
+## Version 2.6.3 (Unreleased)
+
+### New Features
+- **Temperature Parameter Support:** Added temperature parameter for controlled text generation randomness
+  - Available in `generate()` and `generate_iter()` functions with default value of 0.0 (fully deterministic)
+  - CLI support via `--temperature` flag (e.g., `echo "prompt" | st --temperature 0.8`)
+  - Integrated with cache key generation to prevent temperature value collisions
+  - Automatically adjusts sampling parameters (top_k, top_p, min_p) for non-zero temperatures
+  - Full daemon support with temperature parameter passed through client/server
+  - Remote provider support for OpenAI and Cerebras models
+  - Maintains backward compatibility with default temperature=0.0 for deterministic behavior
+  - Same seed + temperature combination always produces identical output
+
+## Version 2.6.2 (2025-08-14)
+
+### New Features
+- **Jina AI Embeddings Support:** Added Jina as a remote embedding provider
+  - Support for multilingual embeddings with high-quality semantic understanding
+  - Available models: jina-embeddings-v3, jina-embeddings-v2-base-* variants
+  - Configurable dimensions for jina-embeddings-v3 model
+  - Note: Jina doesn't support seed parameters, so embeddings are not deterministic
+
+- **VoyageAI Integration Improvements:** Enhanced support for VoyageAI embeddings
+  - Better error handling and API compatibility
+  - Support for all VoyageAI embedding models
 
 ### Documentation Changes
 - **Clarified Daemon Behavior:** Updated documentation to clarify that daemon requires explicit startup
@@ -8,6 +32,9 @@
   - Added clear messages when daemon is not available, directing users to start it with `st daemon start`
   - Updated README, docs, and examples to reflect that daemon must be started explicitly
   - Main library already behaves correctly (no automatic startup), only documentation was misleading
+
+### Internal Changes
+- **Version Tracking:** Updated __version__ in __init__.py to match pyproject.toml
 
 ## Version 2.6.1 (2025-08-02)
 
