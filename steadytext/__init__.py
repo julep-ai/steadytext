@@ -6,7 +6,8 @@ AIDEV-NOTE: Fixed "Never Fails" - embed() now catches TypeErrors & returns zero 
 
 # Version of the steadytext package - should match pyproject.toml
 # AIDEV-NOTE: Always update this when bumping the lib version
-__version__ = "2.6.2"
+# AIDEV-NOTE: Using date-based versioning (yyyy.mm.dd) as of 2025.8.15
+__version__ = "2025.8.15"
 
 # Import core functions and classes for public API
 import os

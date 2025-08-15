@@ -61,7 +61,7 @@ os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 
 SteadyText v2.0+ uses Gemma-3n models for generation and Qwen3 for embeddings.
 
-## Temperature Parameter (v2.6.3+)
+## Temperature Parameter (v2025.8.15+)
 
 SteadyText supports temperature control for text generation, allowing fine-tuned control over output randomness:
 
@@ -177,18 +177,18 @@ result = generate_json(
 - AIDEV-NOTE: Deterministic/cacheable, bypasses cache for logprobs, on-the-fly grammar conversion
 - AIDEV-TODO: Add streaming support and grammar caching
 
-## PostgreSQL Extension Versioning (pg_steadytext)
+## Versioning Policy (As of 2025.8.15)
 
-As of 2025.8.15, the pg_steadytext PostgreSQL extension uses **date-based versioning** instead of semantic versioning:
+Both SteadyText components now use **date-based versioning** instead of semantic versioning:
 
 - **Format:** `yyyy.mm.dd` (no zero-padding, e.g., `2025.8.15`, `2025.12.3`)
-- **Rationale:** The rapid pace of model improvements and feature changes made the previous policy of "new major version for model changes" impractical
-- **Migration:** Existing installations can upgrade from 1.4.6 to 2025.8.15 using standard PostgreSQL extension upgrade commands
-- **Documentation:** The CHANGELOG.md file in pg_steadytext/ explains the versioning scheme
-- **Note:** The Python package (steadytext) continues to use semantic versioning
+- **Applies to:** Both the Python package (steadytext) and PostgreSQL extension (pg_steadytext)
+- **Rationale:** The rapid pace of model improvements and feature changes made semantic versioning impractical. Date-based versioning provides clearer insight into release recency and better aligns with our continuous improvement philosophy.
+- **Migration:** Existing installations can upgrade using standard commands (pip for Python, PostgreSQL extension commands for pg_steadytext)
+- **Documentation:** The CHANGELOG.md files explain the versioning scheme and track changes
 
-- AIDEV-NOTE: When creating new releases, use current date in yyyy.mm.dd format for pg_steadytext
-- AIDEV-TODO: Consider aligning Python package versioning with date-based format in the future
+- AIDEV-NOTE: When creating new releases, use current date in yyyy.mm.dd format for both components
+- AIDEV-NOTE: Version consistency - keep both Python package and pg_steadytext versions aligned when possible
 
 ## Development Commands
 
