@@ -127,14 +127,16 @@ class TestStructuredRemoteModels:
         assert call_args.kwargs["unsafe_mode"] is True
         assert call_args.kwargs["schema"] == {"type": "integer"}
 
-    @pytest.mark.skip(reason="TODO/FIXME: Causes segfault in CI on Python 3.10, likely due to C extension cleanup issue")
+    @pytest.mark.skip(
+        reason="TODO/FIXME: Causes segfault in CI on Python 3.10, likely due to C extension cleanup issue"
+    )
     def test_local_model_json_generation_unchanged(self):
         """Test that local model JSON generation still works."""
         # AIDEV-NOTE: This test causes a segmentation fault in CI on Python 3.10
         # The segfault occurs after test completion, likely during cleanup
         # It appears to be related to interaction between C extensions (faiss, numpy, zmq, chonkie)
         # This is unrelated to the mini models PR and should be investigated separately
-        
+
         # This test ensures backward compatibility
         # It will use the deterministic fallback if no model is loaded
         try:

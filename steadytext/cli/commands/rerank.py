@@ -98,16 +98,16 @@ def rerank(query, documents, output_json, scores, task, top_k, doc_file, seed, s
     # AIDEV-NOTE: Set environment variables for mini model if specified
     import os
     from ...utils import resolve_reranking_model_params
-    
+
     original_repo = os.environ.get("STEADYTEXT_RERANKING_MODEL_REPO")
     original_filename = os.environ.get("STEADYTEXT_RERANKING_MODEL_FILENAME")
-    
+
     if size == "mini":
         repo, filename = resolve_reranking_model_params(size=size)
         # Temporarily set environment variables for mini model
         os.environ["STEADYTEXT_RERANKING_MODEL_REPO"] = repo
         os.environ["STEADYTEXT_RERANKING_MODEL_FILENAME"] = filename
-    
+
     try:
         # Perform reranking
         start_time = time.time()

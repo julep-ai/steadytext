@@ -113,7 +113,9 @@ if USE_MINI_MODELS:
     EMBEDDING_MODEL_FILENAME = "bge-large-en-v1.5.Q2_K.gguf"
     DEFAULT_RERANKING_MODEL_REPO = "xinming0111/bge-reranker-base-Q8_0-GGUF"
     RERANKING_MODEL_FILENAME = "bge-reranker-base-q8_0.gguf"
-    logger.info("Using mini models for CI/testing due to STEADYTEXT_USE_MINI_MODELS=true")
+    logger.info(
+        "Using mini models for CI/testing due to STEADYTEXT_USE_MINI_MODELS=true"
+    )
 elif USE_FALLBACK_MODEL:
     # Use known working Qwen model as fallback
     DEFAULT_GENERATION_MODEL_REPO = "lmstudio-community/Qwen2.5-3B-Instruct-GGUF"
@@ -451,11 +453,11 @@ def resolve_model_params(
 
 def get_mini_models() -> Dict[str, Dict[str, str]]:
     """Get the mini model configurations for CI/testing.
-    
+
     Returns:
         Dict with 'generation', 'embedding', and 'reranking' keys,
         each containing 'repo' and 'filename' for the mini models.
-    
+
     AIDEV-NOTE: Mini models are designed for fast CI/testing with ~10x smaller sizes
     """
     return {
@@ -471,24 +473,24 @@ def resolve_embedding_model_params(
     filename: Optional[str] = None,
 ) -> tuple[str, str]:
     """Resolve embedding model parameters based on size or explicit params.
-    
+
     Args:
         size: Size identifier ("mini" for CI/testing)
         repo: Explicit repository ID
         filename: Explicit filename
-    
+
     Returns:
         Tuple of (repo_id, filename) for embedding model
-    
+
     AIDEV-NOTE: This handles embedding-specific model resolution for mini models
     """
     if repo and filename:
         return repo, filename
-    
+
     if size == "mini":
         config = MODEL_REGISTRY["bge-embedding-mini"]
         return config["repo"], config["filename"]
-    
+
     return EMBEDDING_MODEL_REPO, EMBEDDING_MODEL_FILENAME
 
 
@@ -498,24 +500,24 @@ def resolve_reranking_model_params(
     filename: Optional[str] = None,
 ) -> tuple[str, str]:
     """Resolve reranking model parameters based on size or explicit params.
-    
+
     Args:
         size: Size identifier ("mini" for CI/testing)
         repo: Explicit repository ID
         filename: Explicit filename
-    
+
     Returns:
         Tuple of (repo_id, filename) for reranking model
-    
+
     AIDEV-NOTE: This handles reranking-specific model resolution for mini models
     """
     if repo and filename:
         return repo, filename
-    
+
     if size == "mini":
         config = MODEL_REGISTRY["bge-reranker-mini"]
         return config["repo"], config["filename"]
-    
+
     return RERANKING_MODEL_REPO, RERANKING_MODEL_FILENAME
 
 

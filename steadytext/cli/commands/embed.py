@@ -42,7 +42,15 @@ import numpy as np
     help="Enable unsafe mode for remote models (non-deterministic)",
 )
 def embed(
-    text, output_json, output_numpy, output_hex, output_format, seed, model, size, unsafe_mode
+    text,
+    output_json,
+    output_numpy,
+    output_hex,
+    output_format,
+    seed,
+    model,
+    size,
+    unsafe_mode,
 ):
     """Generate embedding vector for text.
 
@@ -89,17 +97,17 @@ def embed(
     # Now supports remote models with unsafe_mode and mini models
     import os
     from ...utils import resolve_embedding_model_params
-    
+
     # Set environment variables for mini model if specified
     original_repo = os.environ.get("STEADYTEXT_EMBEDDING_MODEL_REPO")
     original_filename = os.environ.get("STEADYTEXT_EMBEDDING_MODEL_FILENAME")
-    
+
     if size == "mini" and not model:
         repo, filename = resolve_embedding_model_params(size=size)
         # Temporarily set environment variables for mini model
         os.environ["STEADYTEXT_EMBEDDING_MODEL_REPO"] = repo
         os.environ["STEADYTEXT_EMBEDDING_MODEL_FILENAME"] = filename
-    
+
     try:
         start_time = time.time()
         embedding = create_embedding(
