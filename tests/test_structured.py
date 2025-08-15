@@ -435,7 +435,9 @@ class TestStructuredEdgeCases:
 class TestStructuredWithoutModel:
     """Test structured generation behavior when model is not available."""
 
-    @pytest.mark.skip(reason="TODO/FIXME: Test expects RuntimeError but behavior may have changed with mini models")
+    @pytest.mark.skip(
+        reason="TODO/FIXME: Test expects RuntimeError but behavior may have changed with mini models"
+    )
     def test_structured_without_model(self):
         """Test structured generation when model is not available."""
         # AIDEV-NOTE: This test may need to be updated to reflect new behavior

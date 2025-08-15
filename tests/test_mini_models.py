@@ -30,12 +30,12 @@ class TestMiniModelRegistry:
         assert "gemma-mini-270m" in MODEL_REGISTRY
         assert MODEL_REGISTRY["gemma-mini-270m"]["mini"] is True
         assert MODEL_REGISTRY["gemma-mini-270m"]["verified"] is True
-        
+
         # Check embedding mini model
         assert "bge-embedding-mini" in MODEL_REGISTRY
         assert MODEL_REGISTRY["bge-embedding-mini"]["mini"] is True
         assert MODEL_REGISTRY["bge-embedding-mini"]["verified"] is True
-        
+
         # Check reranking mini model
         assert "bge-reranker-mini" in MODEL_REGISTRY
         assert MODEL_REGISTRY["bge-reranker-mini"]["mini"] is True
@@ -49,14 +49,17 @@ class TestMiniModelRegistry:
     def test_get_mini_models_helper(self):
         """Test the get_mini_models helper function."""
         mini_models = get_mini_models()
-        
+
         assert "generation" in mini_models
         assert "embedding" in mini_models
         assert "reranking" in mini_models
-        
+
         assert mini_models["generation"]["repo"] == "ggml-org/gemma-3-270m-it-qat-GGUF"
         assert mini_models["embedding"]["repo"] == "mradermacher/bge-large-en-v1.5-GGUF"
-        assert mini_models["reranking"]["repo"] == "xinming0111/bge-reranker-base-Q8_0-GGUF"
+        assert (
+            mini_models["reranking"]["repo"]
+            == "xinming0111/bge-reranker-base-Q8_0-GGUF"
+        )
 
 
 class TestMiniModelResolution:
@@ -88,39 +91,42 @@ class TestMiniModelEnvironmentVariable:
         """Test that STEADYTEXT_USE_MINI_MODELS environment variable works."""
         # Save original values
         original_env = os.environ.get("STEADYTEXT_USE_MINI_MODELS")
-        
+
         try:
             # Set the environment variable
             os.environ["STEADYTEXT_USE_MINI_MODELS"] = "true"
-            
+
             # Reload the utils module to pick up the change
             import importlib
             from steadytext import utils
+
             importlib.reload(utils)
-            
+
             # Check that mini models are configured
             assert utils.USE_MINI_MODELS is True
             assert utils.GENERATION_MODEL_REPO == "ggml-org/gemma-3-270m-it-qat-GGUF"
             assert utils.GENERATION_MODEL_FILENAME == "gemma-3-270m-it-qat-Q4_0.gguf"
             assert utils.EMBEDDING_MODEL_REPO == "mradermacher/bge-large-en-v1.5-GGUF"
             assert utils.EMBEDDING_MODEL_FILENAME == "bge-large-en-v1.5.Q2_K.gguf"
-            assert utils.RERANKING_MODEL_REPO == "xinming0111/bge-reranker-base-Q8_0-GGUF"
+            assert (
+                utils.RERANKING_MODEL_REPO == "xinming0111/bge-reranker-base-Q8_0-GGUF"
+            )
             assert utils.RERANKING_MODEL_FILENAME == "bge-reranker-base-q8_0.gguf"
-            
+
         finally:
             # Restore original value
             if original_env is not None:
                 os.environ["STEADYTEXT_USE_MINI_MODELS"] = original_env
             else:
                 os.environ.pop("STEADYTEXT_USE_MINI_MODELS", None)
-            
+
             # Reload utils to restore original state
             importlib.reload(utils)
 
 
 @pytest.mark.skipif(
     os.environ.get("STEADYTEXT_ALLOW_MODEL_DOWNLOADS") != "true",
-    reason="Model downloads not allowed in CI"
+    reason="Model downloads not allowed in CI",
 )
 class TestMiniModelIntegration:
     """Integration tests for mini models (requires model downloads)."""
@@ -129,13 +135,15 @@ class TestMiniModelIntegration:
         """Test generation with mini model."""
         # This test would actually load and use the mini model
         # For CI without downloads, we'll mock it
-        with patch("steadytext.core.generator.get_generator_model_instance") as mock_get_model:
+        with patch(
+            "steadytext.core.generator.get_generator_model_instance"
+        ) as mock_get_model:
             mock_model = MagicMock()
             mock_model.create_completion.return_value = {
                 "choices": [{"text": "Hello from mini model"}]
             }
             mock_get_model.return_value = mock_model
-            
+
             result = generate("Test prompt", size="mini")
             assert result is not None
             assert isinstance(result, str)
@@ -144,15 +152,17 @@ class TestMiniModelIntegration:
         """Test embedding with mini model."""
         # Set environment variable for mini model
         os.environ["STEADYTEXT_USE_MINI_MODELS"] = "true"
-        
+
         try:
             # Mock the embedding model loading
-            with patch("steadytext.models.loader.get_embedding_model_instance") as mock_get_model:
+            with patch(
+                "steadytext.models.loader.get_embedding_model_instance"
+            ) as mock_get_model:
                 mock_model = MagicMock()
                 mock_model.embed.return_value = np.random.randn(1024).astype(np.float32)
                 mock_model.n_embd.return_value = 1024
                 mock_get_model.return_value = mock_model
-                
+
                 result = embed("Test text")
                 assert result is not None
                 assert result.shape == (1024,)
@@ -164,20 +174,20 @@ class TestMiniModelIntegration:
         """Test reranking with mini model."""
         # Set environment variable for mini model
         os.environ["STEADYTEXT_USE_MINI_MODELS"] = "true"
-        
+
         try:
             # Mock the reranking model loading
-            with patch("steadytext.core.reranker.get_reranking_model_instance") as mock_get_model:
+            with patch(
+                "steadytext.core.reranker.get_reranking_model_instance"
+            ) as mock_get_model:
                 mock_model = MagicMock()
                 mock_model.create_completion.return_value = {
                     "choices": [{"text": "Yes"}]
                 }
                 mock_get_model.return_value = mock_model
-                
+
                 result = rerank(
-                    "test query",
-                    ["doc1", "doc2", "doc3"],
-                    return_scores=True
+                    "test query", ["doc1", "doc2", "doc3"], return_scores=True
                 )
                 assert result is not None
                 assert isinstance(result, list)
@@ -193,19 +203,23 @@ class TestMiniModelCLI:
         """Test that generate CLI accepts --size mini."""
         from steadytext.cli.commands.generate import generate
         from click.testing import CliRunner
-        
+
         runner = CliRunner()
-        
+
         # Mock both functions at the module level where they're imported
-        with patch("steadytext.generate") as mock_generate, \
-             patch("steadytext.generate_iter") as mock_generate_iter:
+        with (
+            patch("steadytext.generate") as mock_generate,
+            patch("steadytext.generate_iter") as mock_generate_iter,
+        ):
             # Mock for --wait mode (non-streaming)
             mock_generate.return_value = "Test output"
             # Mock for streaming mode
             mock_generate_iter.return_value = iter(["Test", " ", "output"])
-            
-            result = runner.invoke(generate, ["Test prompt", "--size", "mini", "--wait"])
-            
+
+            result = runner.invoke(
+                generate, ["Test prompt", "--size", "mini", "--wait"]
+            )
+
             assert result.exit_code == 0
             assert "Test" in result.output or result.exit_code == 0
 
@@ -213,9 +227,9 @@ class TestMiniModelCLI:
         """Test that embed CLI accepts --size mini."""
         from steadytext.cli.commands.embed import embed
         from click.testing import CliRunner
-        
+
         runner = CliRunner()
-        
+
         # Mock the actual embedding to avoid model loading
         # The import is: from ...core.embedder import core_embed as create_embedding
         with patch("steadytext.core.embedder.core_embed") as mock_embed:
@@ -223,7 +237,7 @@ class TestMiniModelCLI:
             embedding = np.random.randn(1024).astype(np.float32)
             embedding = embedding / np.linalg.norm(embedding)  # Normalize
             mock_embed.return_value = embedding
-            
+
             result = runner.invoke(embed, ["Test text", "--size", "mini"])
             assert result.exit_code == 0
             # Verify the function was called
@@ -233,23 +247,25 @@ class TestMiniModelCLI:
         """Test that rerank CLI accepts --size mini."""
         from steadytext.cli.commands.rerank import rerank
         from click.testing import CliRunner
-        
+
         runner = CliRunner()
-        
+
         # Mock the actual reranking to avoid model loading
         with patch("steadytext.rerank") as mock_rerank:
             mock_rerank.return_value = [("doc1", 0.9), ("doc2", 0.5), ("doc3", 0.1)]
-            
-            result = runner.invoke(rerank, ["query", "doc1", "doc2", "doc3", "--size", "mini"])
+
+            result = runner.invoke(
+                rerank, ["query", "doc1", "doc2", "doc3", "--size", "mini"]
+            )
             assert result.exit_code == 0
 
     def test_cli_daemon_size_mini(self):
         """Test that daemon CLI accepts --size mini."""
         from steadytext.cli.commands.daemon import start
         from click.testing import CliRunner
-        
+
         runner = CliRunner()
-        
+
         # Mock the daemon server to avoid actual startup
         # The import is: from ...daemon.server import DaemonServer
         with patch("steadytext.daemon.server.DaemonServer") as mock_server:
@@ -257,9 +273,9 @@ class TestMiniModelCLI:
             mock_server.return_value = mock_server_instance
             # Mock the serve method to prevent actual server startup
             mock_server_instance.serve = MagicMock()
-            
+
             result = runner.invoke(start, ["--size", "mini", "--foreground"])
-            
+
             # Check that DaemonServer was initialized with the size parameter
             mock_server.assert_called_once()
             # The size parameter is passed when initializing DaemonServer
@@ -274,11 +290,14 @@ class TestMiniModelPerformance:
         """Verify that mini models have smaller sizes in the registry."""
         # These are approximate sizes based on the model descriptions
         mini_generation = MODEL_REGISTRY["gemma-mini-270m"]
-        assert "270m" in mini_generation["description"].lower() or "97mb" in mini_generation["description"].lower()
-        
+        assert (
+            "270m" in mini_generation["description"].lower()
+            or "97mb" in mini_generation["description"].lower()
+        )
+
         mini_embedding = MODEL_REGISTRY["bge-embedding-mini"]
         assert "130mb" in mini_embedding["description"].lower()
-        
+
         mini_reranker = MODEL_REGISTRY["bge-reranker-mini"]
         assert "300mb" in mini_reranker["description"].lower()
 
@@ -289,42 +308,48 @@ def test_ci_workflow_example():
     # This demonstrates the intended CI usage pattern
     original_env = os.environ.get("STEADYTEXT_USE_MINI_MODELS")
     original_downloads = os.environ.get("STEADYTEXT_ALLOW_MODEL_DOWNLOADS")
-    
+
     try:
         # In CI, this would be set at the workflow level
         os.environ["STEADYTEXT_USE_MINI_MODELS"] = "true"
-        os.environ["STEADYTEXT_ALLOW_MODEL_DOWNLOADS"] = "false"  # CI typically doesn't download
-        
+        os.environ["STEADYTEXT_ALLOW_MODEL_DOWNLOADS"] = (
+            "false"  # CI typically doesn't download
+        )
+
         # Import and reload utils to pick up env changes
         import importlib
         from steadytext import utils
+
         importlib.reload(utils)
-        
+
         # Verify that mini models are configured
         assert utils.USE_MINI_MODELS is True
-        
+
         # Mock the model loading to simulate CI behavior (no actual downloads)
         # Note: reranker uses get_generator_model_instance (not a separate function)
-        with patch("steadytext.models.loader.get_generator_model_instance") as mock_gen, \
-             patch("steadytext.models.loader.get_embedding_model_instance") as mock_emb:
-            
+        with (
+            patch("steadytext.models.loader.get_generator_model_instance") as mock_gen,
+            patch("steadytext.models.loader.get_embedding_model_instance") as mock_emb,
+        ):
             # Setup mocks to return mock models
             mock_gen_model = MagicMock()
-            mock_gen_model.create_completion.return_value = {"choices": [{"text": "mini output"}]}
+            mock_gen_model.create_completion.return_value = {
+                "choices": [{"text": "mini output"}]
+            }
             mock_gen.return_value = mock_gen_model
-            
+
             mock_emb_model = MagicMock()
             mock_emb_model.embed.return_value = np.zeros(1024, dtype=np.float32)
             mock_emb_model.n_embd.return_value = 1024
             mock_emb.return_value = mock_emb_model
-            
+
             # Note: Reranker also uses get_generator_model_instance internally
             # So mock_gen will handle both generation and reranking models
-            
+
             # Verify mocks are set up correctly
             assert mock_gen.return_value is not None
             assert mock_emb.return_value is not None
-            
+
     finally:
         # Restore original environment
         if original_env is not None:
@@ -335,6 +360,6 @@ def test_ci_workflow_example():
             os.environ["STEADYTEXT_ALLOW_MODEL_DOWNLOADS"] = original_downloads
         else:
             os.environ.pop("STEADYTEXT_ALLOW_MODEL_DOWNLOADS", None)
-        
+
         # Reload utils to restore original state
         importlib.reload(utils)
