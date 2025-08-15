@@ -37,7 +37,13 @@ from typing import List
     help="Seed for deterministic reranking",
     show_default=True,
 )
-def rerank(query, documents, output_json, scores, task, top_k, doc_file, seed):
+@click.option(
+    "--size",
+    type=click.Choice(["mini"]),
+    default=None,
+    help="Model size (mini=300MB BGE reranker for CI/testing)",
+)
+def rerank(query, documents, output_json, scores, task, top_k, doc_file, seed, size):
     """Rerank documents by relevance to a query.
 
     The QUERY is the search query to rank documents against.
@@ -89,16 +95,41 @@ def rerank(query, documents, output_json, scores, task, top_k, doc_file, seed):
         )
         sys.exit(1)
 
-    # Perform reranking
-    start_time = time.time()
-    results = do_rerank(
-        query=query,
-        documents=doc_list,
-        task=task,
-        return_scores=scores,
-        seed=seed,
-    )
-    elapsed_time = time.time() - start_time
+    # AIDEV-NOTE: Set environment variables for mini model if specified
+    import os
+    from ...utils import resolve_reranking_model_params
+    
+    original_repo = os.environ.get("STEADYTEXT_RERANKING_MODEL_REPO")
+    original_filename = os.environ.get("STEADYTEXT_RERANKING_MODEL_FILENAME")
+    
+    if size == "mini":
+        repo, filename = resolve_reranking_model_params(size=size)
+        # Temporarily set environment variables for mini model
+        os.environ["STEADYTEXT_RERANKING_MODEL_REPO"] = repo
+        os.environ["STEADYTEXT_RERANKING_MODEL_FILENAME"] = filename
+    
+    try:
+        # Perform reranking
+        start_time = time.time()
+        results = do_rerank(
+            query=query,
+            documents=doc_list,
+            task=task,
+            return_scores=scores,
+            seed=seed,
+        )
+        elapsed_time = time.time() - start_time
+    finally:
+        # Restore original environment variables
+        if size == "mini":
+            if original_repo is not None:
+                os.environ["STEADYTEXT_RERANKING_MODEL_REPO"] = original_repo
+            else:
+                os.environ.pop("STEADYTEXT_RERANKING_MODEL_REPO", None)
+            if original_filename is not None:
+                os.environ["STEADYTEXT_RERANKING_MODEL_FILENAME"] = original_filename
+            else:
+                os.environ.pop("STEADYTEXT_RERANKING_MODEL_FILENAME", None)
 
     # Apply top-k filtering if requested
     if top_k and top_k > 0:

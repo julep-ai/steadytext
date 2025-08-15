@@ -31,12 +31,18 @@ import numpy as np
     help="Remote model to use (e.g., openai:text-embedding-3-small, voyageai:voyage-3-lite)",
 )
 @click.option(
+    "--size",
+    type=click.Choice(["mini"]),
+    default=None,
+    help="Model size (mini=130MB BGE model for CI/testing)",
+)
+@click.option(
     "--unsafe-mode",
     is_flag=True,
     help="Enable unsafe mode for remote models (non-deterministic)",
 )
 def embed(
-    text, output_json, output_numpy, output_hex, output_format, seed, model, unsafe_mode
+    text, output_json, output_numpy, output_hex, output_format, seed, model, size, unsafe_mode
 ):
     """Generate embedding vector for text.
 
@@ -80,12 +86,37 @@ def embed(
         sys.exit(1)
 
     # AIDEV-NOTE: Create embedding directly using core function
-    # Now supports remote models with unsafe_mode
-    start_time = time.time()
-    embedding = create_embedding(
-        input_text, seed=seed, model=model, unsafe_mode=unsafe_mode
-    )
-    elapsed_time = time.time() - start_time
+    # Now supports remote models with unsafe_mode and mini models
+    import os
+    from ...utils import resolve_embedding_model_params
+    
+    # Set environment variables for mini model if specified
+    original_repo = os.environ.get("STEADYTEXT_EMBEDDING_MODEL_REPO")
+    original_filename = os.environ.get("STEADYTEXT_EMBEDDING_MODEL_FILENAME")
+    
+    if size == "mini" and not model:
+        repo, filename = resolve_embedding_model_params(size=size)
+        # Temporarily set environment variables for mini model
+        os.environ["STEADYTEXT_EMBEDDING_MODEL_REPO"] = repo
+        os.environ["STEADYTEXT_EMBEDDING_MODEL_FILENAME"] = filename
+    
+    try:
+        start_time = time.time()
+        embedding = create_embedding(
+            input_text, seed=seed, model=model, unsafe_mode=unsafe_mode
+        )
+        elapsed_time = time.time() - start_time
+    finally:
+        # Restore original environment variables
+        if size == "mini" and not model:
+            if original_repo is not None:
+                os.environ["STEADYTEXT_EMBEDDING_MODEL_REPO"] = original_repo
+            else:
+                os.environ.pop("STEADYTEXT_EMBEDDING_MODEL_REPO", None)
+            if original_filename is not None:
+                os.environ["STEADYTEXT_EMBEDDING_MODEL_FILENAME"] = original_filename
+            else:
+                os.environ.pop("STEADYTEXT_EMBEDDING_MODEL_FILENAME", None)
 
     if format_choice == "numpy":
         # Output as numpy text representation

@@ -58,9 +58,9 @@ from ...config import with_defaults
 )
 @click.option(
     "--size",
-    type=click.Choice(["small", "large"]),
+    type=click.Choice(["mini", "small", "medium", "large"]),
     default=None,
-    help="Model size (small=2B, large=4B)",
+    help="Model size (mini=270M for CI/testing, small=1.7B, medium=3B, large=4B)",
 )
 @click.option(
     "--seed",
