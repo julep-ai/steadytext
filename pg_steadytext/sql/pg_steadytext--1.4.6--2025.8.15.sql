@@ -11,7 +11,7 @@ RETURNS TEXT AS $$
 BEGIN
     RETURN '2025.8.15';
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql STABLE;
 
 -- Log the version change
 DO $$
