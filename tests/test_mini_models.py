@@ -221,8 +221,8 @@ class TestMiniModelCLI:
         runner = CliRunner()
         
         # Mock the actual embedding to avoid model loading
-        # Mock where it's used, which is steadytext.cli.commands.embed.create_embedding
-        with patch("steadytext.cli.commands.embed.create_embedding") as mock_embed:
+        # The import is: from ...core.embedder import core_embed as create_embedding
+        with patch("steadytext.core.embedder.core_embed") as mock_embed:
             # Return a normalized embedding vector
             embedding = np.random.randn(1024).astype(np.float32)
             embedding = embedding / np.linalg.norm(embedding)  # Normalize
@@ -255,7 +255,8 @@ class TestMiniModelCLI:
         runner = CliRunner()
         
         # Mock the daemon server to avoid actual startup
-        with patch("steadytext.cli.commands.daemon.DaemonServer") as mock_server:
+        # The import is: from ...daemon.server import DaemonServer
+        with patch("steadytext.daemon.server.DaemonServer") as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
             # Mock the serve method to prevent actual server startup
@@ -307,9 +308,9 @@ def test_ci_workflow_example():
         assert utils.USE_MINI_MODELS is True
         
         # Mock the model loading to simulate CI behavior (no actual downloads)
+        # Note: reranker uses get_generator_model_instance (not a separate function)
         with patch("steadytext.models.loader.get_generator_model_instance") as mock_gen, \
-             patch("steadytext.models.loader.get_embedding_model_instance") as mock_emb, \
-             patch("steadytext.core.reranker.get_reranking_model_instance") as mock_rerank:
+             patch("steadytext.models.loader.get_embedding_model_instance") as mock_emb:
             
             # Setup mocks to return mock models
             mock_gen_model = MagicMock()
@@ -321,14 +322,12 @@ def test_ci_workflow_example():
             mock_emb_model.n_embd.return_value = 1024
             mock_emb.return_value = mock_emb_model
             
-            mock_rerank_model = MagicMock()
-            mock_rerank_model.create_completion.return_value = {"choices": [{"text": "Yes"}]}
-            mock_rerank.return_value = mock_rerank_model
+            # Note: Reranker also uses get_generator_model_instance internally
+            # So mock_gen will handle both generation and reranking models
             
             # Verify mocks are set up correctly
             assert mock_gen.return_value is not None
             assert mock_emb.return_value is not None
-            assert mock_rerank.return_value is not None
             
     finally:
         # Restore original environment
