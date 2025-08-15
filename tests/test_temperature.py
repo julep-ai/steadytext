@@ -50,6 +50,7 @@ class TestTemperatureSupport(unittest.TestCase):
                 schema=None,
                 regex=None,
                 choices=None,
+                return_pydantic=False,
             )
 
             # Test with higher temperature
@@ -69,6 +70,7 @@ class TestTemperatureSupport(unittest.TestCase):
                 schema=None,
                 regex=None,
                 choices=None,
+                return_pydantic=False,
             )
 
     def test_generate_iter_accepts_temperature(self):
