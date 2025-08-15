@@ -61,8 +61,8 @@ def daemon():
 )
 @click.option(
     "--size",
-    type=click.Choice(["small", "large"]),
-    help="Model size to preload (small=2B, large=4B)",
+    type=click.Choice(["mini", "small", "medium", "large"]),
+    help="Model size to preload (mini=270M for CI/testing, small=1.7B, medium=3B, large=4B)",
 )
 def start(
     host: str,
@@ -238,8 +238,8 @@ def status(output_json: bool):
 @click.option("--no-preload", is_flag=True, help="Don't preload models on startup")
 @click.option(
     "--size",
-    type=click.Choice(["small", "large"]),
-    help="Model size to preload (small=2B, large=4B)",
+    type=click.Choice(["mini", "small", "medium", "large"]),
+    help="Model size to preload (mini=270M for CI/testing, small=1.7B, medium=3B, large=4B)",
 )
 def restart(host: str, port: int, no_preload: bool, size: Optional[str]):
     """Restart the SteadyText daemon server."""

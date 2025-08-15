@@ -422,6 +422,29 @@ PostgreSQL Client
 - `steadytext_config_get(key)` - Get configuration value
 - `steadytext_config_set(key, value)` - Set configuration value
 
+### Mini Models for CI/Testing
+
+pg_steadytext supports mini models for fast CI testing:
+
+```sql
+-- Enable mini models globally
+SELECT steadytext_config_set('use_mini_models', 'true');
+
+-- Or set specific model size
+SELECT steadytext_config_set('model_size', 'mini');
+
+-- Mini models are ~10x smaller:
+-- Generation: Gemma-3-270M (~97MB)
+-- Embedding: BGE-large-en-v1.5 (~130MB)
+-- Reranking: BGE-reranker-base (~300MB)
+
+-- Verify configuration
+SELECT steadytext_config_get('use_mini_models');
+SELECT steadytext_config_get('model_size');
+```
+
+This is useful for CI pipelines where speed matters more than quality.
+
 ## Cache Management (v1.4.0+)
 
 pg_steadytext includes sophisticated cache management with automatic eviction based on frecency (frequency + recency) scores.
