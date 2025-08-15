@@ -1,6 +1,6 @@
 # pg_steadytext extension
 comment = 'Deterministic text generation and embeddings for PostgreSQL with SteadyText'
-default_version = '2025.8.15'
+default_version = '2025.8.16'
 module_pathname = '$libdir/pg_steadytext'
 relocatable = false
 schema = 'public'

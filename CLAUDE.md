@@ -205,7 +205,7 @@ result = generate_json(
 
 Both SteadyText components now use **date-based versioning** instead of semantic versioning:
 
-- **Format:** `yyyy.mm.dd` (no zero-padding, e.g., `2025.8.15`, `2025.12.3`)
+- **Format:** `yyyy.mm.dd` (no zero-padding, e.g., `2025.8.16`, `2025.12.3`)
 - **Applies to:** Both the Python package (steadytext) and PostgreSQL extension (pg_steadytext)
 - **Rationale:** The rapid pace of model improvements and feature changes made semantic versioning impractical. Date-based versioning provides clearer insight into release recency and better aligns with our continuous improvement philosophy.
 - **Migration:** Existing installations can upgrade using standard commands (pip for Python, PostgreSQL extension commands for pg_steadytext)

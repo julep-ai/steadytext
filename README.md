@@ -11,7 +11,7 @@
 [![](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 > [!IMPORTANT]
-> **Version 2025.8.15 - Date-Based Versioning**
+> **Version 2025.8.16 - Date-Based Versioning**
 > 
 > SteadyText has transitioned from semantic versioning to **date-based versioning** (yyyy.mm.dd format).
 > 

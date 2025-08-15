@@ -1,12 +1,19 @@
 # Changelog
 
 > [!IMPORTANT]
-> **Versioning Change Notice (2025.8.15)**
+> **Versioning Change Notice (2025.8.16)**
 > 
 > SteadyText has transitioned from semantic versioning to date-based versioning (yyyy.mm.dd format).
 > This change reflects the rapid pace of AI model improvements and feature additions, where traditional
 > semantic versioning became impractical. Date-based versioning provides clearer insight into release
 > recency and better aligns with our continuous improvement philosophy.
+
+## Version 2025.8.16 (2025-08-16)
+
+### Changes
+- **Version Bump:** Date-based version update
+- **Documentation:** Updated all version references throughout the codebase
+- **PostgreSQL Extension:** Aligned extension version with main package
 
 ## Version 2025.8.15 (2025-08-15)
 
