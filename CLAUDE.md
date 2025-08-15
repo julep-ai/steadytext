@@ -141,7 +141,7 @@ When responding to user instructions, the AI assistant (Claude, Cursor, GPT, etc
 
 ## Structured Generation (v2.4.0+)
 
-- AIDEV-NOTE: Uses llama.cpp GBNF grammars instead of Outlines (fixes Gemma-3n compatibility)
+- AIDEV-NOTE: Uses llama.cpp GBNF grammars instead of Outlines for better compatibility
 - Conversion support: JSON schemas, Pydantic models, regex, choices, Python types → GBNF
 - AIDEV-NOTE: Remote models (v2.6.2+) support structured generation via unsafe_mode=True
 - AIDEV-TODO: Expand regex conversion and add recursive schema support

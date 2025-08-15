@@ -30,7 +30,7 @@ class TestRemoteModelDetection:
         assert is_remote_model("voyageai:voyage-3-large")
         assert is_remote_model("jina:jina-embeddings-v3")
         assert not is_remote_model("gemma-3n-2b")
-        assert not is_remote_model("qwen2.5-3b")
+        assert not is_remote_model("qwen3-4b")
         assert not is_remote_model(None)
         assert not is_remote_model("")
         assert not is_remote_model("unknown:model")

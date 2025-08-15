@@ -271,11 +271,9 @@ docker exec pg_steadytext_db psql -U postgres -f /tmp/pg_steadytext/test/pgtap/0
 1. **Not initialized**: Run `SELECT _steadytext_init_python();`
 2. **Daemon down**: Check `st daemon status`
 3. **Cache hit**: Normal - use ON CONFLICT
-4. **Model issues**: Use `STEADYTEXT_USE_FALLBACK_MODEL=true` for Gemma-3n problems
+4. **Model issues**: Use `STEADYTEXT_USE_FALLBACK_MODEL=true` for model loading problems
 
-**Compatible Models**: Qwen2.5-3B (recommended), Qwen3-1.7B (smaller)
-
-- AIDEV-TODO: Track gemma-3n compatibility updates
+**Compatible Models**: Qwen3-4B (default small), Qwen3-30B (large)
 
 
 ## Async Functions (v1.1.0)

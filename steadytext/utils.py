@@ -349,7 +349,7 @@ def get_model_config(model_name: str) -> Dict[str, str]:
     """Get model configuration from registry by name.
 
     Args:
-        model_name: Name of the model (e.g., "qwen2.5-3b", "qwen3-8b")
+        model_name: Name of the model (e.g., "qwen3-4b", "qwen3-30b")
 
     Returns:
         Dict with 'repo' and 'filename' keys

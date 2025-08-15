@@ -837,7 +837,7 @@ class TestSizeParameter(unittest.TestCase):
         try:
             output = steadytext.generate(
                 "Test prompt",
-                model="qwen3-1.7b",  # Explicit model
+                model="qwen3-4b",  # Explicit model
                 size="small",  # Should be ignored
             )
             if os.environ.get("STEADYTEXT_SKIP_MODEL_LOAD") != "1":
