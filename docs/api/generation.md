@@ -17,6 +17,7 @@ def generate(
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
     seed: int = DEFAULT_SEED,
+    temperature: float = 0.0,
     schema: Optional[Union[Dict[str, Any], type, object]] = None,
     regex: Optional[str] = None,
     choices: Optional[List[str]] = None,
@@ -37,6 +38,7 @@ def generate(
 | `model_filename` | `str` | `None` | Custom model filename |
 | `size` | `str` | `None` | Size shortcut: "small" or "large" |
 | `seed` | `int` | `42` | Random seed for deterministic generation |
+| `temperature` | `float` | `0.0` | Controls randomness: 0.0 = deterministic, >0 = more random, typical range 0.0-2.0 |
 | `schema` | `Dict/Type` | `None` | JSON schema, Pydantic model, or Python type for structured output |
 | `regex` | `str` | `None` | Regular expression pattern to constrain output |
 | `choices` | `List[str]` | `None` | List of choices to constrain output |
@@ -72,6 +74,25 @@ def generate(
     
     print(f"Seed 123: {text1[:50]}...")
     print(f"Seed 456: {text3[:50]}...")
+    ```
+
+=== "Temperature Control"
+
+    ```python
+    # Temperature controls randomness vs determinism
+    # 0.0 = fully deterministic (default)
+    deterministic = steadytext.generate("Write a haiku", temperature=0.0)
+    
+    # 0.5-0.8 = balanced creativity
+    balanced = steadytext.generate("Write a haiku", temperature=0.7)
+    
+    # 1.0+ = more creative/random
+    creative = steadytext.generate("Write a haiku", temperature=1.2)
+    
+    # Same prompt + seed + temperature = same output
+    result1 = steadytext.generate("Test", seed=42, temperature=0.5)
+    result2 = steadytext.generate("Test", seed=42, temperature=0.5)
+    assert result1 == result2  # Always true!
     ```
 
 === "Custom Length"
@@ -161,7 +182,8 @@ def generate_iter(
     model_repo: Optional[str] = None,
     model_filename: Optional[str] = None,
     size: Optional[str] = None,
-    seed: int = DEFAULT_SEED
+    seed: int = DEFAULT_SEED,
+    temperature: float = 0.0
 ) -> Iterator[Union[str, Tuple[str, Optional[Dict[str, Any]]]]]
 ```
 
@@ -178,6 +200,7 @@ def generate_iter(
 | `model_filename` | `str` | `None` | Custom model filename |
 | `size` | `str` | `None` | Size shortcut: "small" or "large" |
 | `seed` | `int` | `42` | Random seed for deterministic generation |
+| `temperature` | `float` | `0.0` | Controls randomness: 0.0 = deterministic, >0 = more random, typical range 0.0-2.0 |
 | `unsafe_mode` | `bool` | `False` | Enable remote models with best-effort determinism (v2.6.1+) |
 
 ### Returns
@@ -268,12 +291,17 @@ def generate_iter(
 
 ### Deterministic Behavior
 
-Both functions return identical results for identical inputs and seeds:
+Both functions return identical results for identical inputs, seeds, and temperature values:
 
 ```python
-# Default seed (42) - always identical
+# Default seed (42) and temperature (0.0) - always identical
 result1 = steadytext.generate("hello world")
 result2 = steadytext.generate("hello world") 
+assert result1 == result2  # Always passes!
+
+# Same temperature value produces same results
+result1 = steadytext.generate("hello world", temperature=0.5)
+result2 = steadytext.generate("hello world", temperature=0.5)
 assert result1 == result2  # Always passes!
 
 # Custom seeds - identical for same seed
@@ -320,7 +348,7 @@ for prompt in research_prompts:
 
 ### Caching
 
-Results are automatically cached using a frecency cache (LRU + frequency), with seed as part of the cache key:
+Results are automatically cached using a frecency cache (LRU + frequency), with seed and temperature as part of the cache key:
 
 ```python
 # First call: generates and caches result for default seed
@@ -337,9 +365,10 @@ text4 = steadytext.generate("common prompt", seed=123)  # ~0.1 seconds (cached)
 assert text3 == text4  # Same seed, same cached result
 assert text1 != text3  # Different seeds, different results
 
-# Cache keys include seed, so each seed gets its own cache entry
+# Cache keys include seed and temperature, so each combination gets its own cache entry
 for seed in [100, 200, 300]:
-    steadytext.generate("warm up cache", seed=seed)  # Each gets cached separately
+    for temp in [0.0, 0.5, 1.0]:
+        steadytext.generate("warm up cache", seed=seed, temperature=temp)  # Each combo cached separately
 ```
 
 ### Fallback Behavior
