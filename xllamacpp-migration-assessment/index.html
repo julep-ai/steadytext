@@ -10,13 +10,9 @@
       
       
       
-        <link rel="canonical" href="https://steadytext.dev/version_history/">
+        <link rel="canonical" href="https://steadytext.dev/xllamacpp-migration-assessment/">
       
       
-        <link rel="prev" href="../benchmarks/">
-      
-      
-        <link rel="next" href="../troubleshooting/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -24,7 +20,7 @@
     
     
       
-        <title>Version History - SteadyText Documentation</title>
+        <title>Migration Assessment: llama-cpp-python to xllamacpp - SteadyText Documentation</title>
       
     
     
@@ -76,7 +72,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#version-history" class="md-skip">
+        <a href="#migration-assessment-llama-cpp-python-to-xllamacpp" class="md-skip">
           Skip to content
         </a>
       
@@ -110,7 +106,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Version History
+              Migration Assessment: llama-cpp-python to xllamacpp
             
           </span>
         </div>
@@ -440,12 +436,10 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
+      <li class="md-tabs__item">
         <a href="../faq/" class="md-tabs__link">
           
   
@@ -2183,31 +2177,28 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" checked>
         
           
-          <label class="md-nav__link" for="__nav_12" id="__nav_12_label" tabindex="">
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_12" >
+        
+          
+          <label class="md-nav__link" for="__nav_12" id="__nav_12_label" tabindex="0">
             
   
   
@@ -2220,7 +2211,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_12">
             <span class="md-nav__icon md-icon"></span>
             Reference
@@ -2277,32 +2268,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    Version History
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../version_history/" class="md-nav__link">
         
   
   
@@ -2313,227 +2282,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#detailed-release-notes" class="md-nav__link">
-    <span class="md-ellipsis">
-      Detailed Release Notes
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Detailed Release Notes">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#version-261-unsafe-mode-support-for-structured-generation" class="md-nav__link">
-    <span class="md-ellipsis">
-      Version 2.6.1 - Unsafe Mode Support for Structured Generation
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Version 2.6.1 - Unsafe Mode Support for Structured Generation">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#remote-model-structured-generation" class="md-nav__link">
-    <span class="md-ellipsis">
-      🚀 Remote Model Structured Generation
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#postgresql-extension-updates" class="md-nav__link">
-    <span class="md-ellipsis">
-      🔧 PostgreSQL Extension Updates
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#requirements" class="md-nav__link">
-    <span class="md-ellipsis">
-      📋 Requirements
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#version-241-native-grammar-support" class="md-nav__link">
-    <span class="md-ellipsis">
-      Version 2.4.1 - Native Grammar Support
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Version 2.4.1 - Native Grammar Support">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#grammar-based-structured-generation" class="md-nav__link">
-    <span class="md-ellipsis">
-      🔧 Grammar-Based Structured Generation
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#postgresql-structured-generation" class="md-nav__link">
-    <span class="md-ellipsis">
-      🐘 PostgreSQL Structured Generation
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#version-230-document-reranking-structured-generation" class="md-nav__link">
-    <span class="md-ellipsis">
-      Version 2.3.0 - Document Reranking &amp; Structured Generation
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Version 2.3.0 - Document Reranking &amp; Structured Generation">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#document-reranking" class="md-nav__link">
-    <span class="md-ellipsis">
-      🔍 Document Reranking
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#structured-generation" class="md-nav__link">
-    <span class="md-ellipsis">
-      ✨ Structured Generation
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#version-210-custom-seeds-postgresql-extension" class="md-nav__link">
-    <span class="md-ellipsis">
-      Version 2.1.0+ - Custom Seeds &amp; PostgreSQL Extension
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Version 2.1.0+ - Custom Seeds &amp; PostgreSQL Extension">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#custom-seed-support" class="md-nav__link">
-    <span class="md-ellipsis">
-      🎯 Custom Seed Support
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#postgresql-extension-pg_steadytext" class="md-nav__link">
-    <span class="md-ellipsis">
-      🐘 PostgreSQL Extension (pg_steadytext)
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#technical-improvements" class="md-nav__link">
-    <span class="md-ellipsis">
-      🔧 Technical Improvements
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#documentation-updates" class="md-nav__link">
-    <span class="md-ellipsis">
-      📖 Documentation Updates
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#breaking-changes" class="md-nav__link">
-    <span class="md-ellipsis">
-      🔄 Breaking Changes
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#bug-fixes" class="md-nav__link">
-    <span class="md-ellipsis">
-      🐛 Bug Fixes
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#requirements_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      📋 Requirements
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2610,297 +2358,292 @@
   
 
 
-<h1 id="version-history">Version History<a class="headerlink" href="#version-history" title="Permanent link">&para;</a></h1>
-<blockquote>
-<p><strong>Important</strong>: As of 2025.8.16, SteadyText has transitioned from semantic versioning to date-based versioning (yyyy.mm.dd format). This change reflects the rapid pace of AI model improvements and feature additions.</p>
-</blockquote>
-<p>This document outlines the major versions of SteadyText and the key features introduced in each.</p>
-<p><strong>Latest Version</strong>: 2025.8.16 - Date-Based Versioning Transition</p>
+<h1 id="migration-assessment-llama-cpp-python-to-xllamacpp">Migration Assessment: llama-cpp-python to xllamacpp<a class="headerlink" href="#migration-assessment-llama-cpp-python-to-xllamacpp" title="Permanent link">&para;</a></h1>
+<p><strong>Date</strong>: 2025-08-15<br />
+<strong>Author</strong>: Claude (AI Assistant)<br />
+<strong>Status</strong>: Assessment Only - Migration NOT Recommended</p>
+<h2 id="executive-summary">Executive Summary<a class="headerlink" href="#executive-summary" title="Permanent link">&para;</a></h2>
+<p>Switching from llama-cpp-python to xllamacpp would require a <strong>complete rewrite</strong> of SteadyText's core functionality, taking an estimated <strong>3-4 weeks</strong> for an experienced developer with <strong>HIGH risk</strong> and <strong>MEDIUM-HIGH complexity</strong>.</p>
+<h2 id="effort-and-complexity-assessment">Effort and Complexity Assessment<a class="headerlink" href="#effort-and-complexity-assessment" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Overall Effort</strong>: HIGH (3-4 weeks for experienced developer)</li>
+<li><strong>Complexity</strong>: MEDIUM-HIGH</li>
+<li><strong>Risk Level</strong>: HIGH</li>
+<li><strong>Breaking Changes</strong>: Yes - Complete API change for all users</li>
+</ul>
+<h2 id="key-architectural-differences">Key Architectural Differences<a class="headerlink" href="#key-architectural-differences" title="Permanent link">&para;</a></h2>
+<h3 id="1-api-architecture-high-complexity">1. API Architecture (HIGH COMPLEXITY)<a class="headerlink" href="#1-api-architecture-high-complexity" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
-<th style="text-align: left;">Version</th>
-<th style="text-align: left;">Key Features</th>
-<th style="text-align: left;">Default Generation Model</th>
-<th style="text-align: left;">Default Embedding Model</th>
-<th style="text-align: left;">Default Reranking Model</th>
-<th style="text-align: left;">Python Versions</th>
+<th>Aspect</th>
+<th>llama-cpp-python</th>
+<th>xllamacpp</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;"><strong>2.6.x</strong></td>
-<td style="text-align: left;">- <strong>Unsafe Mode Structured Generation</strong>: Added support for structured generation (JSON, regex, choices) with remote models.<br>- <strong>Remote Model Support</strong>: Full structured output capabilities for OpenAI and Cerebras models.<br>- <strong>Maintenance Release</strong>: Version bumps and dependency updates.</td>
-<td style="text-align: left;"><code>ggml-org/gemma-3n-E2B-it-GGUF</code> (gemma-3n-E2B-it-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>Qwen/Qwen3-Embedding-0.6B-GGUF</code> (Qwen3-Embedding-0.6B-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>Qwen/Qwen3-Reranker-4B-GGUF</code> (Qwen3-Reranker-4B-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>&gt;=3.10, &lt;3.14</code></td>
+<td>Wrapper Type</td>
+<td>ctypes</td>
+<td>Cython</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>2.4.x</strong></td>
-<td style="text-align: left;">- <strong>Native Grammar Support</strong>: Replaced Outlines with llama.cpp's native GBNF grammars for structured generation.<br>- <strong>PostgreSQL Structured Generation</strong>: Added <code>steadytext_generate_json()</code>, <code>steadytext_generate_regex()</code>, <code>steadytext_generate_choice()</code> SQL functions.<br>- <strong>Better Compatibility</strong>: Fixes issues with Gemma-3n and other models.</td>
-<td style="text-align: left;"><code>ggml-org/gemma-3n-E2B-it-GGUF</code> (gemma-3n-E2B-it-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>Qwen/Qwen3-Embedding-0.6B-GGUF</code> (Qwen3-Embedding-0.6B-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>Qwen/Qwen3-Reranker-4B-GGUF</code> (Qwen3-Reranker-4B-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>&gt;=3.10, &lt;3.14</code></td>
+<td>API Style</td>
+<td>Direct Llama class</td>
+<td>Server &amp; CommonParams</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>2.3.x</strong></td>
-<td style="text-align: left;">- <strong>Document Reranking</strong>: Added reranking functionality with <code>Qwen3-Reranker-4B</code> model.<br>- <strong>Structured Generation</strong>: Added support for JSON, Regex, and Choice-constrained generation via <code>outlines</code>.<br>- <strong>New API parameters</strong>: <code>schema</code>, <code>regex</code>, <code>choices</code> added to <code>generate()</code>.<br>- <strong>New convenience functions</strong>: <code>generate_json()</code>, <code>generate_regex()</code>, <code>generate_choice()</code>.</td>
-<td style="text-align: left;"><code>ggml-org/gemma-3n-E2B-it-GGUF</code> (gemma-3n-E2B-it-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>Qwen/Qwen3-Embedding-0.6B-GGUF</code> (Qwen3-Embedding-0.6B-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>Qwen/Qwen3-Reranker-4B-GGUF</code> (Qwen3-Reranker-4B-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>&gt;=3.10, &lt;3.14</code></td>
+<td>Model Loading</td>
+<td>Simple instantiation</td>
+<td>Parameter-based configuration</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>2.1.x</strong></td>
-<td style="text-align: left;">- <strong>Custom Seeds</strong>: Added seed parameter to all generation and embedding functions.<br>- <strong>PostgreSQL Extension</strong>: Released pg_steadytext extension.<br>- <strong>Enhanced Reproducibility</strong>: Full control over deterministic generation.</td>
-<td style="text-align: left;"><code>ggml-org/gemma-3n-E2B-it-GGUF</code> (gemma-3n-E2B-it-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>Qwen/Qwen3-Embedding-0.6B-GGUF</code> (Qwen3-Embedding-0.6B-Q8_0.gguf)</td>
-<td style="text-align: left;">-</td>
-<td style="text-align: left;"><code>&gt;=3.10, &lt;3.14</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><strong>2.0.x</strong></td>
-<td style="text-align: left;">- <strong>Daemon Mode</strong>: Persistent model serving with ZeroMQ.<br>- <strong>Gemma-3n Models</strong>: Switched to <code>gemma-3n</code> for generation.<br>- <strong>Thinking Mode Deprecated</strong>: Removed thinking mode.</td>
-<td style="text-align: left;"><code>ggml-org/gemma-3n-E2B-it-GGUF</code> (gemma-3n-E2B-it-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>Qwen/Qwen3-Embedding-0.6B-GGUF</code> (Qwen3-Embedding-0.6B-Q8_0.gguf)</td>
-<td style="text-align: left;">-</td>
-<td style="text-align: left;"><code>&gt;=3.10, &lt;3.14</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><strong>1.x</strong></td>
-<td style="text-align: left;">- <strong>Model Switching</strong>: Added support for switching models via environment variables.<br>- <strong>Centralized Cache</strong>: Unified cache system with SQLite backend.<br>- <strong>CLI Improvements</strong>: Streaming by default, quiet output, new pipe syntax.</td>
-<td style="text-align: left;"><code>Qwen/Qwen3-1.7B-GGUF</code> (Qwen3-1.7B-Q8_0.gguf)</td>
-<td style="text-align: left;"><code>Qwen/Qwen3-Embedding-0.6B-GGUF</code> (Qwen3-Embedding-0.6B-Q8_0.gguf)</td>
-<td style="text-align: left;">-</td>
-<td style="text-align: left;"><code>&gt;=3.10, &lt;3.14</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><strong>0.x</strong></td>
-<td style="text-align: left;">- <strong>Initial Release</strong>: Deterministic text generation and embedding.</td>
-<td style="text-align: left;"><code>Qwen/Qwen1.5-0.5B-Chat-GGUF</code> (qwen1_5-0_5b-chat-q4_k_m.gguf)</td>
-<td style="text-align: left;"><code>Qwen/Qwen1.5-0.5B-Chat-GGUF</code> (qwen1_5-0_5b-chat-q8_0.gguf)</td>
-<td style="text-align: left;">-</td>
-<td style="text-align: left;"><code>&gt;=3.10</code></td>
+<td>Thread Safety</td>
+<td>Limited</td>
+<td>Built-in</td>
 </tr>
 </tbody>
 </table>
-<h2 id="detailed-release-notes">Detailed Release Notes<a class="headerlink" href="#detailed-release-notes" title="Permanent link">&para;</a></h2>
-<h3 id="version-261-unsafe-mode-support-for-structured-generation">Version 2.6.1 - Unsafe Mode Support for Structured Generation<a class="headerlink" href="#version-261-unsafe-mode-support-for-structured-generation" title="Permanent link">&para;</a></h3>
-<p><strong>Release Date</strong>: August 2025</p>
-<h4 id="remote-model-structured-generation">🚀 Remote Model Structured Generation<a class="headerlink" href="#remote-model-structured-generation" title="Permanent link">&para;</a></h4>
-<p><strong>Major Feature</strong>: Extended unsafe mode to support full structured generation capabilities with remote models.</p>
-<p><strong>Key Improvements</strong>:
-- <strong>Full Structured Output</strong>: Remote models now support JSON schemas, regex patterns, and choice constraints
-- <strong>Seamless Integration</strong>: Same API as local models - just add <code>model</code> and <code>unsafe_mode</code> parameters
-- <strong>Provider Support</strong>: Works with OpenAI (gpt-4o, gpt-4o-mini) and Cerebras (llama3.1) models
-- <strong>Best-Effort Determinism</strong>: Uses seed parameters for reproducibility when available</p>
-<p><strong>Example Usage</strong>:
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">steadytext</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="k">class</span><span class="w"> </span><span class="nc">Product</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">price</span><span class="p">:</span> <span class="nb">float</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="c1"># JSON generation with remote models</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">result</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">generate_json</span><span class="p">(</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="s2">&quot;Create a laptop product&quot;</span><span class="p">,</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">schema</span><span class="o">=</span><span class="n">Product</span><span class="p">,</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;openai:gpt-4o-mini&quot;</span><span class="p">,</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">unsafe_mode</span><span class="o">=</span><span class="kc">True</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="p">)</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="c1"># Regex patterns with remote models</span>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="n">phone</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">generate_regex</span><span class="p">(</span>
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    <span class="s2">&quot;Contact: &quot;</span><span class="p">,</span>
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    <span class="n">pattern</span><span class="o">=</span><span class="sa">r</span><span class="s2">&quot;\d</span><span class="si">{3}</span><span class="s2">-\d</span><span class="si">{3}</span><span class="s2">-\d</span><span class="si">{4}</span><span class="s2">&quot;</span><span class="p">,</span>
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;cerebras:llama3.1-8b&quot;</span><span class="p">,</span>
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    <span class="n">unsafe_mode</span><span class="o">=</span><span class="kc">True</span>
-</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="p">)</span>
-</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>
-</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="c1"># Choice constraints with remote models</span>
-</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="n">sentiment</span> <span class="o">=</span> <span class="n">steadytext</span><span class="o">.</span><span class="n">generate_choice</span><span class="p">(</span>
-</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>    <span class="s2">&quot;Great product!&quot;</span><span class="p">,</span>
-</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>    <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;positive&quot;</span><span class="p">,</span> <span class="s2">&quot;negative&quot;</span><span class="p">,</span> <span class="s2">&quot;neutral&quot;</span><span class="p">],</span>
-</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;openai:gpt-4o-mini&quot;</span><span class="p">,</span>
-</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>    <span class="n">unsafe_mode</span><span class="o">=</span><span class="kc">True</span>
-</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="p">)</span>
-</span></code></pre></div></p>
-<h4 id="postgresql-extension-updates">🔧 PostgreSQL Extension Updates<a class="headerlink" href="#postgresql-extension-updates" title="Permanent link">&para;</a></h4>
-<p><strong>Version 1.4.5</strong>: Maintenance release with updated dependencies
-- Updated SteadyText dependency to &gt;= 2.6.1
-- Improved compatibility with latest Python and PostgreSQL versions
-- Enhanced async function support for structured generation</p>
-<h4 id="requirements">📋 Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>Python</strong>: 3.10+ (unchanged)</li>
-<li><strong>Optional</strong>: OpenAI client for remote model support (<code>pip install openai</code>)</li>
-<li><strong>Environment</strong>: Set <code>STEADYTEXT_UNSAFE_MODE=true</code> for remote models</li>
-</ul>
-<h3 id="version-241-native-grammar-support">Version 2.4.1 - Native Grammar Support<a class="headerlink" href="#version-241-native-grammar-support" title="Permanent link">&para;</a></h3>
-<p><strong>Release Date</strong>: July 2025</p>
-<h4 id="grammar-based-structured-generation">🔧 Grammar-Based Structured Generation<a class="headerlink" href="#grammar-based-structured-generation" title="Permanent link">&para;</a></h4>
-<p><strong>Major Improvement</strong>: Replaced Outlines with llama.cpp's native GBNF (Grammatical Backus-Naur Form) grammar support.</p>
-<p><strong>Benefits</strong>:
-- <strong>Better Compatibility</strong>: Fixes vocabulary processing errors with Gemma-3n, Qwen1.5, Phi-2, and Llama 3.x models
-- <strong>Improved Performance</strong>: Native integration with llama.cpp eliminates external library overhead
-- <strong>No API Changes</strong>: Existing structured generation code continues to work unchanged
-- <strong>Deterministic Output</strong>: Grammar-based generation maintains SteadyText's determinism guarantees</p>
-<p><strong>Technical Details</strong>:
-- New <code>core/grammar.py</code> module converts JSON schemas, regex patterns, and choice lists to GBNF
-- <code>StructuredGenerator</code> now uses llama-cpp-python's <code>grammar</code> parameter directly
-- Removed <code>outlines</code> dependency, simplifying the dependency tree</p>
-<h4 id="postgresql-structured-generation">🐘 PostgreSQL Structured Generation<a class="headerlink" href="#postgresql-structured-generation" title="Permanent link">&para;</a></h4>
-<p><strong>New Feature</strong>: Added structured generation support to the PostgreSQL extension.</p>
-<p><strong>New SQL Functions</strong>:
-- <code>steadytext_generate_json(prompt, schema)</code> - Generate JSON conforming to a schema
-- <code>steadytext_generate_regex(prompt, pattern)</code> - Generate text matching a regex
-- <code>steadytext_generate_choice(prompt, choices)</code> - Generate one of the provided choices</p>
-<p><strong>Example Usage</strong>:
-<div class="language-sql highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1">-- Generate structured JSON</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">steadytext_generate_json</span><span class="p">(</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="s1">&#39;Create a person named Alice&#39;</span><span class="p">,</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="s1">&#39;{&quot;type&quot;: &quot;object&quot;, &quot;properties&quot;: {&quot;name&quot;: {&quot;type&quot;: &quot;string&quot;}, &quot;age&quot;: {&quot;type&quot;: &quot;integer&quot;}}}&#39;</span><span class="p">::</span><span class="n">jsonb</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="p">);</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1">-- Generate text matching a pattern</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">steadytext_generate_regex</span><span class="p">(</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="s1">&#39;My phone number is&#39;</span><span class="p">,</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="s1">&#39;\d{3}-\d{3}-\d{4}&#39;</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="p">);</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1">-- Generate from choices</span>
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">steadytext_generate_choice</span><span class="p">(</span>
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">    </span><span class="s1">&#39;Is Python good?&#39;</span><span class="p">,</span>
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;yes&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;no&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;maybe&#39;</span><span class="p">]</span>
-</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="p">);</span>
-</span></code></pre></div></p>
-<h3 id="version-230-document-reranking-structured-generation">Version 2.3.0 - Document Reranking &amp; Structured Generation<a class="headerlink" href="#version-230-document-reranking-structured-generation" title="Permanent link">&para;</a></h3>
-<p><strong>Release Date</strong>: July 2025</p>
-<h4 id="document-reranking">🔍 Document Reranking<a class="headerlink" href="#document-reranking" title="Permanent link">&para;</a></h4>
-<p><strong>Major Feature</strong>: Added document reranking functionality powered by the Qwen3-Reranker-4B model.</p>
-<ul>
-<li><strong>Python API</strong>: New <code>steadytext.rerank()</code> function with customizable task descriptions</li>
-<li><code>steadytext.rerank(query, documents, task="custom search task")</code></li>
-<li>Support for both single document and list of documents</li>
-<li>Optional score returning with <code>return_scores</code> parameter</li>
-<li><strong>CLI Command</strong>: <code>st rerank</code> for command-line reranking operations</li>
-<li><code>st rerank "query" doc1.txt doc2.txt --top-k 5</code></li>
-<li><strong>Fallback Support</strong>: Simple word overlap scoring when model unavailable</li>
-<li><strong>Dedicated Cache</strong>: Separate frecency cache for reranking results</li>
-</ul>
-<h4 id="structured-generation">✨ Structured Generation<a class="headerlink" href="#structured-generation" title="Permanent link">&para;</a></h4>
-<p><strong>Major Feature</strong>: Introduced structured generation capabilities powered by the <a href="https://github.com/outlines-dev/outlines">Outlines</a> library.</p>
-<ul>
-<li><strong>JSON Generation</strong>: Generate JSON that conforms to a JSON schema or a Pydantic model.</li>
-<li><code>steadytext.generate(prompt, schema=MyPydanticModel)</code></li>
-<li><code>steadytext.generate_json(prompt, schema={"type": "object", ...})</code></li>
-<li><strong>Regex-Constrained Generation</strong>: Force output to match a regular expression.</li>
-<li><code>steadytext.generate(prompt, regex=r"\d{3}-\d{3}-\d{4}")</code></li>
-<li><strong>Multiple Choice</strong>: Force model to choose from a list of options.</li>
-<li><code>steadytext.generate(prompt, choices=["A", "B", "C"])</code></li>
-</ul>
-<p><strong>Use Cases</strong>:
-- Reliable data extraction
-- Building robust function-calling systems
-- Creating predictable application logic
-- Generating structured data for databases</p>
-<h3 id="version-210-custom-seeds-postgresql-extension">Version 2.1.0+ - Custom Seeds &amp; PostgreSQL Extension<a class="headerlink" href="#version-210-custom-seeds-postgresql-extension" title="Permanent link">&para;</a></h3>
-<p><strong>Release Date</strong>: June 2025</p>
-<h4 id="custom-seed-support">🎯 Custom Seed Support<a class="headerlink" href="#custom-seed-support" title="Permanent link">&para;</a></h4>
-<p><strong>Major Enhancement</strong>: Added comprehensive custom seed support across all SteadyText APIs.</p>
-<ul>
-<li><strong>Python API</strong>: All functions now accept optional <code>seed: int = DEFAULT_SEED</code> parameter</li>
-<li><code>steadytext.generate(prompt, seed=123)</code></li>
-<li><code>steadytext.generate_iter(prompt, seed=456)</code></li>
-<li>
-<p><code>steadytext.embed(text, seed=789)</code></p>
-</li>
-<li>
-<p><strong>CLI Support</strong>: Added <code>--seed</code> flag to all commands</p>
-</li>
-<li><code>st generate "prompt" --seed 123</code></li>
-<li><code>st embed "text" --seed 456</code></li>
-<li>
-<p><code>st vector similarity "text1" "text2" --seed 789</code></p>
-</li>
-<li>
-<p><strong>Daemon Integration</strong>: Seeds are properly passed through daemon protocol</p>
-</li>
-<li><strong>Fallback Behavior</strong>: Deterministic fallbacks now respect custom seeds</li>
-<li><strong>Cache Keys</strong>: Seeds are included in cache keys to prevent collisions</li>
-</ul>
-<p><strong>Use Cases</strong>:
-- <strong>Reproducible Research</strong>: Document and reproduce exact results
-- <strong>A/B Testing</strong>: Generate controlled variations of content
-- <strong>Experimental Design</strong>: Systematic exploration of model behavior
-- <strong>Content Variations</strong>: Create different versions while maintaining quality</p>
-<h4 id="postgresql-extension-pg_steadytext">🐘 PostgreSQL Extension (pg_steadytext)<a class="headerlink" href="#postgresql-extension-pg_steadytext" title="Permanent link">&para;</a></h4>
-<p><strong>New Release</strong>: Complete PostgreSQL extension for SteadyText integration.</p>
-<p><strong>Core Features</strong>:
-- <strong>SQL Functions</strong>: Native PostgreSQL functions for text generation and embeddings
-  - <code>steadytext_generate(prompt, max_tokens, use_cache, seed)</code>
-  - <code>steadytext_embed(text, use_cache, seed)</code>
-  - <code>steadytext_daemon_start()</code>, <code>steadytext_daemon_status()</code>, <code>steadytext_daemon_stop()</code></p>
-<ul>
-<li><strong>Vector Integration</strong>: Full compatibility with pgvector extension</li>
-<li><strong>Built-in Caching</strong>: PostgreSQL-based frecency cache with eviction</li>
-<li><strong>Daemon Support</strong>: Integrates with SteadyText's ZeroMQ daemon for performance</li>
-<li><strong>Configuration Management</strong>: SQL-based configuration with <code>steadytext_config</code> table</li>
-</ul>
-<p><strong>Installation</strong>:
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Install Python dependencies</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>pip3<span class="w"> </span>install<span class="w"> </span>steadytext&gt;<span class="o">=</span><span class="m">2</span>.1.0
+<h3 id="2-model-loading-pattern">2. Model Loading Pattern<a class="headerlink" href="#2-model-loading-pattern" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Current (llama-cpp-python)</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">model</span> <span class="o">=</span> <span class="n">Llama</span><span class="p">(</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">model_path</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">),</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">n_ctx</span><span class="o">=</span><span class="mi">4096</span><span class="p">,</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="o">**</span><span class="n">params</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">)</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># xllamacpp approach</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">params</span> <span class="o">=</span> <span class="n">xlc</span><span class="o">.</span><span class="n">CommonParams</span><span class="p">()</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="n">params</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="s2">&quot;model.gguf&quot;</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">params</span><span class="o">.</span><span class="n">n_ctx</span> <span class="o">=</span> <span class="mi">4096</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="n">params</span><span class="o">.</span><span class="n">sampling</span><span class="o">.</span><span class="n">seed</span> <span class="o">=</span> <span class="mi">42</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="n">server</span> <span class="o">=</span> <span class="n">xlc</span><span class="o">.</span><span class="n">Server</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+</span></code></pre></div>
+<h3 id="3-text-generation">3. Text Generation<a class="headerlink" href="#3-text-generation" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Current (llama-cpp-python)</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">result</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span> <span class="n">stop</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;&lt;/s&gt;&quot;</span><span class="p">])</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">text</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;choices&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;text&quot;</span><span class="p">]</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># xllamacpp approach</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">server</span><span class="o">.</span><span class="n">handle_completions</span><span class="p">(</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s2">&quot;prompt&quot;</span><span class="p">:</span> <span class="n">prompt</span><span class="p">,</span> <span class="s2">&quot;max_tokens&quot;</span><span class="p">:</span> <span class="mi">512</span><span class="p">}),</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">on_chunk_callback</span><span class="p">,</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="n">on_complete_callback</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="p">)</span>
+</span></code></pre></div>
+<h3 id="4-embeddings">4. Embeddings<a class="headerlink" href="#4-embeddings" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Current (llama-cpp-python)</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">embeddings</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">embed</span><span class="p">(</span><span class="n">texts</span><span class="p">)</span>  <span class="c1"># Returns numpy arrays directly</span>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Build and install extension</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/julep-ai/steadytext.git
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="nb">cd</span><span class="w"> </span>steadytext/pg_steadytext
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>make<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>sudo<span class="w"> </span>make<span class="w"> </span>install
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="c1"># Enable in PostgreSQL</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>psql<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;CREATE EXTENSION pg_steadytext CASCADE;&quot;</span>
-</span></code></pre></div></p>
-<p><strong>Docker Support</strong>:
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Standard build</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>pg_steadytext<span class="w"> </span>.
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># With fallback model for compatibility</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>docker<span class="w"> </span>build<span class="w"> </span>--build-arg<span class="w"> </span><span class="nv">STEADYTEXT_USE_FALLBACK_MODEL</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span>-t<span class="w"> </span>pg_steadytext<span class="w"> </span>.
-</span></code></pre></div></p>
-<h4 id="technical-improvements">🔧 Technical Improvements<a class="headerlink" href="#technical-improvements" title="Permanent link">&para;</a></h4>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># xllamacpp approach</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">server</span><span class="o">.</span><span class="n">handle_embeddings</span><span class="p">(</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s2">&quot;input&quot;</span><span class="p">:</span> <span class="n">texts</span><span class="p">}),</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">on_error_callback</span><span class="p">,</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">on_success_callback</span>  <span class="c1"># JSON response with embeddings</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="p">)</span>
+</span></code></pre></div>
+<h2 id="specific-components-requiring-rewrite">Specific Components Requiring Rewrite<a class="headerlink" href="#specific-components-requiring-rewrite" title="Permanent link">&para;</a></h2>
+<h3 id="core-components-1300-lines">Core Components (~1,300 lines)<a class="headerlink" href="#core-components-1300-lines" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong><code>steadytext/models/loader.py</code></strong> (300+ lines)</li>
+<li>Complete rewrite of singleton model management</li>
+<li>New caching strategy for Server instances</li>
+<li>
+<p>Thread-safe model access patterns</p>
+</li>
+<li>
+<p><strong><code>steadytext/core/generator.py</code></strong> (500+ lines)</p>
+</li>
+<li>Rewrite generation logic to use Server API</li>
+<li>Handle async/callback-based responses</li>
+<li>Adapt streaming generation</li>
+<li>
+<p>Token counting and validation</p>
+</li>
+<li>
+<p><strong><code>steadytext/core/embedder.py</code></strong> (200+ lines)</p>
+</li>
+<li>New embedding extraction logic</li>
+<li>JSON response parsing</li>
+<li>
+<p>Dimension handling (1024 vs 2048)</p>
+</li>
+<li>
+<p><strong><code>steadytext/core/structured.py</code></strong> (300+ lines)</p>
+</li>
+<li><strong>CRITICAL</strong>: May lose structured generation</li>
+<li>Grammar support uncertain in xllamacpp</li>
+<li>Would need alternative implementation</li>
+</ol>
+<h3 id="supporting-components-500-lines">Supporting Components (~500 lines)<a class="headerlink" href="#supporting-components-500-lines" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Daemon Mode</strong> (<code>steadytext/daemon/</code>)</li>
+<li>Complete redesign for xllamacpp's server architecture</li>
+<li>
+<p>Different IPC mechanism</p>
+</li>
+<li>
+<p><strong>CLI Commands</strong> (<code>steadytext/cli/commands/</code>)</p>
+</li>
+<li>Update all generation and embedding commands</li>
+<li>New parameter handling</li>
+</ol>
+<h3 id="testing-1000-lines">Testing (~1,000+ lines)<a class="headerlink" href="#testing-1000-lines" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>All test files</strong></li>
+<li>Complete test suite rewrite</li>
+<li>New mocking strategies</li>
+<li>Different assertion patterns</li>
+</ol>
+<h2 id="major-technical-challenges">Major Technical Challenges<a class="headerlink" href="#major-technical-challenges" title="Permanent link">&para;</a></h2>
+<h3 id="1-structured-generation-critical">1. Structured Generation (CRITICAL)<a class="headerlink" href="#1-structured-generation-critical" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Validation</strong>: Added <code>validate_seed()</code> function for input validation</li>
-<li><strong>Environment Setup</strong>: Enhanced <code>set_deterministic_environment()</code> with custom seeds</li>
-<li><strong>Error Handling</strong>: Improved error messages and fallback behavior</li>
-<li><strong>Documentation</strong>: Comprehensive documentation and examples</li>
+<li>Current: Uses <code>LlamaGrammar.from_json_schema()</code> for JSON/Pydantic schemas</li>
+<li>xllamacpp: Grammar support unclear/different API</li>
+<li><strong>Risk</strong>: May lose this feature entirely</li>
 </ul>
-<h4 id="documentation-updates">📖 Documentation Updates<a class="headerlink" href="#documentation-updates" title="Permanent link">&para;</a></h4>
+<h3 id="2-thread-safety-concurrency">2. Thread Safety &amp; Concurrency<a class="headerlink" href="#2-thread-safety-concurrency" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>API Documentation</strong>: Updated all function signatures with seed parameters</li>
-<li><strong>CLI Reference</strong>: Added <code>--seed</code> flag documentation for all commands</li>
-<li><strong>Examples</strong>: New comprehensive examples for custom seed usage</li>
-<li><strong>PostgreSQL Guide</strong>: Complete integration guide for pg_steadytext</li>
-<li><strong>Migration Guide</strong>: Instructions for upgrading from previous versions</li>
+<li>Current: Managed through singleton with locks</li>
+<li>xllamacpp: Built-in thread safety but different patterns</li>
+<li><strong>Risk</strong>: Race conditions during migration</li>
 </ul>
-<h4 id="breaking-changes">🔄 Breaking Changes<a class="headerlink" href="#breaking-changes" title="Permanent link">&para;</a></h4>
-<p><strong>None</strong> - Version 2.1.0+ is fully backward compatible with 2.0.x. All existing code continues to work unchanged, with new seed parameters being optional.</p>
-<h4 id="bug-fixes">🐛 Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permanent link">&para;</a></h4>
+<h3 id="3-caching-system">3. Caching System<a class="headerlink" href="#3-caching-system" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Fixed cache key generation to include seed for proper isolation</li>
-<li>Improved daemon protocol to handle seed parameters correctly</li>
-<li>Enhanced fallback behavior to be deterministic with custom seeds</li>
-<li>Resolved edge cases in streaming generation with custom seeds</li>
+<li>Current: Cache keys based on llama-cpp-python internals</li>
+<li>xllamacpp: Would need new cache key generation</li>
+<li><strong>Risk</strong>: Cache invalidation issues</li>
 </ul>
-<h4 id="requirements_1">📋 Requirements<a class="headerlink" href="#requirements_1" title="Permanent link">&para;</a></h4>
+<h3 id="4-backward-compatibility">4. Backward Compatibility<a class="headerlink" href="#4-backward-compatibility" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Python</strong>: 3.10+ (unchanged)</li>
-<li><strong>PostgreSQL</strong>: 14+ (for pg_steadytext extension)</li>
-<li><strong>Dependencies</strong>: All existing dependencies remain compatible</li>
+<li><strong>Breaking changes</strong> for all existing code</li>
+<li>Python API would completely change</li>
+<li>PostgreSQL extension would need updates</li>
 </ul>
-<hr />
-<hr />
+<h3 id="5-feature-parity">5. Feature Parity<a class="headerlink" href="#5-feature-parity" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Logprobs support uncertain</li>
+<li>Stop sequences handling different</li>
+<li>Temperature/sampling parameter names differ</li>
+</ul>
+<h2 id="cost-benefit-analysis">Cost-Benefit Analysis<a class="headerlink" href="#cost-benefit-analysis" title="Permanent link">&para;</a></h2>
+<h3 id="potential-benefits">Potential Benefits<a class="headerlink" href="#potential-benefits" title="Permanent link">&para;</a></h3>
+<p>✅ Better thread safety (native support)<br />
+✅ Continuous batching support<br />
+✅ C++ server implementation (potentially faster)<br />
+✅ Prebuilt wheels (easier installation)<br />
+✅ Active development from Xorbits team  </p>
+<h3 id="costs-and-risks">Costs and Risks<a class="headerlink" href="#costs-and-risks" title="Permanent link">&para;</a></h3>
+<p>❌ 3-4 weeks development time<br />
+❌ High risk of bugs/regressions<br />
+❌ Possible loss of structured generation<br />
+❌ Breaking API changes for all users<br />
+❌ Extensive testing required (2+ weeks)<br />
+❌ Documentation rewrite needed<br />
+❌ PostgreSQL extension updates<br />
+❌ Daemon mode redesign<br />
+❌ Unknown edge cases  </p>
+<h2 id="migration-timeline-if-pursued">Migration Timeline (If Pursued)<a class="headerlink" href="#migration-timeline-if-pursued" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Duration</th>
+<th>Tasks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Planning</td>
+<td>3 days</td>
+<td>Detailed API mapping, feature gap analysis</td>
+</tr>
+<tr>
+<td>Core Migration</td>
+<td>10 days</td>
+<td>Rewrite loader, generator, embedder</td>
+</tr>
+<tr>
+<td>Feature Restoration</td>
+<td>5 days</td>
+<td>Structured generation, special features</td>
+</tr>
+<tr>
+<td>Testing</td>
+<td>7 days</td>
+<td>Unit tests, integration tests, benchmarks</td>
+</tr>
+<tr>
+<td>Documentation</td>
+<td>3 days</td>
+<td>API docs, migration guide</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>28 days</strong></td>
+<td>Plus buffer for unknowns</td>
+</tr>
+</tbody>
+</table>
+<h2 id="alternatives-to-migration">Alternatives to Migration<a class="headerlink" href="#alternatives-to-migration" title="Permanent link">&para;</a></h2>
+<p>If performance is the main concern, consider these alternatives:</p>
+<ol>
+<li><strong>Optimize Current Implementation</strong></li>
+<li>Profile and optimize hot paths</li>
+<li>Better batching strategies</li>
+<li>
+<p>Memory pool management</p>
+</li>
+<li>
+<p><strong>Upgrade llama-cpp-python</strong></p>
+</li>
+<li>Stay on latest version</li>
+<li>Use new features like server mode</li>
+<li>
+<p>Leverage performance improvements</p>
+</li>
+<li>
+<p><strong>Hybrid Approach</strong></p>
+</li>
+<li>Keep llama-cpp-python for core features</li>
+<li>Add xllamacpp for specific use cases</li>
+<li>
+<p>Gradual migration if needed</p>
+</li>
+<li>
+<p><strong>Wait and Evaluate</strong></p>
+</li>
+<li>Monitor xllamacpp development</li>
+<li>Wait for feature parity</li>
+<li>Reassess in 6 months</li>
+</ol>
+<h2 id="recommendation">Recommendation<a class="headerlink" href="#recommendation" title="Permanent link">&para;</a></h2>
+<h3 id="do-not-migrate-at-this-time">❌ <strong>DO NOT MIGRATE</strong> at this time<a class="headerlink" href="#do-not-migrate-at-this-time" title="Permanent link">&para;</a></h3>
+<p><strong>Rationale:</strong>
+1. The effort (3-4 weeks) is not justified by the benefits
+2. High risk of losing critical features (structured generation)
+3. Would cause major disruption to users
+4. Current implementation is stable and working
+5. Performance gains uncertain and unquantified</p>
+<p><strong>Suggested Action:</strong>
+- Continue with llama-cpp-python
+- Monitor xllamacpp development
+- Consider migration only if:
+  - Critical features become available only in xllamacpp
+  - Performance bottlenecks cannot be solved otherwise
+  - llama-cpp-python becomes unmaintained</p>
+<h2 id="aidev-note-migration-complexity-points">AIDEV-NOTE: Migration Complexity Points<a class="headerlink" href="#aidev-note-migration-complexity-points" title="Permanent link">&para;</a></h2>
+<ul>
+<li>AIDEV-NOTE: The Server/CommonParams API is fundamentally different from Llama class API</li>
+<li>AIDEV-NOTE: Callback-based async pattern vs synchronous calls would affect entire codebase</li>
+<li>AIDEV-NOTE: Grammar/structured generation is critical for JSON output - unclear if supported</li>
+<li>AIDEV-NOTE: Cython vs ctypes means different error handling and debugging approaches</li>
+<li>AIDEV-TODO: If migration considered, create proof-of-concept with structured generation first</li>
+<li>AIDEV-TODO: Benchmark both libraries with identical models before committing to migration</li>
+<li>AIDEV-QUESTION: Can xllamacpp support all sampling parameters we currently use?</li>
+<li>AIDEV-QUESTION: How would streaming generation work with callback-based API?</li>
+</ul>
 
 
 
