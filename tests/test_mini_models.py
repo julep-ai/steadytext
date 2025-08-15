@@ -196,19 +196,15 @@ class TestMiniModelCLI:
         
         runner = CliRunner()
         
-        # Mock the actual generation to avoid model loading
-        # We need to mock where it's used, not where it's defined
-        with patch("steadytext.cli.commands.generate.steady_generate_iter") as mock_generate_iter:
-            # Mock the generator to yield tokens
+        # Mock both functions at the module level where they're imported
+        with patch("steadytext.generate") as mock_generate, \
+             patch("steadytext.generate_iter") as mock_generate_iter:
+            # Mock for --wait mode (non-streaming)
+            mock_generate.return_value = "Test output"
+            # Mock for streaming mode
             mock_generate_iter.return_value = iter(["Test", " ", "output"])
             
             result = runner.invoke(generate, ["Test prompt", "--size", "mini", "--wait"])
-            
-            # For non-streaming mode, we need to mock steady_generate instead
-            if result.exit_code != 0:
-                with patch("steadytext.cli.commands.generate.steady_generate") as mock_generate:
-                    mock_generate.return_value = "Test output"
-                    result = runner.invoke(generate, ["Test prompt", "--size", "mini", "--wait"])
             
             assert result.exit_code == 0
             assert "Test" in result.output or result.exit_code == 0
