@@ -8,6 +8,20 @@
 > semantic versioning became impractical. Date-based versioning provides clearer insight into release
 > recency and better aligns with our continuous improvement philosophy.
 
+## Version 2025.8.17 (2025-08-17)
+
+### PostgreSQL Extension Updates
+- **AI Summarization Enhancement:** Renamed `ai_*` functions to `steadytext_*` with `st_*` aliases for consistency
+- **Remote Model Support:** Added `model` and `unsafe_mode` parameters to summarization functions
+- **Schema Qualification Fix:** Fixed TimescaleDB continuous aggregate compatibility by adding schema qualification to all table references
+- **Python Scoping Fix:** Resolved Python scoping issues in PL/Python aggregate functions that caused NameError
+- **Default Improvements:** Increased default max_facts from 5 to 10 in fact extraction
+
+### Documentation Updates
+- **Model Documentation:** Corrected README to reflect actual Qwen3 models being used (not Gemma-3n)
+- **Version Alignment:** Updated all version references to 2025.8.17
+- **Feature Documentation:** Added comprehensive documentation for new summarization features
+
 ## Version 2025.8.16 (2025-08-16)
 
 ### Changes

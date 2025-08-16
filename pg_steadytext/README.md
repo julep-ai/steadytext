@@ -11,7 +11,7 @@
 - **Async Processing**: Queue-based asynchronous generation and embedding with background workers
 - **Security**: Input validation and rate limiting
 - **Monitoring**: Health checks and performance statistics
-- **AI Summarization**: Aggregate functions for intelligent text summarization with TimescaleDB support (v1.1.0+)
+- **AI Summarization**: Enhanced aggregate functions (`steadytext_summarize`, `st_summarize`) with remote model support and TimescaleDB compatibility (v2025.8.17+)
 
 ## Requirements
 
@@ -20,8 +20,11 @@
 - Extensions:
   - `plpython3u` (required)
   - `pgvector` (required)
+  - `pg_cron` (optional, for automatic cache eviction)
 - Python packages:
-  - `steadytext` (install with `pip3 install steadytext`)
+  - `steadytext>=2025.8.17` (installed automatically by `make install`)
+  - `pyzmq` (for daemon integration)
+  - `numpy` (for vector operations)
 
 ## Installation
 
@@ -192,12 +195,56 @@ SELECT steadytext_generate_choice(
 );
 ```
 
-### AI Summarization (v1.1.0+)
+### AI Summarization (v2025.8.17+)
 
 ```sql
--- Summarize a single text
-SELECT ai_summarize_text(
+-- Summarize a single text (renamed from ai_* to steadytext_*)
+SELECT steadytext_summarize_text(
     'PostgreSQL provides ACID compliance and supports complex queries with JSON.',
+    max_length := 100
+);
+
+-- Use short alias
+SELECT st_summarize_text(
+    'PostgreSQL provides ACID compliance and supports complex queries with JSON.',
+    max_length := 100
+);
+
+-- Extract facts from text (v2025.8.17+)
+SELECT steadytext_extract_facts(
+    'PostgreSQL is an object-relational database. It supports ACID transactions.',
+    max_facts := 10  -- Default increased from 5 to 10
+);
+
+-- Use aggregate function for multiple rows
+SELECT category, steadytext_summarize(content) AS summary
+FROM documents
+GROUP BY category;
+
+-- With remote models (requires unsafe_mode)
+SELECT steadytext_summarize(
+    content,
+    jsonb_build_object(
+        'max_facts', 15,
+        'model', 'openai:gpt-4o-mini',
+        'unsafe_mode', true
+    )
+) AS ai_summary
+FROM articles
+GROUP BY topic;
+
+-- TimescaleDB continuous aggregate support (v2025.8.17)
+-- Functions now use schema-qualified table references
+CREATE MATERIALIZED VIEW daily_summaries
+WITH (timescaledb.continuous) AS
+SELECT 
+    time_bucket('1 day', created_at) AS day,
+    steadytext_summarize(content) AS summary
+FROM events
+GROUP BY day;
+
+-- Legacy function names still supported
+SELECT ai_summarize_text(
     '{"source": "documentation"}'::jsonb
 );
 

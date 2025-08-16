@@ -21,6 +21,23 @@ This file contains important development notes and architectural decisions for A
 
 ## Recent Fixes
 
+### v2025.8.17 - AI Summarization Enhancement & Schema Qualification
+- **Added**: Enhanced AI summarization with remote model support
+  - Renamed `ai_*` functions to `steadytext_*` with `st_*` aliases for consistency  
+  - Added `model` and `unsafe_mode` parameters to summarization functions
+  - Support for remote models like `openai:gpt-4o-mini` with `unsafe_mode=TRUE`
+  - Increased default max_facts from 5 to 10
+- **Fixed**: Schema qualification for TimescaleDB continuous aggregates
+  - All table references now use `@extschema@.table_name` pattern
+  - Fixes issue #95 where functions failed when called from continuous aggregates
+  - AIDEV-NOTE: Critical for any function that accesses extension tables
+- **Fixed**: Python scoping issues in PL/Python aggregate functions
+  - Resolved NameError caused by reassigning argument variables
+  - AIDEV-NOTE: In PL/Python, reassigning an argument makes it local for entire scope
+  - Solution: Use new local variables instead of reassigning arguments
+- AIDEV-TODO: Add comprehensive tests for remote model summarization
+- AIDEV-TODO: Consider adding support for streaming in summarization functions
+
 ### v1.4.6 - Unsafe Mode Support for Embeddings
 - **Added**: `model` and `unsafe_mode` parameters to embedding functions
   - `steadytext_embed()`, `steadytext_embed_cached()`, `steadytext_embed_async()`

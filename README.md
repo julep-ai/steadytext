@@ -11,7 +11,7 @@
 [![](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 > [!IMPORTANT]
-> **Version 2025.8.16 - Date-Based Versioning**
+> **Version 2025.8.17 - Date-Based Versioning**
 > 
 > SteadyText has transitioned from semantic versioning to **date-based versioning** (yyyy.mm.dd format).
 > 
@@ -87,12 +87,12 @@ with use_daemon():
     embedding = steadytext.embed("machine learning")
 
 # Model switching (v2.0.0+)
-fast_response = steadytext.generate("Quick task", size="small")  # Gemma-3n-2B
-quality_response = steadytext.generate("Complex analysis", size="large")  # Gemma-3n-4B
+fast_response = steadytext.generate("Quick task", size="small")  # Qwen3-4B (default)
+quality_response = steadytext.generate("Complex analysis", size="large")  # Qwen3-30B
 
-# Size-based selection (v2.0.0+)
-small = steadytext.generate("Simple task", size="small")      # Gemma-3n-2B (default)
-large = steadytext.generate("Complex task", size="large")    # Gemma-3n-4B
+# Size-based selection (v2025.8.16+)
+small = steadytext.generate("Simple task", size="small")      # Qwen3-4B (default)
+large = steadytext.generate("Complex task", size="large")    # Qwen3-30B
 ```
 
 _Or,_
@@ -105,11 +105,9 @@ echo "hello" | uvx steadytext
 
 ## 📜 License Notice
 
-The default generation models (Gemma-3n family) are subject to Google's [Gemma Terms of Use](https://ai.google.dev/gemma/terms). By using SteadyText with these models, you agree to comply with these terms.
+The default generation models (Qwen3 family) are MIT licensed and open source. These models provide high-quality text generation with full commercial usage rights.
 
-For details, see [LICENSE-GEMMA.txt](LICENSE-GEMMA.txt) in this repository.
-
-**Note:** Alternative models (like Qwen) are available with different licenses. Set `STEADYTEXT_USE_FALLBACK_MODEL=true` to use Qwen models instead.
+**Note:** The library supports various models including Gemma models which have their own [Terms of Use](https://ai.google.dev/gemma/terms).
 
 ---
 
@@ -121,10 +119,11 @@ Transform your PostgreSQL database into an AI-powered system with **pg_steadytex
 
 - **Native SQL Functions**: Generate text and embeddings using simple SQL commands
 - **Async Processing**: Non-blocking AI operations with queue-based background workers  
-- **AI Summarization**: Aggregate functions for intelligent text summarization with TimescaleDB support
+- **AI Summarization**: Enhanced aggregate functions (`steadytext_summarize`) with remote model support and TimescaleDB compatibility (v2025.8.17)
 - **Structured Generation**: Generate JSON, regex-constrained text, and multiple-choice outputs
 - **pgvector Integration**: Seamless compatibility for similarity search and vector operations
 - **Built-in Caching**: PostgreSQL-based frecency cache that mirrors SteadyText's performance
+- **Schema Qualification**: Full support for TimescaleDB continuous aggregates and custom schemas (v2025.8.17)
 
 ### Quick Example
 
@@ -135,11 +134,16 @@ SELECT steadytext_generate('Write a product description for wireless headphones'
 -- Create embeddings for similarity search
 SELECT steadytext_embed('machine learning') <-> steadytext_embed('artificial intelligence');
 
--- AI-powered summarization
-SELECT ai_summarize(content) AS summary
+-- AI-powered summarization (v2025.8.17+)
+SELECT steadytext_summarize(content) AS summary
 FROM documents
 WHERE created_at > NOW() - INTERVAL '1 day'
 GROUP BY category;
+
+-- Or use short alias
+SELECT st_summarize(content, 
+    jsonb_build_object('max_facts', 10, 'model', 'openai:gpt-4o-mini', 'unsafe_mode', true)) 
+FROM documents;
 
 -- Structured JSON generation
 SELECT steadytext_generate_json(
@@ -383,10 +387,12 @@ pip install steadytext
 
 #### Models
 
-**Default models (v2.0.0)**:
+**Default models (v2025.8.16+)**:
 
-* Generation: `Gemma-3n-E2B-it-Q8_0` (2.0GB) - State-of-the-art 2B model
+* Generation (Small): `Qwen3-4B-Instruct` (3.2GB) - High-quality 4B parameter model
+* Generation (Large): `Qwen3-30B-A3B-Instruct` (12GB) - Advanced 30B parameter model with A3B architecture
 * Embeddings: `Qwen3-Embedding-0.6B-Q8_0` (610MB) - 1024-dimensional embeddings
+* Reranking: `Qwen3-Reranker-4B` (3.5GB) - Document reranking model
 
 **Dynamic model switching (v1.0.0+):**
 
@@ -394,10 +400,11 @@ Switch between different models at runtime:
 
 ```python
 # Use built-in model registry
-text = steadytext.generate("Hello", size="large")  # Uses Gemma-3n-4B
+text = steadytext.generate("Hello", size="large")  # Uses Qwen3-30B
 
-# Use size parameter for Gemma-3n models
-text = steadytext.generate("Hello", size="large")  # Uses Gemma-3n-4B
+# Use size parameter for model selection
+text = steadytext.generate("Hello", size="small")  # Uses Qwen3-4B (default)
+text = steadytext.generate("Hello", size="large")  # Uses Qwen3-30B
 
 # Or specify custom models
 text = steadytext.generate(
@@ -407,9 +414,9 @@ text = steadytext.generate(
 )
 ```
 
-Available models: Gemma-3n models in 2B and 4B variants
+Available models: Qwen3 models in 4B and 30B variants
 
-Size shortcuts: `mini` (270M, CI/testing), `small` (1.7B), `medium` (3B), `large` (4B)
+Size shortcuts: `mini` (270M, CI/testing), `small` (4B, default), `large` (30B)
 
 > Each model produces deterministic outputs. The default model remains fixed per major version.
 
@@ -420,7 +427,7 @@ SteadyText includes support for "mini" models - extremely small models (~10x sma
 **🎯 Tests use mini models by default!** Running `poe test` or `pytest` via the project's configuration automatically uses mini models for faster testing.
 
 ### Mini Model Sizes
-- **Generation**: Gemma-3-270M (~97MB) - Tiny but functional text generation
+- **Generation**: Gemma-3-270M (~97MB) - Tiny but functional text generation (mini mode only)
 - **Embedding**: BGE-large-en-v1.5 (~130MB) - Produces compatible 1024-dim embeddings
 - **Reranking**: BGE-reranker-base (~300MB) - Basic reranking capabilities
 
@@ -510,18 +517,18 @@ jobs:
 
 | Version | Key Features                                                                                                                            | Default Generation Model                               | Default Embedding Model                                | Default Reranking Model | Python Versions |
 | :------ | :-------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------- | :----------------------------------------------------- | :---------------------- | :-------------- |
-| **2.x** | - **Daemon Mode**: Persistent model serving with ZeroMQ.<br>- **Gemma-3n Models**: Switched to `gemma-3n` for generation.<br>- **Thinking Mode Deprecated**: Removed thinking mode.<br>- **Document Reranking**: Reranking functionality with `Qwen3-Reranker-4B` model (since v2.3.0). | `ggml-org/gemma-3n-E2B-it-GGUF` (gemma-3n-E2B-it-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `Qwen/Qwen3-Reranker-4B-GGUF` (Qwen3-Reranker-4B-Q8_0.gguf) | `>=3.10, <3.14` |
+| **2025.8.x** | - **Date-Based Versioning**: Switched to yyyy.mm.dd format.<br>- **Qwen3 Models**: Using Qwen3-4B/30B for generation.<br>- **Enhanced PostgreSQL Extension**: AI summarization with remote model support.<br>- **Document Reranking**: Reranking functionality with `Qwen3-Reranker-4B` model. | `unsloth/Qwen3-4B-Instruct-2507-GGUF` (Qwen3-4B) / `Qwen3-30B-A3B` (large) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `Qwen/Qwen3-Reranker-4B-GGUF` (Qwen3-Reranker-4B-Q8_0.gguf) | `>=3.10, <3.14` |
 | **1.x** | - **Model Switching**: Added support for switching models via environment variables.<br>- **Centralized Cache**: Unified cache system.<br>- **CLI Improvements**: Streaming by default, quiet output. | `Qwen/Qwen3-1.7B-GGUF` (Qwen3-1.7B-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | - | `>=3.10, <3.14` |
 | **1.0-1.2** | - **Model Switching**: Added support for switching models via environment variables and a model registry.<br>- **Qwen3 Models**: Switched to `qwen3-1.7b` for generation.<br>- **Indexing**: Added support for FAISS indexing. | `Qwen/Qwen3-1.7B-GGUF` (Qwen3-1.7B-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | - | `>=3.10, <3.14` |
 | **0.x** | - **Initial Release**: Deterministic text generation and embedding.                                                                      | `Qwen/Qwen1.5-0.5B-Chat-GGUF` (qwen1_5-0_5b-chat-q4_k_m.gguf) | `Qwen/Qwen1.5-0.5B-Chat-GGUF` (qwen1_5-0_5b-chat-q8_0.gguf) | - | `>=3.10`        |
 
-### Breaking Changes in v2.0.0+
+### Breaking Changes in v2025.8.x
 
-* **Gemma-3n models:** Switched from Qwen3 to Gemma-3n for state-of-the-art performance
+* **Date-based versioning:** Switched from semantic versioning to yyyy.mm.dd format
+* **Qwen3 models:** Using Qwen3-4B and Qwen3-30B models for generation
+* **Enhanced PostgreSQL functions:** Renamed ai_* functions to steadytext_* with st_* aliases
 * **Thinking mode removed:** `thinking_mode` parameter and `--think` flag have been deprecated
-* **Model registry updated:** Focus on Gemma-3n models (2B and 4B variants)
-* **Reduced context:** Default context window reduced from 3072 to 2048 tokens
-* **Reduced output:** Default max tokens reduced from 1024 to 512
+* **Default output:** Default max tokens is 512
 
 ### Breaking Changes in v2.3.0+
 
