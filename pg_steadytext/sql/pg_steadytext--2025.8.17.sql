@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 -- pg_steadytext--2025.8.17.sql
 -- Complete schema for pg_steadytext extension version 2025.8.17
+=======
+-- pg_steadytext--2025.8.15.sql
+-- Complete schema for pg_steadytext extension version 2025.8.15
+>>>>>>> origin/claude/issue-95-20250816-0909
 
 -- AIDEV-SECTION: CORE_TABLE_DEFINITIONS
 -- AIDEV-NOTE: Drop tables before creating to ensure proper extension membership
@@ -93,7 +98,11 @@ CREATE TABLE steadytext_config (
 );
 
 -- Insert default configuration
+<<<<<<< HEAD
 INSERT INTO steadytext_config (key, value, description) VALUES
+=======
+INSERT INTO @extschema@.steadytext_config (key, value, description) VALUES
+>>>>>>> origin/claude/issue-95-20250816-0909
     ('daemon_host', '"localhost"', 'SteadyText daemon host'),
     ('daemon_port', '5555', 'SteadyText daemon port'),
     ('cache_enabled', 'true', 'Enable caching'),
@@ -121,7 +130,11 @@ CREATE TABLE steadytext_daemon_health (
 );
 
 -- Insert default daemon entry
+<<<<<<< HEAD
 INSERT INTO steadytext_daemon_health (daemon_id, endpoint, status)
+=======
+INSERT INTO @extschema@.steadytext_daemon_health (daemon_id, endpoint, status)
+>>>>>>> origin/claude/issue-95-20250816-0909
 VALUES ('default', 'tcp://localhost:5555', 'unknown')
 ON CONFLICT (daemon_id) DO NOTHING;
 
@@ -164,7 +177,11 @@ CREATE OR REPLACE VIEW steadytext_cache_with_frecency AS
 SELECT *,
     -- Calculate frecency score dynamically
     access_count * exp(-extract(epoch from (NOW() - last_accessed)) / 86400.0) AS frecency_score
+<<<<<<< HEAD
 FROM steadytext_cache;
+=======
+FROM @extschema@.steadytext_cache;
+>>>>>>> origin/claude/issue-95-20250816-0909
 
 -- AIDEV-NOTE: This view replaces the GENERATED column which couldn't use NOW()
 -- The frecency score decays exponentially based on time since last access
@@ -408,7 +425,11 @@ if not daemon_connector:
     plpy.error("daemon_connector module not loaded")
 
 # Get configuration
+<<<<<<< HEAD
 plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
+=======
+plan = plpy.prepare("SELECT value FROM @extschema@.steadytext_config WHERE key = $1", ["text"])
+>>>>>>> origin/claude/issue-95-20250816-0909
 
 # Resolve max_tokens, using the provided value or fetching the default
 resolved_max_tokens = max_tokens
@@ -452,7 +473,11 @@ if use_cache:
     # Try to get from cache first
     cache_plan = plpy.prepare("""
         SELECT response 
+<<<<<<< HEAD
         FROM steadytext_cache 
+=======
+        FROM @extschema@.steadytext_cache 
+>>>>>>> origin/claude/issue-95-20250816-0909
         WHERE cache_key = $1
     """, ["text"])
     
@@ -614,7 +639,11 @@ if use_cache:
     
     # Try to get from cache (read-only for IMMUTABLE)
     plan = plpy.prepare(
+<<<<<<< HEAD
         "SELECT embedding FROM steadytext_cache WHERE cache_key = $1",
+=======
+        "SELECT embedding FROM @extschema@.steadytext_cache WHERE cache_key = $1",
+>>>>>>> origin/claude/issue-95-20250816-0909
         ["text"]
     )
     rv = plpy.execute(plan, [cache_key])
@@ -698,7 +727,11 @@ import json
 
 try:
     # Get daemon configuration
+<<<<<<< HEAD
     plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
+=======
+    plan = plpy.prepare("SELECT value FROM @extschema@.steadytext_config WHERE key = $1", ["text"])
+>>>>>>> origin/claude/issue-95-20250816-0909
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
 
@@ -713,7 +746,11 @@ try:
         if result.returncode == 0:
             # Update health status
             health_plan = plpy.prepare("""
+<<<<<<< HEAD
                 UPDATE steadytext_daemon_health
+=======
+                UPDATE @extschema@.steadytext_daemon_health
+>>>>>>> origin/claude/issue-95-20250816-0909
                 SET status = 'healthy',
                     last_heartbeat = NOW()
                 WHERE daemon_id = 'default'
@@ -762,7 +799,11 @@ try:
         plpy.error("daemon_connector module not loaded")
 
     # Get configuration
+<<<<<<< HEAD
     plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
+=======
+    plan = plpy.prepare("SELECT value FROM @extschema@.steadytext_config WHERE key = $1", ["text"])
+>>>>>>> origin/claude/issue-95-20250816-0909
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
 
@@ -784,7 +825,11 @@ try:
 
     # Update and return health status
     update_plan = plpy.prepare("""
+<<<<<<< HEAD
         UPDATE steadytext_daemon_health
+=======
+        UPDATE @extschema@.steadytext_daemon_health
+>>>>>>> origin/claude/issue-95-20250816-0909
         SET status = $1,
             last_heartbeat = CASE WHEN $1 = 'healthy' THEN NOW() ELSE last_heartbeat END
         WHERE daemon_id = 'default'
@@ -801,7 +846,11 @@ except Exception as e:
     select_plan = plpy.prepare("""
         SELECT daemon_id, status, endpoint, last_heartbeat,
                EXTRACT(EPOCH FROM (NOW() - last_heartbeat))::INT as uptime_seconds
+<<<<<<< HEAD
         FROM steadytext_daemon_health
+=======
+        FROM @extschema@.steadytext_daemon_health
+>>>>>>> origin/claude/issue-95-20250816-0909
         WHERE daemon_id = 'default'
     """)
     return plpy.execute(select_plan)
@@ -823,7 +872,11 @@ try:
     if result.returncode == 0:
         # Update health status
         health_plan = plpy.prepare("""
+<<<<<<< HEAD
             UPDATE steadytext_daemon_health
+=======
+            UPDATE @extschema@.steadytext_daemon_health
+>>>>>>> origin/claude/issue-95-20250816-0909
             SET status = 'stopping',
                 last_heartbeat = NOW()
             WHERE daemon_id = 'default'
@@ -861,7 +914,11 @@ AS $c$
         COALESCE(AVG(access_count), 0)::FLOAT as avg_access_count,
         MIN(created_at) as oldest_entry,
         MAX(created_at) as newest_entry
+<<<<<<< HEAD
     FROM steadytext_cache;
+=======
+    FROM @extschema@.steadytext_cache;
+>>>>>>> origin/claude/issue-95-20250816-0909
 $c$;
 
 -- Clear cache
@@ -870,7 +927,11 @@ RETURNS BIGINT
 LANGUAGE sql
 AS $c$
     WITH deleted AS (
+<<<<<<< HEAD
         DELETE FROM steadytext_cache
+=======
+        DELETE FROM @extschema@.steadytext_cache
+>>>>>>> origin/claude/issue-95-20250816-0909
         RETURNING *
     )
     SELECT COUNT(*) FROM deleted;
@@ -908,19 +969,31 @@ BEGIN
         COUNT(*),
         COALESCE(SUM(pg_column_size(response) + pg_column_size(embedding)) / 1024.0 / 1024.0, 0)
     INTO v_current_entries, v_current_size_mb
+<<<<<<< HEAD
     FROM steadytext_cache;
+=======
+    FROM @extschema@.steadytext_cache;
+>>>>>>> origin/claude/issue-95-20250816-0909
     
     -- Set default targets if not provided
     IF target_entries IS NULL THEN
         SELECT value::INT INTO target_entries 
+<<<<<<< HEAD
         FROM steadytext_config 
+=======
+        FROM @extschema@.steadytext_config 
+>>>>>>> origin/claude/issue-95-20250816-0909
         WHERE key = 'cache_max_entries';
         target_entries := COALESCE(target_entries, 10000);
     END IF;
     
     IF target_size_mb IS NULL THEN
         SELECT value::FLOAT INTO target_size_mb 
+<<<<<<< HEAD
         FROM steadytext_config 
+=======
+        FROM @extschema@.steadytext_config 
+>>>>>>> origin/claude/issue-95-20250816-0909
         WHERE key = 'cache_max_size_mb';
         target_size_mb := COALESCE(target_size_mb, 1000);
     END IF;
@@ -929,10 +1002,17 @@ BEGIN
     WHILE (v_current_entries > target_entries OR v_current_size_mb > target_size_mb) LOOP
         -- Delete oldest entries (FIFO eviction)
         WITH deleted AS (
+<<<<<<< HEAD
             DELETE FROM steadytext_cache
             WHERE id IN (
                 SELECT id 
                 FROM steadytext_cache
+=======
+            DELETE FROM @extschema@.steadytext_cache
+            WHERE id IN (
+                SELECT id 
+                FROM @extschema@.steadytext_cache
+>>>>>>> origin/claude/issue-95-20250816-0909
                 WHERE created_at < NOW() - INTERVAL '1 hour' * min_age_hours
                 ORDER BY created_at ASC  -- Oldest first
                 LIMIT batch_size
@@ -957,7 +1037,11 @@ BEGIN
         v_current_size_mb := v_current_size_mb - v_batch_freed_mb;
         
         -- Log eviction batch
+<<<<<<< HEAD
         INSERT INTO steadytext_audit_log (action, details)
+=======
+        INSERT INTO @extschema@.steadytext_audit_log (action, details)
+>>>>>>> origin/claude/issue-95-20250816-0909
         VALUES (
             'cache_eviction',
             jsonb_build_object(
@@ -990,7 +1074,11 @@ DECLARE
 BEGIN
     -- Check if eviction is enabled
     SELECT value::BOOLEAN INTO v_enabled 
+<<<<<<< HEAD
     FROM steadytext_config 
+=======
+    FROM @extschema@.steadytext_config 
+>>>>>>> origin/claude/issue-95-20250816-0909
     WHERE key = 'cache_eviction_enabled';
     
     IF NOT COALESCE(v_enabled, TRUE) THEN
@@ -1033,7 +1121,11 @@ AS $c$
         created_at,
         EXTRACT(EPOCH FROM (NOW() - created_at)) / 86400.0 as age_days,
         pg_column_size(response) + pg_column_size(embedding) as size_bytes
+<<<<<<< HEAD
     FROM steadytext_cache
+=======
+    FROM @extschema@.steadytext_cache
+>>>>>>> origin/claude/issue-95-20250816-0909
     WHERE created_at < NOW() - INTERVAL '1 hour'  -- Respect min age
     ORDER BY created_at ASC  -- Oldest first
     LIMIT preview_count;
@@ -1063,12 +1155,20 @@ AS $c$
             COUNT(*) as entry_count,
             AVG(access_count) as avg_access_count,
             SUM(pg_column_size(response) + pg_column_size(embedding)) / 1024.0 / 1024.0 as total_size_mb
+<<<<<<< HEAD
         FROM steadytext_cache
+=======
+        FROM @extschema@.steadytext_cache
+>>>>>>> origin/claude/issue-95-20250816-0909
         GROUP BY 1
     ),
     total AS (
         SELECT COUNT(*) as total_entries
+<<<<<<< HEAD
         FROM steadytext_cache
+=======
+        FROM @extschema@.steadytext_cache
+>>>>>>> origin/claude/issue-95-20250816-0909
     )
     SELECT 
         cb.age_bucket,
@@ -1094,7 +1194,11 @@ CREATE OR REPLACE VIEW steadytext_cache_with_frecency AS
 SELECT *,
     -- Simple age-based score for compatibility (higher = older = more likely to evict)
     EXTRACT(EPOCH FROM (NOW() - created_at)) / 86400.0 AS frecency_score
+<<<<<<< HEAD
 FROM steadytext_cache;
+=======
+FROM @extschema@.steadytext_cache;
+>>>>>>> origin/claude/issue-95-20250816-0909
 
 COMMENT ON VIEW steadytext_cache_with_frecency IS 
 'Compatibility view - frecency_score now represents age in days (v1.4.1+)';
@@ -1109,7 +1213,11 @@ RETURNS TEXT
 LANGUAGE sql
 IMMUTABLE PARALLEL SAFE LEAKPROOF
 AS $c$
+<<<<<<< HEAD
     SELECT '2025.8.17'::TEXT;
+=======
+    SELECT '2025.8.15'::TEXT;
+>>>>>>> origin/claude/issue-95-20250816-0909
 $c$;
 
 CREATE OR REPLACE FUNCTION steadytext_config_get(config_key TEXT)
@@ -1117,7 +1225,11 @@ RETURNS TEXT
 LANGUAGE sql
 STABLE PARALLEL SAFE LEAKPROOF
 AS $c$
+<<<<<<< HEAD
     SELECT value::text FROM steadytext_config WHERE key = config_key;
+=======
+    SELECT value::text FROM @extschema@.steadytext_config WHERE key = config_key;
+>>>>>>> origin/claude/issue-95-20250816-0909
 $c$;
 
 -- AIDEV-SECTION: STRUCTURED_GENERATION_FUNCTIONS
@@ -1170,7 +1282,11 @@ if not daemon_connector:
     plpy.error("daemon_connector module not loaded")
 
 # Get configuration
+<<<<<<< HEAD
 plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
+=======
+plan = plpy.prepare("SELECT value FROM @extschema@.steadytext_config WHERE key = $1", ["text"])
+>>>>>>> origin/claude/issue-95-20250816-0909
 
 # Resolve max_tokens
 resolved_max_tokens = max_tokens
@@ -1213,7 +1329,11 @@ if use_cache:
     # SELECT ONLY - no UPDATE for immutability
     cache_plan = plpy.prepare("""
         SELECT response 
+<<<<<<< HEAD
         FROM steadytext_cache 
+=======
+        FROM @extschema@.steadytext_cache 
+>>>>>>> origin/claude/issue-95-20250816-0909
         WHERE cache_key = $1
     """, ["text"])
     
@@ -1332,7 +1452,11 @@ if not daemon_connector:
     plpy.error("daemon_connector module not loaded")
 
 # Get configuration
+<<<<<<< HEAD
 plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
+=======
+plan = plpy.prepare("SELECT value FROM @extschema@.steadytext_config WHERE key = $1", ["text"])
+>>>>>>> origin/claude/issue-95-20250816-0909
 
 # Resolve max_tokens
 resolved_max_tokens = max_tokens
@@ -1366,7 +1490,11 @@ if use_cache:
     # SELECT ONLY - no UPDATE for immutability
     cache_plan = plpy.prepare("""
         SELECT response 
+<<<<<<< HEAD
         FROM steadytext_cache 
+=======
+        FROM @extschema@.steadytext_cache 
+>>>>>>> origin/claude/issue-95-20250816-0909
         WHERE cache_key = $1
     """, ["text"])
     
@@ -1485,7 +1613,11 @@ if not daemon_connector:
     plpy.error("daemon_connector module not loaded")
 
 # Get configuration
+<<<<<<< HEAD
 plan = plpy.prepare("SELECT value FROM steadytext_config WHERE key = $1", ["text"])
+=======
+plan = plpy.prepare("SELECT value FROM @extschema@.steadytext_config WHERE key = $1", ["text"])
+>>>>>>> origin/claude/issue-95-20250816-0909
 
 # Resolve max_tokens
 resolved_max_tokens = max_tokens
@@ -1522,7 +1654,11 @@ if use_cache:
     # SELECT ONLY - no UPDATE for immutability
     cache_plan = plpy.prepare("""
         SELECT response 
+<<<<<<< HEAD
         FROM steadytext_cache 
+=======
+        FROM @extschema@.steadytext_cache 
+>>>>>>> origin/claude/issue-95-20250816-0909
         WHERE cache_key = $1
     """, ["text"])
     
@@ -1598,16 +1734,26 @@ END $$;
 -- AI summarization aggregate functions with TimescaleDB support
 
 -- Helper function to extract facts from text using JSON generation
+<<<<<<< HEAD
 CREATE OR REPLACE FUNCTION steadytext_extract_facts(
     input_text text,
     max_facts integer DEFAULT 10,
     model text DEFAULT NULL,
     unsafe_mode boolean DEFAULT FALSE
+=======
+CREATE OR REPLACE FUNCTION ai_extract_facts(
+    input_text text,
+    max_facts integer DEFAULT 5
+>>>>>>> origin/claude/issue-95-20250816-0909
 ) RETURNS jsonb
 LANGUAGE plpython3u
 IMMUTABLE PARALLEL SAFE
 AS $c$
     import json
+<<<<<<< HEAD
+=======
+    from plpy import quote_literal
+>>>>>>> origin/claude/issue-95-20250816-0909
 
     # Validate inputs
     if not input_text or not input_text.strip():
@@ -1616,6 +1762,7 @@ AS $c$
     if max_facts <= 0 or max_facts > 50:
         plpy.error("max_facts must be between 1 and 50")
 
+<<<<<<< HEAD
     # AIDEV-NOTE: Validate model parameter - remote models require unsafe_mode=TRUE
     if not unsafe_mode and model and ':' in model:
         plpy.error("Remote models (containing ':') require unsafe_mode=TRUE for fact extraction")
@@ -1633,6 +1780,45 @@ $c$;
 
 -- Helper function to deduplicate facts using embeddings
 CREATE OR REPLACE FUNCTION steadytext_deduplicate_facts(
+=======
+    # AIDEV-NOTE: Use steadytext's JSON generation with schema for structured fact extraction
+    schema = {
+        "type": "object",
+        "properties": {
+            "facts": {
+                "type": "array",
+                "items": {"type": "string"},
+                "maxItems": max_facts,
+                "description": "Key facts extracted from the text"
+            }
+        },
+        "required": ["facts"]
+    }
+
+    prompt = f"Extract up to {max_facts} key facts from this text: {input_text}"
+
+    # Use daemon_connector for JSON generation
+    plan = plpy.prepare(
+        "SELECT steadytext_generate_json($1, $2::jsonb) as result",
+        ["text", "jsonb"]
+    )
+    result = plpy.execute(plan, [prompt, json.dumps(schema)])
+
+    if result and result[0]["result"]:
+        try:
+            return json.loads(result[0]["result"])
+        except json.JSONDecodeError as e:
+            plpy.warning(f"Failed to parse JSON response: {e}")
+            return json.dumps({"facts": []})
+        except Exception as e:
+            plpy.warning(f"Unexpected error parsing response: {e}")
+            return json.dumps({"facts": []})
+    return json.dumps({"facts": []})
+$c$;
+
+-- Helper function to deduplicate facts using embeddings
+CREATE OR REPLACE FUNCTION ai_deduplicate_facts(
+>>>>>>> origin/claude/issue-95-20250816-0909
     facts_array jsonb,
     similarity_threshold float DEFAULT 0.85
 ) RETURNS jsonb
@@ -1702,7 +1888,11 @@ AS $c$
 $c$;
 
 -- State accumulator function for AI summarization
+<<<<<<< HEAD
 CREATE OR REPLACE FUNCTION steadytext_summarize_accumulate(
+=======
+CREATE OR REPLACE FUNCTION ai_summarize_accumulate(
+>>>>>>> origin/claude/issue-95-20250816-0909
     state jsonb,
     value text,
     metadata jsonb DEFAULT '{}'::jsonb
@@ -1710,6 +1900,7 @@ CREATE OR REPLACE FUNCTION steadytext_summarize_accumulate(
 LANGUAGE plpython3u
 IMMUTABLE PARALLEL SAFE
 AS $c$
+<<<<<<< HEAD
 import json
 
 # Fix for plpython3u scoping issue
@@ -1734,6 +1925,12 @@ else:
     except (json.JSONDecodeError, TypeError) as e:
         # Initialize to empty state on parse error
         plpy.warning(f"Invalid state JSON, resetting: {e}")
+=======
+    import json
+
+    # Initialize state if null
+    if state is None:
+>>>>>>> origin/claude/issue-95-20250816-0909
         state = {
             "facts": [],
             "samples": [],
@@ -1745,6 +1942,7 @@ else:
             },
             "metadata": {}
         }
+<<<<<<< HEAD
 
 if value is None:
     return json.dumps(state)
@@ -1802,12 +2000,67 @@ $c$;
 
 -- Combiner function for parallel aggregation
 CREATE OR REPLACE FUNCTION steadytext_summarize_combine(
+=======
+    else:
+        try:
+            state = json.loads(state)
+        except (json.JSONDecodeError, TypeError) as e:
+            plpy.error(f"Invalid state JSON: {e}")
+
+    if value is None:
+        return json.dumps(state)
+
+    # Extract facts from the value
+    plan = plpy.prepare("SELECT ai_extract_facts($1, 3) as facts", ["text"])
+    result = plpy.execute(plan, [value])
+
+    if result and result[0]["facts"]:
+        try:
+            extracted = json.loads(result[0]["facts"])
+            if "facts" in extracted:
+                state["facts"].extend(extracted["facts"])
+        except (json.JSONDecodeError, TypeError):
+            # Skip if fact extraction failed
+            pass
+
+    # Update statistics
+    value_len = len(value)
+    state["stats"]["row_count"] += 1
+    state["stats"]["total_chars"] += value_len
+
+    if state["stats"]["min_length"] is None or value_len < state["stats"]["min_length"]:
+        state["stats"]["min_length"] = value_len
+    if value_len > state["stats"]["max_length"]:
+        state["stats"]["max_length"] = value_len
+
+    # Sample every 10th row (up to 10 samples)
+    if state["stats"]["row_count"] % 10 == 1 and len(state["samples"]) < 10:
+        state["samples"].append(value[:200])  # First 200 chars
+
+    # Merge metadata
+    if metadata:
+        try:
+            meta = json.loads(metadata) if isinstance(metadata, str) else metadata
+            for key, value in meta.items():
+                if key not in state["metadata"]:
+                    state["metadata"][key] = value
+        except (json.JSONDecodeError, TypeError):
+            # Skip invalid metadata
+            pass
+
+    return json.dumps(state)
+$c$;
+
+-- Combiner function for parallel aggregation
+CREATE OR REPLACE FUNCTION ai_summarize_combine(
+>>>>>>> origin/claude/issue-95-20250816-0909
     state1 jsonb,
     state2 jsonb
 ) RETURNS jsonb
 LANGUAGE plpython3u
 IMMUTABLE PARALLEL SAFE
 AS $c$
+<<<<<<< HEAD
 import json
 
 # Fix for plpython3u scoping issue
@@ -1888,11 +2141,90 @@ $c$;
 
 -- Finalizer function to generate summary
 CREATE OR REPLACE FUNCTION steadytext_summarize_finalize(
+=======
+    import json
+
+    if state1 is None:
+        return state2
+    if state2 is None:
+        return state1
+
+    try:
+        s1 = json.loads(state1)
+    except (json.JSONDecodeError, TypeError):
+        return state2
+
+    try:
+        s2 = json.loads(state2)
+    except (json.JSONDecodeError, TypeError):
+        return state1
+
+    # Combine facts
+    combined_facts = s1.get("facts", []) + s2.get("facts", [])
+
+    # Deduplicate facts if too many
+    # AIDEV-NOTE: Threshold of 20 may need tuning based on usage patterns
+    if len(combined_facts) > 20:
+        plan = plpy.prepare(
+            "SELECT ai_deduplicate_facts($1::jsonb) as deduped",
+            ["jsonb"]
+        )
+        result = plpy.execute(plan, [json.dumps(combined_facts)])
+        if result and result[0]["deduped"]:
+            try:
+                combined_facts = json.loads(result[0]["deduped"])
+            except (json.JSONDecodeError, TypeError):
+                # Keep original if deduplication failed
+                pass
+
+    # Combine samples (keep diverse set)
+    combined_samples = s1.get("samples", []) + s2.get("samples", [])
+    if len(combined_samples) > 10:
+        # Simple diversity: take evenly spaced samples
+        step = len(combined_samples) // 10
+        combined_samples = combined_samples[::step][:10]
+
+    # Combine statistics
+    stats1 = s1.get("stats", {})
+    stats2 = s2.get("stats", {})
+
+    combined_stats = {
+        "row_count": stats1.get("row_count", 0) + stats2.get("row_count", 0),
+        "total_chars": stats1.get("total_chars", 0) + stats2.get("total_chars", 0),
+        "min_length": min(
+            stats1.get("min_length", float('inf')),
+            stats2.get("min_length", float('inf'))
+        ),
+        "max_length": max(
+            stats1.get("max_length", 0),
+            stats2.get("max_length", 0)
+        ),
+        "combine_depth": max(
+            stats1.get("combine_depth", 0),
+            stats2.get("combine_depth", 0)
+        ) + 1
+    }
+
+    # Merge metadata
+    combined_metadata = {**s1.get("metadata", {}), **s2.get("metadata", {})}
+
+    return json.dumps({
+        "facts": combined_facts,
+        "samples": combined_samples,
+        "stats": combined_stats,
+        "metadata": combined_metadata
+    })
+$c$;
+
+-- Finalizer function to generate summary
+CREATE OR REPLACE FUNCTION ai_summarize_finalize(
+>>>>>>> origin/claude/issue-95-20250816-0909
     state jsonb
 ) RETURNS text
 LANGUAGE plpython3u
 IMMUTABLE PARALLEL SAFE
 AS $c$
+<<<<<<< HEAD
 import json
 
 # Fix for plpython3u scoping issue
@@ -1964,29 +2296,108 @@ else:
 if result and result[0]["summary"]:
     return result[0]["summary"]
 return "Unable to generate summary"
+=======
+    import json
+
+    if state is None:
+        return None
+
+    try:
+        state_data = json.loads(state)
+    except (json.JSONDecodeError, TypeError):
+        return "Unable to parse aggregation state"
+
+    # Check if we have any data
+    if state_data.get("stats", {}).get("row_count", 0) == 0:
+        return "No data to summarize"
+
+    # Build summary prompt based on combine depth
+    combine_depth = state_data.get("stats", {}).get("combine_depth", 0)
+
+    if combine_depth == 0:
+        prompt_template = "Create a concise summary of this data: Facts: {facts}, Row count: {row_count}, Average length: {avg_length}"
+    elif combine_depth < 3:
+        prompt_template = "Synthesize these key facts into a coherent summary: {facts}, Total rows: {row_count}, Length range: {min_length}-{max_length} chars"
+    else:
+        prompt_template = "Identify major patterns from these aggregated facts: {facts}, Dataset size: {row_count} rows"
+
+    # Calculate average length with division by zero protection
+    stats = state_data.get("stats", {})
+    row_count = stats.get("row_count", 0)
+    if row_count > 0:
+        avg_length = stats.get("total_chars", 0) // row_count
+    else:
+        avg_length = 0
+
+    # Format facts for prompt
+    facts = state_data.get("facts", [])[:10]  # Limit to top 10 facts
+    facts_str = "; ".join(facts) if facts else "No specific facts extracted"
+
+    # Build prompt
+    prompt = prompt_template.format(
+        facts=facts_str,
+        row_count=row_count,
+        avg_length=avg_length,
+        min_length=stats.get("min_length", 0),
+        max_length=stats.get("max_length", 0)
+    )
+
+    # Add metadata context if available
+    metadata = state_data.get("metadata", {})
+    if metadata:
+        meta_str = ", ".join([f"{k}: {v}" for k, v in metadata.items()])
+        prompt += f". Context: {meta_str}"
+
+    # Generate summary using steadytext
+    plan = plpy.prepare("SELECT steadytext_generate($1) as summary", ["text"])
+    result = plpy.execute(plan, [prompt])
+
+    if result and result[0]["summary"]:
+        return result[0]["summary"]
+    return "Unable to generate summary"
+>>>>>>> origin/claude/issue-95-20250816-0909
 $c$;
 
 -- AIDEV-NOTE: Since we use STYPE = jsonb, PostgreSQL handles serialization automatically for parallel processing.
 
 -- Create the main aggregate
+<<<<<<< HEAD
 CREATE OR REPLACE AGGREGATE steadytext_summarize(text, jsonb) (
     SFUNC = steadytext_summarize_accumulate,
     STYPE = jsonb,
     FINALFUNC = steadytext_summarize_finalize,
     COMBINEFUNC = steadytext_summarize_combine,
+=======
+CREATE OR REPLACE AGGREGATE ai_summarize(text, jsonb) (
+    SFUNC = ai_summarize_accumulate,
+    STYPE = jsonb,
+    FINALFUNC = ai_summarize_finalize,
+    COMBINEFUNC = ai_summarize_combine,
+>>>>>>> origin/claude/issue-95-20250816-0909
     PARALLEL = SAFE
 );
 
 -- Create partial aggregate for TimescaleDB continuous aggregates
+<<<<<<< HEAD
 CREATE OR REPLACE AGGREGATE steadytext_summarize_partial(text, jsonb) (
     SFUNC = steadytext_summarize_accumulate,
     STYPE = jsonb,
     COMBINEFUNC = steadytext_summarize_combine,
+=======
+CREATE OR REPLACE AGGREGATE ai_summarize_partial(text, jsonb) (
+    SFUNC = ai_summarize_accumulate,
+    STYPE = jsonb,
+    COMBINEFUNC = ai_summarize_combine,
+>>>>>>> origin/claude/issue-95-20250816-0909
     PARALLEL = SAFE
 );
 
 -- Helper function to combine partial states for final aggregation
+<<<<<<< HEAD
 CREATE OR REPLACE FUNCTION steadytext_summarize_combine_states(
+=======
+CREATE OR REPLACE FUNCTION ai_summarize_combine_states(
+>>>>>>> origin/claude/issue-95-20250816-0909
     state1 jsonb,
     partial_state jsonb
 ) RETURNS jsonb
@@ -1995,19 +2406,31 @@ IMMUTABLE PARALLEL SAFE
 AS $c$
 BEGIN
     -- Simply use the combine function
+<<<<<<< HEAD
     RETURN steadytext_summarize_combine(state1, partial_state);
+=======
+    RETURN ai_summarize_combine(state1, partial_state);
+>>>>>>> origin/claude/issue-95-20250816-0909
 END;
 $c$;
 
 -- Create final aggregate that works on partial results
+<<<<<<< HEAD
 CREATE OR REPLACE AGGREGATE steadytext_summarize_final(jsonb) (
     SFUNC = steadytext_summarize_combine_states,
     STYPE = jsonb,
     FINALFUNC = steadytext_summarize_finalize,
+=======
+CREATE OR REPLACE AGGREGATE ai_summarize_final(jsonb) (
+    SFUNC = ai_summarize_combine_states,
+    STYPE = jsonb,
+    FINALFUNC = ai_summarize_finalize,
+>>>>>>> origin/claude/issue-95-20250816-0909
     PARALLEL = SAFE
 );
 
 -- Convenience function for single-value summarization
+<<<<<<< HEAD
 CREATE OR REPLACE FUNCTION steadytext_summarize_text(
     input_text text,
     metadata jsonb DEFAULT '{}'::jsonb,
@@ -2064,6 +2487,34 @@ COMMENT ON FUNCTION steadytext_extract_facts(text, integer) IS
 'Extract structured facts from text using SteadyText JSON generation';
 
 COMMENT ON FUNCTION steadytext_deduplicate_facts(jsonb, float) IS
+=======
+CREATE OR REPLACE FUNCTION ai_summarize_text(
+    input_text text,
+    metadata jsonb DEFAULT '{}'::jsonb
+) RETURNS text
+LANGUAGE sql
+IMMUTABLE PARALLEL SAFE
+AS $c$
+    SELECT ai_summarize_finalize(
+        ai_summarize_accumulate(NULL::jsonb, input_text, metadata)
+    );
+$c$;
+
+-- Add helpful comments
+COMMENT ON AGGREGATE ai_summarize(text, jsonb) IS
+'AI-powered text summarization aggregate that handles non-transitivity through structured fact extraction';
+
+COMMENT ON AGGREGATE ai_summarize_partial(text, jsonb) IS
+'Partial aggregate for use with TimescaleDB continuous aggregates';
+
+COMMENT ON AGGREGATE ai_summarize_final(jsonb) IS
+'Final aggregate for completing partial aggregations from continuous aggregates';
+
+COMMENT ON FUNCTION ai_extract_facts(text, integer) IS
+'Extract structured facts from text using SteadyText JSON generation';
+
+COMMENT ON FUNCTION ai_deduplicate_facts(jsonb, float) IS
+>>>>>>> origin/claude/issue-95-20250816-0909
 'Deduplicate facts based on semantic similarity using embeddings';
 
 -- AIDEV-SECTION: RERANKING_FUNCTIONS
@@ -2203,7 +2654,11 @@ BEGIN
     request_id := gen_random_uuid();
     
     -- Insert into queue
+<<<<<<< HEAD
     INSERT INTO steadytext_queue (
+=======
+    INSERT INTO @extschema@.steadytext_queue (
+>>>>>>> origin/claude/issue-95-20250816-0909
         request_id,
         request_type,
         prompt,
@@ -2255,7 +2710,11 @@ AS $c$
     
     # Insert into queue
     plpy.execute("""
+<<<<<<< HEAD
         INSERT INTO steadytext_queue 
+=======
+        INSERT INTO @extschema@.steadytext_queue 
+>>>>>>> origin/claude/issue-95-20250816-0909
         (request_id, request_type, params, status, created_at, priority)
         VALUES ($1, 'rerank', $2::jsonb, 'pending', CURRENT_TIMESTAMP, 5)
     """, [request_id, json.dumps(params)])
@@ -2367,7 +2826,11 @@ AS $c$
         }
         
         plpy.execute("""
+<<<<<<< HEAD
             INSERT INTO steadytext_queue 
+=======
+            INSERT INTO @extschema@.steadytext_queue 
+>>>>>>> origin/claude/issue-95-20250816-0909
             (request_id, request_type, params, status, created_at, priority)
             VALUES ($1, 'batch_rerank', $2::jsonb, 'pending', CURRENT_TIMESTAMP, 5)
         """, [request_id, json.dumps(params)])
@@ -2400,7 +2863,11 @@ VOLATILE PARALLEL SAFE STRICT
 AS $$
 BEGIN
     -- Update or insert configuration value
+<<<<<<< HEAD
     INSERT INTO steadytext_config (key, value, description, updated_at, updated_by)
+=======
+    INSERT INTO @extschema@.steadytext_config (key, value, description, updated_at, updated_by)
+>>>>>>> origin/claude/issue-95-20250816-0909
     VALUES (config_key, to_jsonb(config_value), NULL, NOW(), current_user)
     ON CONFLICT (key) DO UPDATE
     SET value = to_jsonb(config_value),
@@ -2418,7 +2885,11 @@ RETURNS TEXT
 LANGUAGE sql
 STABLE PARALLEL SAFE STRICT
 AS $$
+<<<<<<< HEAD
     SELECT value #>> '{}' FROM steadytext_config WHERE key = config_key;
+=======
+    SELECT value #>> '{}' FROM @extschema@.steadytext_config WHERE key = config_key;
+>>>>>>> origin/claude/issue-95-20250816-0909
 $$;
 
 -- AIDEV-SECTION: ASYNC_RESULT_RETRIEVAL
@@ -2454,7 +2925,11 @@ AS $$
         completed_at,
         processing_time_ms,
         request_type
+<<<<<<< HEAD
     FROM steadytext_queue
+=======
+    FROM @extschema@.steadytext_queue
+>>>>>>> origin/claude/issue-95-20250816-0909
     WHERE steadytext_queue.request_id = steadytext_check_async.request_id;
 $$;
 
@@ -2515,7 +2990,11 @@ DECLARE
 BEGIN
     -- AIDEV-NOTE: Cancel a pending async request
     
+<<<<<<< HEAD
     UPDATE steadytext_queue
+=======
+    UPDATE @extschema@.steadytext_queue
+>>>>>>> origin/claude/issue-95-20250816-0909
     SET status = 'cancelled',
         completed_at = NOW()
     WHERE steadytext_queue.request_id = steadytext_cancel_async.request_id
@@ -2549,7 +3028,11 @@ BEGIN
     -- Create a request for each text
     FOR i IN 1..array_length(texts, 1) LOOP
         -- Insert into queue
+<<<<<<< HEAD
         INSERT INTO steadytext_queue (
+=======
+        INSERT INTO @extschema@.steadytext_queue (
+>>>>>>> origin/claude/issue-95-20250816-0909
             request_type,
             prompt
         ) VALUES (
@@ -2588,7 +3071,11 @@ AS $$
         result,
         error,
         completed_at
+<<<<<<< HEAD
     FROM steadytext_queue
+=======
+    FROM @extschema@.steadytext_queue
+>>>>>>> origin/claude/issue-95-20250816-0909
     WHERE request_id = ANY(request_ids)
     ORDER BY array_position(request_ids, request_id);
 $$;
@@ -2623,13 +3110,21 @@ BEGIN
         v_cache_key := prompt;
         
         -- Check if already cached
+<<<<<<< HEAD
         PERFORM 1 FROM steadytext_cache WHERE cache_key = v_cache_key;
+=======
+        PERFORM 1 FROM @extschema@.steadytext_cache WHERE cache_key = v_cache_key;
+>>>>>>> origin/claude/issue-95-20250816-0909
         
         IF NOT FOUND THEN
             -- Resolve max_tokens default
             IF max_tokens IS NULL THEN
                 SELECT value::INT INTO max_tokens 
+<<<<<<< HEAD
                 FROM steadytext_config 
+=======
+                FROM @extschema@.steadytext_config 
+>>>>>>> origin/claude/issue-95-20250816-0909
                 WHERE key = 'default_max_tokens';
                 max_tokens := COALESCE(max_tokens, 512);
             END IF;
@@ -2640,7 +3135,11 @@ BEGIN
             );
             
             -- Store in cache
+<<<<<<< HEAD
             INSERT INTO steadytext_cache 
+=======
+            INSERT INTO @extschema@.steadytext_cache 
+>>>>>>> origin/claude/issue-95-20250816-0909
             (cache_key, prompt, response, model_name, seed, generation_params)
             VALUES (v_cache_key, prompt, v_result, 'steadytext-default', seed, v_generation_params)
             ON CONFLICT (cache_key) DO NOTHING;
@@ -2687,11 +3186,19 @@ BEGIN
         v_cache_key := encode(digest(v_cache_key_input, 'sha256'), 'hex');
         
         -- Check if already cached
+<<<<<<< HEAD
         PERFORM 1 FROM steadytext_cache WHERE cache_key = v_cache_key;
         
         IF NOT FOUND THEN
             -- Store in cache
             INSERT INTO steadytext_cache 
+=======
+        PERFORM 1 FROM @extschema@.steadytext_cache WHERE cache_key = v_cache_key;
+        
+        IF NOT FOUND THEN
+            -- Store in cache
+            INSERT INTO @extschema@.steadytext_cache 
+>>>>>>> origin/claude/issue-95-20250816-0909
             (cache_key, prompt, embedding, created_at)
             VALUES (v_cache_key, text_input, v_result, NOW())
             ON CONFLICT (cache_key) DO NOTHING;
@@ -2743,7 +3250,11 @@ BEGIN
             params_json := params_json || jsonb_build_object('unsafe_mode', unsafe_mode);
         END IF;
         
+<<<<<<< HEAD
         INSERT INTO steadytext_queue (
+=======
+        INSERT INTO @extschema@.steadytext_queue (
+>>>>>>> origin/claude/issue-95-20250816-0909
             request_id,
             request_type,
             params,
@@ -3236,6 +3747,7 @@ IMMUTABLE PARALLEL SAFE LEAKPROOF
 AS $alias$
     SELECT steadytext_version();
 $alias$;
+<<<<<<< HEAD
 
 -- st_extract_facts alias
 CREATE OR REPLACE FUNCTION st_extract_facts(
@@ -3352,3 +3864,5 @@ CREATE OR REPLACE AGGREGATE ai_summarize_final(jsonb) (
     FINALFUNC = steadytext_summarize_finalize,
     PARALLEL = SAFE
 );
+=======
+>>>>>>> origin/claude/issue-95-20250816-0909
