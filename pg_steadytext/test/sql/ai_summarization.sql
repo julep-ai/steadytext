@@ -31,7 +31,7 @@ INSERT INTO test_documents (category, content, importance) VALUES
 
 -- Test 1: Basic single-value summarization
 SELECT 'Test 1: Single value summarization' as test;
-SELECT ai_summarize_text(
+SELECT steadytext_summarize_text(
     'PostgreSQL is a powerful database system with advanced features.',
     '{"source": "test", "type": "database"}'::jsonb
 ) IS NOT NULL as result;
@@ -39,7 +39,7 @@ SELECT ai_summarize_text(
 -- Test 2: Simple aggregate without grouping
 SELECT 'Test 2: Simple aggregate' as test;
 SELECT 
-    length(ai_summarize(content, jsonb_build_object('category', category))) > 0 as has_summary,
+    length(steadytext_summarize(content, jsonb_build_object('category', category))) > 0 as has_summary,
     count(*) as total_rows
 FROM test_documents;
 
@@ -47,7 +47,7 @@ FROM test_documents;
 SELECT 'Test 3: Grouped aggregation' as test;
 SELECT 
     category,
-    substr(ai_summarize(
+    substr(steadytext_summarize(
         content, 
         jsonb_build_object('importance', importance)
     ), 1, 50) || '...' as summary_preview,
@@ -61,7 +61,7 @@ SELECT 'Test 4: Partial aggregation' as test;
 WITH partial_summaries AS (
     SELECT 
         category,
-        ai_summarize_partial(
+        steadytext_summarize_partial(
             content,
             jsonb_build_object('importance', importance)
         ) as partial_state
@@ -70,14 +70,14 @@ WITH partial_summaries AS (
 )
 SELECT 
     'all_categories' as combined_category,
-    length(ai_summarize_final(partial_state)) > 0 as has_final_summary
+    length(steadytext_summarize_final(partial_state)) > 0 as has_final_summary
 FROM partial_summaries;
 
 -- Test 5: Test fact extraction
 SELECT 'Test 5: Fact extraction' as test;
 SELECT 
-    jsonb_array_length(ai_extract_facts('PostgreSQL supports JSON, arrays, and full-text search. It has ACID compliance and supports complex queries.', 3)->'facts') as fact_count,
-    ai_extract_facts('Simple test.', 5)->'facts' IS NOT NULL as has_facts;
+    jsonb_array_length(steadytext_extract_facts('PostgreSQL supports JSON, arrays, and full-text search. It has ACID compliance and supports complex queries.', 3)->'facts') as fact_count,
+    steadytext_extract_facts('Simple test.', 5)->'facts' IS NOT NULL as has_facts;
 
 -- Test 6: Test fact deduplication
 SELECT 'Test 6: Fact deduplication' as test;
@@ -91,7 +91,7 @@ WITH duplicate_facts AS (
 )
 SELECT 
     jsonb_array_length(facts) as original_count,
-    jsonb_array_length(ai_deduplicate_facts(facts, 0.8)) as deduped_count
+    jsonb_array_length(steadytext_deduplicate_facts(facts, 0.8)) as deduped_count
 FROM duplicate_facts;
 
 -- Test 7: NULL handling
@@ -99,7 +99,7 @@ SELECT 'Test 7: NULL handling' as test;
 INSERT INTO test_documents (category, content) VALUES ('empty', NULL);
 SELECT 
     category,
-    ai_summarize(content, '{"test": "null_handling"}'::jsonb) IS NOT NULL as has_summary
+    steadytext_summarize(content, '{"test": "null_handling"}'::jsonb) IS NOT NULL as has_summary
 FROM test_documents
 WHERE category = 'empty'
 GROUP BY category;
@@ -107,7 +107,7 @@ GROUP BY category;
 -- Test 8: Empty data handling
 SELECT 'Test 8: Empty data handling' as test;
 SELECT 
-    ai_summarize(content, '{}'::jsonb) as summary
+    steadytext_summarize(content, '{}'::jsonb) as summary
 FROM test_documents
 WHERE false
 GROUP BY category;
@@ -115,14 +115,14 @@ GROUP BY category;
 -- Test 9: Serialization/deserialization roundtrip
 SELECT 'Test 9: Serialization roundtrip' as test;
 WITH test_state AS (
-    SELECT ai_summarize_accumulate(
+    SELECT steadytext_summarize_accumulate(
         NULL::jsonb,
         'Test content for serialization',
         '{"test": true}'::jsonb
     ) as state
 )
 SELECT 
-    state = ai_summarize_deserialize(ai_summarize_serialize(state)) as roundtrip_success
+    state = steadytext_summarize_deserialize(steadytext_summarize_serialize(state)) as roundtrip_success
 FROM test_state;
 
 -- Test 10: Large dataset performance (create more data)
@@ -143,7 +143,7 @@ SELECT 'Test 10: Performance measurement' as test;
 EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)
 SELECT 
     category,
-    ai_summarize(content, jsonb_build_object('batch', 'performance_test')) as summary
+    steadytext_summarize(content, jsonb_build_object('batch', 'performance_test')) as summary
 FROM test_documents
 GROUP BY category;
 
@@ -151,12 +151,12 @@ GROUP BY category;
 SELECT 'Test 11: Combine depth tracking' as test;
 WITH recursive_combine AS (
     SELECT 
-        ai_summarize_combine(
-            ai_summarize_combine(
-                ai_summarize_accumulate(NULL::jsonb, 'First', '{}'::jsonb),
-                ai_summarize_accumulate(NULL::jsonb, 'Second', '{}'::jsonb)
+        steadytext_summarize_combine(
+            steadytext_summarize_combine(
+                steadytext_summarize_accumulate(NULL::jsonb, 'First', '{}'::jsonb),
+                steadytext_summarize_accumulate(NULL::jsonb, 'Second', '{}'::jsonb)
             ),
-            ai_summarize_accumulate(NULL::jsonb, 'Third', '{}'::jsonb)
+            steadytext_summarize_accumulate(NULL::jsonb, 'Third', '{}'::jsonb)
         ) as combined_state
 )
 SELECT 
@@ -166,7 +166,7 @@ FROM recursive_combine;
 -- Test 12: Metadata preservation
 SELECT 'Test 12: Metadata preservation' as test;
 SELECT 
-    substr(ai_summarize(
+    substr(steadytext_summarize(
         content,
         jsonb_build_object(
             'source_table', 'test_documents',
@@ -180,9 +180,9 @@ WHERE category = 'tech';
 -- Test 13: Sample preservation
 SELECT 'Test 13: Sample preservation' as test;
 WITH accumulated AS (
-    SELECT ai_summarize_accumulate(
-        ai_summarize_accumulate(
-            ai_summarize_accumulate(
+    SELECT steadytext_summarize_accumulate(
+        steadytext_summarize_accumulate(
+            steadytext_summarize_accumulate(
                 NULL::jsonb,
                 repeat('Sample 1 ', 30),
                 '{}'::jsonb
@@ -205,7 +205,7 @@ WITH generated_content AS (
     SELECT steadytext_generate('Write about databases') as content
 )
 SELECT 
-    ai_summarize_text(content, '{"source": "generated"}'::jsonb) IS NOT NULL as can_summarize_generated
+    steadytext_summarize_text(content, '{"source": "generated"}'::jsonb) IS NOT NULL as can_summarize_generated
 FROM generated_content;
 
 -- Test 15: Error handling for invalid JSON
@@ -213,7 +213,7 @@ SELECT 'Test 15: Error handling' as test;
 DO $$
 BEGIN
     -- This should not crash but handle gracefully
-    PERFORM ai_deduplicate_facts('not valid json'::jsonb, 0.8);
+    PERFORM steadytext_deduplicate_facts('not valid json'::jsonb, 0.8);
     RAISE NOTICE 'Error handling works correctly';
 EXCEPTION
     WHEN OTHERS THEN
