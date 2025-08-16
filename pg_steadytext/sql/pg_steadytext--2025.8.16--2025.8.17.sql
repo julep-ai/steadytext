@@ -127,7 +127,7 @@ try:
             VALUES ($1, $2)
             ON CONFLICT (cache_key) DO UPDATE
             SET response = EXCLUDED.response,
-                access_count = steadytext_cache.access_count + 1,
+                access_count = @extschema@.steadytext_cache.access_count + 1,
                 last_accessed = NOW()
         """, ["text", "text"])
         plpy.execute(insert_plan, [cache_key, result])
@@ -158,7 +158,7 @@ except Exception as e:
                     VALUES ($1, $2)
                     ON CONFLICT (cache_key) DO UPDATE
                     SET response = EXCLUDED.response,
-                        access_count = steadytext_cache.access_count + 1,
+                        access_count = @extschema@.steadytext_cache.access_count + 1,
                         last_accessed = NOW()
                 """, ["text", "text"])
                 plpy.execute(insert_plan, [cache_key, result])
@@ -193,7 +193,7 @@ except Exception as e:
                     VALUES ($1, $2)
                     ON CONFLICT (cache_key) DO UPDATE
                     SET response = EXCLUDED.response,
-                        access_count = steadytext_cache.access_count + 1,
+                        access_count = @extschema@.steadytext_cache.access_count + 1,
                         last_accessed = NOW()
                 """, ["text", "text"])
                 plpy.execute(insert_plan, [cache_key, result])
@@ -294,7 +294,7 @@ try:
             VALUES ($1, $2)
             ON CONFLICT (cache_key) DO UPDATE
             SET embedding = EXCLUDED.embedding,
-                access_count = steadytext_embedding_cache.access_count + 1,
+                access_count = @extschema@.steadytext_embedding_cache.access_count + 1,
                 last_accessed = NOW()
         """, ["text", "vector"])
         plpy.execute(insert_plan, [cache_key, result])
@@ -325,7 +325,7 @@ except Exception as e:
                 VALUES ($1, $2)
                 ON CONFLICT (cache_key) DO UPDATE
                 SET embedding = EXCLUDED.embedding,
-                    access_count = steadytext_embedding_cache.access_count + 1,
+                    access_count = @extschema@.steadytext_embedding_cache.access_count + 1,
                     last_accessed = NOW()
             """, ["text", "vector"])
             plpy.execute(insert_plan, [cache_key, result])
@@ -575,7 +575,7 @@ try:
             VALUES ($1, $2, $3, $4)
             ON CONFLICT (cache_key) DO UPDATE
             SET score = EXCLUDED.score,
-                access_count = steadytext_rerank_cache.access_count + 1,
+                access_count = @extschema@.steadytext_rerank_cache.access_count + 1,
                 last_accessed = NOW()
         """, ["text", "float8", "text", "text"])
         plpy.execute(insert_plan, [cache_key, result, query, document])
@@ -605,7 +605,7 @@ except Exception as e:
                 VALUES ($1, $2, $3, $4)
                 ON CONFLICT (cache_key) DO UPDATE
                 SET score = EXCLUDED.score,
-                    access_count = steadytext_rerank_cache.access_count + 1,
+                    access_count = @extschema@.steadytext_rerank_cache.access_count + 1,
                     last_accessed = NOW()
             """, ["text", "float8", "text", "text"])
             plpy.execute(insert_plan, [cache_key, result, query, document])

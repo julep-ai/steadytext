@@ -2,7 +2,7 @@
 # AIDEV-NOTE: This Makefile builds and installs the pg_steadytext extension
 
 EXTENSION = pg_steadytext
-EXTVERSION = 2025.8.16
+EXTVERSION = 2025.8.17
 
 # SQL scripts
 DATA = sql/$(EXTENSION)--1.2.0.sql \
