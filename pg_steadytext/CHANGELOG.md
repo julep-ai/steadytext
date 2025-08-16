@@ -12,6 +12,30 @@ As of version 2025.8.16, pg_steadytext uses **date-based versioning** in the for
 - **Benefits:** Clear indication of release currency and maintenance activity
 - **Rationale:** Supported models and features are evolving quickly, making date-based versioning more practical
 
+## [2025.8.17] - 2025-08-17
+
+### Added
+- **Enhanced AI Summarization Functions:** Complete overhaul of summarization capabilities
+  - Renamed all `ai_*` functions to `steadytext_*` with automatic `st_*` aliases for consistency
+  - Added `model` and `unsafe_mode` parameters to all summarization functions for remote model support
+  - Increased default `max_facts` from 5 to 10 for better fact extraction
+  - Support for remote models like OpenAI GPT-4o-mini with explicit `unsafe_mode := TRUE`
+
+### Fixed  
+- **Schema Qualification for TimescaleDB:** Fixed issue #95 where functions failed in continuous aggregates
+  - Added explicit schema qualification using `@extschema@` placeholder to all table references
+  - Ensures functions work correctly regardless of search_path settings
+  - Critical fix for TimescaleDB continuous aggregate compatibility
+  
+- **Python Scoping in Aggregate Functions:** Fixed NameError in PL/Python aggregate functions
+  - Resolved issue where reassigning argument variables caused scoping problems
+  - Fixed `steadytext_summarize` accumulate, combine, and finalize functions
+  - Prevents "No data to summarize" errors reported in PR #100
+
+### Changed
+- Simplified `steadytext_extract_facts` function to prevent crashes
+- Updated all migration scripts to use proper schema qualification pattern
+
 ## [2025.8.16] - 2025-08-16
 
 ### Changed

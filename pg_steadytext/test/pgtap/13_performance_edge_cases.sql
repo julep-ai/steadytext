@@ -187,7 +187,7 @@ WITH large_summarization AS (
     SELECT repeat('This is a comprehensive document about database systems and their applications in modern software development. PostgreSQL is a powerful relational database that supports advanced features like JSON, full-text search, and custom data types. ', 20) AS text
 )
 SELECT ok(
-    length(ai_summarize_text(text, '{"max_length": 200}')) > 0,
+    length(steadytext_summarize_text(text, '{"max_length": 200}')) > 0,
     'AI summarization should handle large texts efficiently'
 ) FROM large_summarization;
 

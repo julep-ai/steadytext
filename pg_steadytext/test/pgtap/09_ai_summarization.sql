@@ -7,37 +7,37 @@ SELECT plan(40);
 -- Test 1: Core AI summarization aggregate function exists
 SELECT has_function(
     'public',
-    'ai_summarize',
-    'Function ai_summarize should exist'
+    'steadytext_summarize',
+    'Function steadytext_summarize should exist'
 );
 
 -- Test 2: AI summarize text function exists
 SELECT has_function(
     'public',
-    'ai_summarize_text',
+    'steadytext_summarize_text',
     ARRAY['text', 'jsonb'],
-    'Function ai_summarize_text should exist'
+    'Function steadytext_summarize_text should exist'
 );
 
 -- Test 3: AI extract facts function exists
 SELECT has_function(
     'public',
-    'ai_extract_facts',
+    'steadytext_extract_facts',
     ARRAY['text', 'integer'],
-    'Function ai_extract_facts should exist'
+    'Function steadytext_extract_facts should exist'
 );
 
 -- Test 4: AI deduplicate facts function exists
 SELECT has_function(
     'public',
-    'ai_deduplicate_facts',
+    'steadytext_deduplicate_facts',
     ARRAY['jsonb', 'double precision'],
-    'Function ai_deduplicate_facts should exist'
+    'Function steadytext_deduplicate_facts should exist'
 );
 
 -- Test 5: Basic text summarization
 SELECT ok(
-    length(ai_summarize_text(
+    length(steadytext_summarize_text(
         'PostgreSQL is a powerful relational database management system. It supports SQL queries and has many advanced features like JSON support, full-text search, and custom data types.',
         '{"max_length": 50}'::jsonb
     )) > 0,
@@ -46,7 +46,7 @@ SELECT ok(
 
 -- Test 6: Summarization with metadata
 SELECT ok(
-    length(ai_summarize_text(
+    length(steadytext_summarize_text(
         'Database systems store and retrieve data efficiently. They use indexes for fast lookups and transactions for consistency.',
         '{"topic": "databases", "style": "technical", "max_length": 100}'::jsonb
     )) > 0,
@@ -55,7 +55,7 @@ SELECT ok(
 
 -- Test 7: Extract facts from text
 WITH facts AS (
-    SELECT ai_extract_facts(
+    SELECT steadytext_extract_facts(
         'PostgreSQL was created by Michael Stonebraker in 1986. It is open source and supports ACID transactions. The latest version includes better performance.',
         5
     ) AS fact_data
@@ -67,7 +67,7 @@ SELECT ok(
 
 -- Test 8: Extract facts with limited count
 WITH facts AS (
-    SELECT ai_extract_facts(
+    SELECT steadytext_extract_facts(
         'Fact one. Fact two. Fact three. Fact four. Fact five. Fact six.',
         3
     ) AS fact_data
@@ -86,7 +86,7 @@ WITH test_facts AS (
     ]'::jsonb AS facts
 ),
 deduplicated AS (
-    SELECT ai_deduplicate_facts(facts, 0.8) AS result
+    SELECT steadytext_deduplicate_facts(facts, 0.8) AS result
     FROM test_facts
 )
 SELECT ok(
@@ -97,35 +97,35 @@ SELECT ok(
 -- Test 10: Aggregate support functions exist
 SELECT has_function(
     'public',
-    'ai_summarize_accumulate',
+    'steadytext_summarize_accumulate',
     ARRAY['jsonb', 'text', 'jsonb'],
-    'Function ai_summarize_accumulate should exist'
+    'Function steadytext_summarize_accumulate should exist'
 );
 
 SELECT has_function(
     'public',
-    'ai_summarize_combine',
+    'steadytext_summarize_combine',
     ARRAY['jsonb', 'jsonb'],
-    'Function ai_summarize_combine should exist'
+    'Function steadytext_summarize_combine should exist'
 );
 
 SELECT has_function(
     'public',
-    'ai_summarize_finalize',
+    'steadytext_summarize_finalize',
     ARRAY['jsonb'],
-    'Function ai_summarize_finalize should exist'
+    'Function steadytext_summarize_finalize should exist'
 );
 
 -- Test 11: Aggregate accumulation
 WITH initial_state AS (
-    SELECT ai_summarize_accumulate(
+    SELECT steadytext_summarize_accumulate(
         NULL,
         'First text about databases',
         '{"topic": "databases"}'::jsonb
     ) AS state
 ),
 accumulated AS (
-    SELECT ai_summarize_accumulate(
+    SELECT steadytext_summarize_accumulate(
         state,
         'Second text about SQL',
         '{"topic": "databases"}'::jsonb
@@ -139,21 +139,21 @@ SELECT ok(
 
 -- Test 12: State combination
 WITH state1 AS (
-    SELECT ai_summarize_accumulate(
+    SELECT steadytext_summarize_accumulate(
         NULL,
         'Text one',
         '{}'::jsonb
     ) AS s1
 ),
 state2 AS (
-    SELECT ai_summarize_accumulate(
+    SELECT steadytext_summarize_accumulate(
         NULL,
         'Text two',
         '{}'::jsonb
     ) AS s2
 ),
 combined AS (
-    SELECT ai_summarize_combine(s1, s2) AS combined_state
+    SELECT steadytext_summarize_combine(s1, s2) AS combined_state
     FROM state1, state2
 )
 SELECT ok(
@@ -163,14 +163,14 @@ SELECT ok(
 
 -- Test 13: Finalization produces summary
 WITH state AS (
-    SELECT ai_summarize_accumulate(
+    SELECT steadytext_summarize_accumulate(
         NULL,
         'Database systems provide structured data storage and retrieval capabilities.',
         '{"max_length": 50}'::jsonb
     ) AS s
 ),
 finalized AS (
-    SELECT ai_summarize_finalize(s) AS summary
+    SELECT steadytext_summarize_finalize(s) AS summary
     FROM state
 )
 SELECT ok(
@@ -181,32 +181,32 @@ SELECT ok(
 -- Test 14: Serialization functions exist
 SELECT has_function(
     'public',
-    'ai_summarize_serialize',
+    'steadytext_summarize_serialize',
     ARRAY['jsonb'],
-    'Function ai_summarize_serialize should exist'
+    'Function steadytext_summarize_serialize should exist'
 );
 
 SELECT has_function(
     'public',
-    'ai_summarize_deserialize',
+    'steadytext_summarize_deserialize',
     ARRAY['bytea'],
-    'Function ai_summarize_deserialize should exist'
+    'Function steadytext_summarize_deserialize should exist'
 );
 
 -- Test 15: Serialization round-trip
 WITH state AS (
-    SELECT ai_summarize_accumulate(
+    SELECT steadytext_summarize_accumulate(
         NULL,
         'Test serialization',
         '{}'::jsonb
     ) AS s
 ),
 serialized AS (
-    SELECT ai_summarize_serialize(s) AS serialized_data
+    SELECT steadytext_summarize_serialize(s) AS serialized_data
     FROM state
 ),
 deserialized AS (
-    SELECT ai_summarize_deserialize(serialized_data) AS restored_state
+    SELECT steadytext_summarize_deserialize(serialized_data) AS restored_state
     FROM serialized
 )
 SELECT ok(
@@ -217,14 +217,14 @@ SELECT ok(
 -- Test 16: Aggregate with partial function
 SELECT has_function(
     'public',
-    'ai_summarize_partial',
+    'steadytext_summarize_partial',
     ARRAY['text', 'jsonb'],
-    'Function ai_summarize_partial should exist'
+    'Function steadytext_summarize_partial should exist'
 );
 
 -- Test 17: Partial aggregation
 WITH partial_result AS (
-    SELECT ai_summarize_partial(
+    SELECT steadytext_summarize_partial(
         'Partial aggregation test text',
         '{"style": "brief"}'::jsonb
     ) AS partial_state
@@ -237,20 +237,20 @@ SELECT ok(
 -- Test 18: Final aggregation function
 SELECT has_function(
     'public',
-    'ai_summarize_final',
+    'steadytext_summarize_final',
     ARRAY['jsonb'],
-    'Function ai_summarize_final should exist'
+    'Function steadytext_summarize_final should exist'
 );
 
 -- Test 19: Final aggregation processing
 WITH partial_state AS (
-    SELECT ai_summarize_partial(
+    SELECT steadytext_summarize_partial(
         'Final aggregation test',
         '{}'::jsonb
     ) AS state
 ),
 final_result AS (
-    SELECT ai_summarize_final(state) AS final_summary
+    SELECT steadytext_summarize_final(state) AS final_summary
     FROM partial_state
 )
 SELECT ok(
@@ -260,19 +260,19 @@ SELECT ok(
 
 -- Test 20: Empty text handling
 SELECT ok(
-    ai_summarize_text('', '{}') IS NULL OR length(ai_summarize_text('', '{}')) = 0,
+    steadytext_summarize_text('', '{}') IS NULL OR length(steadytext_summarize_text('', '{}')) = 0,
     'Empty text should be handled gracefully'
 );
 
 -- Test 21: NULL text handling
 SELECT ok(
-    ai_summarize_text(NULL, '{}') IS NULL,
+    steadytext_summarize_text(NULL, '{}') IS NULL,
     'NULL text should return NULL'
 );
 
 -- Test 22: Invalid JSON metadata handling
 SELECT throws_ok(
-    $$ SELECT ai_summarize_text('Test', 'invalid json') $$,
+    $$ SELECT steadytext_summarize_text('Test', 'invalid json') $$,
     '22P02',
     NULL,
     'Invalid JSON metadata should raise error'
@@ -283,7 +283,7 @@ WITH large_text AS (
     SELECT repeat('PostgreSQL is a powerful database system with many features. ', 100) AS text
 )
 SELECT ok(
-    length(ai_summarize_text(text, '{"max_length": 200}')) <= 300,
+    length(steadytext_summarize_text(text, '{"max_length": 200}')) <= 300,
     'Large text summarization should work within limits'
 ) FROM large_text;
 
@@ -292,7 +292,7 @@ WITH multi_fact_text AS (
     SELECT 'PostgreSQL was created in 1986. It supports SQL. It has ACID properties. It is open source. It supports JSON. It has full-text search.' AS text
 ),
 extracted AS (
-    SELECT ai_extract_facts(text, 10) AS facts
+    SELECT steadytext_extract_facts(text, 10) AS facts
     FROM multi_fact_text
 )
 SELECT ok(
@@ -302,13 +302,13 @@ SELECT ok(
 
 -- Test 25: Fact extraction with zero limit
 SELECT ok(
-    jsonb_array_length(ai_extract_facts('Some text with facts', 0)) = 0,
+    jsonb_array_length(steadytext_extract_facts('Some text with facts', 0)) = 0,
     'Zero max_facts should return empty array'
 );
 
 -- Test 26: Negative max_facts handling
 SELECT throws_ok(
-    $$ SELECT ai_extract_facts('Test', -1) $$,
+    $$ SELECT steadytext_extract_facts('Test', -1) $$,
     'P0001',
     'max_facts cannot be negative',
     'Negative max_facts should raise error'
@@ -322,7 +322,7 @@ WITH test_facts AS (
     ]'::jsonb AS facts
 )
 SELECT is(
-    jsonb_array_length(ai_deduplicate_facts(facts, 0.01)),
+    jsonb_array_length(steadytext_deduplicate_facts(facts, 0.01)),
     2,
     'Low similarity threshold should keep all different facts'
 ) FROM test_facts;
@@ -335,13 +335,13 @@ WITH test_facts AS (
     ]'::jsonb AS facts
 )
 SELECT ok(
-    jsonb_array_length(ai_deduplicate_facts(facts, 0.99)) = 1,
+    jsonb_array_length(steadytext_deduplicate_facts(facts, 0.99)) = 1,
     'High similarity threshold should deduplicate identical facts'
 ) FROM test_facts;
 
 -- Test 29: Summarization with different styles
 SELECT ok(
-    ai_summarize_text(
+    steadytext_summarize_text(
         'Technical documentation about database systems',
         '{"style": "casual", "max_length": 50}'
     ) IS NOT NULL,
@@ -350,8 +350,8 @@ SELECT ok(
 
 -- Test 30: Accumulation with different topics
 WITH mixed_accumulation AS (
-    SELECT ai_summarize_accumulate(
-        ai_summarize_accumulate(
+    SELECT steadytext_summarize_accumulate(
+        steadytext_summarize_accumulate(
             NULL,
             'Database content',
             '{"topic": "databases"}'::jsonb
@@ -367,21 +367,21 @@ SELECT ok(
 
 -- Test 31: State combination with different metadata
 WITH state1 AS (
-    SELECT ai_summarize_accumulate(
+    SELECT steadytext_summarize_accumulate(
         NULL,
         'First topic',
         '{"topic": "A"}'::jsonb
     ) AS s1
 ),
 state2 AS (
-    SELECT ai_summarize_accumulate(
+    SELECT steadytext_summarize_accumulate(
         NULL,
         'Second topic',
         '{"topic": "B"}'::jsonb
     ) AS s2
 ),
 combined AS (
-    SELECT ai_summarize_combine(s1, s2) AS result
+    SELECT steadytext_summarize_combine(s1, s2) AS result
     FROM state1, state2
 )
 SELECT ok(
@@ -391,7 +391,7 @@ SELECT ok(
 
 -- Test 32: Unicode text handling
 SELECT ok(
-    ai_summarize_text(
+    steadytext_summarize_text(
         'Texte en français avec des accents éàü. Daten auf Deutsch. 中文测试.',
         '{"language": "mixed"}'::jsonb
     ) IS NOT NULL,
@@ -400,19 +400,19 @@ SELECT ok(
 
 -- Test 33: Very short text summarization
 SELECT ok(
-    ai_summarize_text('Short.', '{"max_length": 100}') IS NOT NULL,
+    steadytext_summarize_text('Short.', '{"max_length": 100}') IS NOT NULL,
     'Very short text should be handled'
 );
 
 -- Test 34: Fact extraction from short text
 SELECT ok(
-    ai_extract_facts('Short fact.', 5) IS NOT NULL,
+    steadytext_extract_facts('Short fact.', 5) IS NOT NULL,
     'Fact extraction from short text should work'
 );
 
 -- Test 35: Empty facts array deduplication
 SELECT is(
-    jsonb_array_length(ai_deduplicate_facts('[]'::jsonb, 0.5)),
+    jsonb_array_length(steadytext_deduplicate_facts('[]'::jsonb, 0.5)),
     0,
     'Empty facts array should remain empty after deduplication'
 );
@@ -422,7 +422,7 @@ WITH single_fact AS (
     SELECT '[{"fact": "Single fact", "importance": 0.9}]'::jsonb AS facts
 )
 SELECT is(
-    jsonb_array_length(ai_deduplicate_facts(facts, 0.5)),
+    jsonb_array_length(steadytext_deduplicate_facts(facts, 0.5)),
     1,
     'Single fact should remain unchanged'
 ) FROM single_fact;
@@ -432,11 +432,11 @@ WITH test_text AS (
     SELECT 'Deterministic summarization test with consistent input text' AS text
 ),
 summary1 AS (
-    SELECT ai_summarize_text(text, '{"seed": 42}') AS s1
+    SELECT steadytext_summarize_text(text, '{"seed": 42}') AS s1
     FROM test_text
 ),
 summary2 AS (
-    SELECT ai_summarize_text(text, '{"seed": 42}') AS s2
+    SELECT steadytext_summarize_text(text, '{"seed": 42}') AS s2
     FROM test_text
 )
 SELECT is(
@@ -457,7 +457,7 @@ SELECT
 FROM generate_series(1, 10) i;
 
 WITH aggregated AS (
-    SELECT ai_summarize(content, '{"max_length": 200}') AS summary
+    SELECT steadytext_summarize(content, '{"max_length": 200}') AS summary
     FROM test_documents
 )
 SELECT ok(
@@ -483,12 +483,12 @@ SELECT
 WITH partial_summaries AS (
     SELECT 
         date_trunc('day', timestamp) AS day,
-        ai_summarize_partial(log_entry, '{"type": "logs"}') AS partial_state
+        steadytext_summarize_partial(log_entry, '{"type": "logs"}') AS partial_state
     FROM test_time_series
     GROUP BY date_trunc('day', timestamp)
 ),
 final_summary AS (
-    SELECT ai_summarize_final(partial_state) AS daily_summary
+    SELECT steadytext_summarize_final(partial_state) AS daily_summary
     FROM partial_summaries
 )
 SELECT ok(
@@ -498,7 +498,7 @@ SELECT ok(
 
 -- Test 40: Complex metadata with nested JSON
 SELECT ok(
-    ai_summarize_text(
+    steadytext_summarize_text(
         'Complex document with metadata',
         '{"analysis": {"sentiment": "positive", "topics": ["tech", "db"]}, "formatting": {"style": "academic", "length": "brief"}}'::jsonb
     ) IS NOT NULL,
