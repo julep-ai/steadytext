@@ -1924,12 +1924,26 @@ AS $c$
     # Add metadata context if available
     metadata = state_data.get("metadata", {})
     if metadata:
-        meta_str = ", ".join([f"{k}: {v}" for k, v in metadata.items()])
-        prompt += f". Context: {meta_str}"
+        # Extract model and unsafe_mode for remote model support
+        model = metadata.get('model')
+        unsafe_mode = metadata.get('unsafe_mode', False)
+        
+        # Add other metadata to prompt context
+        other_metadata = {k: v for k, v in metadata.items() if k not in ['model', 'unsafe_mode']}
+        if other_metadata:
+            meta_str = ", ".join([f"{k}: {v}" for k, v in other_metadata.items()])
+            prompt += f". Context: {meta_str}"
+    else:
+        model = None
+        unsafe_mode = False
 
-    # Generate summary using steadytext
-    plan = plpy.prepare("SELECT steadytext_generate($1) as summary", ["text"])
-    result = plpy.execute(plan, [prompt])
+    # Generate summary using steadytext with model and unsafe_mode support
+    # AIDEV-NOTE: Pass model and unsafe_mode from metadata to support remote models
+    plan = plpy.prepare(
+        "SELECT steadytext_generate($1, NULL, true, 42, '[EOS]', $2, NULL, NULL, NULL, $3) as summary",
+        ["text", "text", "boolean"]
+    )
+    result = plpy.execute(plan, [prompt, model, unsafe_mode])
 
     if result and result[0]["summary"]:
         return result[0]["summary"]
