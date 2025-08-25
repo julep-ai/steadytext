@@ -94,7 +94,7 @@ CREATE TABLE steadytext_config (
 );
 
 -- Insert default configuration
-INSERT INTO steadytext_config (key, value, description) VALUES
+INSERT INTO @extschema@.steadytext_config (key, value, description) VALUES
     ('daemon_host', '"localhost"', 'SteadyText daemon host'),
     ('daemon_port', '5555', 'SteadyText daemon port'),
     ('cache_enabled', 'true', 'Enable caching'),
@@ -165,7 +165,7 @@ CREATE OR REPLACE VIEW steadytext_cache_with_frecency AS
 SELECT *,
     -- Calculate frecency score dynamically
     access_count * exp(-extract(epoch from (NOW() - last_accessed)) / 86400.0) AS frecency_score
-FROM steadytext_cache;
+FROM @extschema@.steadytext_cache;
 
 -- AIDEV-NOTE: This view replaces the GENERATED column which couldn't use NOW()
 -- The frecency score decays exponentially based on time since last access
@@ -451,9 +451,10 @@ if use_cache:
         cache_key = f"{prompt}::EOS::{eos_string}"
 
     # Try to get from cache first
+    # AIDEV-NOTE: Use @extschema@ for schema qualification to work with TimescaleDB continuous aggregates
     cache_plan = plpy.prepare("""
         SELECT response 
-        FROM steadytext_cache 
+        FROM @extschema@.steadytext_cache 
         WHERE cache_key = $1
     """, ["text"])
     
@@ -614,8 +615,9 @@ if use_cache:
     cache_key = hashlib.sha256(cache_key_input.encode()).hexdigest()
     
     # Try to get from cache (read-only for IMMUTABLE)
+    # AIDEV-NOTE: Use @extschema@ for schema qualification to work with TimescaleDB continuous aggregates
     plan = plpy.prepare(
-        "SELECT embedding FROM steadytext_cache WHERE cache_key = $1",
+        "SELECT embedding FROM @extschema@.steadytext_cache WHERE cache_key = $1",
         ["text"]
     )
     rv = plpy.execute(plan, [cache_key])
@@ -714,7 +716,7 @@ try:
         if result.returncode == 0:
             # Update health status
             health_plan = plpy.prepare("""
-                UPDATE steadytext_daemon_health
+                UPDATE @extschema@.steadytext_daemon_health
                 SET status = 'healthy',
                     last_heartbeat = NOW()
                 WHERE daemon_id = 'default'
@@ -785,7 +787,7 @@ try:
 
     # Update and return health status
     update_plan = plpy.prepare("""
-        UPDATE steadytext_daemon_health
+        UPDATE @extschema@.steadytext_daemon_health
         SET status = $1,
             last_heartbeat = CASE WHEN $1 = 'healthy' THEN NOW() ELSE last_heartbeat END
         WHERE daemon_id = 'default'
@@ -824,7 +826,7 @@ try:
     if result.returncode == 0:
         # Update health status
         health_plan = plpy.prepare("""
-            UPDATE steadytext_daemon_health
+            UPDATE @extschema@.steadytext_daemon_health
             SET status = 'stopping',
                 last_heartbeat = NOW()
             WHERE daemon_id = 'default'
@@ -862,7 +864,7 @@ AS $c$
         COALESCE(AVG(access_count), 0)::FLOAT as avg_access_count,
         MIN(created_at) as oldest_entry,
         MAX(created_at) as newest_entry
-    FROM steadytext_cache;
+    FROM @extschema@.steadytext_cache;
 $c$;
 
 -- Clear cache
@@ -871,7 +873,7 @@ RETURNS BIGINT
 LANGUAGE sql
 AS $c$
     WITH deleted AS (
-        DELETE FROM steadytext_cache
+        DELETE FROM @extschema@.steadytext_cache
         RETURNING *
     )
     SELECT COUNT(*) FROM deleted;
@@ -909,19 +911,19 @@ BEGIN
         COUNT(*),
         COALESCE(SUM(pg_column_size(response) + pg_column_size(embedding)) / 1024.0 / 1024.0, 0)
     INTO v_current_entries, v_current_size_mb
-    FROM steadytext_cache;
+    FROM @extschema@.steadytext_cache;
     
     -- Set default targets if not provided
     IF target_entries IS NULL THEN
         SELECT value::INT INTO target_entries 
-        FROM steadytext_config 
+        FROM @extschema@.steadytext_config 
         WHERE key = 'cache_max_entries';
         target_entries := COALESCE(target_entries, 10000);
     END IF;
     
     IF target_size_mb IS NULL THEN
         SELECT value::FLOAT INTO target_size_mb 
-        FROM steadytext_config 
+        FROM @extschema@.steadytext_config 
         WHERE key = 'cache_max_size_mb';
         target_size_mb := COALESCE(target_size_mb, 1000);
     END IF;
@@ -930,10 +932,10 @@ BEGIN
     WHILE (v_current_entries > target_entries OR v_current_size_mb > target_size_mb) LOOP
         -- Delete oldest entries (FIFO eviction)
         WITH deleted AS (
-            DELETE FROM steadytext_cache
+            DELETE FROM @extschema@.steadytext_cache
             WHERE id IN (
                 SELECT id 
-                FROM steadytext_cache
+                FROM @extschema@.steadytext_cache
                 WHERE created_at < NOW() - INTERVAL '1 hour' * min_age_hours
                 ORDER BY created_at ASC  -- Oldest first
                 LIMIT batch_size
@@ -991,7 +993,7 @@ DECLARE
 BEGIN
     -- Check if eviction is enabled
     SELECT value::BOOLEAN INTO v_enabled 
-    FROM steadytext_config 
+    FROM @extschema@.steadytext_config 
     WHERE key = 'cache_eviction_enabled';
     
     IF NOT COALESCE(v_enabled, TRUE) THEN
@@ -1034,7 +1036,7 @@ AS $c$
         created_at,
         EXTRACT(EPOCH FROM (NOW() - created_at)) / 86400.0 as age_days,
         pg_column_size(response) + pg_column_size(embedding) as size_bytes
-    FROM steadytext_cache
+    FROM @extschema@.steadytext_cache
     WHERE created_at < NOW() - INTERVAL '1 hour'  -- Respect min age
     ORDER BY created_at ASC  -- Oldest first
     LIMIT preview_count;
@@ -1064,12 +1066,12 @@ AS $c$
             COUNT(*) as entry_count,
             AVG(access_count) as avg_access_count,
             SUM(pg_column_size(response) + pg_column_size(embedding)) / 1024.0 / 1024.0 as total_size_mb
-        FROM steadytext_cache
+        FROM @extschema@.steadytext_cache
         GROUP BY 1
     ),
     total AS (
         SELECT COUNT(*) as total_entries
-        FROM steadytext_cache
+        FROM @extschema@.steadytext_cache
     )
     SELECT 
         cb.age_bucket,
@@ -1095,7 +1097,7 @@ CREATE OR REPLACE VIEW steadytext_cache_with_frecency AS
 SELECT *,
     -- Simple age-based score for compatibility (higher = older = more likely to evict)
     EXTRACT(EPOCH FROM (NOW() - created_at)) / 86400.0 AS frecency_score
-FROM steadytext_cache;
+FROM @extschema@.steadytext_cache;
 
 COMMENT ON VIEW steadytext_cache_with_frecency IS 
 'Compatibility view - frecency_score now represents age in days (v1.4.1+)';
@@ -1118,7 +1120,7 @@ RETURNS TEXT
 LANGUAGE sql
 STABLE PARALLEL SAFE LEAKPROOF
 AS $c$
-    SELECT value::text FROM steadytext_config WHERE key = config_key;
+    SELECT value::text FROM @extschema@.steadytext_config WHERE key = config_key;
 $c$;
 
 -- AIDEV-SECTION: STRUCTURED_GENERATION_FUNCTIONS
@@ -1676,7 +1678,8 @@ AS $c$
     # AIDEV-NOTE: Consider batching embedding generation for better performance
     embeddings = []
     for text in fact_texts:
-        plan = plpy.prepare("SELECT steadytext_embed($1) as embedding", ["text"])
+        # AIDEV-NOTE: Use @extschema@ for schema qualification to work with TimescaleDB continuous aggregates
+        plan = plpy.prepare("SELECT @extschema@.steadytext_embed($1) as embedding", ["text"])
         result = plpy.execute(plan, [text])
         if result and result[0]["embedding"]:
             embeddings.append(np.array(result[0]["embedding"]))
@@ -1745,7 +1748,8 @@ AS $c$
         return json.dumps(state_data)
 
     # Extract facts from the value
-    plan = plpy.prepare("SELECT steadytext_extract_facts($1, 3) as facts", ["text"])
+    # AIDEV-NOTE: Use @extschema@ for schema qualification to work with TimescaleDB continuous aggregates
+    plan = plpy.prepare("SELECT @extschema@.steadytext_extract_facts($1, 3) as facts", ["text"])
     result = plpy.execute(plan, [value])
 
     if result and result[0]["facts"]:
@@ -1818,7 +1822,7 @@ AS $c$
     # AIDEV-NOTE: Threshold of 20 may need tuning based on usage patterns
     if len(combined_facts) > 20:
         plan = plpy.prepare(
-            "SELECT steadytext_deduplicate_facts($1::jsonb) as deduped",
+            "SELECT @extschema@.steadytext_deduplicate_facts($1::jsonb) as deduped",
             ["jsonb"]
         )
         result = plpy.execute(plan, [json.dumps(combined_facts)])
@@ -1939,8 +1943,9 @@ AS $c$
 
     # Generate summary using steadytext with model and unsafe_mode support
     # AIDEV-NOTE: Pass model and unsafe_mode from metadata to support remote models
+    # AIDEV-NOTE: Use @extschema@ for schema qualification to work with TimescaleDB continuous aggregates
     plan = plpy.prepare(
-        "SELECT steadytext_generate($1, NULL, true, 42, '[EOS]', $2, NULL, NULL, NULL, $3) as summary",
+        "SELECT @extschema@.steadytext_generate($1, NULL, true, 42, '[EOS]', $2, NULL, NULL, NULL, $3) as summary",
         ["text", "text", "boolean"]
     )
     result = plpy.execute(plan, [prompt, model, unsafe_mode])
@@ -2035,8 +2040,9 @@ if ':' in model and not unsafe_mode:
 # Use steadytext_generate for actual summarization
 prompt = f"Summarize the following text in 1-2 sentences: {input_text[:500]}"
 
+# AIDEV-NOTE: Use @extschema@ for schema qualification to work with TimescaleDB continuous aggregates
 plan = plpy.prepare(
-    "SELECT steadytext_generate($1, NULL, true, 42, '[EOS]', $2, NULL, NULL, NULL, $3) as summary",
+    "SELECT @extschema@.steadytext_generate($1, NULL, true, 42, '[EOS]', $2, NULL, NULL, NULL, $3) as summary",
     ["text", "text", "boolean"]
 )
 result = plpy.execute(plan, [prompt, model, unsafe_mode])
@@ -2199,7 +2205,7 @@ BEGIN
     request_id := gen_random_uuid();
     
     -- Insert into queue
-    INSERT INTO steadytext_queue (
+    INSERT INTO @extschema@.steadytext_queue (
         request_id,
         request_type,
         prompt,
@@ -2251,7 +2257,7 @@ AS $c$
     
     # Insert into queue
     plpy.execute("""
-        INSERT INTO steadytext_queue 
+        INSERT INTO @extschema@.steadytext_queue 
         (request_id, request_type, params, status, created_at, priority)
         VALUES ($1, 'rerank', $2::jsonb, 'pending', CURRENT_TIMESTAMP, 5)
     """, [request_id, json.dumps(params)])
@@ -2363,7 +2369,7 @@ AS $c$
         }
         
         plpy.execute("""
-            INSERT INTO steadytext_queue 
+            INSERT INTO @extschema@.steadytext_queue 
             (request_id, request_type, params, status, created_at, priority)
             VALUES ($1, 'batch_rerank', $2::jsonb, 'pending', CURRENT_TIMESTAMP, 5)
         """, [request_id, json.dumps(params)])
@@ -2396,7 +2402,7 @@ VOLATILE PARALLEL SAFE STRICT
 AS $$
 BEGIN
     -- Update or insert configuration value
-    INSERT INTO steadytext_config (key, value, description, updated_at, updated_by)
+    INSERT INTO @extschema@.steadytext_config (key, value, description, updated_at, updated_by)
     VALUES (config_key, to_jsonb(config_value), NULL, NOW(), current_user)
     ON CONFLICT (key) DO UPDATE
     SET value = to_jsonb(config_value),
@@ -2414,7 +2420,7 @@ RETURNS TEXT
 LANGUAGE sql
 STABLE PARALLEL SAFE STRICT
 AS $$
-    SELECT value #>> '{}' FROM steadytext_config WHERE key = config_key;
+    SELECT value #>> '{}' FROM @extschema@.steadytext_config WHERE key = config_key;
 $$;
 
 -- AIDEV-SECTION: ASYNC_RESULT_RETRIEVAL
@@ -2450,8 +2456,8 @@ AS $$
         completed_at,
         processing_time_ms,
         request_type
-    FROM steadytext_queue
-    WHERE steadytext_queue.request_id = steadytext_check_async.request_id;
+    FROM @extschema@.steadytext_queue
+    WHERE @extschema@.steadytext_queue.request_id = steadytext_check_async.request_id;
 $$;
 
 -- Convenience function to get result directly (blocks until ready or timeout)
@@ -2511,10 +2517,10 @@ DECLARE
 BEGIN
     -- AIDEV-NOTE: Cancel a pending async request
     
-    UPDATE steadytext_queue
+    UPDATE @extschema@.steadytext_queue
     SET status = 'cancelled',
         completed_at = NOW()
-    WHERE steadytext_queue.request_id = steadytext_cancel_async.request_id
+    WHERE @extschema@.steadytext_queue.request_id = steadytext_cancel_async.request_id
     AND status IN ('pending', 'processing');
     
     GET DIAGNOSTICS rows_updated = ROW_COUNT;
@@ -2545,7 +2551,7 @@ BEGIN
     -- Create a request for each text
     FOR i IN 1..array_length(texts, 1) LOOP
         -- Insert into queue
-        INSERT INTO steadytext_queue (
+        INSERT INTO @extschema@.steadytext_queue (
             request_type,
             prompt
         ) VALUES (
@@ -2584,7 +2590,7 @@ AS $$
         result,
         error,
         completed_at
-    FROM steadytext_queue
+    FROM @extschema@.steadytext_queue
     WHERE request_id = ANY(request_ids)
     ORDER BY array_position(request_ids, request_id);
 $$;
@@ -2619,13 +2625,14 @@ BEGIN
         v_cache_key := prompt;
         
         -- Check if already cached
-        PERFORM 1 FROM steadytext_cache WHERE cache_key = v_cache_key;
+        -- AIDEV-NOTE: Use schema qualification for TimescaleDB continuous aggregates
+        PERFORM 1 FROM @extschema@.steadytext_cache WHERE cache_key = v_cache_key;
         
         IF NOT FOUND THEN
             -- Resolve max_tokens default
             IF max_tokens IS NULL THEN
                 SELECT value::INT INTO max_tokens 
-                FROM steadytext_config 
+                FROM @extschema@.steadytext_config 
                 WHERE key = 'default_max_tokens';
                 max_tokens := COALESCE(max_tokens, 512);
             END IF;
@@ -2683,7 +2690,8 @@ BEGIN
         v_cache_key := encode(digest(v_cache_key_input, 'sha256'), 'hex');
         
         -- Check if already cached
-        PERFORM 1 FROM steadytext_cache WHERE cache_key = v_cache_key;
+        -- AIDEV-NOTE: Use schema qualification for TimescaleDB continuous aggregates
+        PERFORM 1 FROM @extschema@.steadytext_cache WHERE cache_key = v_cache_key;
         
         IF NOT FOUND THEN
             -- Store in cache
@@ -2739,7 +2747,7 @@ BEGIN
             params_json := params_json || jsonb_build_object('unsafe_mode', unsafe_mode);
         END IF;
         
-        INSERT INTO steadytext_queue (
+        INSERT INTO @extschema@.steadytext_queue (
             request_id,
             request_type,
             params,

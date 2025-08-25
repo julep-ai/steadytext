@@ -846,7 +846,8 @@ AS $c$
         return json.dumps(state_data)
 
     # Extract facts from the value
-    plan = plpy.prepare("SELECT steadytext_extract_facts($1, 3) as facts", ["text"])
+    # AIDEV-NOTE: Use @extschema@ for schema qualification to work with TimescaleDB continuous aggregates
+    plan = plpy.prepare("SELECT @extschema@.steadytext_extract_facts($1, 3) as facts", ["text"])
     result = plpy.execute(plan, [value])
 
     if result and result[0]["facts"]:
@@ -918,8 +919,9 @@ AS $c$
     # Deduplicate facts if too many
     # AIDEV-NOTE: Threshold of 20 may need tuning based on usage patterns
     if len(combined_facts) > 20:
+        # AIDEV-NOTE: Use @extschema@ for schema qualification to work with TimescaleDB continuous aggregates
         plan = plpy.prepare(
-            "SELECT steadytext_deduplicate_facts($1::jsonb) as deduped",
+            "SELECT @extschema@.steadytext_deduplicate_facts($1::jsonb) as deduped",
             ["jsonb"]
         )
         result = plpy.execute(plan, [json.dumps(combined_facts)])
@@ -1040,8 +1042,9 @@ AS $c$
 
     # Generate summary using steadytext with model and unsafe_mode support
     # AIDEV-NOTE: Pass model and unsafe_mode from metadata to support remote models
+    # AIDEV-NOTE: Use @extschema@ for schema qualification to work with TimescaleDB continuous aggregates
     plan = plpy.prepare(
-        "SELECT steadytext_generate($1, NULL, true, 42, '[EOS]', $2, NULL, NULL, NULL, $3) as summary",
+        "SELECT @extschema@.steadytext_generate($1, NULL, true, 42, '[EOS]', $2, NULL, NULL, NULL, $3) as summary",
         ["text", "text", "boolean"]
     )
     result = plpy.execute(plan, [prompt, model, unsafe_mode])
