@@ -41,8 +41,10 @@ daemon_connector = GD.get('module_daemon_connector')
 if not daemon_connector:
     plpy.error("daemon_connector module not loaded")
 
-# Get configuration - FIXED: Use schema-qualified table name
-plan = plpy.prepare("SELECT value FROM @extschema@.steadytext_config WHERE key = $1", ["text"])
+# Get configuration - FIXED: Get schema dynamically at runtime
+    schema_result = plpy.execute("SELECT current_schema()")
+    current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+    plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
 
 # Resolve max_tokens, using the provided value or fetching the default
 resolved_max_tokens = max_tokens
@@ -83,9 +85,9 @@ if use_cache:
     else:
         cache_key = f"{prompt}::EOS::{eos_string}"
     
-    # Try to get from cache first - FIXED: Use schema-qualified table name
-    cache_plan = plpy.prepare("""
-        UPDATE @extschema@.steadytext_cache 
+    # Try to get from cache first - FIXED: Get schema dynamically at runtime
+    cache_plan = plpy.prepare(f"""
+        UPDATE {plpy.quote_ident(current_schema)}.steadytext_cache 
         SET access_count = access_count + 1,
             last_accessed = NOW()
         WHERE cache_key = $1
@@ -122,12 +124,12 @@ try:
     
     # Store in cache if successful and caching is enabled - FIXED: Use schema-qualified table name
     if use_cache:
-        insert_plan = plpy.prepare("""
-            INSERT INTO @extschema@.steadytext_cache (cache_key, response)
+        insert_plan = plpy.prepare(f"""
+            INSERT INTO {plpy.quote_ident(current_schema)}.steadytext_cache (cache_key, response)
             VALUES ($1, $2)
             ON CONFLICT (cache_key) DO UPDATE
             SET response = EXCLUDED.response,
-                access_count = @extschema@.steadytext_cache.access_count + 1,
+                access_count = steadytext_cache.access_count + 1,
                 last_accessed = NOW()
         """, ["text", "text"])
         plpy.execute(insert_plan, [cache_key, result])
@@ -158,7 +160,7 @@ except Exception as e:
                     VALUES ($1, $2)
                     ON CONFLICT (cache_key) DO UPDATE
                     SET response = EXCLUDED.response,
-                        access_count = @extschema@.steadytext_cache.access_count + 1,
+                        access_count = steadytext_cache.access_count + 1,
                         last_accessed = NOW()
                 """, ["text", "text"])
                 plpy.execute(insert_plan, [cache_key, result])
@@ -193,7 +195,7 @@ except Exception as e:
                     VALUES ($1, $2)
                     ON CONFLICT (cache_key) DO UPDATE
                     SET response = EXCLUDED.response,
-                        access_count = @extschema@.steadytext_cache.access_count + 1,
+                        access_count = steadytext_cache.access_count + 1,
                         last_accessed = NOW()
                 """, ["text", "text"])
                 plpy.execute(insert_plan, [cache_key, result])
@@ -253,9 +255,9 @@ if use_cache:
     # Include mode in cache key for Jina v4 compatibility
     cache_key = f"embed:{mode}:{text}"
     
-    # Try to get from cache first - FIXED: Use schema-qualified table name
-    cache_plan = plpy.prepare("""
-        UPDATE @extschema@.steadytext_embedding_cache 
+    # Try to get from cache first - FIXED: Get schema dynamically at runtime
+    cache_plan = plpy.prepare(f"""
+        UPDATE {plpy.quote_ident(current_schema)}.steadytext_embedding_cache 
         SET access_count = access_count + 1,
             last_accessed = NOW()
         WHERE cache_key = $1
@@ -268,7 +270,10 @@ if use_cache:
         return cache_result[0]["embedding"]
 
 # Cache miss - generate new embedding - FIXED: Use schema-qualified table name
-plan = plpy.prepare("SELECT value FROM @extschema@.steadytext_config WHERE key = $1", ["text"])
+    # Get the schema of this function dynamically at runtime
+    schema_result = plpy.execute("SELECT current_schema()")
+    current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+    plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
 
 host_rv = plpy.execute(plan, ["daemon_host"])
 port_rv = plpy.execute(plan, ["daemon_port"])
@@ -289,12 +294,12 @@ try:
     
     # Store in cache if successful and caching is enabled - FIXED: Use schema-qualified table name
     if use_cache:
-        insert_plan = plpy.prepare("""
-            INSERT INTO @extschema@.steadytext_embedding_cache (cache_key, embedding)
+        insert_plan = plpy.prepare(f"""
+            INSERT INTO {plpy.quote_ident(current_schema)}.steadytext_embedding_cache (cache_key, embedding)
             VALUES ($1, $2)
             ON CONFLICT (cache_key) DO UPDATE
             SET embedding = EXCLUDED.embedding,
-                access_count = @extschema@.steadytext_embedding_cache.access_count + 1,
+                access_count = steadytext_embedding_cache.access_count + 1,
                 last_accessed = NOW()
         """, ["text", "vector"])
         plpy.execute(insert_plan, [cache_key, result])
@@ -356,7 +361,10 @@ import zmq
 
 try:
     # Get daemon configuration - FIXED: Use schema-qualified table name
-    plan = plpy.prepare("SELECT value FROM @extschema@.steadytext_config WHERE key = $1", ["text"])
+    # Get the schema of this function dynamically at runtime
+    schema_result = plpy.execute("SELECT current_schema()")
+    current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+    plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
     
@@ -381,8 +389,8 @@ try:
         
         # Update health table if we got a successful response - FIXED: Use schema-qualified table name
         if response.get("status") == "ok":
-            update_plan = plpy.prepare("""
-                INSERT INTO @extschema@.steadytext_daemon_health (
+            update_plan = plpy.prepare(f"""
+                INSERT INTO {plpy.quote_ident(current_schema)}.steadytext_daemon_health (
                     daemon_id, endpoint, last_heartbeat, status, version, models_loaded
                 ) VALUES (
                     'default', $1, NOW(), 'healthy', $2, $3
@@ -406,9 +414,9 @@ try:
         context.term()
         
 except Exception as e:
-    # Update health table to reflect unhealthy status - FIXED: Use schema-qualified table name
-    update_plan = plpy.prepare("""
-        UPDATE @extschema@.steadytext_daemon_health 
+    # Update health table to reflect unhealthy status - FIXED: Get schema dynamically at runtime
+    update_plan = plpy.prepare(f"""
+        UPDATE {plpy.quote_ident(current_schema)}.steadytext_daemon_health 
         SET status = 'unhealthy', last_heartbeat = NOW()
         WHERE daemon_id = 'default'
     """)
@@ -435,7 +443,10 @@ import time
 
 try:
     # Get configuration - FIXED: Use schema-qualified table name
-    plan = plpy.prepare("SELECT value FROM @extschema@.steadytext_config WHERE key = $1", ["text"])
+    # Get the schema of this function dynamically at runtime
+    schema_result = plpy.execute("SELECT current_schema()")
+    current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+    plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
     
     # Use provided values or defaults from config
     if host is None:
@@ -446,9 +457,9 @@ try:
         port_rv = plpy.execute(plan, ["daemon_port"])
         port = json.loads(port_rv[0]["value"]) if port_rv else 5555
     
-    # Update daemon health status - FIXED: Use schema-qualified table name
-    update_plan = plpy.prepare("""
-        INSERT INTO @extschema@.steadytext_daemon_health (daemon_id, endpoint, status)
+    # Update daemon health status - FIXED: Get schema dynamically at runtime
+    update_plan = plpy.prepare(f"""
+        INSERT INTO {plpy.quote_ident(current_schema)}.steadytext_daemon_health (daemon_id, endpoint, status)
         VALUES ('default', $1, 'starting')
         ON CONFLICT (daemon_id) DO UPDATE SET
             endpoint = EXCLUDED.endpoint,
@@ -535,9 +546,9 @@ if use_cache:
     # Create cache key from query, document, and task
     cache_key = f"rerank:{task_description}:{query}:{document}"
     
-    # Try to get from cache first - FIXED: Use schema-qualified table name
-    cache_plan = plpy.prepare("""
-        UPDATE @extschema@.steadytext_rerank_cache 
+    # Try to get from cache first - FIXED: Get schema dynamically at runtime
+    cache_plan = plpy.prepare(f"""
+        UPDATE {plpy.quote_ident(current_schema)}.steadytext_rerank_cache 
         SET access_count = access_count + 1,
             last_accessed = NOW()
         WHERE cache_key = $1
@@ -550,7 +561,10 @@ if use_cache:
         return cache_result[0]["score"]
 
 # Cache miss - compute new score - FIXED: Use schema-qualified table name
-plan = plpy.prepare("SELECT value FROM @extschema@.steadytext_config WHERE key = $1", ["text"])
+    # Get the schema of this function dynamically at runtime
+    schema_result = plpy.execute("SELECT current_schema()")
+    current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+    plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
 
 host_rv = plpy.execute(plan, ["daemon_host"])
 port_rv = plpy.execute(plan, ["daemon_port"])
@@ -570,12 +584,12 @@ try:
     
     # Store in cache if successful and caching is enabled - FIXED: Use schema-qualified table name
     if use_cache:
-        insert_plan = plpy.prepare("""
-            INSERT INTO @extschema@.steadytext_rerank_cache (cache_key, score, query_text, document_text)
+        insert_plan = plpy.prepare(f"""
+            INSERT INTO {plpy.quote_ident(current_schema)}.steadytext_rerank_cache (cache_key, score, query_text, document_text)
             VALUES ($1, $2, $3, $4)
             ON CONFLICT (cache_key) DO UPDATE
             SET score = EXCLUDED.score,
-                access_count = @extschema@.steadytext_rerank_cache.access_count + 1,
+                access_count = steadytext_rerank_cache.access_count + 1,
                 last_accessed = NOW()
         """, ["text", "float8", "text", "text"])
         plpy.execute(insert_plan, [cache_key, result, query, document])
@@ -846,7 +860,10 @@ AS $c$
         return json.dumps(state_data)
 
     # Extract facts from the value
-    plan = plpy.prepare("SELECT steadytext_extract_facts($1, 3) as facts", ["text"])
+    # AIDEV-NOTE: Get schema dynamically at runtime for TimescaleDB continuous aggregates compatibility
+    schema_result = plpy.execute("SELECT current_schema()")
+    current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+    plan = plpy.prepare(f"SELECT {plpy.quote_ident(current_schema)}.steadytext_extract_facts($1, 3) as facts", ["text"])
     result = plpy.execute(plan, [value])
 
     if result and result[0]["facts"]:
@@ -918,8 +935,9 @@ AS $c$
     # Deduplicate facts if too many
     # AIDEV-NOTE: Threshold of 20 may need tuning based on usage patterns
     if len(combined_facts) > 20:
+        # AIDEV-NOTE: Get schema dynamically at runtime for TimescaleDB continuous aggregates compatibility
         plan = plpy.prepare(
-            "SELECT steadytext_deduplicate_facts($1::jsonb) as deduped",
+            f"SELECT {plpy.quote_ident(current_schema)}.steadytext_deduplicate_facts($1::jsonb) as deduped",
             ["jsonb"]
         )
         result = plpy.execute(plan, [json.dumps(combined_facts)])
@@ -1040,8 +1058,9 @@ AS $c$
 
     # Generate summary using steadytext with model and unsafe_mode support
     # AIDEV-NOTE: Pass model and unsafe_mode from metadata to support remote models
+    # AIDEV-NOTE: Get schema dynamically at runtime for TimescaleDB continuous aggregates compatibility
     plan = plpy.prepare(
-        "SELECT steadytext_generate($1, NULL, true, 42, '[EOS]', $2, NULL, NULL, NULL, $3) as summary",
+        f"SELECT {plpy.quote_ident(current_schema)}.steadytext_generate($1, NULL, true, 42, '[EOS]', $2, NULL, NULL, NULL, $3) as summary",
         ["text", "text", "boolean"]
     )
     result = plpy.execute(plan, [prompt, model, unsafe_mode])
