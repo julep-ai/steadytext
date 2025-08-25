@@ -409,10 +409,10 @@ if not daemon_connector:
     plpy.error("daemon_connector module not loaded")
 
 # Get configuration
-# Get the schema of this function dynamically at runtime
-schema_result = plpy.execute("SELECT current_schema()")
-current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
-plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
+    # Get the schema of this function dynamically at runtime
+    schema_result = plpy.execute("SELECT current_schema()")
+    current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+    plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
 
 # Resolve max_tokens, using the provided value or fetching the default
 resolved_max_tokens = max_tokens
@@ -1185,10 +1185,10 @@ if not daemon_connector:
     plpy.error("daemon_connector module not loaded")
 
 # Get configuration
-# Get the schema of this function dynamically at runtime
-schema_result = plpy.execute("SELECT current_schema()")
-current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
-plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
+    # Get the schema of this function dynamically at runtime
+    schema_result = plpy.execute("SELECT current_schema()")
+    current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+    plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
 
 # Resolve max_tokens
 resolved_max_tokens = max_tokens
@@ -1350,10 +1350,10 @@ if not daemon_connector:
     plpy.error("daemon_connector module not loaded")
 
 # Get configuration
-# Get the schema of this function dynamically at runtime
-schema_result = plpy.execute("SELECT current_schema()")
-current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
-plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
+    # Get the schema of this function dynamically at runtime
+    schema_result = plpy.execute("SELECT current_schema()")
+    current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+    plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
 
 # Resolve max_tokens
 resolved_max_tokens = max_tokens
@@ -1506,10 +1506,10 @@ if not daemon_connector:
     plpy.error("daemon_connector module not loaded")
 
 # Get configuration
-# Get the schema of this function dynamically at runtime
-schema_result = plpy.execute("SELECT current_schema()")
-current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
-plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
+    # Get the schema of this function dynamically at runtime
+    schema_result = plpy.execute("SELECT current_schema()")
+    current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+    plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
 
 # Resolve max_tokens
 resolved_max_tokens = max_tokens

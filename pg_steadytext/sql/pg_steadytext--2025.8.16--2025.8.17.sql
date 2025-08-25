@@ -42,9 +42,9 @@ if not daemon_connector:
     plpy.error("daemon_connector module not loaded")
 
 # Get configuration - FIXED: Get schema dynamically at runtime
-schema_result = plpy.execute("SELECT current_schema()")
-current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
-plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
+    schema_result = plpy.execute("SELECT current_schema()")
+    current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+    plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
 
 # Resolve max_tokens, using the provided value or fetching the default
 resolved_max_tokens = max_tokens
@@ -270,10 +270,10 @@ if use_cache:
         return cache_result[0]["embedding"]
 
 # Cache miss - generate new embedding - FIXED: Use schema-qualified table name
-# Get the schema of this function dynamically at runtime
-schema_result = plpy.execute("SELECT current_schema()")
-current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
-plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
+    # Get the schema of this function dynamically at runtime
+    schema_result = plpy.execute("SELECT current_schema()")
+    current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+    plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
 
 host_rv = plpy.execute(plan, ["daemon_host"])
 port_rv = plpy.execute(plan, ["daemon_port"])
@@ -444,9 +444,9 @@ import time
 try:
     # Get configuration - FIXED: Use schema-qualified table name
     # Get the schema of this function dynamically at runtime
-schema_result = plpy.execute("SELECT current_schema()")
-current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
-plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
+    schema_result = plpy.execute("SELECT current_schema()")
+    current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+    plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
     
     # Use provided values or defaults from config
     if host is None:
@@ -561,10 +561,10 @@ if use_cache:
         return cache_result[0]["score"]
 
 # Cache miss - compute new score - FIXED: Use schema-qualified table name
-# Get the schema of this function dynamically at runtime
-schema_result = plpy.execute("SELECT current_schema()")
-current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
-plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
+    # Get the schema of this function dynamically at runtime
+    schema_result = plpy.execute("SELECT current_schema()")
+    current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+    plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
 
 host_rv = plpy.execute(plan, ["daemon_host"])
 port_rv = plpy.execute(plan, ["daemon_port"])
