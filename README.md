@@ -31,13 +31,23 @@ Ever had an AI test fail randomly? Or a CLI tool give different answers each run
 
 ## 🚀 Quick Start
 
-### Installing from PyPI
+### Installing with UV (Recommended - 10-100x faster)
+
+```bash
+# Install UV package manager
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install SteadyText
+uv add steadytext
+```
+
+### Installing with pip
 
 ```bash
 pip install steadytext
 ```
 
-### Installing from Source (Required for proper llama-cpp-python build)
+### Installing from Source (for development or llama-cpp-python build issues)
 
 Due to the specific build requirements for the inference-sh fork of llama-cpp-python, you may need to install from source:
 
@@ -76,9 +86,9 @@ more_creative = steadytext.generate("write a poem", temperature=1.2)
 for token in steadytext.generate_iter("explain quantum computing"):
     print(token, end="", flush=True)
 
-# Deterministic embeddings with Query/Passage optimization
-query_vec = steadytext.embed("What is machine learning?", mode="query")  # For searches
-doc_vec = steadytext.embed("Machine learning is...", mode="passage")  # For documents
+# Deterministic embeddings (uses Jina v4 by default)
+vec = steadytext.embed("What is machine learning?")  # 1024-dimensional embedding
+# Note: Jina v4 outputs 2048 dimensions but we truncate to 1024 for backward compatibility
 
 # Explicit daemon usage (ensures connection)
 from steadytext.daemon import use_daemon
@@ -179,20 +189,27 @@ SteadyText is more than just a library. It's a full ecosystem for deterministic 
 - **Zsh Plugin**: Supercharge your shell with AI-powered command suggestions and history search.
 - **Cloudflare Worker**: Deploy SteadyText to the edge with a Cloudflare Worker for distributed, low-latency applications.
 
-### ⚡ Daemon Architecture (Default)
+### ⚡ Daemon Architecture (Optional but Recommended)
 
-SteadyText uses a daemon architecture by default for optimal performance:
+SteadyText includes a daemon mode that provides significantly better performance:
 
 * **Persistent serving:** Models stay loaded in memory between requests
 * **Zero loading overhead:** Skip the 2-3 second model loading time on each call
-* **Automatic fallback:** Gracefully falls back to direct model loading if daemon unavailable
+* **Explicit startup required:** Start with `st daemon start` for best performance
+* **Automatic fallback:** Gracefully falls back to direct model loading if daemon not running
 * **Centralized caching:** Consistent cache behavior between daemon and direct access
-* **Background operation:** Daemon runs silently in the background
+
+```bash
+# Start the daemon for better performance
+st daemon start
+
+# Now all operations will use the daemon
+echo "Hello world" | st  # Much faster with daemon running!
+```
 
 ```python
-# Daemon provides better performance when running
-# Start it first with: st daemon start
-text = steadytext.generate("Hello world")  # Uses daemon if available
+# Python automatically uses daemon if available
+text = steadytext.generate("Hello world")  # Fast if daemon is running
 
 # Explicit daemon usage (ensures connection)
 from steadytext.daemon import use_daemon
@@ -387,11 +404,11 @@ pip install steadytext
 
 #### Models
 
-**Default models (v2025.8.16+)**:
+**Default models (v2025.8.17+)**:
 
-* Generation (Small): `Qwen3-4B-Instruct` (3.2GB) - High-quality 4B parameter model
-* Generation (Large): `Qwen3-30B-A3B-Instruct` (12GB) - Advanced 30B parameter model with A3B architecture
-* Embeddings: `Qwen3-Embedding-0.6B-Q8_0` (610MB) - 1024-dimensional embeddings
+* Generation (Small): `Qwen3-4B-Instruct` (3.9GB) - High-quality 4B parameter model
+* Generation (Large): `Qwen3-30B-A3B-Instruct` (12GB) - Advanced 30B parameter model with A3B architecture  
+* Embeddings: `Jina-v4-Text-Retrieval` (1.2GB) - State-of-the-art 2048-dim embeddings (truncated to 1024)
 * Reranking: `Qwen3-Reranker-4B` (3.5GB) - Document reranking model
 
 **Dynamic model switching (v1.0.0+):**
@@ -409,8 +426,8 @@ text = steadytext.generate("Hello", size="large")  # Uses Qwen3-30B
 # Or specify custom models
 text = steadytext.generate(
     "Hello",
-    model_repo="ggml-org/gemma-3n-E4B-it-GGUF",
-    model_filename="gemma-3n-E4B-it-Q8_0.gguf"
+    model_repo="unsloth/Qwen3-4B-Instruct-2507-GGUF",
+    model_filename="Qwen3-4B-Instruct-2507-UD-Q6_K_XL.gguf"
 )
 ```
 
@@ -517,7 +534,7 @@ jobs:
 
 | Version | Key Features                                                                                                                            | Default Generation Model                               | Default Embedding Model                                | Default Reranking Model | Python Versions |
 | :------ | :-------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------- | :----------------------------------------------------- | :---------------------- | :-------------- |
-| **2025.8.x** | - **Date-Based Versioning**: Switched to yyyy.mm.dd format.<br>- **Qwen3 Models**: Using Qwen3-4B/30B for generation.<br>- **Enhanced PostgreSQL Extension**: AI summarization with remote model support.<br>- **Document Reranking**: Reranking functionality with `Qwen3-Reranker-4B` model. | `unsloth/Qwen3-4B-Instruct-2507-GGUF` (Qwen3-4B) / `Qwen3-30B-A3B` (large) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | `Qwen/Qwen3-Reranker-4B-GGUF` (Qwen3-Reranker-4B-Q8_0.gguf) | `>=3.10, <3.14` |
+| **2025.8.x** | - **Date-Based Versioning**: Switched to yyyy.mm.dd format.<br>- **Qwen3 Models**: Using Qwen3-4B/30B for generation.<br>- **Jina v4 Embeddings**: State-of-the-art retrieval embeddings.<br>- **Enhanced PostgreSQL Extension**: AI summarization with remote model support.<br>- **Document Reranking**: Reranking functionality with `Qwen3-Reranker-4B` model. | `unsloth/Qwen3-4B-Instruct-2507-GGUF` (Qwen3-4B) / `Qwen3-30B-A3B` (large) | `jinaai/jina-embeddings-v4-text-retrieval-GGUF` (Jina v4) | `QuantFactory/Qwen3-Reranker-4B-GGUF` | `>=3.10, <3.14` |
 | **1.x** | - **Model Switching**: Added support for switching models via environment variables.<br>- **Centralized Cache**: Unified cache system.<br>- **CLI Improvements**: Streaming by default, quiet output. | `Qwen/Qwen3-1.7B-GGUF` (Qwen3-1.7B-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | - | `>=3.10, <3.14` |
 | **1.0-1.2** | - **Model Switching**: Added support for switching models via environment variables and a model registry.<br>- **Qwen3 Models**: Switched to `qwen3-1.7b` for generation.<br>- **Indexing**: Added support for FAISS indexing. | `Qwen/Qwen3-1.7B-GGUF` (Qwen3-1.7B-Q8_0.gguf) | `Qwen/Qwen3-Embedding-0.6B-GGUF` (Qwen3-Embedding-0.6B-Q8_0.gguf) | - | `>=3.10, <3.14` |
 | **0.x** | - **Initial Release**: Deterministic text generation and embedding.                                                                      | `Qwen/Qwen1.5-0.5B-Chat-GGUF` (qwen1_5-0_5b-chat-q4_k_m.gguf) | `Qwen/Qwen1.5-0.5B-Chat-GGUF` (qwen1_5-0_5b-chat-q8_0.gguf) | - | `>=3.10`        |

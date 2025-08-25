@@ -2,18 +2,29 @@
 
 Get started with SteadyText in minutes. Learn how to use custom seeds for reproducible AI generation.
 
+## Prerequisites
+
+- **Python**: 3.10 or later (3.11 recommended)
+- **RAM**: Minimum 4GB (8GB+ recommended for large models)
+- **Disk Space**: 5-15GB for model storage
+- **OS**: Linux, macOS, or Windows
+
 ## Installation
+
+=== "uv (Recommended - 10-100x faster)"
+
+    ```bash
+    # Install UV first
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    
+    # Then install SteadyText
+    uv add steadytext
+    ```
 
 === "pip"
 
     ```bash
     pip install steadytext
-    ```
-
-=== "uv"
-
-    ```bash
-    uv add steadytext
     ```
 
 === "Poetry"
@@ -23,6 +34,12 @@ Get started with SteadyText in minutes. Learn how to use custom seeds for reprod
     ```
 
 ## First Steps
+
+!!! note "First Run"
+    On first use, SteadyText will download the required models (~5GB total). This is a one-time process.
+    Models are stored in:
+    - Linux/Mac: `~/.cache/steadytext/models/`
+    - Windows: `%LOCALAPPDATA%\steadytext\steadytext\models\`
 
 ### 1. Basic Text Generation
 
@@ -227,7 +244,43 @@ LIMIT 5;
 - **[CLI Reference](api/cli.md)** - Command-line interface with `--seed` flag details
 - **[Examples](examples/index.md)** - Real-world usage patterns
 
+## Common Issues and Solutions
+
+### Model Loading Errors
+If you see "Failed to load model":
+```bash
+# Use fallback models
+export STEADYTEXT_USE_FALLBACK_MODEL=true
+
+# Or clear model cache and re-download
+rm -rf ~/.cache/steadytext/models/
+```
+
+### llama-cpp-python Build Issues
+If installation fails with llama-cpp-python errors:
+```bash
+# Set required build flags
+export FORCE_CMAKE=1
+export CMAKE_ARGS="-DLLAVA_BUILD=OFF -DGGML_ACCELERATE=OFF -DGGML_BLAS=OFF -DGGML_CUDA=OFF"
+
+# Then reinstall
+pip install --force-reinstall steadytext
+```
+
+### Daemon Connection Issues
+```bash
+# Check if daemon is running
+st daemon status
+
+# Start daemon if not running
+st daemon start
+
+# Or disable daemon and use direct loading
+export STEADYTEXT_DISABLE_DAEMON=1
+```
+
 ## Need Help?
 
 - **Issues**: [GitHub Issues](https://github.com/julep-ai/steadytext/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/julep-ai/steadytext/discussions)
+- **Documentation**: [Full Documentation](https://github.com/julep-ai/steadytext/tree/main/docs)

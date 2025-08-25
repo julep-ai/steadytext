@@ -36,13 +36,14 @@ def generate(
 | `model` | `str` | `None` | Model name from registry or remote model (e.g., "openai:gpt-4o-mini") |
 | `model_repo` | `str` | `None` | Custom Hugging Face repository ID |
 | `model_filename` | `str` | `None` | Custom model filename |
-| `size` | `str` | `None` | Size shortcut: "small" or "large" |
+| `size` | `str` | `"small"` | Size shortcut: "mini", "small", or "large" |
 | `seed` | `int` | `42` | Random seed for deterministic generation |
-| `temperature` | `float` | `0.0` | Controls randomness: 0.0 = deterministic, >0 = more random, typical range 0.0-2.0 |
+| `temperature` | `float` | `0.0` | Controls randomness: 0.0 = deterministic, >0 = more random, typical range 0.0-2.0 (v2.6.3+) |
 | `schema` | `Dict/Type` | `None` | JSON schema, Pydantic model, or Python type for structured output |
 | `regex` | `str` | `None` | Regular expression pattern to constrain output |
 | `choices` | `List[str]` | `None` | List of choices to constrain output |
-| `unsafe_mode` | `bool` | `False` | Enable remote models with best-effort determinism (v2.6.1+) |
+| `response_format` | `Dict` | `None` | Alternative way to specify structured output format |
+| `unsafe_mode` | `bool` | `False` | Enable remote models with best-effort determinism (v2.6.0+) |
 
 ### Returns
 
@@ -198,10 +199,10 @@ def generate_iter(
 | `model` | `str` | `None` | Model name from registry or remote model (e.g., "openai:gpt-4o-mini") |
 | `model_repo` | `str` | `None` | Custom Hugging Face repository ID |
 | `model_filename` | `str` | `None` | Custom model filename |
-| `size` | `str` | `None` | Size shortcut: "small" or "large" |
+| `size` | `str` | `"small"` | Size shortcut: "mini", "small", or "large" |
 | `seed` | `int` | `42` | Random seed for deterministic generation |
-| `temperature` | `float` | `0.0` | Controls randomness: 0.0 = deterministic, >0 = more random, typical range 0.0-2.0 |
-| `unsafe_mode` | `bool` | `False` | Enable remote models with best-effort determinism (v2.6.1+) |
+| `temperature` | `float` | `0.0` | Controls randomness: 0.0 = deterministic, >0 = more random, typical range 0.0-2.0 (v2.6.3+) |
+| `unsafe_mode` | `bool` | `False` | Enable remote models with best-effort determinism (v2.6.0+) |
 
 ### Returns
 
@@ -236,6 +237,24 @@ def generate_iter(
     
     print("\n\nStream 3 (seed=456 - different result):")
     for token in steadytext.generate_iter("Tell me a joke", seed=456):
+        print(token, end="", flush=True)
+    ```
+
+=== "Temperature Streaming"
+
+    ```python
+    # Stream with different creativity levels
+    
+    # Deterministic (default)
+    for token in steadytext.generate_iter("Write a haiku", temperature=0.0):
+        print(token, end="", flush=True)
+    
+    # Creative streaming
+    for token in steadytext.generate_iter("Write a haiku", temperature=0.8):
+        print(token, end="", flush=True)
+    
+    # Same seed + temperature = reproducible creativity
+    for token in steadytext.generate_iter("Story", seed=42, temperature=0.5):
         print(token, end="", flush=True)
     ```
 

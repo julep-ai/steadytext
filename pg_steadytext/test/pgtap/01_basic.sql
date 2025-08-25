@@ -3,7 +3,7 @@
 
 -- Start transaction and plan tests
 BEGIN;
-SELECT plan(12);
+SELECT plan(11);
 
 -- Test 1: Extension exists
 SELECT has_extension('pg_steadytext', 'pg_steadytext extension should be installed');
@@ -24,11 +24,11 @@ SELECT function_returns(
     'Function steadytext_version() should return text'
 );
 
--- Test 3: Version function returns valid version string
+-- Test 3: Version function returns valid version string (date-based format)
 SELECT matches(
     steadytext_version(),
-    '^[0-9]+\.[0-9]+\.[0-9]+',
-    'Version should match semantic versioning pattern'
+    '^[0-9]{4}\.[0-9]+\.[0-9]+',
+    'Version should match date-based versioning pattern (yyyy.mm.dd)'
 );
 
 -- Test 4: Configuration functions exist
@@ -47,12 +47,13 @@ SELECT has_function(
 );
 
 -- Test 5: Configuration get/set works
-SELECT is(
-    steadytext_config_set('test_key', 'test_value'),
-    'test_value',
-    'Config set should return the value that was set'
+-- First set the config value (returns void, so we test it executes ok)
+SELECT lives_ok(
+    'SELECT steadytext_config_set(''test_key'', ''test_value'')',
+    'Config set should execute without error'
 );
 
+-- Then verify we can get the value back
 SELECT is(
     steadytext_config_get('test_key'),
     'test_value',

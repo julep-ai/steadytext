@@ -105,22 +105,22 @@ SteadyText is more than just a library. It's a full ecosystem for deterministic 
 
 ### Daemon Mode (v1.3+)
 
-SteadyText includes a daemon mode that keeps models loaded in memory for instant responses:
+SteadyText includes an optional daemon mode that keeps models loaded in memory for instant responses:
 
 * **160x faster first request**: No model loading overhead
 * **Persistent cache**: Shared across all operations
+* **Explicit startup required**: Start daemon with `st daemon start` for best performance
 * **Automatic fallback**: Works without daemon if unavailable
-* **Explicit startup**: Start daemon with `st daemon start` for best performance
 
 ```bash
-# Start daemon
+# Start daemon for better performance (optional but recommended)
 st daemon start
 
 # Check status
 st daemon status
 
-# All operations now use daemon if available
-echo "hello" | st  # Instant response with daemon!
+# All operations now use daemon if running
+echo "hello" | st  # Instant response with daemon running!
 ```
 
 ### FAISS Indexing (v1.3.3+)
@@ -176,12 +176,12 @@ pip install steadytext
 
 ### Models
 
-**Current models (v2.0.0+)**:
+**Current models (v2025.8.17+)**:
 
-* Generation: `Gemma-3n-E2B-it-Q8_0.gguf` (2.0GB) - Gemma-3n-2B (default)
-* Generation: `Gemma-3n-E4B-it-Q8_0.gguf` (4.2GB) - Gemma-3n-4B (optional)
-* Embeddings: `Qwen3-Embedding-0.6B-Q8_0.gguf` (610MB)
-* Reranking: `Qwen3-Reranker-4B-Q8_0.gguf` (4.2GB)
+* Generation (Small): `Qwen3-4B-Instruct` (3.9GB) - High-quality 4B parameter model (default)
+* Generation (Large): `Qwen3-30B-A3B-Instruct` (12GB) - Advanced 30B parameter model
+* Embeddings: `Jina-v4-Text-Retrieval` (1.2GB) - State-of-the-art 2048-dim embeddings (truncated to 1024)
+* Reranking: `Qwen3-Reranker-4B` (3.5GB) - Document reranking model
 
 !!! note "Version Stability"
     Each major version will use a fixed set of models only, so that only forced upgrades from pip will change the models (and the deterministic output)

@@ -65,6 +65,18 @@ Missing required Python packages: steadytext, zmq, numpy
 ```
 This typically means PostgreSQL is using a different Python version than the one where you installed the packages.
 
+**Quick Fix**: Check PostgreSQL's Python version and install packages there:
+```sql
+-- In PostgreSQL, check Python version
+DO $$ import sys; plpy.notice(f'Python version: {sys.version}') $$ LANGUAGE plpython3u;
+```
+
+Then install packages for that specific Python version:
+```bash
+# Example: if PostgreSQL reports Python 3.11
+python3.11 -m pip install steadytext pyzmq numpy
+```
+
 ### Solutions
 
 #### Option 1: Install packages in PostgreSQL's Python version

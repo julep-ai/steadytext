@@ -39,8 +39,10 @@ theme:
 nav:
   - Home: index.md
   - Quick Start: quick-start.md
+  - Core Concepts: concepts.md
   - Why SteadyText: why-steadytext.md
   - Architecture: architecture.md
+  - Configuration: configuration-reference.md
   - API Reference:
     - Overview: api/index.md
     - Text Generation: api/generation.md
