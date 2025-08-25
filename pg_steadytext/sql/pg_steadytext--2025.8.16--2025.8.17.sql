@@ -127,7 +127,7 @@ try:
             VALUES ($1, $2)
             ON CONFLICT (cache_key) DO UPDATE
             SET response = EXCLUDED.response,
-                access_count = @extschema@.steadytext_cache.access_count + 1,
+                access_count = steadytext_cache.access_count + 1,
                 last_accessed = NOW()
         """, ["text", "text"])
         plpy.execute(insert_plan, [cache_key, result])
@@ -158,7 +158,7 @@ except Exception as e:
                     VALUES ($1, $2)
                     ON CONFLICT (cache_key) DO UPDATE
                     SET response = EXCLUDED.response,
-                        access_count = @extschema@.steadytext_cache.access_count + 1,
+                        access_count = steadytext_cache.access_count + 1,
                         last_accessed = NOW()
                 """, ["text", "text"])
                 plpy.execute(insert_plan, [cache_key, result])
@@ -193,7 +193,7 @@ except Exception as e:
                     VALUES ($1, $2)
                     ON CONFLICT (cache_key) DO UPDATE
                     SET response = EXCLUDED.response,
-                        access_count = @extschema@.steadytext_cache.access_count + 1,
+                        access_count = steadytext_cache.access_count + 1,
                         last_accessed = NOW()
                 """, ["text", "text"])
                 plpy.execute(insert_plan, [cache_key, result])

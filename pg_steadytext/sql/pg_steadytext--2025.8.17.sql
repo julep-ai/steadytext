@@ -960,7 +960,7 @@ BEGIN
         v_current_size_mb := v_current_size_mb - v_batch_freed_mb;
         
         -- Log eviction batch
-        INSERT INTO steadytext_audit_log (action, details)
+        INSERT INTO @extschema@.steadytext_audit_log (action, details)
         VALUES (
             'cache_eviction',
             jsonb_build_object(
