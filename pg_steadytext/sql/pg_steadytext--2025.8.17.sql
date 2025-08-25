@@ -409,7 +409,10 @@ if not daemon_connector:
     plpy.error("daemon_connector module not loaded")
 
 # Get configuration
-plan = plpy.prepare("SELECT value FROM @extschema@.steadytext_config WHERE key = $1", ["text"])
+# Get the schema of this function dynamically at runtime
+schema_result = plpy.execute("SELECT current_schema()")
+current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
 
 # Resolve max_tokens, using the provided value or fetching the default
 resolved_max_tokens = max_tokens
@@ -451,10 +454,10 @@ if use_cache:
         cache_key = f"{prompt}::EOS::{eos_string}"
 
     # Try to get from cache first
-    # AIDEV-NOTE: Use @extschema@ for schema qualification to work with TimescaleDB continuous aggregates
-    cache_plan = plpy.prepare("""
+    # AIDEV-NOTE: Get schema dynamically at runtime for TimescaleDB continuous aggregates compatibility
+    cache_plan = plpy.prepare(f"""
         SELECT response 
-        FROM @extschema@.steadytext_cache 
+        FROM {plpy.quote_ident(current_schema)}.steadytext_cache 
         WHERE cache_key = $1
     """, ["text"])
     
@@ -615,9 +618,9 @@ if use_cache:
     cache_key = hashlib.sha256(cache_key_input.encode()).hexdigest()
     
     # Try to get from cache (read-only for IMMUTABLE)
-    # AIDEV-NOTE: Use @extschema@ for schema qualification to work with TimescaleDB continuous aggregates
+    # AIDEV-NOTE: Get schema dynamically at runtime for TimescaleDB continuous aggregates compatibility
     plan = plpy.prepare(
-        "SELECT embedding FROM @extschema@.steadytext_cache WHERE cache_key = $1",
+        f"SELECT embedding FROM {plpy.quote_ident(current_schema)}.steadytext_cache WHERE cache_key = $1",
         ["text"]
     )
     rv = plpy.execute(plan, [cache_key])
@@ -701,7 +704,10 @@ import json
 
 try:
     # Get daemon configuration
-    plan = plpy.prepare("SELECT value FROM @extschema@.steadytext_config WHERE key = $1", ["text"])
+    # Get the schema of this function dynamically at runtime
+    schema_result = plpy.execute("SELECT current_schema()")
+    current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+    plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
 
@@ -715,8 +721,8 @@ try:
 
         if result.returncode == 0:
             # Update health status
-            health_plan = plpy.prepare("""
-                UPDATE @extschema@.steadytext_daemon_health
+            health_plan = plpy.prepare(f"""
+                UPDATE {plpy.quote_ident(current_schema)}.steadytext_daemon_health
                 SET status = 'healthy',
                     last_heartbeat = NOW()
                 WHERE daemon_id = 'default'
@@ -765,7 +771,10 @@ try:
         plpy.error("daemon_connector module not loaded")
 
     # Get configuration
-    plan = plpy.prepare("SELECT value FROM @extschema@.steadytext_config WHERE key = $1", ["text"])
+    # Get the schema of this function dynamically at runtime
+    schema_result = plpy.execute("SELECT current_schema()")
+    current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+    plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
 
@@ -786,8 +795,11 @@ try:
         status = 'unhealthy'
 
     # Update and return health status
-    update_plan = plpy.prepare("""
-        UPDATE @extschema@.steadytext_daemon_health
+    # Get the schema of this function dynamically at runtime
+    schema_result = plpy.execute("SELECT current_schema()")
+    current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+    update_plan = plpy.prepare(f"""
+        UPDATE {plpy.quote_ident(current_schema)}.steadytext_daemon_health
         SET status = $1,
             last_heartbeat = CASE WHEN $1 = 'healthy' THEN NOW() ELSE last_heartbeat END
         WHERE daemon_id = 'default'
@@ -825,8 +837,8 @@ try:
 
     if result.returncode == 0:
         # Update health status
-        health_plan = plpy.prepare("""
-            UPDATE @extschema@.steadytext_daemon_health
+        health_plan = plpy.prepare(f"""
+            UPDATE {plpy.quote_ident(current_schema)}.steadytext_daemon_health
             SET status = 'stopping',
                 last_heartbeat = NOW()
             WHERE daemon_id = 'default'
@@ -1173,7 +1185,10 @@ if not daemon_connector:
     plpy.error("daemon_connector module not loaded")
 
 # Get configuration
-plan = plpy.prepare("SELECT value FROM @extschema@.steadytext_config WHERE key = $1", ["text"])
+# Get the schema of this function dynamically at runtime
+schema_result = plpy.execute("SELECT current_schema()")
+current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
 
 # Resolve max_tokens
 resolved_max_tokens = max_tokens
@@ -1335,7 +1350,10 @@ if not daemon_connector:
     plpy.error("daemon_connector module not loaded")
 
 # Get configuration
-plan = plpy.prepare("SELECT value FROM @extschema@.steadytext_config WHERE key = $1", ["text"])
+# Get the schema of this function dynamically at runtime
+schema_result = plpy.execute("SELECT current_schema()")
+current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
 
 # Resolve max_tokens
 resolved_max_tokens = max_tokens
@@ -1488,7 +1506,10 @@ if not daemon_connector:
     plpy.error("daemon_connector module not loaded")
 
 # Get configuration
-plan = plpy.prepare("SELECT value FROM @extschema@.steadytext_config WHERE key = $1", ["text"])
+# Get the schema of this function dynamically at runtime
+schema_result = plpy.execute("SELECT current_schema()")
+current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
 
 # Resolve max_tokens
 resolved_max_tokens = max_tokens
@@ -1678,8 +1699,12 @@ AS $c$
     # AIDEV-NOTE: Consider batching embedding generation for better performance
     embeddings = []
     for text in fact_texts:
-        # AIDEV-NOTE: Use @extschema@ for schema qualification to work with TimescaleDB continuous aggregates
-        plan = plpy.prepare("SELECT @extschema@.steadytext_embed($1) as embedding", ["text"])
+        # AIDEV-NOTE: Get schema dynamically at runtime for TimescaleDB continuous aggregates compatibility
+        # Get the schema once outside the loop for efficiency
+        if not 'current_schema' in locals():
+            schema_result = plpy.execute("SELECT current_schema()")
+            current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+        plan = plpy.prepare(f"SELECT {plpy.quote_ident(current_schema)}.steadytext_embed($1) as embedding", ["text"])
         result = plpy.execute(plan, [text])
         if result and result[0]["embedding"]:
             embeddings.append(np.array(result[0]["embedding"]))
@@ -1748,8 +1773,10 @@ AS $c$
         return json.dumps(state_data)
 
     # Extract facts from the value
-    # AIDEV-NOTE: Use @extschema@ for schema qualification to work with TimescaleDB continuous aggregates
-    plan = plpy.prepare("SELECT @extschema@.steadytext_extract_facts($1, 3) as facts", ["text"])
+    # AIDEV-NOTE: Get schema dynamically at runtime for TimescaleDB continuous aggregates compatibility
+    schema_result = plpy.execute("SELECT current_schema()")
+    current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+    plan = plpy.prepare(f"SELECT {plpy.quote_ident(current_schema)}.steadytext_extract_facts($1, 3) as facts", ["text"])
     result = plpy.execute(plan, [value])
 
     if result and result[0]["facts"]:
