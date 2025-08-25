@@ -362,9 +362,9 @@ import zmq
 try:
     # Get daemon configuration - FIXED: Use schema-qualified table name
     # Get the schema of this function dynamically at runtime
-schema_result = plpy.execute("SELECT current_schema()")
-current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
-plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
+    schema_result = plpy.execute("SELECT current_schema()")
+    current_schema = schema_result[0]['current_schema'] if schema_result else 'public'
+    plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(current_schema)}.steadytext_config WHERE key = $1", ["text"])
     host_rv = plpy.execute(plan, ["daemon_host"])
     port_rv = plpy.execute(plan, ["daemon_port"])
     
