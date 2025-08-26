@@ -36,7 +36,7 @@ reranked AS (
         'Rank documents by relevance to databases',
         true,  -- return_scores
         42     -- seed
-    ) AS (document TEXT, score FLOAT)
+    )
 )
 SELECT ok(
     COUNT(*) = 4,
@@ -57,7 +57,7 @@ reranked AS (
         'Relevance to databases',
         true,
         42
-    ) AS (document TEXT, score FLOAT)
+    )
 )
 SELECT ok(
     bool_and(score >= 0.0 AND score <= 1.0),
@@ -80,7 +80,7 @@ reranked AS (
         'Database relevance',
         true,
         42
-    ) AS (document TEXT, score FLOAT)
+    )
 )
 SELECT ok(
     (SELECT document FROM reranked WHERE rank = 1) 
@@ -95,25 +95,25 @@ SELECT has_function(
     'Function steadytext_rerank_docs_only should exist'
 );
 
+-- Docs-only reranking returns documents only
 WITH test_docs AS (
     SELECT ARRAY[
-        'Database tutorial',
-        'Cooking recipes',
-        'SQL guide'
+        'Doc A about databases',
+        'Doc B about weather',
+        'Doc C about SQL and queries'
     ] AS documents
 ),
 reranked AS (
-    SELECT * FROM steadytext_rerank_docs_only(
+    SELECT document FROM steadytext_rerank_docs_only(
         'database',
         (SELECT documents FROM test_docs),
-        'Database relevance',
+        'Relevance to databases',
         42
-    ) AS (document TEXT)
+    )
 )
-SELECT is(
-    COUNT(*)::integer,
-    3,
-    'Docs-only reranking should return all documents'
+SELECT ok(
+    COUNT(*) = 3,
+    'Docs-only reranking should return all input documents'
 ) FROM reranked;
 
 -- Test 7: Top-k reranking function exists
@@ -141,7 +141,7 @@ reranked AS (
         'Database relevance',
         true,
         42
-    ) AS (document TEXT, score FLOAT)
+    )
 )
 SELECT is(
     COUNT(*)::integer,
@@ -306,7 +306,7 @@ rerank1 AS (
         'Database relevance',
         true,
         42
-    ) AS (document TEXT, score FLOAT)
+    )
 ),
 rerank2 AS (
     SELECT array_agg(document ORDER BY score DESC) as ranked_docs
@@ -316,7 +316,7 @@ rerank2 AS (
         'Database relevance',
         true,
         42
-    ) AS (document TEXT, score FLOAT)
+    )
 )
 SELECT is(
     (SELECT ranked_docs FROM rerank1),
@@ -339,7 +339,7 @@ admin_focused AS (
         'Focus on database administration',
         true,
         42
-    ) AS (document TEXT, score FLOAT)
+    )
     WHERE document LIKE '%administration%'
 ),
 perf_focused AS (
@@ -350,7 +350,7 @@ perf_focused AS (
         'Focus on database performance',
         true,
         42
-    ) AS (document TEXT, score FLOAT)
+    )
     WHERE document LIKE '%performance%'
 )
 SELECT ok(
@@ -374,7 +374,7 @@ reranked AS (
         'Database relevance',
         true,
         42
-    ) AS (document TEXT, score FLOAT)
+    )
 )
 SELECT is(
     COUNT(*)::integer,
@@ -397,7 +397,7 @@ first_call AS (
         'Educational content',
         true,
         42
-    ) AS (document TEXT, score FLOAT)
+    )
     WHERE document LIKE '%PostgreSQL%'
 ),
 second_call AS (
@@ -408,7 +408,7 @@ second_call AS (
         'Educational content',
         true,
         42
-    ) AS (document TEXT, score FLOAT)
+    )
     WHERE document LIKE '%PostgreSQL%'
 )
 SELECT is(
@@ -432,7 +432,7 @@ reranked AS (
         'Document relevance',
         true,
         42
-    ) AS (document TEXT, score FLOAT)
+    )
 )
 SELECT ok(
     COUNT(*) = 3,
@@ -450,7 +450,7 @@ reranked AS (
         'Relevance',
         true,
         42
-    ) AS (document TEXT, score FLOAT)
+    )
 )
 SELECT is(
     COUNT(*)::integer,
@@ -473,7 +473,7 @@ reranked AS (
         'International relevance',
         true,
         42
-    ) AS (document TEXT, score FLOAT)
+    )
 )
 SELECT ok(
     COUNT(*) = 3,
@@ -494,7 +494,7 @@ reranked AS (
         'Database relevance',
         true,
         42
-    ) AS (document TEXT, score FLOAT)
+    )
 )
 SELECT ok(
     COUNT(*) = 2,
@@ -512,12 +512,10 @@ WITH test_docs AS (
 seed42 AS (
     SELECT array_agg(document ORDER BY score DESC) as ranked_docs
     FROM steadytext_rerank('database', (SELECT documents FROM test_docs), 'Relevance', true, 42) 
-    AS (document TEXT, score FLOAT)
 ),
 seed123 AS (
     SELECT array_agg(document ORDER BY score DESC) as ranked_docs
     FROM steadytext_rerank('database', (SELECT documents FROM test_docs), 'Relevance', true, 123) 
-    AS (document TEXT, score FLOAT)
 )
 SELECT ok(
     (SELECT ranked_docs FROM seed42) = (SELECT ranked_docs FROM seed123),
@@ -567,7 +565,7 @@ reranked AS (
         'Relevance',
         true,
         42
-    ) AS (document TEXT, score FLOAT)
+    )
 )
 SELECT is(
     COUNT(*)::integer,

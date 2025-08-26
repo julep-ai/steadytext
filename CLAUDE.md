@@ -57,12 +57,12 @@ os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 - AIDEV-TODO: Consider adding connection pooling for high-concurrency scenarios
 - AIDEV-TODO: Add metrics/monitoring endpoints for production deployments
 
-## Models (v2025.8.17+)
+## Models (v2025.8.26+)
 
 - AIDEV-NOTE: Documentation previously mentioned Gemma-3n models but code actually uses Qwen3 models
-- AIDEV-NOTE: As of v2025.8.17, default generation models are Qwen3-4B (small) and Qwen3-30B (large)
+- AIDEV-NOTE: As of v2025.8.26, default generation models are Qwen3-4B (small) and Qwen3-30B (large)
 
-SteadyText v2025.8.17+ uses Qwen3 models for generation and Jina v4 for embeddings:
+SteadyText v2025.8.26+ uses Qwen3 models for generation and Jina v4 for embeddings:
 
 **Generation Models:**
 - **Small** (default): Qwen3-4B-Instruct - Fast, efficient for most tasks
@@ -204,9 +204,9 @@ result = generate_json(
 - AIDEV-NOTE: Deterministic/cacheable, bypasses cache for logprobs, on-the-fly grammar conversion
 - AIDEV-TODO: Add streaming support and grammar caching
 
-## Versioning Policy (As of 2025.8.17)
+## Versioning Policy (As of 2025.8.26)
 
-- AIDEV-NOTE: Version 2025.8.17 includes PostgreSQL extension improvements and documentation fixes
+- AIDEV-NOTE: Version 2025.8.26 includes complete schema qualification for all PostgreSQL extension functions
 
 Both SteadyText components now use **date-based versioning** instead of semantic versioning:
 
@@ -463,10 +463,11 @@ uv sync
 
 - AIDEV-TODO: Add UV-specific CI/CD configurations for faster builds
 
-## Recent PostgreSQL Extension Updates (v2025.8.17)
+## Recent PostgreSQL Extension Updates (v2025.8.26)
 
-- AIDEV-NOTE: Functions renamed from ai_* to steadytext_* with st_* aliases for consistency
-- AIDEV-NOTE: Added schema qualification to all table references for TimescaleDB compatibility
+- AIDEV-NOTE: Complete schema qualification for ALL functions accessing extension tables (v2025.8.26)
+- AIDEV-NOTE: Functions use dynamic schema resolution via plpy.execute() and plpy.quote_ident()
+- AIDEV-NOTE: SQL alias functions use @extschema@ placeholder for proper schema references
 - AIDEV-NOTE: Fixed Python scoping issues in aggregate functions (argument reassignment problem)
 - AIDEV-NOTE: Enhanced summarization functions with model and unsafe_mode parameters for remote models
 - AIDEV-TODO: Consider adding more comprehensive tests for remote model summarization

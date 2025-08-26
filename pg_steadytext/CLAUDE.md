@@ -21,6 +21,20 @@ This file contains important development notes and architectural decisions for A
 
 ## Recent Fixes
 
+### v2025.8.26 - Complete Schema Qualification for All Functions
+- **Fixed**: Extended schema qualification to ALL functions accessing extension tables
+  - Added dynamic schema resolution to daemon control functions
+  - Added schema qualification to structured generation functions (JSON, regex, choice)
+  - Added schema qualification to summarization helper functions
+  - Uses `plpy.execute()` and `plpy.quote_ident()` for dynamic schema lookup
+  - Ensures all functions work correctly with TimescaleDB continuous aggregates
+- **Added**: Proper `@extschema@` qualification for all alias functions
+  - `st_daemon_start()` and `st_daemon_stop()` now use proper schema references
+- **Migration**: Comprehensive migration script from v2025.8.17 to v2025.8.26
+  - Includes all 17 function updates with proper schema qualification
+- AIDEV-NOTE: Always use dynamic schema resolution for any function accessing extension tables
+- AIDEV-NOTE: Use `@extschema@` placeholder in SQL alias functions for proper schema references
+
 ### v2025.8.17 - AI Summarization Enhancement & Schema Qualification
 - **Added**: Enhanced AI summarization with remote model support
   - Renamed `ai_*` functions to `steadytext_*` with `st_*` aliases for consistency  
@@ -303,9 +317,6 @@ docker exec pg_steadytext_db psql -U postgres -f /tmp/pg_steadytext/test/pgtap/0
 **Available async functions**:
 - `steadytext_generate_async()` - Basic text generation (added v1.4.4)
 - `steadytext_embed_async()` - Embeddings
-- `steadytext_generate_json_async()` - JSON with schema
-- `steadytext_generate_regex_async()` - Regex-constrained
-- `steadytext_generate_choice_async()` - Choice-constrained
 - `steadytext_rerank_async()` - Document reranking
 
 **Test**: `SELECT st_generate_async('Test', 100);`
@@ -315,8 +326,8 @@ docker exec pg_steadytext_db psql -U postgres -f /tmp/pg_steadytext/test/pgtap/0
 ## Cache Eviction (v1.4.0+)
 
 - AIDEV-NOTE: Now uses age-based eviction (FIFO) for IMMUTABLE compliance
-- **Setup**: `CREATE EXTENSION pg_cron; SELECT steadytext_setup_cache_eviction_cron();`
 - **Config**: Set max_entries, max_size_mb, min_age_hours via config table
+- **Function**: `steadytext_cache_evict_by_age()` for manual eviction
 
 - AIDEV-TODO: Adaptive thresholds, alternative strategies (LRU/ARC)
 
