@@ -542,10 +542,22 @@ AIDEV-NOTE: The devcontainer mounts Docker socket for testing containerized buil
 SteadyText includes an "unsafe mode" that allows using remote AI models with best-effort determinism via seed parameters.
 
 **Provider Support (v2.6.2+):**
-- **OpenAI**: Text generation (gpt-4o, gpt-4o-mini) and embeddings (text-embedding-3-small/large) with seed parameter
+- **OpenAI**: Text generation (gpt-4o, gpt-4o-mini, GPT-5 series) and embeddings (text-embedding-3-small/large) with seed parameter
+  - AIDEV-NOTE: GPT-5 and o1 reasoning models require temperature=1.0 and are automatically adjusted
 - **Cerebras**: Fast Llama model generation with seed parameter
 - **VoyageAI**: Specialized embeddings (voyage-3, voyage-large-2, etc.) - no seed support
 - **Jina AI**: Multilingual embeddings (jina-embeddings-v3, v2-base variants) - no seed support
+
+**Custom Options Support (v2025.8.17+):**
+You can pass additional provider-specific options using the `options` parameter:
+```python
+# Python API
+result = generate("Hello", model="openai:gpt-4o-mini", unsafe_mode=True, 
+                 options={"top_p": 0.95, "presence_penalty": 0.5})
+
+# CLI
+echo "Hello" | st --unsafe-mode --model openai:gpt-4o-mini --options '{"top_p": 0.95}'
+```
 
 AIDEV-TODO: Add support for more providers (Anthropic when they add seed support, Together.ai, etc.)
 AIDEV-TODO: Consider adding structured output support for remote models

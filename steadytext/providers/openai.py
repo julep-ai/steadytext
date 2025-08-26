@@ -57,6 +57,13 @@ class OpenAIProvider(RemoteModelProvider):
         "gpt-3.5-turbo-0125",
     ]
 
+    # AIDEV-NOTE: Reasoning models (o1 series, GPT-5 series) require temperature=1.0
+    # These models don't support temperature values other than 1.0
+    REASONING_MODELS = [
+        "o1",  # o1 series (o1-preview, o1-mini, etc.)
+        "gpt-5",  # GPT-5 series (gpt-5-mini, gpt-5-pro, etc.)
+    ]
+
     def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o-mini"):
         """Initialize OpenAI provider.
 
@@ -101,12 +108,18 @@ class OpenAIProvider(RemoteModelProvider):
 
     def _get_max_tokens_param_name(self) -> str:
         """Get the correct parameter name for max tokens based on model type."""
-        # FIXME: This is a temporary heuristic - we should maintain a proper list
-        # of reasoning models or query the API for model capabilities
-        # Check if this is a reasoning model (o1 series)
-        if self.model.startswith("o"):
+        # Check if this is a reasoning model
+        if self._is_reasoning_model():
             return "max_completion_tokens"
         return "max_tokens"
+
+    def _is_reasoning_model(self) -> bool:
+        """Check if the current model is a reasoning model that requires special handling."""
+        # Check if model matches any reasoning model prefix
+        for prefix in self.REASONING_MODELS:
+            if self.model.startswith(prefix):
+                return True
+        return False
 
     def generate(
         self,
@@ -129,9 +142,12 @@ class OpenAIProvider(RemoteModelProvider):
         client = self._get_client()
 
         # AIDEV-NOTE: temperature=0 + seed provides maximum determinism possible
-        # FIXME: Reasoning models only support temperature=1.0
-        # This should be handled more elegantly in the future
-        if self.model.startswith("o"):
+        # Reasoning models (o1, GPT-5) only support temperature=1.0
+        if self._is_reasoning_model():
+            if temperature != 1.0:
+                logger.info(
+                    f"Reasoning model {self.model} requires temperature=1.0, overriding from {temperature}"
+                )
             actual_temperature = 1.0
         else:
             actual_temperature = temperature
@@ -215,9 +231,12 @@ class OpenAIProvider(RemoteModelProvider):
 
         client = self._get_client()
 
-        # FIXME: Reasoning models only support temperature=1.0
-        # This should be handled more elegantly in the future
-        if self.model.startswith("o"):
+        # Reasoning models (o1, GPT-5) only support temperature=1.0
+        if self._is_reasoning_model():
+            if temperature != 1.0:
+                logger.info(
+                    f"Reasoning model {self.model} requires temperature=1.0, overriding from {temperature}"
+                )
             actual_temperature = 1.0
         else:
             actual_temperature = temperature

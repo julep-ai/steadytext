@@ -102,6 +102,11 @@ from ...config import with_defaults
     is_flag=True,
     help="Enable remote models with best-effort determinism",
 )
+@click.option(
+    "--options",
+    default=None,
+    help="JSON string of additional provider-specific options (e.g., '{\"top_p\": 0.9}')",
+)
 @click.pass_context
 @with_defaults("generate")
 def generate(
@@ -127,6 +132,7 @@ def generate(
     regex: str,
     choices: str,
     unsafe_mode: bool,
+    options: str,
 ):
     """Generate text from a prompt (streams by default).
 
@@ -152,6 +158,8 @@ def generate(
     Unsafe mode (remote models with best-effort determinism):
         echo "Explain AI" | st --unsafe-mode --model openai:gpt-4o-mini
         echo "Write code" | st --unsafe-mode --model cerebras:llama3.1-8b
+        # With custom options:
+        echo "Creative writing" | st --unsafe-mode --model openai:gpt-4o-mini --options '{"top_p": 0.95}'
         # Or with environment variable:
         export STEADYTEXT_UNSAFE_MODE=true
         echo "Explain AI" | st --model openai:gpt-4o-mini
@@ -230,6 +238,21 @@ def generate(
     if choices:
         choices_list = [c.strip() for c in choices.split(",")]
 
+    # Parse options if provided
+    options_dict = None
+    if options:
+        try:
+            options_dict = json.loads(options)
+            if not isinstance(options_dict, dict):
+                click.echo(
+                    f"Error: Options must be a JSON object, got {type(options_dict).__name__}",
+                    err=True,
+                )
+                sys.exit(1)
+        except json.JSONDecodeError as e:
+            click.echo(f"Error: Invalid JSON in options: {e}", err=True)
+            sys.exit(1)
+
     # AIDEV-NOTE: Search index for context unless disabled or using remote models
     context_chunks = []
     # Skip index search for remote models to avoid loading embedding model
@@ -283,6 +306,7 @@ def generate(
             seed=seed,
             temperature=temperature,
             unsafe_mode=unsafe_mode,
+            options=options_dict,
         ):
             if logprobs and isinstance(token, dict):
                 # Handle logprobs output
@@ -349,6 +373,7 @@ def generate(
                 regex=regex,
                 choices=choices_list,
                 unsafe_mode=unsafe_mode,
+                options=options_dict,
             )
             # Unpack the tuple result
             if result is not None and isinstance(result, tuple):
@@ -368,6 +393,7 @@ def generate(
                     seed=seed,
                     temperature=temperature,
                     unsafe_mode=unsafe_mode,
+                    options=options_dict,
                 ):
                     generated_text += str(
                         token.get("token", "") if isinstance(token, dict) else token
@@ -411,6 +437,7 @@ def generate(
                 regex=regex,
                 choices=choices_list,
                 unsafe_mode=unsafe_mode,
+                options=options_dict,
             )
             if output_format == "json":
                 metadata = {

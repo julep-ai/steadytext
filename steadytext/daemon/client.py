@@ -165,6 +165,7 @@ class DaemonClient:
         choices: Optional[List[str]] = None,
         unsafe_mode: bool = False,
         return_pydantic: bool = False,
+        options: Optional[Dict[str, Any]] = None,
     ) -> Union[
         str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None], object
     ]:
@@ -192,6 +193,7 @@ class DaemonClient:
                 "choices": choices,
                 "unsafe_mode": unsafe_mode,
                 "return_pydantic": return_pydantic,
+                "options": options,
             }
 
             request = Request(method="generate", params=params)
@@ -233,6 +235,7 @@ class DaemonClient:
         temperature: float = 0.0,
         max_new_tokens: Optional[int] = None,
         unsafe_mode: bool = False,
+        options: Optional[Dict[str, Any]] = None,
     ) -> Iterator[Union[str, Dict[str, Any]]]:
         """Generate text iteratively via daemon.
 
@@ -255,6 +258,7 @@ class DaemonClient:
                 "temperature": temperature,
                 "max_new_tokens": max_new_tokens,
                 "unsafe_mode": unsafe_mode,
+                "options": options,
             }
 
             request = Request(method="generate_iter", params=params)
