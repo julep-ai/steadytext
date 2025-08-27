@@ -1,4 +1,5 @@
-version: '3.8'
+# AIDEV-NOTE: DevContainer postgres runs separately, not with direct mounts
+# AIDEV-NOTE: Use rebuild_extension_simple.sh for quick rebuilds (copy-and-build approach)
 
 services:
   dev:
@@ -22,15 +23,7 @@ services:
       - DOCKER_BUILDKIT=1
 
   postgres:
-    build: 
-      context: ../pg_steadytext
-      dockerfile: Dockerfile
-      args:
-        BUILDKIT_INLINE_CACHE: 1
-      cache_from:
-        - type=local,src=/tmp/.buildx-cache-pg
-      cache_to:
-        - type=local,dest=/tmp/.buildx-cache-pg,mode=max
+    image: steadytext_devcontainer-postgres:latest
     container_name: pg_steadytext_db
     environment:
       POSTGRES_USER: postgres
@@ -43,9 +36,6 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ../pg_steadytext/sql:/tmp/pg_steadytext/sql:ro
-      - ../pg_steadytext/python:/tmp/pg_steadytext/python:ro
-      - ../pg_steadytext/test:/tmp/pg_steadytext/test:ro
       - postgres_data:/var/lib/postgresql/data
       - steadytext_cache:/root/.cache/steadytext
     healthcheck:

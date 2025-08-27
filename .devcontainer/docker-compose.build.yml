@@ -1,0 +1,12 @@
+# Alternative docker-compose file that builds postgres image locally
+# Use with: docker compose -f docker-compose.yml -f docker-compose.build.yml up
+
+services:
+  postgres:
+    build:
+      context: ../pg_steadytext
+      dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+        STEADYTEXT_USE_FALLBACK_MODEL: ${STEADYTEXT_USE_FALLBACK_MODEL:-false}
+    image: steadytext_devcontainer-postgres:latest

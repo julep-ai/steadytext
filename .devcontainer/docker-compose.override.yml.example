@@ -1,0 +1,19 @@
+# Example docker-compose override file for CI or custom configurations
+# Copy this to docker-compose.override.yml to use custom settings
+
+# This file is automatically used by docker-compose if it exists
+# It's useful for CI to override the postgres image source
+
+services:
+  postgres:
+    # Override the image to use a specific version or registry
+    # image: ghcr.io/yourusername/steadytext_devcontainer-postgres:latest
+    
+    # Or build from local Dockerfile
+    # build:
+    #   context: ../pg_steadytext
+    #   dockerfile: Dockerfile
+    
+    # Additional environment variables for testing
+    # environment:
+    #   STEADYTEXT_USE_MINI_MODELS: "true"
