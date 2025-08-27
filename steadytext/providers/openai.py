@@ -60,7 +60,7 @@ class OpenAIProvider(RemoteModelProvider):
     # AIDEV-NOTE: Reasoning models (o1 series, GPT-5 series) require temperature=1.0
     # These models don't support temperature values other than 1.0
     REASONING_MODELS = [
-        "o1",  # o1 series (o1-preview, o1-mini, etc.)
+        "o",  # o series (o1-preview, o3-mini, etc.)
         "gpt-5",  # GPT-5 series (gpt-5-mini, gpt-5-pro, etc.)
     ]
 
