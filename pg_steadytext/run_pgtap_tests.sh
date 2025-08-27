@@ -1,6 +1,8 @@
 #!/bin/bash
 # run_pgtap_tests.sh - Run pgTAP tests for pg_steadytext
 # AIDEV-NOTE: This script runs pgTAP tests and provides TAP output
+# AIDEV-NOTE: TimescaleDB integration tests (16_timescaledb_integration.sql) run if TimescaleDB is available
+# AIDEV-NOTE: Use STEADYTEXT_USE_MINI_MODELS=true environment variable to prevent test timeouts
 
 set -e
 
@@ -123,6 +125,18 @@ CREATE EXTENSION IF NOT EXISTS vector CASCADE;
 
 -- Install pgTAP
 CREATE EXTENSION IF NOT EXISTS pgtap CASCADE;
+
+-- Install TimescaleDB if available
+-- AIDEV-NOTE: TimescaleDB is optional but enables additional integration tests
+DO \$\$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'timescaledb') THEN
+        CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
+        RAISE NOTICE 'TimescaleDB extension installed for integration tests';
+    ELSE
+        RAISE NOTICE 'TimescaleDB not available, some tests will be skipped';
+    END IF;
+END\$\$;
 
 -- Install pg_steadytext
 CREATE EXTENSION pg_steadytext CASCADE;

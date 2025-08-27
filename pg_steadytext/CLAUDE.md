@@ -251,11 +251,46 @@ This file contains important development notes and architectural decisions for A
 
 - AIDEV-TODO: Connection pooling, prepared statements, batch optimizations
 
+## TimescaleDB Integration (v2025.8.27+)
+
+- AIDEV-NOTE: TimescaleDB package is installed in Docker image for optional time-series testing
+- AIDEV-NOTE: Due to Omnigres base image constraints, TimescaleDB requires manual configuration
+- AIDEV-NOTE: To enable TimescaleDB in container: ALTER SYSTEM SET shared_preload_libraries = 'omni--0.2.11.so', 'timescaledb';
+- Test file: test/pgtap/16_timescaledb_compat.sql - Tests basic compatibility
+- Test file: test/pgtap/16_timescaledb_integration.sql - Comprehensive continuous aggregate tests (requires TimescaleDB)
+- AIDEV-NOTE: Use STEADYTEXT_USE_MINI_MODELS=true when running tests to prevent timeouts
+- AIDEV-TODO: Simplify TimescaleDB configuration once Omnigres updates their base image
+
 ## DevContainer Testing Instructions
 
 ### Testing Extension Changes in DevContainer
 
-When working inside the devcontainer (you can check if `/workspace` exists with source code), PostgreSQL runs in a separate container. Follow these steps to test extension changes:
+When working inside the devcontainer (you can check if `/workspace` exists with source code), PostgreSQL runs in a separate container.
+
+- AIDEV-NOTE: DevContainer limitation - Docker daemon runs on host, not in devcontainer
+- AIDEV-NOTE: Cannot mount host paths directly from inside devcontainer's docker-compose
+- AIDEV-NOTE: Solution: Use copy-and-build approach for fast iteration (~2-3 seconds)
+
+**Quick Rebuild Method (Recommended):**
+```bash
+# From anywhere in the devcontainer, run:
+/workspace/.devcontainer/rebuild_extension_simple.sh
+
+# This script automatically:
+# - Copies all extension files to the postgres container
+# - Builds and installs the extension
+# - Reinstalls it in the database  
+# - Verifies the installation
+
+# For auto-rebuild on file changes (requires inotify-tools):
+/workspace/.devcontainer/watch_extension.sh
+```
+
+- AIDEV-NOTE: rebuild_extension_simple.sh uses docker cp for file transfer (works around mount limitations)
+- AIDEV-NOTE: watch_extension.sh uses inotifywait for efficient file monitoring with polling fallback
+- AIDEV-NOTE: Both scripts handle all complexity - just run and develop
+
+**Manual Method:**
 
 **1. Check Container Status:**
 ```bash
@@ -263,94 +298,47 @@ When working inside the devcontainer (you can check if `/workspace` exists with 
 docker ps | grep pg_steadytext_db  # Should show the postgres container
 ```
 
-**2. Copy Modified Files to Container:**
+**2. Copy and Build Extension:**
 ```bash
-# The container uses PostgreSQL 17 (check with: docker exec pg_steadytext_db psql -V)
-# Extension files are in /usr/share/postgresql/17/extension/
+# Copy all source files to container
+docker exec pg_steadytext_db mkdir -p /tmp/pg_steadytext_build
+docker cp /workspace/pg_steadytext/Makefile pg_steadytext_db:/tmp/pg_steadytext_build/
+docker cp /workspace/pg_steadytext/pg_steadytext.control pg_steadytext_db:/tmp/pg_steadytext_build/
+docker cp /workspace/pg_steadytext/sql pg_steadytext_db:/tmp/pg_steadytext_build/
+docker cp /workspace/pg_steadytext/python pg_steadytext_db:/tmp/pg_steadytext_build/
+docker cp /workspace/pg_steadytext/test pg_steadytext_db:/tmp/pg_steadytext_build/
 
-# Copy SQL files to container (example for v1.4.6)
-docker cp /workspace/pg_steadytext/sql/pg_steadytext--1.4.6.sql \
-  pg_steadytext_db:/tmp/
-
-# Move to extension directory inside container
-docker exec pg_steadytext_db cp /tmp/pg_steadytext--1.4.6.sql \
-  /usr/share/postgresql/17/extension/
-
-# For multiple files, repeat or use a loop
-for file in /workspace/pg_steadytext/sql/*.sql; do
-  docker cp "$file" pg_steadytext_db:/tmp/
-  docker exec pg_steadytext_db cp "/tmp/$(basename $file)" \
-    /usr/share/postgresql/17/extension/
-done
+# Build and install
+docker exec pg_steadytext_db bash -c 'cd /tmp/pg_steadytext_build && make clean && make install'
 ```
 
-**3. Copy Python Files (if modified):**
-```bash
-# Python files are in the container's Python path
-docker cp /workspace/pg_steadytext/python/*.py \
-  pg_steadytext_db:/usr/lib/postgresql/17/lib/pg_steadytext/
-```
-
-**4. Test Extension Installation:**
+**3. Test Extension Installation:**
 ```bash
 # Connect to PostgreSQL
 PGPASSWORD=password psql -h postgres -U postgres -d postgres
 
-# Clean install (removes all data!)
+# Reinstall extension
 DROP EXTENSION IF EXISTS pg_steadytext CASCADE;
-DROP SCHEMA public CASCADE;
-CREATE SCHEMA public;
-
-# Install prerequisites
-CREATE EXTENSION IF NOT EXISTS vector;
-CREATE EXTENSION IF NOT EXISTS plpython3u;
-
-# Install specific version
-CREATE EXTENSION pg_steadytext VERSION '1.4.6';
+CREATE EXTENSION pg_steadytext;
 
 # Verify installation
 SELECT steadytext_version();
 SELECT extname, extversion FROM pg_extension WHERE extname = 'pg_steadytext';
-
-# Check table ownership (should list all tables)
-SELECT c.relname FROM pg_class c 
-JOIN pg_depend d ON c.oid = d.objid 
-JOIN pg_extension e ON d.refobjid = e.oid 
-WHERE e.extname = 'pg_steadytext' AND c.relkind = 'r';
 ```
 
-**5. Quick Test Script:**
+**4. Run Tests:**
 ```bash
-# Save as test_extension.sh
-#!/bin/bash
-VERSION=${1:-"1.4.6"}
-
-# Copy files
-docker cp /workspace/pg_steadytext/sql/pg_steadytext--${VERSION}.sql \
-  pg_steadytext_db:/tmp/
-docker exec pg_steadytext_db cp /tmp/pg_steadytext--${VERSION}.sql \
-  /usr/share/postgresql/17/extension/
-
-# Test installation
-PGPASSWORD=password psql -h postgres -U postgres -d postgres <<EOF
-DROP EXTENSION IF EXISTS pg_steadytext CASCADE;
-CREATE EXTENSION pg_steadytext VERSION '${VERSION}';
-SELECT steadytext_version();
-EOF
-```
-
-**6. Run Tests:**
-```bash
-# pgTAP tests (after installation)
-docker exec pg_steadytext_db bash -c "cd /tmp/pg_steadytext && ./run_pgtap_tests.sh"
+# pgTAP tests (requires copying test files first)
+docker exec pg_steadytext_db bash -c "cd /tmp/pg_steadytext_build && ./run_pgtap_tests.sh"
 
 # Or specific test
-docker exec pg_steadytext_db psql -U postgres -f /tmp/pg_steadytext/test/pgtap/01_basic.sql
+docker exec pg_steadytext_db psql -U postgres -f /tmp/pg_steadytext_build/test/pgtap/01_basic.sql
 ```
 
-- AIDEV-NOTE: The postgres container mounts volumes read-only, so always copy files first
-- AIDEV-NOTE: Use `docker exec pg_steadytext_db` to run commands inside the container
-- AIDEV-NOTE: PostgreSQL version may vary - check with `docker exec pg_steadytext_db psql -V`
+- AIDEV-NOTE: The postgres container runs separately without direct mounts for security
+- AIDEV-NOTE: Use rebuild_extension_simple.sh for fastest development iteration
+- AIDEV-NOTE: The watch script provides automatic rebuilds on file changes
+- AIDEV-NOTE: PostgreSQL version is 17 in the current devcontainer setup
 
 ## Development Quick Reference
 

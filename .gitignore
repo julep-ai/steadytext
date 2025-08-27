@@ -4,6 +4,7 @@
 
 .*_cache/
 .crush/
+core.*
 
 .pytest-runtimes
 

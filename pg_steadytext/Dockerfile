@@ -13,13 +13,21 @@ ENV STEADYTEXT_USE_FALLBACK_MODEL=${STEADYTEXT_USE_FALLBACK_MODEL}
 # Install build dependencies
 # AIDEV-NOTE: This layer is cached and rarely changes
 # AIDEV-NOTE: pgTAP added for PostgreSQL TAP testing framework
+# AIDEV-NOTE: TimescaleDB package installed for optional time-series testing
+# AIDEV-NOTE: Due to Omnigres base image constraints, TimescaleDB must be manually configured
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
+    # Add TimescaleDB repository
+    apt-get install -y gnupg postgresql-common apt-transport-https lsb-release wget && \
+    echo "deb https://packagecloud.io/timescale/timescaledb/debian/ $(lsb_release -c -s) main" > /etc/apt/sources.list.d/timescaledb.list && \
+    wget --quiet -O - https://packagecloud.io/timescale/timescaledb/gpgkey | gpg --dearmor -o /etc/apt/trusted.gpg.d/timescaledb.gpg && \
     apt-get update && apt-get install -y \
     postgresql-server-dev-17 \
     postgresql-plpython3-17 \
     postgresql-17-pgvector \
     postgresql-17-pgtap \
+    timescaledb-2-postgresql-17 \
     python3-pip \
     python3-dev \
     make \

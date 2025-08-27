@@ -23,8 +23,13 @@ services:
       - DOCKER_BUILDKIT=1
 
   postgres:
-    image: steadytext_devcontainer-postgres:latest
+    build:
+      context: ../pg_steadytext
+      dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 1
     container_name: pg_steadytext_db
+    command: postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
