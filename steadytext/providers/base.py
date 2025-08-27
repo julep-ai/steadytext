@@ -69,6 +69,7 @@ class RemoteModelProvider(ABC):
         prompt: str,
         max_new_tokens: Optional[int] = None,
         seed: int = 42,
+        temperature: float = 0.0,
         response_format: Optional[Dict[str, Any]] = None,
         schema: Optional[Union[Dict[str, Any], type, object]] = None,
         **kwargs,
@@ -79,9 +80,11 @@ class RemoteModelProvider(ABC):
             prompt: Input prompt
             max_new_tokens: Maximum tokens to generate
             seed: Seed for best-effort determinism
+            temperature: Temperature for sampling (0.0 = deterministic, higher = more random)
             response_format: Response format specification (e.g., {"type": "json_object"})
             schema: JSON schema, Pydantic model, or Python type for structured output
-            **kwargs: Additional provider-specific parameters
+            **kwargs: Additional provider-specific parameters (passed directly to the API)
+                     These can include custom options like top_p, presence_penalty, etc.
 
         Returns:
             Generated text
@@ -94,6 +97,7 @@ class RemoteModelProvider(ABC):
         prompt: str,
         max_new_tokens: Optional[int] = None,
         seed: int = 42,
+        temperature: float = 0.0,
         **kwargs,
     ) -> Iterator[str]:
         """Generate text iteratively with best-effort determinism.
@@ -102,7 +106,9 @@ class RemoteModelProvider(ABC):
             prompt: Input prompt
             max_new_tokens: Maximum tokens to generate
             seed: Seed for best-effort determinism
-            **kwargs: Additional provider-specific parameters
+            temperature: Temperature for sampling (0.0 = deterministic, higher = more random)
+            **kwargs: Additional provider-specific parameters (passed directly to the API)
+                     These can include custom options like top_p, presence_penalty, etc.
 
         Yields:
             Generated tokens/chunks

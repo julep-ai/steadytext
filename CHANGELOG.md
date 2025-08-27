@@ -8,7 +8,24 @@
 > semantic versioning became impractical. Date-based versioning provides clearer insight into release
 > recency and better aligns with our continuous improvement philosophy.
 
+## Version 2025.8.26 (2025-08-26)
+
+### Changes
+- **Version Bump:** Date-based version update
+
 ## Version 2025.8.17 (2025-08-17)
+
+### New Features
+- **GPT-5 Series Support:** Added full support for OpenAI's GPT-5 reasoning models
+  - Automatic temperature adjustment to 1.0 for GPT-5 models (gpt-5-mini, gpt-5-pro, etc.)
+  - Similar handling to existing o1 series reasoning models
+  - Models require temperature=1.0 and don't support temperature tuning
+
+- **Custom Provider Options:** Added ability to pass provider-specific parameters
+  - New `options` parameter in `generate()` and `generate_iter()` functions
+  - CLI support via `--options` flag accepting JSON strings
+  - Allows passing custom parameters like `top_p`, `presence_penalty`, etc. to remote providers
+  - Example: `echo "text" | st --unsafe-mode --model openai:gpt-4o-mini --options '{"top_p": 0.95}'`
 
 ### PostgreSQL Extension Updates
 - **AI Summarization Enhancement:** Renamed `ai_*` functions to `steadytext_*` with `st_*` aliases for consistency
@@ -21,6 +38,7 @@
 - **Model Documentation:** Corrected README to reflect actual Qwen3 models being used (not Gemma-3n)
 - **Version Alignment:** Updated all version references to 2025.8.17
 - **Feature Documentation:** Added comprehensive documentation for new summarization features
+- **GPT-5 Documentation:** Updated documentation to include GPT-5 series support and custom options
 
 ## Version 2025.8.16 (2025-08-16)
 

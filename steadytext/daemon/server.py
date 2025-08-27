@@ -112,6 +112,7 @@ class DaemonServer:
         regex = params.get("regex")
         choices = params.get("choices")
         return_pydantic = params.get("return_pydantic", False)
+        options = params.get("options")
 
         # AIDEV-NOTE: Check cache first for non-logprobs requests using default model
         # This mirrors the caching logic in core/generator.py
@@ -142,6 +143,7 @@ class DaemonServer:
                 regex=regex,
                 choices=choices,
                 return_pydantic=return_pydantic,
+                options=options,
             )
         else:
             # Local model - use the generator instance
@@ -161,6 +163,7 @@ class DaemonServer:
                 regex=regex,
                 choices=choices,
                 return_pydantic=return_pydantic,
+                options=options,
             )
 
         # AIDEV-NOTE: Cache the result for non-logprobs requests using default model
@@ -196,6 +199,7 @@ class DaemonServer:
         temperature = params.get("temperature", 0.0)
         max_new_tokens = params.get("max_new_tokens")
         unsafe_mode = params.get("unsafe_mode", False)
+        options = params.get("options")
 
         # AIDEV-NOTE: Check cache for non-logprobs streaming requests using default model
         # If cached, simulate streaming by yielding words from cached result
@@ -246,6 +250,7 @@ class DaemonServer:
                 temperature=temperature,
                 max_new_tokens=max_new_tokens,
                 unsafe_mode=unsafe_mode,
+                options=options,
             )
         else:
             # Local model - use the generator instance
@@ -260,6 +265,7 @@ class DaemonServer:
                 seed=seed,
                 temperature=temperature,
                 max_new_tokens=max_new_tokens,
+                options=options,
             )
 
         for token in token_iterator:

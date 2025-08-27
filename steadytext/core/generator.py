@@ -221,6 +221,7 @@ class DeterministicGenerator:
         regex: Optional[str] = None,
         choices: Optional[List[str]] = None,
         return_pydantic: bool = False,
+        options: Optional[Dict[str, Any]] = None,
     ) -> Union[
         str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None], object
     ]:
@@ -259,6 +260,8 @@ class DeterministicGenerator:
 
                 # Handle structured generation with remote models
                 if schema or response_format:
+                    # Pass options if provided
+                    kwargs = options or {}
                     result = provider.generate(
                         prompt=prompt,
                         max_new_tokens=max_new_tokens,
@@ -266,33 +269,40 @@ class DeterministicGenerator:
                         temperature=temperature,
                         response_format=response_format,
                         schema=schema,
+                        **kwargs,
                     )
                 elif regex:
                     # Convert regex to prompt instruction for remote models
                     enhanced_prompt = f"{prompt}\n\nPlease format your response to match this regular expression pattern: {regex}"
+                    kwargs = options or {}
                     result = provider.generate(
                         prompt=enhanced_prompt,
                         max_new_tokens=max_new_tokens,
                         seed=seed,
                         temperature=temperature,
+                        **kwargs,
                     )
                 elif choices:
                     # Convert choices to prompt instruction for remote models
                     choices_str = ", ".join([f"'{choice}'" for choice in choices])
                     enhanced_prompt = f"{prompt}\n\nYou must respond with exactly one of these choices: {choices_str}"
+                    kwargs = options or {}
                     result = provider.generate(
                         prompt=enhanced_prompt,
                         max_new_tokens=max_new_tokens,
                         seed=seed,
                         temperature=temperature,
+                        **kwargs,
                     )
                 else:
                     # Regular generation
+                    kwargs = options or {}
                     result = provider.generate(
                         prompt=prompt,
                         max_new_tokens=max_new_tokens,
                         seed=seed,
                         temperature=temperature,
+                        **kwargs,
                     )
 
                 # Remote models don't support logprobs in our implementation
@@ -519,6 +529,7 @@ class DeterministicGenerator:
         size: Optional[str] = None,
         seed: int = DEFAULT_SEED,
         temperature: float = 0.0,
+        options: Optional[Dict[str, Any]] = None,
     ) -> Iterator[Union[str, Dict[str, Any]]]:
         """Generate text iteratively, yielding tokens as they are produced.
 
@@ -546,11 +557,13 @@ class DeterministicGenerator:
         if model and is_remote_model(model):
             try:
                 provider = get_provider(model)
+                kwargs = options or {}
                 for token in provider.generate_iter(
                     prompt=prompt,
                     max_new_tokens=max_new_tokens,
                     seed=seed,
                     temperature=temperature,
+                    **kwargs,
                 ):
                     # Remote models return strings, not dicts with logprobs
                     if include_logprobs:
@@ -976,6 +989,7 @@ def core_generate(
     choices: Optional[List[str]] = None,
     unsafe_mode: bool = False,
     return_pydantic: bool = False,
+    options: Optional[Dict[str, Any]] = None,
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None], object]:
     """Generate text deterministically with optional model switching and structured output.
 
@@ -1133,6 +1147,7 @@ def core_generate(
         regex=regex,
         choices=choices,
         return_pydantic=return_pydantic,
+        options=options,
     )
 
 
@@ -1148,6 +1163,7 @@ def core_generate_iter(
     seed: int = DEFAULT_SEED,
     temperature: float = 0.0,
     unsafe_mode: bool = False,
+    options: Optional[Dict[str, Any]] = None,
 ) -> Iterator[Union[str, Dict[str, Any]]]:
     """Generate text iteratively with optional model switching.
 
@@ -1192,19 +1208,23 @@ def core_generate_iter(
 
             # Use generate_iter if available, otherwise fall back to non-streaming
             if hasattr(provider, "generate_iter"):
+                kwargs = options or {}
                 yield from provider.generate_iter(
                     prompt=prompt,
                     max_new_tokens=max_new_tokens,
                     seed=seed,
                     temperature=temperature,
+                    **kwargs,
                 )
             else:
                 # Fall back to non-streaming generation and yield word by word
+                kwargs = options or {}
                 result = provider.generate(
                     prompt=prompt,
                     max_new_tokens=max_new_tokens,
                     seed=seed,
                     temperature=temperature,
+                    **kwargs,
                 )
                 if result:
                     # Split result into words and yield them
@@ -1239,4 +1259,5 @@ def core_generate_iter(
         size=size,
         seed=seed,
         temperature=temperature,
+        options=options,
     )
