@@ -2333,6 +2333,8 @@ END;
 $$;
 
 -- Async rerank function
+-- AIDEV-NOTE: Async reranking with proper UUID handling and schema qualification
+-- AIDEV-FIX: Cast request_id to UUID explicitly to avoid type mismatch errors
 CREATE OR REPLACE FUNCTION steadytext_rerank_async(
     query text,
     documents text[],
@@ -2451,6 +2453,8 @@ AS $c$
 $c$ LANGUAGE plpython3u IMMUTABLE PARALLEL SAFE;
 
 -- Batch async rerank function
+-- AIDEV-NOTE: Batch async reranking with proper UUID array handling
+-- AIDEV-FIX: Each UUID must be cast individually when inserting into queue
 CREATE OR REPLACE FUNCTION steadytext_rerank_batch_async(
     queries text[],
     documents text[],

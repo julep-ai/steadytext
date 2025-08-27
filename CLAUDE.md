@@ -475,6 +475,48 @@ uv sync
 
 ## PostgreSQL Extension (pg_steadytext)
 
+### pgTAP Testing Best Practices
+
+**Running Tests:**
+```bash
+# Run all tests
+PGHOST=postgres PGPORT=5432 PGUSER=postgres PGPASSWORD=password ./run_pgtap_tests.sh
+
+# Run specific test
+PGHOST=postgres PGPORT=5432 PGUSER=postgres PGPASSWORD=password psql test_postgres -X -f test/pgtap/08_reranking.sql
+
+# Use mini models to prevent timeouts (critical for reranking tests)
+PGHOST=postgres PGPORT=5432 PGUSER=postgres PGPASSWORD=password STEADYTEXT_USE_MINI_MODELS=true ./run_pgtap_tests.sh
+```
+
+**Common Test Issues and Solutions:**
+
+1. **Tests hanging on model loading:**
+   - AIDEV-FIX: Set `STEADYTEXT_USE_MINI_MODELS=true` environment variable
+   - Mini models are ~10x smaller and prevent timeouts
+   - Must be set at container level for PostgreSQL extension tests
+
+2. **plpy.Error in tests:**
+   - Usually means incorrect plpy.execute() usage
+   - Check that parameterized queries use plpy.prepare()
+   - Example error: `plpy.Error: plpy.execute expected a query or a plan`
+
+3. **Type mismatch errors:**
+   - Python strings must be explicitly cast to PostgreSQL types
+   - Common: UUID casting with `$1::uuid`, JSONB with `$2::jsonb`
+
+4. **Function output format issues:**
+   - Table-returning functions must use `yield` not `return`
+   - Check test expectations match actual output format
+
+5. **Test syntax errors:**
+   - Functions with OUT parameters don't need column definitions
+   - Error: `a column definition list is redundant for a function with OUT parameters`
+
+AIDEV-NOTE: Always run tests with mini models in CI to prevent timeouts
+AIDEV-NOTE: Check test output carefully - PL/Python errors can be misleading
+AIDEV-TODO: Add automated test suite for all PL/Python edge cases
+
 ### Docker Development
 
 **Building and Running:**

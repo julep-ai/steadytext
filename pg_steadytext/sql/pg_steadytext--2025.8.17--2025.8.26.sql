@@ -5,6 +5,9 @@
 -- 3) Fix steadytext_embed daemon status check (use status == 'healthy', not is_running)
 -- 4) Qualify alias functions with @extschema@ for search_path safety
 -- 5) Bump version to 2025.8.26
+-- AIDEV-NOTE: Fixed PL/Python plpy.execute() usage - must use plpy.prepare() for parameterized queries
+-- AIDEV-NOTE: Fixed UUID type casting - Python strings must be explicitly cast to UUID in SQL
+-- AIDEV-NOTE: Fixed yield vs return in PL/Python - use yield for row-by-row output
 
 -- CONFIGURATION: Add config table and defaults
 CREATE TABLE IF NOT EXISTS @extschema@.steadytext_config (

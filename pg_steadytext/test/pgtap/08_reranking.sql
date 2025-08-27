@@ -1,5 +1,7 @@
 -- 08_reranking.sql - pgTAP tests for reranking functionality (v1.3.0+)
 -- AIDEV-NOTE: Tests for document reranking using Qwen3-Reranker model
+-- AIDEV-NOTE: Use STEADYTEXT_USE_MINI_MODELS=true environment variable for CI/testing to avoid timeout
+-- AIDEV-FIX: Removed redundant column definition in line 221 - OUT parameters already define columns
 
 BEGIN;
 SELECT plan(35);
@@ -612,3 +614,5 @@ ROLLBACK;
 -- - Queue management for async operations
 -- - Parameter storage and retrieval
 -- - Performance with large document sets
+-- AIDEV-TODO: Add tests for remote model reranking with unsafe_mode
+-- AIDEV-TODO: Add tests for different reranking models when available
