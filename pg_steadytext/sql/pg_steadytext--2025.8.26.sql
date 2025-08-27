@@ -2231,15 +2231,20 @@ CREATE OR REPLACE FUNCTION steadytext_rerank_docs_only(
     seed integer DEFAULT 42
 ) RETURNS TABLE(document text)
 AS $c$
+    # Get extension schema for proper qualification
+    ext_schema_result = plpy.execute("SELECT nspname FROM pg_extension e JOIN pg_namespace n ON e.extnamespace = n.oid WHERE e.extname = 'pg_steadytext'")
+    ext_schema = ext_schema_result[0]['nspname'] if ext_schema_result else 'public'
+    
     # Call the main rerank function and extract just documents
     # Use plpy.prepare for proper parameter binding
     plan = plpy.prepare(
-        "SELECT document FROM steadytext_rerank($1, $2, $3, true, $4)",
+        f"SELECT document FROM {plpy.quote_ident(ext_schema)}.steadytext_rerank($1, $2, $3, true, $4)",
         ["text", "text[]", "text", "integer"]
     )
     results = plpy.execute(plan, [query, documents, task, seed])
     
-    return [{"document": row["document"]} for row in results]
+    for row in results:
+        yield row["document"]
 $c$ LANGUAGE plpython3u IMMUTABLE PARALLEL SAFE;
 
 -- Rerank function with top-k filtering
@@ -2352,12 +2357,17 @@ AS $c$
         'seed': seed
     }
     
-    # Insert into queue
-    plpy.execute("""
-        INSERT INTO @extschema@.steadytext_queue 
+    # Get extension schema for proper qualification
+    ext_schema_result = plpy.execute("SELECT nspname FROM pg_extension e JOIN pg_namespace n ON e.extnamespace = n.oid WHERE e.extname = 'pg_steadytext'")
+    ext_schema = ext_schema_result[0]['nspname'] if ext_schema_result else 'public'
+    
+    # Insert into queue - cast request_id to UUID
+    plan = plpy.prepare(f"""
+        INSERT INTO {plpy.quote_ident(ext_schema)}.steadytext_queue 
         (request_id, request_type, params, status, created_at, priority)
-        VALUES ($1, 'rerank', $2::jsonb, 'pending', CURRENT_TIMESTAMP, 5)
-    """, [request_id, json.dumps(params)])
+        VALUES ($1::uuid, 'rerank', $2::jsonb, 'pending', CURRENT_TIMESTAMP, 5)
+    """, ["text", "text"])
+    plpy.execute(plan, [request_id, json.dumps(params)])
     
     # Send notification to worker
     plpy.execute("NOTIFY steadytext_queue_notify")
@@ -2454,6 +2464,17 @@ AS $c$
     
     request_ids = []
     
+    # Get extension schema for proper qualification
+    ext_schema_result = plpy.execute("SELECT nspname FROM pg_extension e JOIN pg_namespace n ON e.extnamespace = n.oid WHERE e.extname = 'pg_steadytext'")
+    ext_schema = ext_schema_result[0]['nspname'] if ext_schema_result else 'public'
+    
+    # Prepare the insert statement once - cast request_id to UUID
+    plan = plpy.prepare(f"""
+        INSERT INTO {plpy.quote_ident(ext_schema)}.steadytext_queue 
+        (request_id, request_type, params, status, created_at, priority)
+        VALUES ($1::uuid, 'batch_rerank', $2::jsonb, 'pending', CURRENT_TIMESTAMP, 5)
+    """, ["text", "text"])
+    
     # Create separate async request for each query
     for query in queries:
         request_id = str(uuid.uuid4())
@@ -2467,11 +2488,7 @@ AS $c$
             'seed': seed
         }
         
-        plpy.execute("""
-            INSERT INTO @extschema@.steadytext_queue 
-            (request_id, request_type, params, status, created_at, priority)
-            VALUES ($1, 'batch_rerank', $2::jsonb, 'pending', CURRENT_TIMESTAMP, 5)
-        """, [request_id, json.dumps(params)])
+        plpy.execute(plan, [request_id, json.dumps(params)])
     
     # Send notification to worker
     plpy.execute("NOTIFY steadytext_queue_notify")

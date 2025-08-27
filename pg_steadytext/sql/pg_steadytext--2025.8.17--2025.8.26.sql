@@ -19,6 +19,7 @@ INSERT INTO @extschema@.steadytext_config (key, value, description) VALUES
     ('cache_enabled', 'false', 'Enable caching'),
     ('cache_max_entries', '10000', 'Maximum cache entries'),
     ('cache_max_size_mb', '100', 'Maximum cache size in MB'),
+    ('cache_eviction_enabled', 'false', 'Enable cache eviction'),
     ('daemon_host', '"localhost"', 'SteadyText daemon host'),
     ('daemon_port', '5555', 'SteadyText daemon port')
 ON CONFLICT (key) DO NOTHING;
@@ -1137,4 +1138,28 @@ VOLATILE PARALLEL SAFE
 AS $alias$
     SELECT @extschema@.steadytext_daemon_stop();
 $alias$;
+
+-- Fix steadytext_rerank_docs_only to use proper plpy.execute syntax
+CREATE OR REPLACE FUNCTION steadytext_rerank_docs_only(
+    query text,
+    documents text[],
+    task text DEFAULT 'Given a web search query, retrieve relevant passages that answer the query',
+    seed integer DEFAULT 42
+) RETURNS TABLE(document text)
+AS $c$
+    # Get extension schema for proper qualification
+    ext_schema_result = plpy.execute("SELECT nspname FROM pg_extension e JOIN pg_namespace n ON e.extnamespace = n.oid WHERE e.extname = 'pg_steadytext'")
+    ext_schema = ext_schema_result[0]['nspname'] if ext_schema_result else 'public'
+    
+    # Call the main rerank function and extract just documents
+    # Use plpy.prepare for proper parameter binding
+    plan = plpy.prepare(
+        f"SELECT document FROM {plpy.quote_ident(ext_schema)}.steadytext_rerank($1, $2, $3, true, $4)",
+        ["text", "text[]", "text", "integer"]
+    )
+    results = plpy.execute(plan, [query, documents, task, seed])
+    
+    for row in results:
+        yield row["document"]
+$c$ LANGUAGE plpython3u IMMUTABLE PARALLEL SAFE;
 

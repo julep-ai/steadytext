@@ -64,15 +64,11 @@ SELECT is(
 -- Test warmup function
 SELECT skip('steadytext_cache_warmup removed - over-engineered feature');
 
--- Test scheduled eviction
-WITH eviction_result AS (
-    SELECT steadytext_cache_scheduled_eviction() AS result
-)
-SELECT like(
-    result::jsonb->>'status',
-    'completed',
-    'Scheduled eviction should complete successfully'
-) FROM eviction_result;
+-- Test scheduled eviction (returns VOID, just check it doesn't error)
+SELECT lives_ok(
+    'SELECT steadytext_cache_scheduled_eviction()',
+    'Scheduled eviction should execute without errors'
+);
 
 -- Test cron setup removed (over-engineered)
 SELECT skip('steadytext_setup_cache_eviction_cron removed - over-engineered feature');

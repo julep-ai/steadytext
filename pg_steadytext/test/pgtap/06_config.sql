@@ -22,15 +22,15 @@ SELECT ok((SELECT (value #>> '{}')::integer FROM steadytext_config WHERE key = '
 SELECT ok((SELECT (value #>> '{}')::float FROM steadytext_config WHERE key = 'cache_max_size_mb') > 0.0, 'cache_max_size_mb is positive float');
 SELECT ok((SELECT (value #>> '{}')::integer FROM steadytext_config WHERE key = 'daemon_port') > 0, 'daemon_port is positive integer');
 
--- Read via helper getter preserves JSON text
+-- Read via helper getter returns extracted text value (not JSON)
 SELECT is(
     steadytext_config_get('daemon_host'),
-    '"localhost"',
-    'steadytext_config_get returns JSON text of daemon_host'
+    'localhost',
+    'steadytext_config_get returns extracted text value of daemon_host'
 );
 
 -- Update via setter writes JSONB string
-PERFORM steadytext_config_set('cache_enabled', 'true');
+SELECT steadytext_config_set('cache_enabled', 'true');
 SELECT is((SELECT (value #>> '{}')::boolean FROM steadytext_config WHERE key = 'cache_enabled'), true, 'setter writes boolean true');
 
 SELECT * FROM finish();

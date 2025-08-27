@@ -218,7 +218,7 @@ WITH batch_result AS (
         'General relevance',
         true,
         42
-    ) AS (query_index INTEGER, document TEXT, score FLOAT)
+    )
 )
 SELECT ok(
     COUNT(DISTINCT query_index) = 2,

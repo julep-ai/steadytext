@@ -170,8 +170,8 @@ VALUES
 -- Test 33: Age-based eviction respects age protection
 WITH eviction_result AS (
     SELECT * FROM steadytext_cache_evict_by_age(
-        max_entries := 3,
-        max_size_mb := 0.001,
+        target_entries := 3,
+        target_size_mb := 0.001,
         min_age_hours := 1      -- Protect entries newer than 1 hour
     )
 )
@@ -247,8 +247,8 @@ DELETE FROM steadytext_cache WHERE cache_key LIKE 'frecency_test_%';
 
 WITH empty_eviction AS (
     SELECT * FROM steadytext_cache_evict_by_age(
-        max_entries := 100,
-        max_size_mb := 10.0
+        target_entries := 100,
+        target_size_mb := 10.0
     )
 )
 SELECT is(
@@ -305,8 +305,8 @@ FROM bulk_insert;
 -- Test bulk eviction
 WITH bulk_eviction AS (
     SELECT * FROM steadytext_cache_evict_by_age(
-        max_entries := 50,
-        max_size_mb := 0.1
+        target_entries := 50,
+        target_size_mb := 0.1
     )
 )
 SELECT ok(

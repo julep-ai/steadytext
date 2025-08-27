@@ -551,3 +551,91 @@ SteadyText includes an "unsafe mode" that allows using remote AI models with bes
 AIDEV-TODO: Add support for more providers (Anthropic when they add seed support, Together.ai, etc.)
 AIDEV-TODO: Consider adding structured output support for remote models
 AIDEV-TODO: Add telemetry to track unsafe mode usage patterns
+
+### PostgreSQL Extension Unsafe Mode Testing (v2025.8.26+)
+
+The pg_steadytext extension supports unsafe_mode for remote models. This must be thoroughly tested before production deployment.
+
+**Functions Supporting unsafe_mode:**
+- `steadytext_generate` - Text generation with remote models
+- `steadytext_embed` - Embedding generation with remote models
+- `steadytext_summarize` aggregate - Summarization with metadata containing model/unsafe_mode
+- `steadytext_summarize_text` - Single-value summarization with model/unsafe_mode parameters
+
+**Testing Procedure:**
+
+```sql
+-- AIDEV-NOTE: Always test in a separate database to avoid production impact
+CREATE DATABASE manual_test_db;
+\c manual_test_db
+
+-- Install required extensions
+CREATE EXTENSION IF NOT EXISTS plpython3u;
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_steadytext;
+
+-- Verify correct version (should be 2025.8.26 or later)
+SELECT extname, extversion FROM pg_extension WHERE extname = 'pg_steadytext';
+
+-- Test 1: Error validation - remote model without unsafe_mode should fail
+SELECT steadytext_generate('Hello', model := 'openai:gpt-4o-mini');
+-- Expected: ERROR: Remote models (containing ':') require unsafe_mode=TRUE
+
+-- Test 2: Error validation - unsafe_mode without model should fail  
+SELECT steadytext_generate('Hello', unsafe_mode := TRUE);
+-- Expected: ERROR: unsafe_mode=TRUE requires a model parameter to be specified
+
+-- Test 3: Successful remote model generation
+SELECT steadytext_generate(
+    'What is the capital of France? Answer in one word.',
+    model := 'openai:gpt-4o-mini',
+    unsafe_mode := TRUE
+);
+-- Expected: "Paris." or similar
+
+-- Test 4: Remote embedding generation
+SELECT vector_dims(steadytext_embed(
+    'Hello world',
+    model := 'openai:text-embedding-3-small',
+    unsafe_mode := TRUE
+));
+-- Expected: 1024 dimensions
+
+-- Test 5: Summarization with remote model
+SELECT steadytext_summarize_text(
+    'PostgreSQL is an advanced open-source database system.',
+    metadata := '{}'::jsonb,
+    model := 'openai:gpt-4o-mini',
+    unsafe_mode := TRUE
+);
+-- Expected: A concise summary
+
+-- Test 6: Aggregate summarization with metadata
+CREATE TABLE test_docs (content TEXT);
+INSERT INTO test_docs VALUES 
+    ('PostgreSQL is powerful'),
+    ('It supports SQL'),
+    ('Extensions are flexible');
+
+SELECT steadytext_summarize(
+    content,
+    jsonb_build_object('model', 'openai:gpt-4o-mini', 'unsafe_mode', true)
+) FROM test_docs;
+-- Expected: A summary of all documents
+```
+
+**Important Validation Rules:**
+- AIDEV-NOTE: Remote models (containing ':' in the model name) MUST have unsafe_mode=TRUE
+- AIDEV-NOTE: unsafe_mode=TRUE MUST have a model parameter specified  
+- AIDEV-NOTE: The aggregate function passes model/unsafe_mode through metadata JSONB
+- AIDEV-NOTE: All remote model calls skip the daemon and use direct API calls
+
+**Supported Remote Models (as of v2025.8.26):**
+- OpenAI: gpt-4o, gpt-4o-mini, gpt-4-turbo, text-embedding-3-small, text-embedding-3-large
+- Cerebras: cerebras:llama3.1-8b, cerebras:llama3.1-70b
+- VoyageAI: voyage:voyage-3, voyage:voyage-large-2 (embeddings only, no seed support)
+- Jina: jina:jina-embeddings-v3 (embeddings only, no seed support)
+
+AIDEV-TODO: Add automated tests for all unsafe_mode scenarios in pgTAP test suite
+AIDEV-TODO: Create performance benchmarks comparing local vs remote models
+AIDEV-TODO: Document rate limiting and error handling for remote model failures
