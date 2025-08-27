@@ -286,6 +286,11 @@ def embed(
     mode: Optional[str] = None,
 ) -> Optional[np.ndarray]:
     """Create embeddings for text input.
+    
+    AIDEV-NOTE: v2025.8.27 Optimization Pattern
+    Remote models (containing ':') with unsafe_mode=True bypass daemon entirely.
+    This prevents unnecessary local embedding model loading (~500MB memory, ~5-10s startup).
+    Pattern: Check is_remote_model BEFORE daemon connection attempt.
 
     Args:
         text_input: Text or list of texts to embed

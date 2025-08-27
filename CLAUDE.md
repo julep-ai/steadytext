@@ -208,8 +208,9 @@ result = generate_json(
 - AIDEV-NOTE: Deterministic/cacheable, bypasses cache for logprobs, on-the-fly grammar conversion
 - AIDEV-TODO: Add streaming support and grammar caching
 
-## Versioning Policy (As of 2025.8.26)
+## Versioning Policy (As of 2025.8.27)
 
+- AIDEV-NOTE: Version 2025.8.27 fixed remote embedding model loading issue, preventing unnecessary local model loading
 - AIDEV-NOTE: Version 2025.8.26 includes complete schema qualification for all PostgreSQL extension functions
 
 Both SteadyText components now use **date-based versioning** instead of semantic versioning:
@@ -222,6 +223,24 @@ Both SteadyText components now use **date-based versioning** instead of semantic
 
 - AIDEV-NOTE: When creating new releases, use current date in yyyy.mm.dd format for both components
 - AIDEV-NOTE: Version consistency - keep both Python package and pg_steadytext versions aligned when possible
+
+## GitHub Release Process
+
+- AIDEV-NOTE: GitHub releases use tags in format `v{version}` (e.g., `v2025.8.27`)
+- AIDEV-NOTE: Release notes should include Performance Improvements, New Features, and Bug Fixes sections from CHANGELOG
+- AIDEV-NOTE: Use `gh release create` command with proper formatting for consistent releases
+
+**Creating a Release:**
+```bash
+# Create and push tag
+git tag -a v2025.8.27 -m "Release version 2025.8.27"
+git push origin v2025.8.27
+
+# Create GitHub release (requires gh auth or GH_TOKEN)
+gh release create v2025.8.27 \
+  --title "v2025.8.27 - Remote Embedding Optimization" \
+  --notes "Release notes here..."
+```
 
 ## Development Commands
 

@@ -73,7 +73,12 @@ class DaemonServer:
             self._preload_models()
 
     def _preload_models(self):
-        """Preload models to ensure they're ready for requests."""
+        """Preload models to ensure they're ready for requests.
+        
+        AIDEV-NOTE: As of v2025.8.27, supports skip_embeddings flag to avoid loading
+        embedding model when only using remote embeddings. This prevents unnecessary
+        memory usage (~500MB) and startup delays (~5-10 seconds).
+        """
         logger.info("Preloading models...")
         try:
             # AIDEV-NOTE: Use the public preload_models function with size and skip_embeddings parameters
