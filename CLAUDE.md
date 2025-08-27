@@ -22,6 +22,10 @@ Add specially formatted comments throughout the codebase, where appropriate, for
 
 SteadyText includes a daemon mode for persistent model serving via ZeroMQ. This avoids the overhead of repeated model loading.
 
+- AIDEV-NOTE: Remote models (containing ':' in the name) with unsafe_mode=True skip daemon entirely
+- AIDEV-NOTE: This prevents unnecessary local model loading when using remote embeddings
+- AIDEV-NOTE: Daemon supports --skip-embeddings flag to avoid loading embedding model when only using remote embeddings
+
 ### Usage Patterns
 
 **CLI Commands:**

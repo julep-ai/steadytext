@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "steadytext"
-version = "2025.8.26"
+version = "2025.8.27"
 description = "Deterministic text generation and embedding with zero configuration"
 readme = "README.md"
 authors = [

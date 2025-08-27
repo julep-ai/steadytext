@@ -631,7 +631,9 @@ if use_cache:
         if cached_embedding:
             return cached_embedding
 
-# Try daemon first for local models
+# AIDEV-NOTE: Skip daemon for remote models to avoid loading local embedding model
+# This matches the fix in steadytext/__init__.py where daemon is skipped for remote models
+# Try daemon first for local models only
 if not (model and ':' in model):
     try:
         # Check if daemon is running

@@ -7,7 +7,7 @@ AIDEV-NOTE: Fixed "Never Fails" - embed() now catches TypeErrors & returns zero 
 # Version of the steadytext package - should match pyproject.toml
 # AIDEV-NOTE: Always update this when bumping the lib version
 # AIDEV-NOTE: Using date-based versioning (yyyy.mm.dd) as of 2025.8.15
-__version__ = "2025.8.26"
+__version__ = "2025.8.27"
 
 # Import core functions and classes for public API
 import os
@@ -307,8 +307,12 @@ def embed(
         # Multiple texts with mode
         doc_embs = embed(["Doc 1", "Doc 2"], mode="passage")
     """
-    # AIDEV-NOTE: Use daemon by default for embeddings unless explicitly disabled
-    if os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
+    # AIDEV-NOTE: Skip daemon for remote models to avoid loading local embedding model
+    # Remote models (containing ':' in the name) are handled directly by core_embed
+    is_remote_model = model and ":" in model and unsafe_mode
+
+    # AIDEV-NOTE: Use daemon by default for local embeddings unless explicitly disabled
+    if not is_remote_model and os.environ.get("STEADYTEXT_DISABLE_DAEMON") != "1":
         client = get_daemon_client()
         if client is not None:
             try:
@@ -420,12 +424,15 @@ def rerank(
         return []
 
 
-def preload_models(verbose: bool = False, size: Optional[str] = None):
+def preload_models(
+    verbose: bool = False, size: Optional[str] = None, skip_embeddings: bool = False
+):
     """Preload models to ensure they're available for generation and embedding.
 
     Args:
         verbose: Whether to log progress messages
         size: Model size to preload ("small", "medium", "large")
+        skip_embeddings: Skip preloading embedding model (useful when only using remote embeddings)
     """
     # AIDEV-NOTE: Skip model loading if STEADYTEXT_SKIP_MODEL_LOAD is set
     # This prevents hanging during tests when models aren't available
@@ -450,9 +457,14 @@ def preload_models(verbose: bool = False, size: Optional[str] = None):
     else:
         get_generator_model_instance()
 
-    if verbose:
-        logger.info("Preloading embedding model...")
-    get_embedding_model_instance()
+    # AIDEV-NOTE: Skip embedding model preload when using only remote embeddings
+    # This prevents unnecessary local model loading when daemon is used for remote models only
+    if not skip_embeddings:
+        if verbose:
+            logger.info("Preloading embedding model...")
+        get_embedding_model_instance()
+    elif verbose:
+        logger.info("Skipping embedding model preload (skip_embeddings=True)")
 
     if verbose:
         logger.info("Model preloading completed.")

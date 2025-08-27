@@ -64,6 +64,11 @@ def daemon():
     type=click.Choice(["mini", "small", "medium", "large"]),
     help="Model size to preload (mini=270M for CI/testing, small=1.7B, medium=3B, large=4B)",
 )
+@click.option(
+    "--skip-embeddings",
+    is_flag=True,
+    help="Skip preloading embedding model (useful when only using remote embeddings)",
+)
 def start(
     host: str,
     port: int,
@@ -71,6 +76,7 @@ def start(
     no_preload: bool,
     force: bool,
     size: Optional[str],
+    skip_embeddings: bool,
 ):
     """Start the SteadyText daemon server."""
     pid_file = get_pid_file()
@@ -93,7 +99,11 @@ def start(
         from ...daemon.server import DaemonServer
 
         server = DaemonServer(
-            host=host, port=port, preload_models=not no_preload, size=size
+            host=host,
+            port=port,
+            preload_models=not no_preload,
+            size=size,
+            skip_embeddings=skip_embeddings,
         )
         try:
             server.run()
@@ -117,6 +127,8 @@ def start(
             cmd.append("--no-preload")
         if size:
             cmd.extend(["--size", size])
+        if skip_embeddings:
+            cmd.append("--skip-embeddings")
 
         # AIDEV-NOTE: Start the daemon as a background process. On Unix, this could use fork(), but subprocess is cross-platform.
         try:
@@ -241,7 +253,14 @@ def status(output_json: bool):
     type=click.Choice(["mini", "small", "medium", "large"]),
     help="Model size to preload (mini=270M for CI/testing, small=1.7B, medium=3B, large=4B)",
 )
-def restart(host: str, port: int, no_preload: bool, size: Optional[str]):
+@click.option(
+    "--skip-embeddings",
+    is_flag=True,
+    help="Skip preloading embedding model (useful when only using remote embeddings)",
+)
+def restart(
+    host: str, port: int, no_preload: bool, size: Optional[str], skip_embeddings: bool
+):
     """Restart the SteadyText daemon server."""
     # Stop existing daemon if running
     pid_file = get_pid_file()
@@ -262,4 +281,5 @@ def restart(host: str, port: int, no_preload: bool, size: Optional[str]):
         no_preload=no_preload,
         force=False,
         size=size,
+        skip_embeddings=skip_embeddings,
     )

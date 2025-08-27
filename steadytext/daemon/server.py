@@ -51,6 +51,7 @@ class DaemonServer:
         port: int = DEFAULT_DAEMON_PORT,
         preload_models: bool = True,
         size: Optional[str] = None,
+        skip_embeddings: bool = False,
     ):
         self.host = host
         self.port = port
@@ -58,6 +59,9 @@ class DaemonServer:
         self.context = None
         self.socket = None
         self.size = size  # AIDEV-NOTE: Model size to preload (small, large)
+        self.skip_embeddings = (
+            skip_embeddings  # AIDEV-NOTE: Skip embedding model preload
+        )
 
         # AIDEV-NOTE: Model instances are created once and reused for all requests
         self.generator: Optional[DeterministicGenerator] = None
@@ -72,10 +76,13 @@ class DaemonServer:
         """Preload models to ensure they're ready for requests."""
         logger.info("Preloading models...")
         try:
-            # AIDEV-NOTE: Use the public preload_models function with size parameter
+            # AIDEV-NOTE: Use the public preload_models function with size and skip_embeddings parameters
+            # This allows daemon to skip embedding model when only using remote embeddings
             from .. import preload_models
 
-            preload_models(verbose=True, size=self.size)
+            preload_models(
+                verbose=True, size=self.size, skip_embeddings=self.skip_embeddings
+            )
 
             # Create generator instance after preloading
             self.generator = DeterministicGenerator()
@@ -84,7 +91,7 @@ class DaemonServer:
             logger.error(f"Failed to load generator model: {e}")
             self.generator = None
 
-        # Embedder is loaded on-demand by create_embedding
+        # Embedder is loaded on-demand by core_embed
 
     def _handle_generate(self, params: Dict[str, Any]) -> Any:
         """Handle text generation request.
@@ -504,6 +511,11 @@ def main():
         choices=["small", "large"],
         help="Model size to preload (small=2B, large=4B)",
     )
+    parser.add_argument(
+        "--skip-embeddings",
+        action="store_true",
+        help="Skip preloading embedding model (useful when only using remote embeddings)",
+    )
 
     args = parser.parse_args()
 
@@ -512,6 +524,7 @@ def main():
         port=args.port,
         preload_models=not args.no_preload,
         size=args.size,
+        skip_embeddings=args.skip_embeddings,
     )
     server.run()
 

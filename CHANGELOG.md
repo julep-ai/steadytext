@@ -8,6 +8,25 @@
 > semantic versioning became impractical. Date-based versioning provides clearer insight into release
 > recency and better aligns with our continuous improvement philosophy.
 
+## Version 2025.8.27 (2025-08-27)
+
+### Performance Improvements
+- **Remote Embedding Optimization:** Fixed issue where remote embeddings (e.g., OpenAI) were unnecessarily loading local embedding models
+  - The `embed()` function now skips daemon connection entirely for remote models with `unsafe_mode=True`
+  - This prevents the daemon from preloading the local embedding model when only using remote embeddings
+  - Matches the existing behavior of `generate()` function for remote models
+
+### New Features
+- **Daemon Skip Embeddings Flag:** Added `--skip-embeddings` flag to daemon commands
+  - Use `st daemon start --skip-embeddings` to start daemon without loading embedding model
+  - Useful when only using remote embeddings to save memory and startup time
+  - Also available for `st daemon restart --skip-embeddings`
+
+### Bug Fixes
+- **Embedding Path Optimization:** Remote embeddings with `unsafe_mode=True` now bypass local model loading entirely
+  - Previously, remote embeddings would still trigger local model loading through the daemon
+  - Now correctly skips daemon for remote models, going directly to `core_embed()`
+
 ## Version 2025.8.26 (2025-08-26)
 
 ### Changes
