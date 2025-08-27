@@ -532,6 +532,18 @@ docker exec -it pg_steadytext psql -U postgres -c "SELECT steadytext_generate('H
 docker exec -it pg_steadytext psql -U postgres -c "SELECT steadytext_version();"
 ```
 
+**DevContainer Workflow:**
+For rapid development in the devcontainer environment:
+```bash
+# Quick rebuild after making changes (recommended)
+/workspace/.devcontainer/rebuild_extension_simple.sh
+
+# Auto-rebuild on file changes  
+/workspace/.devcontainer/watch_extension.sh
+```
+AIDEV-NOTE: The devcontainer uses a copy-and-build approach for fast iteration
+AIDEV-NOTE: Scripts handle all the complexity of copying files and rebuilding
+
 ## PostgreSQL Extension Async Functions (v1.1.0+)
 
 **Features:** Non-blocking UUID returns, queue-based processing, LISTEN/NOTIFY, batch operations
@@ -576,9 +588,21 @@ docker exec -it pg_steadytext psql -U postgres -c "SELECT steadytext_version();"
 3. Run tests with `uv run pytest` or `make test` in pg_steadytext/
 4. Develop with full IDE support and database access
 
-AIDEV-TODO: Add support for GPU passthrough in devcontainer for CUDA models
-AIDEV-TODO: Consider adding Redis service for distributed cache testing
-AIDEV-NOTE: The devcontainer mounts Docker socket for testing containerized builds
+**PostgreSQL Extension Development (2025.8.27+):**
+```bash
+# Quick rebuild after changes (takes ~2-3 seconds)
+/workspace/.devcontainer/rebuild_extension_simple.sh
+
+# Auto-rebuild on file changes
+/workspace/.devcontainer/watch_extension.sh
+```
+
+- AIDEV-NOTE: DevContainer runs Docker-in-Docker, limiting mount options for postgres container
+- AIDEV-NOTE: Solution: Copy-and-build approach via rebuild_extension_simple.sh
+- AIDEV-NOTE: Watch script monitors SQL/Python files and triggers automatic rebuilds
+- AIDEV-TODO: Add support for GPU passthrough in devcontainer for CUDA models
+- AIDEV-TODO: Consider adding Redis service for distributed cache testing
+- AIDEV-NOTE: The devcontainer mounts Docker socket for testing containerized builds
 
 ## Unsafe Mode: Remote Models (v2.6.0+)
 

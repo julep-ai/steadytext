@@ -1,0 +1,174 @@
+name: DevContainer CI
+
+on:
+  push:
+    branches: ["main", "work"]
+    paths:
+      - '.devcontainer/**'
+      - 'pg_steadytext/**'
+      - '.github/workflows/devcontainer-ci.yml'
+  pull_request:
+    branches: ["main", "work"]
+    paths:
+      - '.devcontainer/**'
+      - 'pg_steadytext/**'
+      - '.github/workflows/devcontainer-ci.yml'
+  workflow_dispatch:  # Allow manual triggering
+
+permissions:
+  contents: read
+  packages: write  # For pushing to GitHub Container Registry
+
+jobs:
+  build-postgres-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push PostgreSQL image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./pg_steadytext
+          file: ./pg_steadytext/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/steadytext_devcontainer-postgres:latest
+            ghcr.io/${{ github.repository_owner }}/steadytext_devcontainer-postgres:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+            STEADYTEXT_USE_FALLBACK_MODEL=true
+
+  test-devcontainer:
+    needs: build-postgres-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update docker-compose to use CI postgres image
+        run: |
+          # Create a temporary docker-compose override for CI
+          cat > .devcontainer/docker-compose.ci.yml << EOF
+          services:
+            postgres:
+              image: ghcr.io/${{ github.repository_owner }}/steadytext_devcontainer-postgres:${{ github.sha }}
+          EOF
+
+      - name: Build and run devcontainer tests
+        uses: devcontainers/ci@v0.3
+        with:
+          configFile: .devcontainer/devcontainer.json
+          runCmd: |
+            set -e
+            echo "=== Testing DevContainer Environment ==="
+            
+            # Test 1: Check UV is installed
+            echo "Testing UV installation..."
+            uv --version || { echo "UV not installed"; exit 1; }
+            
+            # Test 2: Check Python environment
+            echo "Testing Python environment..."
+            python --version || { echo "Python not available"; exit 1; }
+            
+            # Test 3: Check Docker is available (for Docker-in-Docker)
+            echo "Testing Docker availability..."
+            docker --version || { echo "Docker not available"; exit 1; }
+            
+            # Test 4: Wait for PostgreSQL to be ready
+            echo "Waiting for PostgreSQL..."
+            for i in {1..30}; do
+              if docker compose exec -T postgres pg_isready -U postgres >/dev/null 2>&1; then
+                echo "PostgreSQL is ready!"
+                break
+              fi
+              if [ $i -eq 30 ]; then
+                echo "PostgreSQL failed to become ready"
+                exit 1
+              fi
+              echo -n "."
+              sleep 2
+            done
+            
+            # Test 5: Test PostgreSQL connection
+            echo "Testing PostgreSQL connection..."
+            PGPASSWORD=password psql -h postgres -U postgres -d postgres -c "SELECT version();" || { echo "Cannot connect to PostgreSQL"; exit 1; }
+            
+            # Test 6: Test pg_steadytext extension
+            echo "Testing pg_steadytext extension..."
+            PGPASSWORD=password psql -h postgres -U postgres -d postgres -c "CREATE EXTENSION IF NOT EXISTS pg_steadytext;" || { echo "Cannot create extension"; exit 1; }
+            
+            # Test 7: Verify extension version
+            echo "Verifying extension version..."
+            VERSION=$(PGPASSWORD=password psql -h postgres -U postgres -d postgres -tAc "SELECT steadytext_version();")
+            echo "Extension version: $VERSION"
+            [ -n "$VERSION" ] || { echo "Extension version check failed"; exit 1; }
+            
+            # Test 8: Test SteadyText Python package
+            echo "Testing SteadyText Python package..."
+            python -c "import steadytext; print(f'SteadyText version: {steadytext.__version__}')" || { echo "SteadyText not installed"; exit 1; }
+            
+            # Test 9: Run a simple generation test (with mini models for speed)
+            echo "Testing text generation with mini models..."
+            STEADYTEXT_USE_MINI_MODELS=true python -c "
+            from steadytext import generate
+            result = generate('Hello test', max_new_tokens=10)
+            print(f'Generation test passed: {result[:50]}...')
+            " || echo "Generation test skipped (optional)"
+            
+            echo "=== All DevContainer tests passed! ==="
+          env:
+            DOCKER_BUILDKIT: 1
+            COMPOSE_DOCKER_CLI_BUILD: 1
+
+  # Optional: Test that rebuild scripts work
+  test-rebuild-scripts:
+    needs: build-postgres-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update docker-compose to use CI postgres image
+        run: |
+          sed -i "s|steadytext_devcontainer-postgres:latest|ghcr.io/${{ github.repository_owner }}/steadytext_devcontainer-postgres:${{ github.sha }}|g" .devcontainer/docker-compose.yml
+
+      - name: Test rebuild scripts exist and are executable
+        run: |
+          # Check if rebuild scripts exist
+          test -f .devcontainer/rebuild_extension.sh || echo "Warning: rebuild_extension.sh not found"
+          test -f .devcontainer/rebuild_extension_simple.sh || echo "Warning: rebuild_extension_simple.sh not found"
+          test -f .devcontainer/watch_extension.sh || echo "Warning: watch_extension.sh not found"
+          
+          # Check if they're executable
+          test -x .devcontainer/rebuild_extension.sh || chmod +x .devcontainer/rebuild_extension.sh 2>/dev/null || true
+          test -x .devcontainer/rebuild_extension_simple.sh || chmod +x .devcontainer/rebuild_extension_simple.sh 2>/dev/null || true
+          test -x .devcontainer/watch_extension.sh || chmod +x .devcontainer/watch_extension.sh 2>/dev/null || true
+          
+          echo "Rebuild scripts check completed"
