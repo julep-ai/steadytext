@@ -2384,7 +2384,7 @@ wheels = [
 
 [[package]]
 name = "steadytext"
-version = "2025.8.26"
+version = "2025.8.27"
 source = { editable = "." }
 dependencies = [
     { name = "chonkie" },
