@@ -21,7 +21,44 @@ This file contains important development notes and architectural decisions for A
 
 ## Recent Fixes
 
-### v2025.8.17 - AI Summarization Enhancement, Schema Qualification & GPT-5 Support
+### v2025.8.26 - PL/Python Function Fixes and pgTAP Test Improvements
+- **Fixed**: PL/Python plpy.execute() usage patterns
+  - plpy.execute() expects either a SQL string or a prepared plan
+  - Must use plpy.prepare() for parameterized queries, not plpy.execute(query, [args])
+  - Example: `plan = plpy.prepare("SELECT * WHERE id = $1", ["integer"]); plpy.execute(plan, [123])`
+- **Fixed**: UUID type casting in async functions
+  - Python strings must be explicitly cast to UUID in SQL: `VALUES ($1::uuid, ...)`
+  - PostgreSQL doesn't auto-cast text to UUID in parameterized queries
+- **Fixed**: PL/Python row output patterns
+  - Use `yield` to output individual rows in table-returning functions
+  - Using `return [...]` outputs all rows as a single array value
+  - Example: `for row in results: yield row["column"]`
+- **Fixed**: pgTAP test syntax errors
+  - Functions with OUT parameters already define result columns
+  - Don't use `AS (column definitions)` clause with such functions
+- **Performance**: Reranking tests with mini models
+  - Set STEADYTEXT_USE_MINI_MODELS=true to use smaller models in tests
+  - Prevents timeouts when loading large reranking models
+  - Must be set at container level for PostgreSQL extension tests
+- AIDEV-NOTE: Always test PL/Python functions thoroughly - error messages can be cryptic
+- AIDEV-NOTE: Use dynamic schema resolution pattern for all extension table access
+- AIDEV-TODO: Add automated tests for all PL/Python edge cases
+
+### v2025.8.26 - Complete Schema Qualification for All Functions
+- **Fixed**: Extended schema qualification to ALL functions accessing extension tables
+  - Added dynamic schema resolution to daemon control functions
+  - Added schema qualification to structured generation functions (JSON, regex, choice)
+  - Added schema qualification to summarization helper functions
+  - Uses `plpy.execute()` and `plpy.quote_ident()` for dynamic schema lookup
+  - Ensures all functions work correctly with TimescaleDB continuous aggregates
+- **Added**: Proper `@extschema@` qualification for all alias functions
+  - `st_daemon_start()` and `st_daemon_stop()` now use proper schema references
+- **Migration**: Comprehensive migration script from v2025.8.17 to v2025.8.26
+  - Includes all 17 function updates with proper schema qualification
+- AIDEV-NOTE: Always use dynamic schema resolution for any function accessing extension tables
+- AIDEV-NOTE: Use `@extschema@` placeholder in SQL alias functions for proper schema references
+
+### v2025.8.26 - AI Summarization Enhancement, Schema Qualification & GPT-5 Support
 - **Added**: Enhanced AI summarization with remote model support
   - Renamed `ai_*` functions to `steadytext_*` with `st_*` aliases for consistency  
   - Added `model` and `unsafe_mode` parameters to summarization functions
@@ -165,6 +202,38 @@ This file contains important development notes and architectural decisions for A
 - `cache_manager.py`: Age-based cache (was frecency)
 - `security.py`: Input validation/rate limiting
 - `worker.py`: Async queue processor
+
+## PL/Python Best Practices
+
+### Common Pitfalls and Solutions
+
+1. **plpy.execute() Usage**
+   - WRONG: `plpy.execute("SELECT * WHERE id = $1", [123])`
+   - RIGHT: `plan = plpy.prepare("SELECT * WHERE id = $1", ["integer"]); plpy.execute(plan, [123])`
+   - Or for simple queries: `plpy.execute("SELECT * WHERE id = 123")`
+
+2. **Type Casting**
+   - Python strings aren't auto-cast to PostgreSQL UUIDs
+   - Always use explicit casting: `INSERT INTO table VALUES ($1::uuid)`
+   - Same applies to other types like JSONB: `$2::jsonb`
+
+3. **Row Output**
+   - For table-returning functions, use `yield` not `return`
+   - `yield` outputs one row at a time
+   - `return [...]` outputs entire list as single value
+
+4. **Schema Qualification**
+   - Always use dynamic schema resolution for extension tables:
+   ```python
+   ext_schema_result = plpy.execute("SELECT nspname FROM pg_extension e JOIN pg_namespace n ON e.extnamespace = n.oid WHERE e.extname = 'pg_steadytext'")
+   ext_schema = ext_schema_result[0]['nspname'] if ext_schema_result else 'public'
+   query = f"SELECT * FROM {plpy.quote_ident(ext_schema)}.my_table"
+   ```
+
+5. **Error Handling**
+   - PL/Python errors can be cryptic
+   - Always test with actual data
+   - Use try/except blocks and plpy.warning() for debugging
 
 ## Python Module Loading
 
@@ -313,9 +382,6 @@ docker exec pg_steadytext_db psql -U postgres -f /tmp/pg_steadytext/test/pgtap/0
 **Available async functions**:
 - `steadytext_generate_async()` - Basic text generation (added v1.4.4)
 - `steadytext_embed_async()` - Embeddings
-- `steadytext_generate_json_async()` - JSON with schema
-- `steadytext_generate_regex_async()` - Regex-constrained
-- `steadytext_generate_choice_async()` - Choice-constrained
 - `steadytext_rerank_async()` - Document reranking
 
 **Test**: `SELECT st_generate_async('Test', 100);`
@@ -325,8 +391,8 @@ docker exec pg_steadytext_db psql -U postgres -f /tmp/pg_steadytext/test/pgtap/0
 ## Cache Eviction (v1.4.0+)
 
 - AIDEV-NOTE: Now uses age-based eviction (FIFO) for IMMUTABLE compliance
-- **Setup**: `CREATE EXTENSION pg_cron; SELECT steadytext_setup_cache_eviction_cron();`
 - **Config**: Set max_entries, max_size_mb, min_age_hours via config table
+- **Function**: `steadytext_cache_evict_by_age()` for manual eviction
 
 - AIDEV-TODO: Adaptive thresholds, alternative strategies (LRU/ARC)
 

@@ -12,6 +12,30 @@ As of version 2025.8.16, pg_steadytext uses **date-based versioning** in the for
 - **Benefits:** Clear indication of release currency and maintenance activity
 - **Rationale:** Supported models and features are evolving quickly, making date-based versioning more practical
 
+## [2025.8.26] - 2025-08-26
+
+### Fixed
+- **Complete Schema Qualification:** Extended schema qualification to ALL functions that access extension tables
+  - Added dynamic schema resolution using `plpy.execute()` and `plpy.quote_ident()` to:
+    - `steadytext_daemon_start()` and `steadytext_daemon_stop()` - daemon control functions
+    - `steadytext_generate_json()`, `steadytext_generate_regex()`, `steadytext_generate_choice()` - structured generation
+    - `steadytext_summarize_text()` and `steadytext_summarize_finalize()` - summarization helpers
+  - Updated all SQL alias functions (`st_daemon_start()`, `st_daemon_stop()`) to use `@extschema@` placeholder
+  - Ensures complete compatibility with TimescaleDB continuous aggregates and non-standard search paths
+  - Resolves all remaining issues from #95 and #100
+
+### Changed
+- **Migration Script:** Created comprehensive migration from v2025.8.17 to v2025.8.26
+  - Includes all 17 function updates with proper schema qualification
+  - Properly manages extension membership for replaced functions
+  - Ensures smooth upgrade path for existing installations
+
+### Technical Notes
+- Functions now dynamically determine the extension schema at runtime
+- PL/Python functions use `plpy.quote_ident()` for safe schema identifier quoting
+- SQL alias functions use `@extschema@` which PostgreSQL replaces with the actual extension schema
+- This pattern should be used for all future functions that access extension tables
+
 ## [2025.8.17] - 2025-08-17
 
 ### Added

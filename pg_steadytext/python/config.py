@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 # AIDEV-NOTE: Default configuration values
 # AIDEV-NOTE: Added support for mini models for CI/testing
+# AIDEV-NOTE: Set use_mini_models=true or STEADYTEXT_USE_MINI_MODELS=true for faster tests
+# AIDEV-NOTE: Mini models prevent timeouts during pgTAP tests with large models
 DEFAULTS = {
     "daemon_host": "localhost",
     "daemon_port": 5555,

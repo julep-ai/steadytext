@@ -6,12 +6,12 @@
 
 - **Deterministic Text Generation**: Always returns the same output for the same input
 - **Vector Embeddings**: Generate 1024-dimensional embeddings compatible with pgvector
-- **Built-in Caching**: PostgreSQL-based frecency cache with automatic pg_cron eviction (v1.4.0+)
+- **Built-in Caching**: PostgreSQL-based age-based cache with automatic pg_cron eviction (v1.4.0+)
 - **Daemon Integration**: Seamlessly integrates with SteadyText's ZeroMQ daemon
 - **Async Processing**: Queue-based asynchronous generation and embedding with background workers
 - **Security**: Input validation and rate limiting
 - **Monitoring**: Health checks and performance statistics
-- **AI Summarization**: Enhanced aggregate functions (`steadytext_summarize`, `st_summarize`) with remote model support and TimescaleDB compatibility (v2025.8.17+)
+- **AI Summarization**: Enhanced aggregate functions (`steadytext_summarize`, `st_summarize`) with remote model support and full TimescaleDB compatibility (v2025.8.26+)
 
 ## Requirements
 
@@ -22,7 +22,7 @@
   - `pgvector` (required)
   - `pg_cron` (optional, for automatic cache eviction)
 - Python packages:
-  - `steadytext>=2025.8.17` (installed automatically by `make install`)
+  - `steadytext>=2025.8.26` (installed automatically by `make install`)
   - `pyzmq` (for daemon integration)
   - `numpy` (for vector operations)
 
@@ -207,7 +207,7 @@ SELECT steadytext_generate_choice(
 );
 ```
 
-### AI Summarization (v2025.8.17+)
+### AI Summarization (v2025.8.26+)
 
 ```sql
 -- Summarize a single text (renamed from ai_* to steadytext_*)
@@ -222,7 +222,7 @@ SELECT st_summarize_text(
     max_length := 100
 );
 
--- Extract facts from text (v2025.8.17+)
+-- Extract facts from text (v2025.8.26+)
 SELECT steadytext_extract_facts(
     'PostgreSQL is an object-relational database. It supports ACID transactions.',
     max_facts := 10  -- Default increased from 5 to 10
@@ -245,7 +245,7 @@ SELECT steadytext_summarize(
 FROM articles
 GROUP BY topic;
 
--- TimescaleDB continuous aggregate support (v2025.8.17)
+-- TimescaleDB continuous aggregate support (v2025.8.26)
 -- Functions now use schema-qualified table references
 CREATE MATERIALIZED VIEW daily_summaries
 WITH (timescaledb.continuous) AS
@@ -338,11 +338,8 @@ SELECT * FROM steadytext_rerank_batch(
 -- Queue async generation
 SELECT request_id FROM steadytext_generate_async('Write a story about space');
 
--- Queue async structured generation
-SELECT steadytext_generate_json_async(
-    'Create a product',
-    '{"type": "object", "properties": {"name": {"type": "string"}, "price": {"type": "number"}}}'::jsonb
-);
+-- Queue async embedding
+SELECT steadytext_embed_async('Text to embed for later processing');
 
 -- Check async status
 SELECT * FROM steadytext_check_async('your-request-id'::uuid);
@@ -431,7 +428,7 @@ PostgreSQL Client
 
 ## Tables
 
-- `steadytext_cache` - Stores generated text and embeddings with frecency statistics
+- `steadytext_cache` - Stores generated text and embeddings with age-based eviction
 - `steadytext_queue` - Queue for async operations (future feature)
 - `steadytext_config` - Extension configuration
 - `steadytext_daemon_health` - Daemon health monitoring
@@ -441,7 +438,6 @@ PostgreSQL Client
 ### Core Functions
 - `steadytext_generate(prompt, max_tokens, use_cache, seed, eos_string, model, model_repo, model_filename, size, unsafe_mode)` - Generate text with optional remote models (v1.4.4+)
 - `steadytext_embed(text, use_cache, seed, model, unsafe_mode)` - Generate embedding with optional remote models (v1.4.6+)
-- `steadytext_generate_stream(prompt, max_tokens)` - Stream text generation
 
 ### Structured Generation Functions (v2.4.1+)
 - `steadytext_generate_json(prompt, schema, max_tokens, use_cache, seed)` - Generate JSON conforming to schema
@@ -469,12 +465,10 @@ PostgreSQL Client
 - `steadytext_daemon_status()` - Check daemon health
 - `steadytext_daemon_stop()` - Stop the daemon
 - `steadytext_cache_stats()` - Get cache statistics
-- `steadytext_cache_stats_extended()` - Extended cache stats with eviction analysis (v1.4.0+)
 - `steadytext_cache_clear()` - Clear the cache
-- `steadytext_cache_evict_by_frecency(target_entries, target_size_mb)` - Manual cache eviction (v1.4.0+)
+- `steadytext_cache_evict_by_age(max_entries, max_size_mb, min_age_hours)` - Manual cache eviction (v1.4.0+)
 - `steadytext_cache_analyze_usage()` - Analyze cache usage patterns (v1.4.0+)
 - `steadytext_cache_preview_eviction(count)` - Preview entries to be evicted (v1.4.0+)
-- `steadytext_cache_warmup(count)` - Warm up cache with frequent entries (v1.4.0+)
 - `steadytext_version()` - Get extension version
 
 ### Configuration Functions
@@ -506,38 +500,23 @@ This is useful for CI pipelines where speed matters more than quality.
 
 ## Cache Management (v1.4.0+)
 
-pg_steadytext includes sophisticated cache management with automatic eviction based on frecency (frequency + recency) scores.
-
-### Automatic Cache Eviction
-
-The extension can automatically evict cache entries using pg_cron to maintain size and entry limits:
-
-```sql
--- Install pg_cron if not already installed
-CREATE EXTENSION pg_cron;
-
--- Set up automatic cache eviction (runs every 5 minutes by default)
-SELECT steadytext_setup_cache_eviction_cron();
-
--- Configure cache limits
-SELECT steadytext_config_set('cache_max_entries', '10000');
-SELECT steadytext_config_set('cache_max_size_mb', '1000');
-SELECT steadytext_config_set('cache_eviction_interval', '300'); -- seconds
-
--- Disable automatic eviction if needed
-SELECT steadytext_disable_cache_eviction_cron();
-```
+pg_steadytext includes cache management with age-based eviction for IMMUTABLE function compliance.
 
 ### Manual Cache Management
 
 ```sql
--- View extended cache statistics
-SELECT * FROM steadytext_cache_stats_extended();
+-- Configure cache limits
+SELECT steadytext_config_set('cache_max_entries', '10000');
+SELECT steadytext_config_set('cache_max_size_mb', '1000');
 
--- Manually evict entries to meet targets
-SELECT * FROM steadytext_cache_evict_by_frecency(
-    target_entries := 5000,
-    target_size_mb := 500
+-- View cache statistics
+SELECT * FROM steadytext_cache_stats();
+
+-- Manually evict old entries to meet targets
+SELECT * FROM steadytext_cache_evict_by_age(
+    max_entries := 5000,
+    max_size_mb := 500,
+    min_age_hours := 24  -- Only evict entries older than 24 hours
 );
 
 -- Analyze cache usage patterns
@@ -545,20 +524,14 @@ SELECT * FROM steadytext_cache_analyze_usage();
 
 -- Preview which entries would be evicted
 SELECT * FROM steadytext_cache_preview_eviction(20);
-
--- Warm up cache with frequently accessed entries
-SELECT * FROM steadytext_cache_warmup(100);
 ```
 
-### Frecency Algorithm
+### Age-Based Eviction
 
-The cache uses a frecency score that combines:
-- **Frequency**: How often an entry is accessed (access_count)
-- **Recency**: How recently it was accessed (exponential decay over time)
-
-Score = `access_count * exp(-time_since_last_access_days)`
-
-Entries with higher access counts and recent access times are protected from eviction.
+The cache uses age-based eviction (FIFO) to maintain IMMUTABLE function compliance:
+- Older entries are evicted first
+- Protects entries newer than `min_age_hours`
+- Simple and predictable eviction pattern
 
 ## Performance
 

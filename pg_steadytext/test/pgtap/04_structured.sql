@@ -137,8 +137,8 @@ WITH requests AS (
     ] AS request_ids
 ),
 batch_check AS (
-    SELECT * FROM steadytext_check_async_batch(request_ids)
-    FROM requests
+    SELECT * FROM requests, 
+    LATERAL steadytext_check_async_batch(request_ids)
 )
 SELECT is(
     COUNT(*)::integer,

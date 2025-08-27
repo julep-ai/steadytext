@@ -57,12 +57,12 @@ os.environ["STEADYTEXT_DISABLE_DAEMON"] = "1"
 - AIDEV-TODO: Consider adding connection pooling for high-concurrency scenarios
 - AIDEV-TODO: Add metrics/monitoring endpoints for production deployments
 
-## Models (v2025.8.17+)
+## Models (v2025.8.26+)
 
 - AIDEV-NOTE: Documentation previously mentioned Gemma-3n models but code actually uses Qwen3 models
-- AIDEV-NOTE: As of v2025.8.17, default generation models are Qwen3-4B (small) and Qwen3-30B (large)
+- AIDEV-NOTE: As of v2025.8.26, default generation models are Qwen3-4B (small) and Qwen3-30B (large)
 
-SteadyText v2025.8.17+ uses Qwen3 models for generation and Jina v4 for embeddings:
+SteadyText v2025.8.26+ uses Qwen3 models for generation and Jina v4 for embeddings:
 
 **Generation Models:**
 - **Small** (default): Qwen3-4B-Instruct - Fast, efficient for most tasks
@@ -204,9 +204,9 @@ result = generate_json(
 - AIDEV-NOTE: Deterministic/cacheable, bypasses cache for logprobs, on-the-fly grammar conversion
 - AIDEV-TODO: Add streaming support and grammar caching
 
-## Versioning Policy (As of 2025.8.17)
+## Versioning Policy (As of 2025.8.26)
 
-- AIDEV-NOTE: Version 2025.8.17 includes PostgreSQL extension improvements and documentation fixes
+- AIDEV-NOTE: Version 2025.8.26 includes complete schema qualification for all PostgreSQL extension functions
 
 Both SteadyText components now use **date-based versioning** instead of semantic versioning:
 
@@ -463,16 +463,59 @@ uv sync
 
 - AIDEV-TODO: Add UV-specific CI/CD configurations for faster builds
 
-## Recent PostgreSQL Extension Updates (v2025.8.17)
+## Recent PostgreSQL Extension Updates (v2025.8.26)
 
-- AIDEV-NOTE: Functions renamed from ai_* to steadytext_* with st_* aliases for consistency
-- AIDEV-NOTE: Added schema qualification to all table references for TimescaleDB compatibility
+- AIDEV-NOTE: Complete schema qualification for ALL functions accessing extension tables (v2025.8.26)
+- AIDEV-NOTE: Functions use dynamic schema resolution via plpy.execute() and plpy.quote_ident()
+- AIDEV-NOTE: SQL alias functions use @extschema@ placeholder for proper schema references
 - AIDEV-NOTE: Fixed Python scoping issues in aggregate functions (argument reassignment problem)
 - AIDEV-NOTE: Enhanced summarization functions with model and unsafe_mode parameters for remote models
 - AIDEV-TODO: Consider adding more comprehensive tests for remote model summarization
 - AIDEV-TODO: Document the schema qualification pattern more thoroughly for extension developers
 
 ## PostgreSQL Extension (pg_steadytext)
+
+### pgTAP Testing Best Practices
+
+**Running Tests:**
+```bash
+# Run all tests
+PGHOST=postgres PGPORT=5432 PGUSER=postgres PGPASSWORD=password ./run_pgtap_tests.sh
+
+# Run specific test
+PGHOST=postgres PGPORT=5432 PGUSER=postgres PGPASSWORD=password psql test_postgres -X -f test/pgtap/08_reranking.sql
+
+# Use mini models to prevent timeouts (critical for reranking tests)
+PGHOST=postgres PGPORT=5432 PGUSER=postgres PGPASSWORD=password STEADYTEXT_USE_MINI_MODELS=true ./run_pgtap_tests.sh
+```
+
+**Common Test Issues and Solutions:**
+
+1. **Tests hanging on model loading:**
+   - AIDEV-FIX: Set `STEADYTEXT_USE_MINI_MODELS=true` environment variable
+   - Mini models are ~10x smaller and prevent timeouts
+   - Must be set at container level for PostgreSQL extension tests
+
+2. **plpy.Error in tests:**
+   - Usually means incorrect plpy.execute() usage
+   - Check that parameterized queries use plpy.prepare()
+   - Example error: `plpy.Error: plpy.execute expected a query or a plan`
+
+3. **Type mismatch errors:**
+   - Python strings must be explicitly cast to PostgreSQL types
+   - Common: UUID casting with `$1::uuid`, JSONB with `$2::jsonb`
+
+4. **Function output format issues:**
+   - Table-returning functions must use `yield` not `return`
+   - Check test expectations match actual output format
+
+5. **Test syntax errors:**
+   - Functions with OUT parameters don't need column definitions
+   - Error: `a column definition list is redundant for a function with OUT parameters`
+
+AIDEV-NOTE: Always run tests with mini models in CI to prevent timeouts
+AIDEV-NOTE: Check test output carefully - PL/Python errors can be misleading
+AIDEV-TODO: Add automated test suite for all PL/Python edge cases
 
 ### Docker Development
 
@@ -562,3 +605,91 @@ echo "Hello" | st --unsafe-mode --model openai:gpt-4o-mini --options '{"top_p": 
 AIDEV-TODO: Add support for more providers (Anthropic when they add seed support, Together.ai, etc.)
 AIDEV-TODO: Consider adding structured output support for remote models
 AIDEV-TODO: Add telemetry to track unsafe mode usage patterns
+
+### PostgreSQL Extension Unsafe Mode Testing (v2025.8.26+)
+
+The pg_steadytext extension supports unsafe_mode for remote models. This must be thoroughly tested before production deployment.
+
+**Functions Supporting unsafe_mode:**
+- `steadytext_generate` - Text generation with remote models
+- `steadytext_embed` - Embedding generation with remote models
+- `steadytext_summarize` aggregate - Summarization with metadata containing model/unsafe_mode
+- `steadytext_summarize_text` - Single-value summarization with model/unsafe_mode parameters
+
+**Testing Procedure:**
+
+```sql
+-- AIDEV-NOTE: Always test in a separate database to avoid production impact
+CREATE DATABASE manual_test_db;
+\c manual_test_db
+
+-- Install required extensions
+CREATE EXTENSION IF NOT EXISTS plpython3u;
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_steadytext;
+
+-- Verify correct version (should be 2025.8.26 or later)
+SELECT extname, extversion FROM pg_extension WHERE extname = 'pg_steadytext';
+
+-- Test 1: Error validation - remote model without unsafe_mode should fail
+SELECT steadytext_generate('Hello', model := 'openai:gpt-4o-mini');
+-- Expected: ERROR: Remote models (containing ':') require unsafe_mode=TRUE
+
+-- Test 2: Error validation - unsafe_mode without model should fail  
+SELECT steadytext_generate('Hello', unsafe_mode := TRUE);
+-- Expected: ERROR: unsafe_mode=TRUE requires a model parameter to be specified
+
+-- Test 3: Successful remote model generation
+SELECT steadytext_generate(
+    'What is the capital of France? Answer in one word.',
+    model := 'openai:gpt-4o-mini',
+    unsafe_mode := TRUE
+);
+-- Expected: "Paris." or similar
+
+-- Test 4: Remote embedding generation
+SELECT vector_dims(steadytext_embed(
+    'Hello world',
+    model := 'openai:text-embedding-3-small',
+    unsafe_mode := TRUE
+));
+-- Expected: 1024 dimensions
+
+-- Test 5: Summarization with remote model
+SELECT steadytext_summarize_text(
+    'PostgreSQL is an advanced open-source database system.',
+    metadata := '{}'::jsonb,
+    model := 'openai:gpt-4o-mini',
+    unsafe_mode := TRUE
+);
+-- Expected: A concise summary
+
+-- Test 6: Aggregate summarization with metadata
+CREATE TABLE test_docs (content TEXT);
+INSERT INTO test_docs VALUES 
+    ('PostgreSQL is powerful'),
+    ('It supports SQL'),
+    ('Extensions are flexible');
+
+SELECT steadytext_summarize(
+    content,
+    jsonb_build_object('model', 'openai:gpt-4o-mini', 'unsafe_mode', true)
+) FROM test_docs;
+-- Expected: A summary of all documents
+```
+
+**Important Validation Rules:**
+- AIDEV-NOTE: Remote models (containing ':' in the model name) MUST have unsafe_mode=TRUE
+- AIDEV-NOTE: unsafe_mode=TRUE MUST have a model parameter specified  
+- AIDEV-NOTE: The aggregate function passes model/unsafe_mode through metadata JSONB
+- AIDEV-NOTE: All remote model calls skip the daemon and use direct API calls
+
+**Supported Remote Models (as of v2025.8.26):**
+- OpenAI: gpt-4o, gpt-4o-mini, gpt-4-turbo, text-embedding-3-small, text-embedding-3-large
+- Cerebras: cerebras:llama3.1-8b, cerebras:llama3.1-70b
+- VoyageAI: voyage:voyage-3, voyage:voyage-large-2 (embeddings only, no seed support)
+- Jina: jina:jina-embeddings-v3 (embeddings only, no seed support)
+
+AIDEV-TODO: Add automated tests for all unsafe_mode scenarios in pgTAP test suite
+AIDEV-TODO: Create performance benchmarks comparing local vs remote models
+AIDEV-TODO: Document rate limiting and error handling for remote model failures
