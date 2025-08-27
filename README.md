@@ -329,6 +329,10 @@ echo "Is Python good?" | st --choices "yes,no,maybe" --wait
 
 SteadyText now supports remote AI models (OpenAI, Cerebras, VoyageAI, Jina) with **best-effort determinism** via seed parameters. This feature is explicitly marked as "unsafe" because remote models cannot guarantee reproducibility.
 
+**New in v2025.8.17+:**
+- **GPT-5 Series Support**: Full support for OpenAI's GPT-5 reasoning models (gpt-5-mini, gpt-5-pro, etc.) with automatic temperature adjustment
+- **Custom Provider Options**: Pass provider-specific parameters directly to remote APIs via the `options` parameter
+
 ### Why Use Unsafe Mode?
 
 - Access to larger, more capable models
@@ -348,6 +352,13 @@ export STEADYTEXT_UNSAFE_MODE=true
 
 # Use OpenAI for generation
 echo "Explain quantum computing" | st --unsafe-mode --model openai:gpt-4o-mini
+
+# Use GPT-5 reasoning models (temperature automatically set to 1.0)
+echo "Solve this problem" | st --unsafe-mode --model openai:gpt-5-mini
+echo "Complex reasoning" | st --unsafe-mode --model openai:gpt-5-pro
+
+# Pass custom options to providers (v2025.8.17+)
+echo "Creative writing" | st --unsafe-mode --model openai:gpt-4o-mini --options '{"top_p": 0.95, "presence_penalty": 0.5}'
 
 # Use Cerebras for fast generation
 echo "Write Python code" | st --unsafe-mode --model cerebras:llama3.1-8b
@@ -377,13 +388,28 @@ text = steadytext.generate(
     model="openai:gpt-4o-mini",
     seed=42  # Best-effort determinism only
 )
+
+# Use GPT-5 reasoning models (temperature automatically adjusted to 1.0)
+text = steadytext.generate(
+    "Complex reasoning task",
+    model="openai:gpt-5-mini",
+    unsafe_mode=True
+)
+
+# Pass custom provider options (v2025.8.17+)
+text = steadytext.generate(
+    "Creative writing",
+    model="openai:gpt-4o-mini",
+    unsafe_mode=True,
+    options={"top_p": 0.95, "presence_penalty": 0.5}
+)
 ```
 
 ### Supported Remote Providers
 
 | Provider | Generation | Embeddings | Determinism | API Key |
 |----------|------------|------------|-------------|---------|
-| **OpenAI** | ✅ gpt-4o, gpt-4o-mini | ✅ text-embedding-3-* | Best-effort (seed param) | `OPENAI_API_KEY` |
+| **OpenAI** | ✅ gpt-4o, gpt-4o-mini<br>✅ gpt-5-mini, gpt-5-pro (reasoning) | ✅ text-embedding-3-* | Best-effort (seed param) | `OPENAI_API_KEY` |
 | **Cerebras** | ✅ Llama models | ❌ | Best-effort (seed param) | `CEREBRAS_API_KEY` |
 | **VoyageAI** | ❌ | ✅ voyage-3, voyage-large-2 | No seed support | `VOYAGE_API_KEY` |
 | **Jina AI** | ❌ | ✅ jina-embeddings-v3/v2 | No seed support | `JINA_API_KEY` |
@@ -830,9 +856,9 @@ export STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true
 
 ### Text Generation
 
-#### `generate(prompt: str, return_logprobs: bool = False, temperature: float = 0.0) -> Union[str, Tuple[str, Optional[Dict]]]`
+#### `generate(prompt: str, return_logprobs: bool = False, temperature: float = 0.0, model: Optional[str] = None, unsafe_mode: bool = False, options: Optional[Dict] = None) -> Union[str, Tuple[str, Optional[Dict]]]`
 
-Generate text from a prompt with optional temperature control.
+Generate text from a prompt with optional temperature control and remote model support.
 
 ```python
 # Deterministic generation (default)
@@ -843,15 +869,26 @@ creative_text = steadytext.generate("Write a haiku about Python", temperature=0.
 
 # With log probabilities
 text, logprobs = steadytext.generate("Explain AI", return_logprobs=True)
+
+# With remote models (v2025.8.17+)
+text = steadytext.generate(
+    "Solve this problem",
+    model="openai:gpt-5-mini",
+    unsafe_mode=True,
+    options={"top_p": 0.9}  # Custom provider options
+)
 ```
 
 - **Parameters:**
   - `prompt`: Input text to generate from
   - `return_logprobs`: If True, returns tuple of (text, logprobs)
   - `temperature`: Controls randomness (0.0 = deterministic, >0 = more random)
+  - `model`: Optional remote model (e.g., "openai:gpt-4o-mini", "openai:gpt-5-mini")
+  - `unsafe_mode`: Enable remote models (non-deterministic)
+  - `options`: Optional dict of provider-specific parameters (v2025.8.17+)
 - **Returns:** Generated text string, or tuple if `return_logprobs=True`
 
-#### `generate_iter(prompt: str, temperature: float = 0.0) -> Iterator[str]`
+#### `generate_iter(prompt: str, temperature: float = 0.0, model: Optional[str] = None, unsafe_mode: bool = False, options: Optional[Dict] = None) -> Iterator[str]`
 
 Generate text iteratively, yielding tokens as they are produced.
 
@@ -863,11 +900,22 @@ for token in steadytext.generate_iter("Tell me a story"):
 # Creative streaming with temperature
 for token in steadytext.generate_iter("Tell me a story", temperature=0.7):
     print(token, end="", flush=True)
+
+# Streaming with remote models (v2025.8.17+)
+for token in steadytext.generate_iter(
+    "Explain reasoning",
+    model="openai:gpt-5-mini",
+    unsafe_mode=True
+):
+    print(token, end="", flush=True)
 ```
 
 - **Parameters:**
   - `prompt`: Input text to generate from
   - `temperature`: Controls randomness (0.0 = deterministic, >0 = more random)
+  - `model`: Optional remote model (e.g., "openai:gpt-4o-mini", "openai:gpt-5-mini")
+  - `unsafe_mode`: Enable remote models (non-deterministic)
+  - `options`: Optional dict of provider-specific parameters (v2025.8.17+)
 - **Yields:** Text tokens/words as they are generated
 
 ### Embeddings

@@ -7,7 +7,7 @@ AIDEV-NOTE: Fixed "Never Fails" - embed() now catches TypeErrors & returns zero 
 # Version of the steadytext package - should match pyproject.toml
 # AIDEV-NOTE: Always update this when bumping the lib version
 # AIDEV-NOTE: Using date-based versioning (yyyy.mm.dd) as of 2025.8.15
-__version__ = "2025.8.17"
+__version__ = "2025.8.26"
 
 # Import core functions and classes for public API
 import os
@@ -66,6 +66,7 @@ def generate(
     choices: Optional[List[str]] = None,
     unsafe_mode: bool = False,
     return_pydantic: bool = False,
+    options: Optional[Dict[str, Any]] = None,
 ) -> Union[str, Tuple[str, Optional[Dict[str, Any]]], None, Tuple[None, None], object]:
     """Generate text deterministically from a prompt with optional structured output.
 
@@ -87,6 +88,7 @@ def generate(
         choices: List of allowed string choices for output
         unsafe_mode: Enable remote models with best-effort determinism (non-deterministic)
         return_pydantic: If True and schema is a Pydantic model, return the instantiated model
+        options: Additional provider-specific options (for remote models)
 
     Returns:
         Generated text string, or tuple (text, logprobs) if return_logprobs=True
@@ -156,6 +158,7 @@ def generate(
                     choices=choices,
                     unsafe_mode=unsafe_mode,
                     return_pydantic=return_pydantic,
+                    options=options,
                 )
             except ConnectionError as e:
                 # Fall back to direct generation
@@ -181,6 +184,7 @@ def generate(
         choices=choices,
         unsafe_mode=unsafe_mode,
         return_pydantic=return_pydantic,
+        options=options,
     )
 
     # AIDEV-NOTE: Return None if generation failed
@@ -202,6 +206,7 @@ def generate_iter(
     seed: int = DEFAULT_SEED,
     temperature: float = 0.0,
     unsafe_mode: bool = False,
+    options: Optional[Dict[str, Any]] = None,
 ) -> Iterator[Union[str, Dict[str, Any]]]:
     """Generate text iteratively, yielding tokens as they are produced.
 
@@ -221,6 +226,7 @@ def generate_iter(
         size: Size identifier ("small", "large")
         temperature: Temperature for sampling (0.0 = deterministic, higher = more random)
         unsafe_mode: Enable remote models with best-effort determinism (non-deterministic)
+        options: Additional provider-specific options (for remote models)
 
     Yields:
         str: Generated tokens/words as they are produced (if include_logprobs=False)
@@ -246,6 +252,7 @@ def generate_iter(
                     seed=seed,
                     temperature=temperature,
                     unsafe_mode=unsafe_mode,
+                    options=options,
                 )
                 return
             except ConnectionError as e:
@@ -267,6 +274,7 @@ def generate_iter(
         seed=seed,
         temperature=temperature,
         unsafe_mode=unsafe_mode,
+        options=options,
     )
 
 

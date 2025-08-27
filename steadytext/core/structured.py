@@ -237,7 +237,7 @@ class StructuredGenerator:
                 return schema.model_json_schema()
             except AttributeError:
                 # Pydantic v1
-                return schema.schema()
+                return schema.schema()  # type: ignore[attr-defined]
         elif isinstance(schema, type):
             # Basic Python type
             if schema is int:

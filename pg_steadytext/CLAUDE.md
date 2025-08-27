@@ -35,12 +35,21 @@ This file contains important development notes and architectural decisions for A
 - AIDEV-NOTE: Always use dynamic schema resolution for any function accessing extension tables
 - AIDEV-NOTE: Use `@extschema@` placeholder in SQL alias functions for proper schema references
 
-### v2025.8.17 - AI Summarization Enhancement & Schema Qualification
+### v2025.8.26 - AI Summarization Enhancement, Schema Qualification & GPT-5 Support
 - **Added**: Enhanced AI summarization with remote model support
   - Renamed `ai_*` functions to `steadytext_*` with `st_*` aliases for consistency  
   - Added `model` and `unsafe_mode` parameters to summarization functions
   - Support for remote models like `openai:gpt-4o-mini` with `unsafe_mode=TRUE`
   - Increased default max_facts from 5 to 10
+- **Added**: GPT-5 reasoning model support
+  - OpenAI's GPT-5 series models (gpt-5-mini, gpt-5-pro) now recognized as reasoning models
+  - Temperature automatically adjusted to 1.0 for GPT-5 models (requirement from OpenAI)
+  - AIDEV-NOTE: Reasoning models (o1 series, GPT-5 series) require temperature=1.0
+- **Added**: Custom provider options support
+  - New `options` parameter for all generation functions to pass provider-specific settings
+  - Supports JSON object with provider parameters like top_p, presence_penalty, etc.
+  - Example: `SELECT st_generate('Hello', options => '{"top_p": 0.95}'::jsonb);`
+  - AIDEV-NOTE: Options are passed as **kwargs to remote providers
 - **Fixed**: Schema qualification for TimescaleDB continuous aggregates
   - All table references now use `@extschema@.table_name` pattern
   - Fixes issue #95 where functions failed when called from continuous aggregates
@@ -51,6 +60,7 @@ This file contains important development notes and architectural decisions for A
   - Solution: Use new local variables instead of reassigning arguments
 - AIDEV-TODO: Add comprehensive tests for remote model summarization
 - AIDEV-TODO: Consider adding support for streaming in summarization functions
+- AIDEV-TODO: Add tests for GPT-5 models and custom options parameter
 
 ### v1.4.6 - Unsafe Mode Support for Embeddings
 - **Added**: `model` and `unsafe_mode` parameters to embedding functions
