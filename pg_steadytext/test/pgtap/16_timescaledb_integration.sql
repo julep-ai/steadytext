@@ -85,7 +85,7 @@ INSERT INTO test_logs (time, level, message, metadata) VALUES
     (NOW() - INTERVAL '1 hour', 'INFO', 'Backup completed', '{"component": "backup", "size_gb": 45}'),
     (NOW() - INTERVAL '45 minutes', 'DEBUG', 'Request processed', '{"component": "api", "duration_ms": 250}'),
     (NOW() - INTERVAL '30 minutes', 'WARNING', 'Disk space running low', '{"component": "monitor", "free_gb": 10}'),
-    (NOW() - INTERVAL '15 minutes', 'INFO', 'User session started', '{"component": "auth", "user_id": 123});
+    (NOW() - INTERVAL '15 minutes', 'INFO', 'User session started', '{"component": "auth", "user_id": 123}');
 
 SELECT ok(
     (SELECT COUNT(*) FROM test_logs) = 10,
