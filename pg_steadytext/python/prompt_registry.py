@@ -3,11 +3,10 @@ Prompt Registry Module for pg_steadytext
 AIDEV-NOTE: Provides Jinja2 template validation and rendering support
 """
 
-import json
 from typing import List, Tuple, Optional, Dict, Any
 
 try:
-    from jinja2 import Environment, meta, TemplateSyntaxError, UndefinedError, StrictUndefined, Undefined
+    from jinja2 import Environment, meta, TemplateSyntaxError, StrictUndefined, Undefined
     JINJA2_AVAILABLE = True
 except ImportError:
     JINJA2_AVAILABLE = False
@@ -108,7 +107,7 @@ def extract_variables(template: str) -> List[str]:
         ast = env.parse(template)
         variables = meta.find_undeclared_variables(ast)
         return sorted(list(variables))
-    except:
+    except Exception:
         return []
 
 
