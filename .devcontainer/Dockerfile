@@ -36,6 +36,7 @@ WORKDIR /workspace
 
 # Install node utils
 RUN npm install -g claude-code-inject claude-code-generic-hooks pyright
+RUN echo "alias specify='uvx --from git+https://github.com/github/spec-kit.git specify'" >> ~/.bashrc
 
 # Add cache mount points for UV
 ENV UV_CACHE_DIR=/tmp/.uv-cache

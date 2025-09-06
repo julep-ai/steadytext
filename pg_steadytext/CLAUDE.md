@@ -19,6 +19,64 @@ This file contains important development notes and architectural decisions for A
   ```
 - **Fixed in**: v1.4.5 and v1.4.6 (2025-08-14)
 
+## Prompt Registry Feature (v2025.9.6)
+
+### Overview
+- **Added**: Lightweight Jinja2-based prompt template management with versioning
+- **Purpose**: Store, version, and render text prompts with variable substitution
+- **Use Case**: Centralized management of AI/LLM prompts within the database
+
+### Architecture
+- **Tables**: `steadytext_prompts` (main registry) and `steadytext_prompt_versions` (version history)
+- **Versioning**: Automatic version incrementing, immutable version history
+- **Templates**: Full Jinja2 syntax support (variables, loops, conditionals, filters)
+- **Validation**: Template syntax validation on create/update with variable extraction
+
+### Key Functions
+- `steadytext_prompt_create(slug, template, description, metadata)` - Create new prompt
+- `steadytext_prompt_update(slug, template, metadata)` - Add new version
+- `steadytext_prompt_get(slug, version)` - Retrieve template (latest or specific)
+- `steadytext_prompt_render(slug, variables, version, strict)` - Render with variables
+- `steadytext_prompt_list()` - List all prompts with metadata
+- `steadytext_prompt_versions(slug)` - List all versions of a prompt
+- `steadytext_prompt_delete(slug)` - Delete prompt and all versions
+
+All functions have `st_*` short aliases for convenience.
+
+### Usage Examples
+```sql
+-- Create a prompt
+SELECT st_prompt_create(
+    'welcome-email',
+    'Hello {{ name }}, welcome to {{ product }}!',
+    'Welcome email template'
+);
+
+-- Render the prompt
+SELECT st_prompt_render(
+    'welcome-email',
+    '{"name": "Alice", "product": "SteadyText"}'::jsonb
+);
+-- Returns: "Hello Alice, welcome to SteadyText!"
+
+-- Update to new version
+SELECT st_prompt_update(
+    'welcome-email',
+    'Hi {{ name }}! Welcome to {{ product }}. {% if premium %}Enjoy premium features!{% endif %}'
+);
+
+-- Get specific version
+SELECT template FROM st_prompt_get('welcome-email', 1);
+```
+
+### Implementation Notes
+- AIDEV-NOTE: Uses dynamic schema resolution for TimescaleDB compatibility
+- AIDEV-NOTE: Template compilation cached in GD for performance
+- AIDEV-NOTE: Jinja2 required as Python dependency (added to Makefile)
+- AIDEV-NOTE: Slug format: lowercase letters, numbers, hyphens (3-100 chars)
+- AIDEV-TODO: Consider adding template inheritance support
+- AIDEV-TODO: Add bulk import/export functionality
+
 ## Recent Fixes
 
 ### v2025.8.26 - PL/Python Function Fixes and pgTAP Test Improvements
