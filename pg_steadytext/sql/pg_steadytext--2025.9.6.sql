@@ -381,7 +381,7 @@ CREATE OR REPLACE FUNCTION steadytext_generate(
 )
 RETURNS TEXT
 LANGUAGE plpython3u
-IMMUTABLE PARALLEL SAFE
+IMMUTABLE PARALLEL SAFE  -- IMMUTABLE: Intentional for query optimization despite daemon interaction
 AS $c$
 # AIDEV-NOTE: Main text generation function that integrates with SteadyText daemon
 # v2025.8.15: Added support for eos_string, model, model_repo, model_filename, size parameters
@@ -582,7 +582,7 @@ CREATE OR REPLACE FUNCTION steadytext_embed(
 )
 RETURNS vector(1024)
 LANGUAGE plpython3u
-IMMUTABLE PARALLEL SAFE LEAKPROOF
+IMMUTABLE PARALLEL SAFE LEAKPROOF  -- IMMUTABLE: Intentional for query optimization despite model interaction
 AS $c$
 # AIDEV-NOTE: Embedding function with remote model support via unsafe_mode
 # Added in v2025.8.15 to support OpenAI and other remote embedding providers
@@ -1636,14 +1636,14 @@ CREATE OR REPLACE FUNCTION steadytext_extract_facts(
     max_facts integer DEFAULT 10
 ) RETURNS jsonb
 LANGUAGE plpython3u
-IMMUTABLE PARALLEL SAFE
+IMMUTABLE PARALLEL SAFE  -- IMMUTABLE: Intentional for query optimization of fact extraction
 AS $c$
     import json
     from plpy import quote_literal
 
     # Validate inputs
     if not input_text or not input_text.strip():
-        return json.dumps({"facts": []})
+        return {"facts": []}
 
     if max_facts <= 0 or max_facts > 50:
         plpy.error("max_facts must be between 1 and 50")
@@ -1665,8 +1665,8 @@ AS $c$
     # Take up to max_facts sentences as facts
     facts = sentences[:max_facts]
     
-    return json.dumps({"facts": facts})
-    return json.dumps({"facts": []})
+    # Return Python dict directly - PostgreSQL will convert to JSONB
+    return {"facts": facts}
 $c$;
 
 -- Helper function to deduplicate facts using embeddings
@@ -2795,7 +2795,7 @@ BEGIN
     
     -- Validate remote model requirements
     IF model IS NOT NULL AND position(':' IN model) > 0 AND NOT unsafe_mode THEN
-        RAISE EXCEPTION 'Remote models (containing '':'' ) require unsafe_mode=TRUE';
+        RAISE EXCEPTION 'Remote models (containing %s) require unsafe_mode=TRUE', ':';
     END IF;
     
     -- Generate result using IMMUTABLE function
@@ -2846,7 +2846,7 @@ BEGIN
     
     -- Validate remote model requirements
     IF model IS NOT NULL AND position(':' IN model) > 0 AND NOT unsafe_mode THEN
-        RAISE EXCEPTION 'Remote models (containing '':'' ) require unsafe_mode=TRUE';
+        RAISE EXCEPTION 'Remote models (containing %s) require unsafe_mode=TRUE', ':';
     END IF;
     
     request_id := gen_random_uuid();
@@ -3447,7 +3447,7 @@ CREATE INDEX idx_steadytext_prompt_versions_created_at ON steadytext_prompt_vers
 CREATE OR REPLACE FUNCTION _get_next_version(p_prompt_id UUID)
 RETURNS INTEGER
 LANGUAGE sql
-IMMUTABLE PARALLEL SAFE
+IMMUTABLE PARALLEL SAFE  -- IMMUTABLE: Intentional, though reads from table (used in deterministic context)
 AS $$
     SELECT COALESCE(MAX(version), 0) + 1
     FROM @extschema@.steadytext_prompt_versions
@@ -3564,6 +3564,10 @@ BEGIN
         RAISE EXCEPTION 'Prompt with slug "%" not found', slug
             USING ERRCODE = 'no_data_found';
     END IF;
+    
+    -- Acquire advisory lock to prevent concurrent version updates
+    -- Uses the first 8 bytes of the UUID as bigint for the lock
+    PERFORM pg_advisory_xact_lock(('x' || substr(v_prompt_id::text, 1, 16))::bit(64)::bigint);
     
     -- Validate template
     SELECT * INTO v_validation 
@@ -3729,7 +3733,8 @@ AS $$
         env = Environment(undefined=Undefined)
     
     # Cache compiled templates in GD for performance
-    cache_key = f"jinja2_template:{slug}:{version}:{hash(template_text)}"
+    # Include strict mode in cache key since it affects template behavior
+    cache_key = f"jinja2_template:{slug}:{version}:{strict}:{hash(template_text)}"
     
     # AIDEV-FIX: Don't cache compiled templates - they're not serializable in GD
     # Instead, compile fresh each time (Jinja2 compilation is fast)
@@ -3768,7 +3773,7 @@ AS $$
         p.id,
         p.slug,
         p.description,
-        MAX(pv.version) as latest_version,
+        MAX(pv.version) as latest_version_num,
         COUNT(pv.id)::INTEGER as total_versions,
         p.created_at,
         p.updated_at

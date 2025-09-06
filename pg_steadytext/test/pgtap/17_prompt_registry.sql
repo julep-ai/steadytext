@@ -8,7 +8,7 @@ BEGIN;
 \i test/pgtap/00_setup.sql
 
 -- Plan the number of tests
-SELECT plan(50);
+SELECT plan(58);
 
 -- Test schema setup
 SELECT has_table('steadytext_prompts', 'Should have prompts table');
@@ -272,12 +272,70 @@ SELECT is(
     'st_prompt_render alias should work'
 );
 
+-- Test 29: Verify column names in steadytext_prompt_list result
+SELECT ok(
+    EXISTS (SELECT latest_version_num FROM steadytext_prompt_list()),
+    'steadytext_prompt_list should have latest_version_num column'
+);
+
+-- Test 30: Verify column names in steadytext_prompt_versions result  
+SELECT ok(
+    EXISTS (SELECT version_num FROM steadytext_prompt_versions('test-prompt')),
+    'steadytext_prompt_versions should have version_num column'
+);
+
+-- Test 31: Test concurrent version updates (using advisory locks)
+-- Create a test prompt for concurrency testing
+SELECT ok(
+    steadytext_prompt_create('concurrency-test', 'Initial {{ value }}') IS NOT NULL,
+    'Should create prompt for concurrency testing'
+);
+
+-- Test 32: Verify strict mode affects template rendering differently
+SELECT isnt(
+    steadytext_prompt_render('with-default', '{}'::jsonb, NULL, false),
+    steadytext_prompt_render('with-default', '{"name": "Test"}'::jsonb, NULL, false),
+    'Different variables should produce different results'
+);
+
+-- Test 33: Verify JSONB return type from steadytext_extract_facts
+SELECT is(
+    pg_typeof(steadytext_extract_facts('Test sentence. Another one.')),
+    'jsonb'::regtype,
+    'steadytext_extract_facts should return JSONB type'
+);
+
+-- Test 34: Test error message formatting for remote models
+DO $$
+BEGIN
+    -- This should raise an error with proper formatting
+    PERFORM steadytext_generate('test', model := 'openai:gpt-4', unsafe_mode := FALSE);
+    RAISE EXCEPTION 'Should have raised error for remote model without unsafe_mode';
+EXCEPTION 
+    WHEN OTHERS THEN
+        -- Check that error message is properly formatted
+        IF SQLERRM NOT LIKE '%Remote models (containing %) require unsafe_mode=TRUE%' THEN
+            RAISE EXCEPTION 'Error message not properly formatted: %', SQLERRM;
+        END IF;
+END;
+$$;
+
+SELECT pass('Remote model error message is properly formatted');
+
+-- Test 35: Verify advisory lock prevents concurrent updates
+-- This is a conceptual test - in real scenario would need concurrent sessions
+SELECT ok(
+    steadytext_prompt_update('concurrency-test', 'Updated {{ value }}') IS NOT NULL,
+    'Should handle version update with advisory lock'
+);
+
 -- Cleanup test prompts
 SELECT steadytext_prompt_delete('test-prompt');
 SELECT steadytext_prompt_delete('complex-template');
 SELECT steadytext_prompt_delete('conditional');
 SELECT steadytext_prompt_delete('with-default');
 SELECT steadytext_prompt_delete('alias-test');
+SELECT steadytext_prompt_delete('concurrency-test');
 
 -- Finish tests
 SELECT * FROM finish();

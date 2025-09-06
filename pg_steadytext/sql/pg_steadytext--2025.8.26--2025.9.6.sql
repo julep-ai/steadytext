@@ -161,6 +161,10 @@ BEGIN
             USING ERRCODE = 'no_data_found';
     END IF;
     
+    -- Acquire advisory lock to prevent concurrent version updates
+    -- Uses the first 8 bytes of the UUID as bigint for the lock
+    PERFORM pg_advisory_xact_lock(('x' || substr(v_prompt_id::text, 1, 16))::bit(64)::bigint);
+    
     -- Validate template
     SELECT * INTO v_validation 
     FROM @extschema@._validate_jinja2_template(template);
@@ -325,7 +329,8 @@ AS $$
         env = Environment(undefined=Undefined)
     
     # Cache compiled templates in GD for performance
-    cache_key = f"jinja2_template:{slug}:{version}:{hash(template_text)}"
+    # Include strict mode in cache key since it affects template behavior
+    cache_key = f"jinja2_template:{slug}:{version}:{strict}:{hash(template_text)}"
     
     # AIDEV-FIX: Don't cache compiled templates - they're not serializable in GD
     # Instead, compile fresh each time (Jinja2 compilation is fast)
@@ -364,7 +369,7 @@ AS $$
         p.id,
         p.slug,
         p.description,
-        MAX(pv.version) as latest_version,
+        MAX(pv.version) as latest_version_num,
         COUNT(pv.id)::INTEGER as total_versions,
         p.created_at,
         p.updated_at
