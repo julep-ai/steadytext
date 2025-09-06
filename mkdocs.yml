@@ -76,6 +76,7 @@ nav:
     - Async Operations: postgresql-extension-async.md
     - Structured Generation: postgresql-extension-structured.md
     - Document Reranking: postgresql-extension-reranking.md
+    - Prompt Registry: postgresql-extension-prompt-registry.md
     - Troubleshooting: postgresql-extension-troubleshooting.md
   - Deployment:
     - Overview: deployment.md

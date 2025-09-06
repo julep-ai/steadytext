@@ -51,6 +51,51 @@ Full support for Jinja2 syntax including:
 - Timestamps and user tracking for audit trails
 - Searchable metadata for organizing large template libraries
 
+## Known Limitations
+
+### Reserved JSON Key Names
+
+**Important**: The following JSON key names conflict with Python dict methods and cannot be used in templates:
+- `items` - Conflicts with dict.items() method
+- `keys` - Conflicts with dict.keys() method  
+- `values` - Conflicts with dict.values() method
+
+**Workaround**: Use alternative names like `products`, `entries`, `elements`, etc.
+
+```sql
+-- ❌ BAD: Will cause "builtin_function_or_method object is not iterable" error
+'{% for item in order.items %}...'
+
+-- ✅ GOOD: Use alternative key names
+'{% for product in order.products %}...'
+```
+
+### Available Jinja2 Filters
+
+The following standard Jinja2 filters are available:
+
+**String Filters:**
+- `capitalize`, `lower`, `upper`, `title`
+- `trim`, `truncate(length)`, `wordwrap(width)`
+- `replace(old, new)`, `escape`, `urlize`
+
+**Numeric Filters:**
+- `abs`, `float`, `int`, `round(precision)`
+- `sum` (for lists)
+
+**List/Dict Filters:**
+- `first`, `last`, `length`, `reverse`, `sort`
+- `join(separator)`, `unique`, `select`, `reject`
+
+**Formatting Filters:**
+- `default(value)` - Provide default for undefined variables
+- `format` - Python string formatting (e.g., `"%.2f"|format(price)`)
+- `tojson` - Convert to JSON string
+
+**Unavailable Filters** (require custom registration):
+- `strftime` - Date formatting (use pre-formatted dates instead)
+- `rjust`, `ljust`, `center` - String padding (use CSS/formatting in output layer)
+
 ## Getting Started
 
 ### Basic Template Creation
@@ -86,7 +131,7 @@ Welcome! Consider upgrading to premium for more features.
 {% endif -%}
 
 {% if user.last_login -%}
-Last login: {{ user.last_login|strftime('%Y-%m-%d') }}
+Last login: {{ user.last_login }}
 {% endif %}'
 );
 
@@ -105,12 +150,12 @@ SELECT st_prompt_create(
     'order-summary',
     'Order #{{ order.id }} Summary:
 
-{% for item in order.items -%}
-{{ loop.index }}. {{ item.name }} - Qty: {{ item.qty }} - ${{ item.price }}
+{% for product in order.products -%}
+{{ loop.index }}. {{ product.name }} - Qty: {{ product.qty }} - ${{ product.price }}
 {% endfor %}
 
 Subtotal: ${{ order.subtotal }}
-{% if order.discount > 0 -%}
+{% if order.discount and order.discount|float > 0 -%}
 Discount: -${{ order.discount }}
 {% endif -%}
 Total: ${{ order.total }}'
@@ -133,6 +178,7 @@ Creates a new prompt template.
 **Returns:** UUID of the created prompt
 
 **Example:**
+
 ```sql
 SELECT st_prompt_create(
     'email-confirmation',
@@ -153,6 +199,7 @@ Creates a new version of an existing prompt.
 **Returns:** UUID of the new version
 
 **Example:**
+
 ```sql
 -- Update the template (creates version 2)
 SELECT st_prompt_update(
@@ -172,6 +219,7 @@ Retrieves a prompt template.
 **Returns:** Table with prompt details
 
 **Example:**
+
 ```sql
 -- Get the active version
 SELECT template, required_variables 
@@ -191,6 +239,7 @@ Deletes a prompt and all its versions.
 **Returns:** BOOLEAN (true if deleted, false if not found)
 
 **Example:**
+
 ```sql
 SELECT st_prompt_delete('old-template');
 ```
@@ -209,11 +258,12 @@ Renders a template with variable substitution.
 **Returns:** TEXT (rendered template)
 
 **Example:**
+
 ```sql
 -- Strict rendering (error if variables missing)
 SELECT st_prompt_render(
     'order-summary',
-    '{"order": {"id": "12345", "items": [{"name": "Widget", "qty": 2, "price": "19.99"}], "total": "39.98"}}'::jsonb,
+    '{"order": {"id": "12345", "products": [{"name": "Widget", "qty": 2, "price": "19.99"}], "total": "39.98"}}'::jsonb,
     NULL,  -- use active version
     true   -- strict mode
 );
@@ -235,6 +285,7 @@ Lists all prompts with summary information.
 **Returns:** Table with prompt metadata
 
 **Example:**
+
 ```sql
 SELECT slug, description, latest_version_num, total_versions, created_at
 FROM st_prompt_list()
@@ -250,6 +301,7 @@ Lists all versions of a specific prompt.
 **Returns:** Table with version details
 
 **Example:**
+
 ```sql
 SELECT version_num, created_at, created_by, is_active,
        left(template, 50) || '...' as template_preview
@@ -267,7 +319,7 @@ SELECT st_prompt_create(
     'report-generator',
     'Monthly Report for {{ company.name }}
     
-Generated: {{ report.date|strftime("%B %Y") }}
+Generated: {{ report.date }}
 
 {% for department in report.departments -%}
 ## {{ department.name|title }} Department
@@ -336,8 +388,8 @@ SELECT st_prompt_create(
     'invoice-template',
     'INVOICE #{{ invoice.number }}
 
-Date: {{ invoice.date|strftime("%B %d, %Y") }}
-Due Date: {{ invoice.due_date|strftime("%B %d, %Y") }}
+Date: {{ invoice.date }}
+Due Date: {{ invoice.due_date }}
 
 Bill To:
 {{ customer.name|title }}
@@ -345,9 +397,9 @@ Bill To:
 
 {% for item in invoice.line_items -%}
 {{ item.description|truncate(40) }}
-Qty: {{ item.quantity|string|rjust(3) }}  
-Rate: ${{ "%.2f"|format(item.rate)|rjust(8) }}
-Amount: ${{ "%.2f"|format(item.amount)|rjust(8) }}
+Qty: {{ item.quantity }}  
+Rate: ${{ "%.2f"|format(item.rate) }}
+Amount: ${{ "%.2f"|format(item.amount) }}
 {% endfor %}
 
 Subtotal: ${{ "%.2f"|format(invoice.subtotal) }}
@@ -418,9 +470,9 @@ SELECT st_prompt_create(
 You left some great items in your cart! Don''t let them get away.
 
 Your Cart:
-{% for item in cart.items -%}
-• {{ item.name }}{% if item.variant %} ({{ item.variant }}){% endif %}
-  ${{ "%.2f"|format(item.price) }}{% if item.was_price > item.price %} <strike>${{ "%.2f"|format(item.was_price) }}</strike>{% endif %}
+{% for product in cart.products -%}
+• {{ product.name }}{% if product.variant %} ({{ product.variant }}){% endif %}
+  ${{ "%.2f"|format(product.price) }}{% if product.was_price > product.price %} <strike>${{ "%.2f"|format(product.was_price) }}</strike>{% endif %}
 {% endfor %}
 
 Cart Total: ${{ "%.2f"|format(cart.total) }}
@@ -436,10 +488,10 @@ Complete your purchase: {{ cart.checkout_url }}
 Complete your purchase with 10% off: {{ cart.checkout_url }}?discount=COMEBACK10
 {% endif -%}
 
-{% if recommended_items -%}
+{% if recommended_products -%}
 You might also like:
-{% for item in recommended_items[:3] -%}
-• {{ item.name }} - ${{ "%.2f"|format(item.price) }}
+{% for product in recommended_products[:3] -%}
+• {{ product.name }} - ${{ "%.2f"|format(product.price) }}
 {% endfor %}
 {% endif -%}
 
@@ -490,11 +542,11 @@ CREATE INDEX idx_{{ table.name }}_{{ index.name }}
 
 {% endif -%}
 {% if table.comment -%}
-COMMENT ON TABLE {{ table.schema }}.{{ table.name }} IS {{ table.comment|tojsonfilter }};
+COMMENT ON TABLE {{ table.schema }}.{{ table.name }} IS {{ table.comment|tojson }};
 
 {% for column in table.columns -%}
 {% if column.comment -%}
-COMMENT ON COLUMN {{ table.schema }}.{{ table.name }}.{{ column.name }} IS {{ column.comment|tojsonfilter }};
+COMMENT ON COLUMN {{ table.schema }}.{{ table.name }}.{{ column.name }} IS {{ column.comment|tojson }};
 {% endif -%}
 {% endfor %}
 {% endif %}'
@@ -640,54 +692,66 @@ COMMENT ON COLUMN {{ table.schema }}.{{ table.name }}.{{ column.name }} IS {{ co
 ### Common Errors
 
 #### Template Syntax Errors
+
 ```sql
 -- Error: Invalid Jinja2 template: unexpected end of template
 SELECT st_prompt_create('bad-template', '{{ unclosed_variable');
 ```
+
 **Solution**: Check for unclosed template tags and proper Jinja2 syntax.
 
 #### Invalid Slug Format
+
 ```sql
 -- Error: Invalid slug format. Use lowercase letters, numbers, and hyphens only
 SELECT st_prompt_create('Bad_Slug!', 'Template');
 ```
+
 **Solution**: Use only lowercase letters, numbers, and hyphens. Length must be 3-100 characters.
 
 #### Missing Required Variables
+
 ```sql
 -- Error: Missing required variables: name, email
 SELECT st_prompt_render('template', '{}', NULL, true);
 ```
+
 **Solution**: Provide all required variables or use non-strict mode.
 
 #### Template Not Found
+
 ```sql
 -- Error: Prompt with slug "nonexistent" not found
 SELECT st_prompt_render('nonexistent', '{}');
 ```
+
 **Solution**: Verify the slug exists using `st_prompt_list()`.
 
 ### Debugging Tips
 
 1. **Check Required Variables**:
+
    ```sql
    SELECT required_variables 
    FROM st_prompt_get('your-template');
    ```
 
 2. **Test with Simple Data**:
+
    ```sql
    -- Start with minimal variables
    SELECT st_prompt_render('template', '{"name": "test"}');
    ```
 
 3. **Use Non-Strict Mode for Testing**:
+
    ```sql
    -- See what renders even with missing variables
    SELECT st_prompt_render('template', '{}', NULL, false);
    ```
 
 4. **Check Version History**:
+
    ```sql
    SELECT version_num, created_at, 
           left(template, 100) as template_preview

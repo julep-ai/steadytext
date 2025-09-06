@@ -3704,13 +3704,17 @@ AS $$
     required_vars = result[0]['required_variables'] or []
     
     # Parse variables
+    # AIDEV-FIX: Ensure proper conversion of JSONB to dict
     if isinstance(variables, str):
         try:
             vars_dict = json.loads(variables)
         except json.JSONDecodeError as e:
             plpy.error(f"Invalid JSON in variables: {str(e)}")
+    elif hasattr(variables, 'items'):
+        # It's already dict-like, but ensure it's a plain dict
+        vars_dict = dict(variables) if variables else {}
     else:
-        vars_dict = variables or {}
+        vars_dict = {}
     
     # Check for missing required variables in strict mode
     if strict and required_vars:
@@ -3726,17 +3730,18 @@ AS $$
     
     # Cache compiled templates in GD for performance
     cache_key = f"jinja2_template:{slug}:{version}:{hash(template_text)}"
-    compiled_template = GD.get(cache_key)
     
-    if compiled_template is None:
-        try:
-            compiled_template = env.from_string(template_text)
-            GD[cache_key] = compiled_template
-        except TemplateSyntaxError as e:
-            plpy.error(f"Template syntax error: {str(e)}")
+    # AIDEV-FIX: Don't cache compiled templates - they're not serializable in GD
+    # Instead, compile fresh each time (Jinja2 compilation is fast)
+    try:
+        compiled_template = env.from_string(template_text)
+    except TemplateSyntaxError as e:
+        plpy.error(f"Template syntax error: {str(e)}")
     
     # Render the template
     try:
+        # AIDEV-NOTE: JSONB dict limitation - Cannot use 'items', 'keys', 'values' as JSON keys
+        # These conflict with dict methods when JSONB is passed to Jinja2 templates
         rendered = compiled_template.render(**vars_dict)
         return rendered
     except UndefinedError as e:
