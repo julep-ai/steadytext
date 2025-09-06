@@ -29,28 +29,26 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
+          role-session-name: GitHubActions-Claude-${{ github.run_id }}
+          aws-region: us-east-1
+
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@beta
+        uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          
-          model: "claude-opus-4-1-20250805"
+          use_bedrock: "true"
+          claude_args: |
+            --model us.anthropic.claude-opus-4-1-20250805-v1:0
+            --max-turns 15
+            --allowedTools Bash(*)
+            --system-prompt "This is the SteadyText repository - a deterministic text generation and embedding library. The project uses CLAUDE.md files for AI assistant guidance. You have AWS credentials configured via OIDC and are running through Amazon Bedrock. Follow the instructions in CLAUDE.md for project-specific conventions and use the AIDEV anchor comments throughout the codebase."
           
           # Optional: Customize the trigger phrase (default: @claude)
           # trigger_phrase: "/claude"
           
           assignee_trigger: "creatorrr"
-          
-          allowed_tools: "Bash(*)"
-          
-          # Optional: Add custom instructions for Claude to customize its behavior for your project
-          # custom_instructions: |
-          #   Follow our coding standards
-          #   Ensure all new code has tests
-          #   Use TypeScript for new files
-          
-          # Optional: Custom environment variables for Claude
-          # claude_env: |
-          #   NODE_ENV: test
 
