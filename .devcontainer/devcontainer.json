@@ -32,6 +32,9 @@
         "anysphere.remote-containers",
         "anthropic.claude-code",
         "github.vscode-pull-request-github",
+        "tamasfe.even-better-toml",
+        "ckolkman.vscode-postgres",
+        "ms-vscode.makefile-tools",
         "github.vscode-github-actions"
       ],
       "settings": {

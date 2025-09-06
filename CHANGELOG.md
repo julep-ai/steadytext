@@ -8,6 +8,36 @@
 > semantic versioning became impractical. Date-based versioning provides clearer insight into release
 > recency and better aligns with our continuous improvement philosophy.
 
+## Version 2025.9.6 (2025-09-06)
+
+### PostgreSQL Extension Updates
+
+#### New Feature: Prompt Registry
+- **Comprehensive Template Management System:** Added Jinja2-based prompt template management with immutable versioning
+  - Full Jinja2 template engine support (variables, loops, conditionals, filters)
+  - Automatic variable extraction and validation from templates
+  - Immutable version history with complete audit trails
+  - Rich JSONB metadata for categorization and organization
+  - Performance-optimized template compilation caching
+  - Strict and non-strict rendering modes for flexible variable handling
+
+- **New Functions:**
+  - `st_prompt_create()` - Create new prompt templates
+  - `st_prompt_update()` - Create new versions of existing prompts
+  - `st_prompt_render()` - Render templates with JSONB variables
+  - `st_prompt_get()` - Retrieve templates (latest or specific version)
+  - `st_prompt_delete()` - Delete prompts and all versions
+  - `st_prompt_list()` - List all prompts with metadata
+  - `st_prompt_versions()` - List all versions of a prompt
+
+- **Use Cases:**
+  - AI prompt management with versioning for different models
+  - Email template systems with personalization
+  - Code generation templates
+  - Dynamic documentation generation
+
+- **Documentation:** See [Prompt Registry Guide](docs/postgresql-extension-prompt-registry.md) for complete details
+
 ## Version 2025.8.27 (2025-08-27)
 
 ### Performance Improvements

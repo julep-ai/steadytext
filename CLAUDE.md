@@ -224,6 +224,72 @@ Both SteadyText components now use **date-based versioning** instead of semantic
 - AIDEV-NOTE: When creating new releases, use current date in yyyy.mm.dd format for both components
 - AIDEV-NOTE: Version consistency - keep both Python package and pg_steadytext versions aligned when possible
 
+## Prompt Registry (v2025.9.6+)
+
+SteadyText v2025.9.6+ includes a comprehensive prompt registry for PostgreSQL that provides Jinja2-based template management with immutable versioning, automatic variable extraction, and rich metadata support.
+
+**Core Features:**
+- **Jinja2 Template Engine**: Full syntax support (variables, loops, conditionals, filters)
+- **Immutable Versioning**: Every update creates new version while preserving history
+- **Automatic Variable Extraction**: Detects and validates required template variables
+- **Rich Metadata**: JSONB metadata for categorization, tagging, and organization
+- **Performance Optimization**: Template compilation caching for optimal rendering speed
+- **Audit Trails**: Complete history with timestamps and user tracking
+
+**Key Functions:**
+```sql
+-- Management functions
+SELECT st_prompt_create(slug, template, description, metadata);
+SELECT st_prompt_update(slug, template, metadata);
+SELECT st_prompt_delete(slug);
+
+-- Rendering and retrieval
+SELECT st_prompt_render(slug, variables, version, strict_mode);
+SELECT * FROM st_prompt_get(slug, version);
+
+-- Discovery functions  
+SELECT * FROM st_prompt_list();
+SELECT * FROM st_prompt_versions(slug);
+```
+
+**Real-World Usage:**
+```sql
+-- AI prompt management with versioning
+SELECT st_prompt_create(
+    'code-review', 
+    'Review this {{ language }} code:\n\n```{{ language }}\n{{ code }}\n```\n\nFocus areas:\n{% for area in focus_areas -%}\n- {{ area }}\n{% endfor %}',
+    'AI code review prompt template',
+    '{"category": "ai", "model": "gpt-4", "version": "v2.1"}'::jsonb
+);
+
+-- Dynamic email templates with personalization
+SELECT st_prompt_create(
+    'order-confirmation',
+    'Dear {{ customer.name }},\n\nYour order #{{ order.id }} is confirmed.\n\n{% if order.total > 100 -%}\n🎉 You qualify for free shipping!\n{% endif %}',
+    'Order confirmation email with conditional content'
+);
+
+-- Render with variables
+SELECT st_prompt_render(
+    'code-review', 
+    '{"language": "Python", "code": "def fibonacci(n):\n    return n if n <= 1 else fibonacci(n-1) + fibonacci(n-2)", "focus_areas": ["performance", "readability"]}'::jsonb
+);
+```
+
+**Use Cases:**
+- **AI Prompt Management**: Version and organize prompts for different AI models and tasks
+- **Email Templates**: Dynamic email generation with personalization and conditional content  
+- **Code Generation**: Template-driven code generation with variable substitution
+- **Documentation**: Dynamic documentation with metadata-driven content organization
+
+**Technical Implementation:**
+- AIDEV-NOTE: Requires Jinja2 Python package (automatically installed via Makefile)
+- AIDEV-NOTE: All functions have st_* aliases for convenience (st_prompt_create, etc.)
+- AIDEV-NOTE: Uses dynamic schema resolution with @extschema@ for TimescaleDB compatibility
+- AIDEV-NOTE: Template compilation cached in PostgreSQL GD for performance optimization
+- AIDEV-NOTE: Comprehensive pgTAP test coverage with 28+ test cases in test/pgtap/17_prompt_registry.sql
+- AIDEV-NOTE: Dedicated documentation in docs/PROMPT_REGISTRY.md with advanced usage patterns
+
 ## GitHub Release Process
 
 - AIDEV-NOTE: GitHub releases use tags in format `v{version}` (e.g., `v2025.8.27`)

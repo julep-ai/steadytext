@@ -103,7 +103,7 @@ install-python-deps:
 			echo "Installing to: $(DESTDIR)$(PYTHON_SITEDIR)"; \
 			if [ -z "$(DESTDIR)" ]; then \
 				echo "Installing Python packages (this may require sudo for system-wide installation)..."; \
-				$(PYTHON) -m pip install --target='$(PYTHON_SITEDIR)' steadytext pyzmq numpy || \
+				$(PYTHON) -m pip install --target='$(PYTHON_SITEDIR)' steadytext pyzmq numpy jinja2 || \
 				(echo ""; \
 				 echo "================================================================="; \
 				 echo "Failed to install Python packages to $(PYTHON_SITEDIR)"; \
@@ -111,15 +111,15 @@ install-python-deps:
 				 echo "Please try one of these options:"; \
 				 echo "1. Run with sudo: sudo make install"; \
 				 echo "2. Install packages manually:"; \
-				 echo "   sudo $(PYTHON) -m pip install steadytext pyzmq numpy"; \
+				 echo "   sudo $(PYTHON) -m pip install steadytext pyzmq numpy jinja2"; \
 				 echo "3. Install to user directory:"; \
-				 echo "   $(PYTHON) -m pip install --user steadytext pyzmq numpy"; \
+				 echo "   $(PYTHON) -m pip install --user steadytext pyzmq numpy jinja2"; \
 				 echo "================================================================="; \
 				 exit 1); \
 			else \
 				echo "Installing to DESTDIR (packaging mode)..."; \
 				$(PYTHON) -m pip install --target='$(DESTDIR)$(PYTHON_SITEDIR)' \
-					--no-deps --ignore-installed steadytext pyzmq numpy 2>/dev/null || \
+					--no-deps --ignore-installed steadytext pyzmq numpy jinja2 2>/dev/null || \
 				echo "Note: pip install failed in packaging mode, packages should be installed at runtime"; \
 			fi; \
 		fi; \
