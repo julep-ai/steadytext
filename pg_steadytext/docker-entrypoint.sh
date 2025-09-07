@@ -27,7 +27,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
     
     -- Try to create TimescaleDB extension if available
     -- AIDEV-NOTE: TimescaleDB is optional - requires manual shared_preload_libraries configuration
-    -- AIDEV-NOTE: To enable: ALTER SYSTEM SET shared_preload_libraries = 'omni--0.2.11.so', 'timescaledb';
+    -- AIDEV-NOTE: To enable: ALTER SYSTEM SET shared_preload_libraries = 'omni--0.2.11.so,timescaledb';
     DO \$\$
     BEGIN
         IF EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'timescaledb') THEN

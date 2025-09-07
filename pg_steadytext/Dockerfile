@@ -91,9 +91,10 @@ ENV POSTGRES_USER=postgres
 ENV POSTGRES_PASSWORD=password
 ENV POSTGRES_DB=postgres
 
-# Configure PostgreSQL for TimescaleDB
-# AIDEV-NOTE: TimescaleDB requires shared_preload_libraries configuration
-RUN echo "shared_preload_libraries = 'timescaledb'" >> /usr/share/postgresql/postgresql.conf.sample
+# Configure PostgreSQL for TimescaleDB and Omnigres
+# AIDEV-NOTE: Both Omnigres and TimescaleDB require shared_preload_libraries configuration
+# Omnigres base image requires omni to be loaded
+RUN echo "shared_preload_libraries = 'omni--0.2.11.so,timescaledb'" >> /usr/share/postgresql/postgresql.conf.sample
 
 # Add healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s \

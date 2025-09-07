@@ -317,7 +317,7 @@ SELECT template FROM st_prompt_get('welcome-email', 1);
 
 - AIDEV-NOTE: TimescaleDB package is installed in Docker image for optional time-series testing
 - AIDEV-NOTE: Due to Omnigres base image constraints, TimescaleDB requires manual configuration
-- AIDEV-NOTE: To enable TimescaleDB in container: ALTER SYSTEM SET shared_preload_libraries = 'omni--0.2.11.so', 'timescaledb';
+- AIDEV-NOTE: To enable TimescaleDB in container: ALTER SYSTEM SET shared_preload_libraries = 'omni--0.2.11.so,timescaledb';
 - Test file: test/pgtap/16_timescaledb_compat.sql - Tests basic compatibility
 - Test file: test/pgtap/16_timescaledb_integration.sql - Comprehensive continuous aggregate tests (requires TimescaleDB)
 - AIDEV-NOTE: Use STEADYTEXT_USE_MINI_MODELS=true when running tests to prevent timeouts
