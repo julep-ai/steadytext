@@ -43,7 +43,7 @@ CREATE INDEX idx_steadytext_prompt_versions_created_at ON @extschema@.steadytext
 CREATE OR REPLACE FUNCTION @extschema@._get_next_version(p_prompt_id UUID)
 RETURNS INTEGER
 LANGUAGE sql
-IMMUTABLE PARALLEL SAFE
+STABLE
 AS $$
     SELECT COALESCE(MAX(version), 0) + 1
     FROM @extschema@.steadytext_prompt_versions
