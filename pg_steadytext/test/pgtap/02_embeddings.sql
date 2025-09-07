@@ -2,7 +2,7 @@
 -- AIDEV-NOTE: Tests for embedding generation, batch processing, and semantic search
 
 BEGIN;
-SELECT plan(15);
+SELECT plan(14);
 
 -- Test 1: Embedding function exists
 SELECT has_function(

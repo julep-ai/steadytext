@@ -12,6 +12,7 @@
 - **Security**: Input validation and rate limiting
 - **Monitoring**: Health checks and performance statistics
 - **AI Summarization**: Enhanced aggregate functions (`steadytext_summarize`, `st_summarize`) with remote model support and full TimescaleDB compatibility (v2025.8.26+)
+- **Prompt Registry**: Comprehensive Jinja2-based template management with immutable versioning, automatic variable extraction, and metadata support (v2025.9.6+)
 
 ## Requirements
 
@@ -22,9 +23,10 @@
   - `pgvector` (required)
   - `pg_cron` (optional, for automatic cache eviction)
 - Python packages:
-  - `steadytext>=2025.8.26` (installed automatically by `make install`)
+  - `steadytext>=2025.9.6` (installed automatically by `make install`)
   - `pyzmq` (for daemon integration)
   - `numpy` (for vector operations)
+  - `jinja2` (for prompt registry template rendering)
 
 ## Installation
 
@@ -355,6 +357,311 @@ SELECT unnest(steadytext_generate_batch_async(
 
 See [docs/ASYNC_FUNCTIONS.md](docs/ASYNC_FUNCTIONS.md) for complete async documentation.
 
+### Prompt Registry (v2025.9.6+)
+
+The prompt registry provides comprehensive Jinja2-based template management with immutable versioning, allowing you to store, version, and render text prompts within the database. This feature is ideal for managing AI prompts, email templates, code generation patterns, and any text that requires dynamic variable substitution.
+
+#### Core Features
+
+- **Jinja2 Template Engine**: Full support for Jinja2 syntax including variables, loops, conditionals, and filters
+- **Immutable Versioning**: Every update creates a new version while preserving the complete history
+- **Automatic Variable Extraction**: Automatically detects and validates required template variables
+- **Metadata Support**: Rich metadata for categorization, tagging, and organization
+- **Strict/Non-Strict Modes**: Choose whether missing variables cause errors or use defaults
+- **Template Caching**: Compiled templates are cached for optimal performance
+- **Audit Trail**: Complete history with timestamps and user tracking
+
+#### Quick Start Examples
+
+```sql
+-- Create a simple prompt template
+SELECT st_prompt_create(
+    'welcome-email',
+    'Hello {{ name }}, welcome to {{ product }}!',
+    'Welcome email template'
+);
+
+-- Render the prompt with variables
+SELECT st_prompt_render(
+    'welcome-email',
+    '{"name": "Alice", "product": "SteadyText"}'::jsonb
+);
+-- Returns: "Hello Alice, welcome to SteadyText!"
+
+-- Create a more complex template with conditionals and loops
+SELECT st_prompt_create(
+    'order-confirmation',
+    'Dear {{ customer.name }},
+
+Your order #{{ order.id }} has been confirmed.
+
+Items:
+{% for item in order.items -%}
+- {{ item.name }} ({{ item.quantity }}x) - ${{ "%.2f"|format(item.price) }}
+{% endfor %}
+
+{% if order.total > 100 -%}
+🎉 You qualify for free shipping!
+{% endif -%}
+
+Total: ${{ "%.2f"|format(order.total) }}
+
+Thank you for your business!',
+    'Order confirmation email with dynamic content',
+    '{"category": "ecommerce", "tags": ["order", "email", "customer"]}'::jsonb
+);
+
+-- Render complex template
+SELECT st_prompt_render(
+    'order-confirmation',
+    '{
+        "customer": {"name": "John Doe"},
+        "order": {
+            "id": "ORD-12345",
+            "items": [
+                {"name": "Widget A", "quantity": 2, "price": 29.99},
+                {"name": "Widget B", "quantity": 1, "price": 49.99}
+            ],
+            "total": 109.97
+        }
+    }'::jsonb
+);
+```
+
+#### Advanced Template Features
+
+```sql
+-- Template with default values and filters
+SELECT st_prompt_create(
+    'newsletter',
+    'Hello {{ subscriber.name|default("Valued Customer") }},
+
+{% if articles|length > 0 -%}
+Here are today''s top {{ articles|length }} articles:
+
+{% for article in articles[:3] -%}
+{{ loop.index }}. {{ article.title|title }}
+   {{ article.summary|truncate(100) }}
+   Read more: {{ article.url }}
+
+{% endfor %}
+{% else -%}
+No articles to share today. Check back tomorrow!
+{% endif -%}
+
+Best regards,
+{{ publication.name|default("The Newsletter Team") }}'
+);
+
+-- Render with partial data (non-strict mode)
+SELECT st_prompt_render(
+    'newsletter',
+    '{"articles": [
+        {"title": "jinja2 templates", "summary": "Learn how to use Jinja2 templates effectively", "url": "https://example.com/1"}
+    ]}',
+    NULL, -- latest version
+    false  -- non-strict mode
+);
+```
+
+#### Function Reference
+
+**Management Functions:**
+
+```sql
+-- Create a new prompt template
+st_prompt_create(slug, template, description, metadata) → UUID
+
+-- Update prompt (creates new version)  
+st_prompt_update(slug, template, metadata) → UUID
+
+-- Get prompt template (latest or specific version)
+st_prompt_get(slug, version) → TABLE(prompt_id, version_num, template, required_variables, metadata, created_at, created_by)
+
+-- Delete prompt and all versions
+st_prompt_delete(slug) → BOOLEAN
+```
+
+**Rendering Functions:**
+
+```sql
+-- Render template with variables
+st_prompt_render(slug, variables_jsonb, version, strict) → TEXT
+
+-- Examples of strict vs non-strict mode
+SELECT st_prompt_render('template', '{"name": "Alice"}', NULL, true);   -- Error if variables missing
+SELECT st_prompt_render('template', '{"name": "Alice"}', NULL, false);  -- Use defaults/empty for missing
+```
+
+**Discovery Functions:**
+
+```sql
+-- List all prompts with summary info
+st_prompt_list() → TABLE(prompt_id, slug, description, latest_version_num, total_versions, created_at, updated_at)
+
+-- List all versions of a specific prompt
+st_prompt_versions(slug) → TABLE(version_num, template, required_variables, metadata, created_at, created_by, is_active)
+```
+
+#### Real-World Use Cases
+
+**1. AI Prompt Management:**
+```sql
+-- Store and version AI prompts for different tasks
+SELECT st_prompt_create(
+    'code-reviewer',
+    'You are an expert code reviewer. Review this {{ language }} code:
+
+```{{ language }}
+{{ code }}
+```
+
+Focus on:
+{% for area in focus_areas -%}
+- {{ area }}
+{% endfor %}
+
+Provide constructive feedback with specific suggestions.',
+    'AI code review prompt template',
+    '{"category": "ai", "model_type": "gpt-4", "version": "v1"}'::jsonb
+);
+
+-- Use with different programming languages and focus areas
+SELECT st_prompt_render(
+    'code-reviewer',
+    '{"language": "Python", "code": "def fibonacci(n):\n    if n <= 1: return n\n    return fibonacci(n-1) + fibonacci(n-2)", "focus_areas": ["performance", "readability", "edge cases"]}'::jsonb
+);
+```
+
+**2. Dynamic Email Templates:**
+```sql
+-- Marketing email with personalization
+SELECT st_prompt_create(
+    'product-launch',
+    'Hi {{ customer.first_name }},
+
+We''re excited to announce our latest {{ product.category }}: {{ product.name }}!
+
+{% if customer.vip_status -%}
+As a VIP customer, you get early access and 20% off.
+Use code: VIP20
+{% elif customer.purchase_history|length > 5 -%}
+As a loyal customer, enjoy 15% off with code: LOYAL15
+{% else -%}
+Get 10% off your first purchase with code: WELCOME10
+{% endif -%}
+
+{{ product.description }}
+
+Price: ${{ product.price }}
+{% if customer.vip_status or customer.purchase_history|length > 5 -%}
+Your price: ${{ "%.2f"|format(product.price * 0.85) }}
+{% endif -%}
+
+Shop now: {{ product.url }}'
+);
+```
+
+**3. Database Schema Generation:**
+```sql
+SELECT st_prompt_create(
+    'create-table-ddl',
+    'CREATE TABLE {{ schema }}.{{ table_name }} (
+{% for column in columns -%}
+    {{ column.name }} {{ column.type }}{% if column.not_null %} NOT NULL{% endif %}{% if column.default %} DEFAULT {{ column.default }}{% endif %}{% if not loop.last %},{% endif %}
+{% endfor %}{% if primary_key %},
+    PRIMARY KEY ({{ primary_key|join(", ") }}){% endif %}{% if indexes %}{% for index in indexes %},
+    INDEX idx_{{ table_name }}_{{ index.name }} ({{ index.columns|join(", ") }}){% endfor %}{% endif %}
+);'
+);
+```
+
+#### Version Management
+
+```sql
+-- Update creates new version while preserving history
+SELECT st_prompt_update(
+    'welcome-email',
+    'Hi {{ name }}! 🎉 Welcome to {{ product }}. 
+    
+{% if premium -%}
+You now have access to premium features!
+{% endif -%}
+    
+Questions? Reply to this email anytime.'
+);
+
+-- View version history
+SELECT version_num, created_at, is_active, 
+       left(template, 50) || '...' as template_preview
+FROM st_prompt_versions('welcome-email')
+ORDER BY version_num DESC;
+
+-- Get a specific historical version
+SELECT template FROM st_prompt_get('welcome-email', 1);
+
+-- Always get the latest active version
+SELECT template FROM st_prompt_get('welcome-email');
+```
+
+#### Error Handling and Validation
+
+The prompt registry includes comprehensive validation:
+
+```sql
+-- Invalid Jinja2 syntax is rejected
+SELECT st_prompt_create('bad-template', '{{ unclosed_variable', 'Bad template');
+-- ERROR: Invalid Jinja2 template: unexpected end of template
+
+-- Invalid slug format is rejected  
+SELECT st_prompt_create('Bad_Slug!', 'Template', 'Invalid slug');
+-- ERROR: Invalid slug format. Use lowercase letters, numbers, and hyphens only
+
+-- Missing variables in strict mode
+SELECT st_prompt_render('template-with-vars', '{}'::jsonb, NULL, true);
+-- ERROR: Missing required variables: name, email
+
+-- Missing variables in non-strict mode (uses defaults/empty)
+SELECT st_prompt_render('template-with-vars', '{}'::jsonb, NULL, false);
+-- Works, undefined variables render as empty or use Jinja2 defaults
+```
+
+#### Performance and Caching
+
+- **Template Compilation Caching**: Compiled Jinja2 templates are cached for optimal performance
+- **Variable Extraction**: Required variables are pre-computed and stored with each version
+- **Efficient Lookups**: Database indexes on slugs and version numbers ensure fast retrieval
+- **Connection Reuse**: Leverages PostgreSQL's connection pooling for scalability
+
+#### Integration with Text Generation
+
+Combine prompt templates with SteadyText's generation capabilities:
+
+```sql
+-- Create a prompt template for text generation
+SELECT st_prompt_create(
+    'story-generator',
+    'Write a {{ genre }} story about {{ protagonist }} who {{ conflict }}. 
+    
+The story should be {{ length }} and have a {{ tone }} tone.
+    
+Setting: {{ setting }}
+Theme: {{ theme }}'
+);
+
+-- Render and generate in one query
+WITH rendered_prompt AS (
+    SELECT st_prompt_render(
+        'story-generator',
+        '{"genre": "science fiction", "protagonist": "a lonely astronaut", "conflict": "discovers an alien signal", "length": "short", "tone": "mysterious", "setting": "Mars colony in 2087", "theme": "first contact"}'::jsonb
+    ) AS prompt
+)
+SELECT steadytext_generate(prompt, max_tokens := 500)
+FROM rendered_prompt;
+```
+
+For comprehensive documentation on the Prompt Registry including advanced usage patterns, real-world examples, and troubleshooting, see [docs/PROMPT_REGISTRY.md](docs/PROMPT_REGISTRY.md).
+
 ### Unsafe Mode: Remote Models (v1.4.4+)
 
 pg_steadytext supports using remote AI models with best-effort determinism via the `unsafe_mode` parameter.
@@ -432,12 +739,23 @@ PostgreSQL Client
 - `steadytext_queue` - Queue for async operations (future feature)
 - `steadytext_config` - Extension configuration
 - `steadytext_daemon_health` - Daemon health monitoring
+- `steadytext_prompts` - Prompt registry metadata (v2025.9.6+)
+- `steadytext_prompt_versions` - Versioned prompt templates with Jinja2 support (v2025.9.6+)
 
 ## Functions
 
 ### Core Functions
 - `steadytext_generate(prompt, max_tokens, use_cache, seed, eos_string, model, model_repo, model_filename, size, unsafe_mode)` - Generate text with optional remote models (v1.4.4+)
 - `steadytext_embed(text, use_cache, seed, model, unsafe_mode)` - Generate embedding with optional remote models (v1.4.6+)
+
+### Prompt Registry Functions (v2025.9.6+)
+- `steadytext_prompt_create(slug, template, description, metadata)` / `st_prompt_create()` - Create new prompt template
+- `steadytext_prompt_update(slug, template, metadata)` / `st_prompt_update()` - Create new version of existing prompt
+- `steadytext_prompt_get(slug, version)` / `st_prompt_get()` - Retrieve prompt template (latest or specific version)
+- `steadytext_prompt_render(slug, variables, version, strict)` / `st_prompt_render()` - Render template with variables
+- `steadytext_prompt_list()` / `st_prompt_list()` - List all prompts with metadata
+- `steadytext_prompt_versions(slug)` / `st_prompt_versions()` - List all versions of a specific prompt
+- `steadytext_prompt_delete(slug)` / `st_prompt_delete()` - Delete prompt and all its versions
 
 ### Structured Generation Functions (v2.4.1+)
 - `steadytext_generate_json(prompt, schema, max_tokens, use_cache, seed)` - Generate JSON conforming to schema

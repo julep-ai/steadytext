@@ -1,8 +1,8 @@
 """
 ZeroMQ server implementation for SteadyText daemon.
-
-AIDEV-NOTE: This server keeps models loaded in memory and serves generation/embedding requests via a ZeroMQ REP socket. It implements graceful shutdown and error handling.
 """
+# AIDEV-ANCHOR: daemon: zeromq server
+# AIDEV-NOTE: Keeps models in memory, serves via ZeroMQ REP socket, graceful shutdown
 
 import sys
 import signal

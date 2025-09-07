@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(18);
+SELECT plan(17);
 
 -- Table exists
 SELECT has_table('public', 'steadytext_config', 'steadytext_config table should exist');

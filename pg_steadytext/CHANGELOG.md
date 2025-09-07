@@ -12,6 +12,49 @@ As of version 2025.8.16, pg_steadytext uses **date-based versioning** in the for
 - **Benefits:** Clear indication of release currency and maintenance activity
 - **Rationale:** Supported models and features are evolving quickly, making date-based versioning more practical
 
+## [2025.9.6] - 2025-09-06
+
+### Added
+- **Prompt Registry Feature:** Comprehensive Jinja2-based template management system with immutable versioning
+  - New tables: `steadytext_prompts` and `steadytext_prompt_versions` for storing template metadata and versions
+  - Full Jinja2 template engine support including variables, loops, conditionals, and filters  
+  - Automatic variable extraction and validation from templates
+  - Immutable version history with audit trails (timestamps, user tracking)
+  - Rich metadata support for categorization and organization using JSONB
+  - Performance-optimized template compilation caching
+  - Strict and non-strict rendering modes for flexible variable handling
+
+### New Functions
+- **Management Functions:**
+  - `steadytext_prompt_create(slug, template, description, metadata)` - Create new prompt template
+  - `steadytext_prompt_update(slug, template, metadata)` - Create new version of existing prompt  
+  - `steadytext_prompt_get(slug, version)` - Retrieve prompt template (latest or specific version)
+  - `steadytext_prompt_delete(slug)` - Delete prompt and all versions
+- **Rendering Functions:**
+  - `steadytext_prompt_render(slug, variables, version, strict)` - Render template with JSONB variables
+- **Discovery Functions:**
+  - `steadytext_prompt_list()` - List all prompts with summary information
+  - `steadytext_prompt_versions(slug)` - List all versions of a specific prompt
+- **Short Aliases:** All functions have convenient `st_*` aliases (e.g., `st_prompt_create()`)
+
+### Dependencies
+- **Jinja2 Requirement:** Added `jinja2` as required Python dependency for template rendering
+- **Enhanced Python Module:** New `python/prompt_registry.py` module with template validation and rendering utilities
+
+### Use Cases
+- **AI Prompt Management:** Version and manage prompts for different AI models and tasks
+- **Email Templates:** Dynamic email generation with personalization and conditional content
+- **Code Generation:** Template-driven code generation with variable substitution
+- **Documentation:** Dynamic documentation generation with metadata-driven content
+
+### Technical Details
+- Templates are validated at creation time with comprehensive Jinja2 syntax checking
+- Required variables are automatically extracted and stored for validation
+- Slug format validation ensures URL-friendly identifiers (lowercase, hyphens, 3-100 chars)
+- Schema-qualified table references ensure compatibility with all PostgreSQL search paths
+- Template compilation is cached using PostgreSQL's GD global dictionary for optimal performance
+- Full integration with extension's existing dynamic schema resolution pattern
+
 ## [2025.8.26] - 2025-08-26
 
 ### Fixed

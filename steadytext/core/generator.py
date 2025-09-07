@@ -1,11 +1,5 @@
-# AIDEV-NOTE: Core text generation module with deterministic fallback.
-# Features:
-# - Implements both model-based generation and a hash-based deterministic fallback.
-# - Integrates stop sequences (DEFAULT_STOP_SEQUENCES).
-# - Ensures determinism using DEFAULT_SEED.
-# - Supports streaming token generation via generate_iter().
-# - Allows dynamic model switching at runtime.
-# - Defers environment setup to prevent pytest collection hangs.
+# AIDEV-ANCHOR: generator: deterministic core
+# AIDEV-NOTE: Model-based generation with hash fallback, stop sequences, streaming support
 
 import hashlib
 import logging

@@ -91,6 +91,10 @@ ENV POSTGRES_USER=postgres
 ENV POSTGRES_PASSWORD=password
 ENV POSTGRES_DB=postgres
 
+# Configure PostgreSQL for TimescaleDB
+# AIDEV-NOTE: TimescaleDB requires shared_preload_libraries configuration
+RUN echo "shared_preload_libraries = 'timescaledb'" >> /usr/share/postgresql/postgresql.conf.sample
+
 # Add healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s \
   CMD pg_isready -U postgres || exit 1
