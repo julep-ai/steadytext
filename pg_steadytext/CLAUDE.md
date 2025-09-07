@@ -226,10 +226,14 @@ SELECT template FROM st_prompt_get('welcome-email', 1);
 ## pgTAP Testing Framework (v1.0.3)
 
 - AIDEV-NOTE: Uses pgTAP for TAP output, rich assertions, transaction safety
+- AIDEV-NOTE: 19 test files in test/pgtap/ covering all extension functionality  
+- AIDEV-NOTE: ALWAYS use STEADYTEXT_USE_MINI_MODELS=true to prevent timeouts
 
 **Run tests:** `make test-pgtap` or `./run_pgtap_tests.sh test/pgtap/01_basic.sql`
 
 **Key functions:** `plan()`, `has_function()`, `is()`, `throws_ok()`, etc.
+
+**For detailed testing instructions, see TESTING_SUB_AGENT.md**
 
 ## v1.0.1 Fixes
 

@@ -1,6 +1,5 @@
-# AIDEV-NOTE: Core embedding module with L2 normalization and fallback
-# to zero vectors. Handles both single strings and lists of strings
-# with averaging. Now supports remote providers with unsafe_mode.
+# AIDEV-ANCHOR: embedder: L2 normalized vectors
+# AIDEV-NOTE: L2 normalization, zero fallback, batch averaging, remote provider support
 
 import logging
 import os

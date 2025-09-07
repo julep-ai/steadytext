@@ -15,7 +15,7 @@ SELECT has_function(
 SELECT function_returns(
     'public',
     'steadytext_generate_json',
-    ARRAY['text', 'jsonb', 'integer', 'boolean', 'integer'],
+    ARRAY['text', 'jsonb', 'integer', 'boolean', 'integer', 'boolean', 'text'],
     'text',
     'Function steadytext_generate_json should return text'
 );
@@ -97,7 +97,7 @@ SELECT has_function(
 SELECT function_returns(
     'public',
     'steadytext_generate_regex',
-    ARRAY['text', 'text', 'integer', 'boolean', 'integer'],
+    ARRAY['text', 'text', 'integer', 'boolean', 'integer', 'boolean', 'text'],
     'text',
     'Function steadytext_generate_regex should return text'
 );
@@ -158,7 +158,7 @@ SELECT has_function(
 SELECT function_returns(
     'public',
     'steadytext_generate_choice',
-    ARRAY['text', 'text[]', 'integer', 'boolean', 'integer'],
+    ARRAY['text', 'text[]', 'integer', 'boolean', 'integer', 'boolean', 'text'],
     'text',
     'Function steadytext_generate_choice should return text'
 );

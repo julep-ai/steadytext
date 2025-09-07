@@ -3567,7 +3567,7 @@ BEGIN
     
     -- Acquire advisory lock to prevent concurrent version updates
     -- Uses the first 8 bytes of the UUID as bigint for the lock
-    PERFORM pg_advisory_xact_lock(('x' || substr(v_prompt_id::text, 1, 16))::bit(64)::bigint);
+    PERFORM pg_advisory_xact_lock(('x' || substr(replace(v_prompt_id::text, '-', ''), 1, 16))::bit(64)::bigint);
     
     -- Validate template
     SELECT * INTO v_validation 

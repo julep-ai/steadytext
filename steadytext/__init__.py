@@ -1,8 +1,8 @@
 """
 SteadyText: Deterministic text generation and embedding with zero configuration.
-
-AIDEV-NOTE: Fixed "Never Fails" - embed() now catches TypeErrors & returns zero vectors
 """
+# AIDEV-ANCHOR: api: main entry point
+# AIDEV-NOTE: Fixed "Never Fails" - embed() now catches TypeErrors & returns zero vectors
 
 # Version of the steadytext package - should match pyproject.toml
 # AIDEV-NOTE: Always update this when bumping the lib version
@@ -131,6 +131,7 @@ def generate(
         # Generate with choices
         answer = generate("Is Python good?", choices=["yes", "no", "maybe"])
     """
+    # AIDEV-ANCHOR: generate: daemon orchestration
     # AIDEV-NOTE: This is the primary public API. It orchestrates the daemon-first logic.
     # If the daemon is enabled (default), it attempts to use the client.
     # On any ConnectionError, it transparently falls back to direct, in-process generation.
