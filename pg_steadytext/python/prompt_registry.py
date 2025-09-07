@@ -28,18 +28,15 @@ def validate_template(template: str) -> Tuple[bool, Optional[List[str]], Optiona
     if not JINJA2_AVAILABLE:
         return (False, None, "Jinja2 is not installed. Please install it using: pip install jinja2")
     
-    env = Environment()
-    
+    # Use a restricted environment: no loader and minimal builtins
+    env = Environment(loader=None, autoescape=False)
+    env.globals.clear()
+    env.filters.clear()
+
     try:
-        # Parse the template to check syntax
         ast = env.parse(template)
-        
-        # Extract all variables referenced in the template
         variables = meta.find_undeclared_variables(ast)
-        
-        # Convert to sorted list for consistency
         required_vars = sorted(list(variables))
-        
         return (True, required_vars, None)
         
     except TemplateSyntaxError as e:
