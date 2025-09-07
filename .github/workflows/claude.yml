@@ -17,12 +17,15 @@ jobs:
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      pull-requests: read
-      issues: read
+      contents: write
+      pull-requests: write
+      issues: write
       id-token: write
+      actions: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -41,14 +44,17 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           use_bedrock: "true"
+          
+          # This is an optional setting that allows Claude to read CI results on PRs
+          additional_permissions: |
+            actions: read
+
+          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
+          # prompt: 'Update the pull request description to include a summary of changes.'
+
+          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+          # or https://docs.anthropic.com/en/docs/claude-code/sdk#command-line for available options
           claude_args: |
             --model us.anthropic.claude-opus-4-1-20250805-v1:0
-            --max-turns 15
-            --allowedTools Bash(*)
-            --system-prompt "This is the SteadyText repository - a deterministic text generation and embedding library. The project uses CLAUDE.md files for AI assistant guidance. You have AWS credentials configured via OIDC and are running through Amazon Bedrock. Follow the instructions in CLAUDE.md for project-specific conventions and use the AIDEV anchor comments throughout the codebase."
-          
-          # Optional: Customize the trigger phrase (default: @claude)
-          # trigger_phrase: "/claude"
-          
-          assignee_trigger: "creatorrr"
+            --allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"
 
