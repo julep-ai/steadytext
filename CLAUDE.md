@@ -66,7 +66,8 @@ with use_daemon():
 Enable: `STEADYTEXT_USE_MINI_MODELS=true` or `--size mini`
 
 ### Remote Models (Unsafe Mode)
-OpenAI, Cerebras, VoyageAI, Jina - use `model="openai:gpt-4o-mini" unsafe_mode=True`
+OpenAI, Cerebras, VoyageAI, Jina, OpenRouter - use `model="openai:gpt-4o-mini" unsafe_mode=True`
+OpenRouter provides unified access to multiple providers: `model="openrouter:anthropic/claude-3.5-sonnet"`
 
 
 
