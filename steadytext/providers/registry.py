@@ -12,6 +12,7 @@ from .openai import OpenAIProvider
 from .cerebras import CerebrasProvider
 from .voyageai import VoyageAIProvider
 from .jina import JinaProvider
+from .openrouter import OpenRouterProvider
 
 logger = logging.getLogger("steadytext.providers.registry")
 
@@ -21,6 +22,7 @@ PROVIDER_REGISTRY: Dict[str, Type[RemoteModelProvider]] = {
     "cerebras": CerebrasProvider,
     "voyageai": VoyageAIProvider,
     "jina": JinaProvider,
+    "openrouter": OpenRouterProvider,
 }
 
 
@@ -133,12 +135,18 @@ def get_provider(model: str, api_key: Optional[str] = None) -> RemoteModelProvid
             raise RuntimeError(
                 f"Provider {provider_name} is not available. Check API key and dependencies."
             )
+    elif provider_name == "openrouter":
+        actual_key = api_key or os.environ.get("OPENROUTER_API_KEY")
+        if not actual_key:
+            raise RuntimeError(
+                f"Provider {provider_name} is not available. Check API key and dependencies."
+            )
 
     provider_class = PROVIDER_REGISTRY[provider_name]
 
     # Handle provider-specific constructors
     # AIDEV-NOTE: Pass the resolved actual_key to ensure consistency
-    if provider_name in ["openai", "cerebras", "voyageai", "jina"]:
+    if provider_name in ["openai", "cerebras", "voyageai", "jina", "openrouter"]:
         # These providers accept a model parameter
         provider = provider_class(api_key=actual_key, model=model_name)  # type: ignore[call-arg]
     else:
