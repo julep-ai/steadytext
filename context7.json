@@ -1,0 +1,53 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "SteadyText",
+  "description": "Deterministic text generation and embeddings with zero configuration",
+  "folders": [],
+  "excludeFolders": [
+    ".git",
+    ".github",
+    ".devcontainer",
+    ".venv",
+    ".venv_local",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".crush",
+    ".gemini",
+    ".claude",
+    ".vscode",
+    "__pycache__",
+    "steadytext",
+    "pg_steadytext",
+    "workers",
+    "templates",
+    "benchmarks",
+    "examples",
+    "tests",
+    "dist",
+    "site",
+    "packaging",
+    "scripts"
+  ],
+  "excludeFiles": [
+    "CHANGELOG.md",
+    "changelog.md",
+    "CHANGELOG.mdx",
+    "changelog.mdx",
+    "LICENSE.md",
+    "license.md",
+    "CODE_OF_CONDUCT.md",
+    "code_of_conduct.md",
+    "core.2409230",
+    "core.2408959",
+    "core.2405181",
+    "core.2405139"
+  ],
+  "rules": [
+    "Prefer steadytext.generate() for deterministic outputs; same input yields same output",
+    "Use size parameter ('small' | 'large') to trade speed vs quality",
+    "Install with UV when possible; fall back to pip if needed",
+    "For PostgreSQL usage, consult docs/postgresql-extension*.md before integrating",
+    "Project uses date-based versioning (yyyy.mm.dd)"
+  ],
+  "previousVersions": []
+} 

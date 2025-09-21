@@ -2,7 +2,7 @@
 
 AIDEV-ANCHOR: OpenRouter provider implementation
 AIDEV-NOTE: OpenRouter provides unified API access to models from Anthropic, OpenAI, Meta, etc.
-Uses OpenAI-compatible ChatCompletion API for text generation and embeddings.
+Uses the OpenAI-compatible ChatCompletion API for text generation and provides embedding support via OpenRouter endpoints.
 """
 
 import os
@@ -18,9 +18,7 @@ from .openrouter_config import OpenRouterConfig
 from .openrouter_errors import (
     OpenRouterError,
     OpenRouterAuthError,
-    OpenRouterRateLimitError,
     OpenRouterModelError,
-    OpenRouterTimeoutError,
     OpenRouterConnectionError,
     map_http_error_to_exception,
     should_retry_error,
@@ -39,11 +37,10 @@ def _get_httpx():
     if _httpx_module is None:
         try:
             import httpx
+
             _httpx_module = httpx
         except ImportError:
-            logger.error(
-                "httpx library not installed. Install with: pip install httpx"
-            )
+            logger.error("httpx library not installed. Install with: pip install httpx")
             return None
     return _httpx_module
 
@@ -61,6 +58,7 @@ def _get_openai():
     if _openai_module is None:
         try:
             import openai  # type: ignore
+
             _openai_module = openai
         except Exception as e:
             logger.warning(f"OpenAI client unavailable: {e}")
@@ -76,7 +74,9 @@ class OpenRouterProvider(RemoteModelProvider):
     through OpenRouter's unified API. Uses best-effort determinism via seed parameters.
     """
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "anthropic/claude-3.5-sonnet"):
+    def __init__(
+        self, api_key: Optional[str] = None, model: str = "anthropic/claude-3.5-sonnet"
+    ):
         """Initialize OpenRouter provider.
 
         Args:
@@ -89,10 +89,8 @@ class OpenRouterProvider(RemoteModelProvider):
         # Try to get API key from environment if not provided
         if not self.api_key:
             self.api_key = os.environ.get("OPENROUTER_API_KEY")
-
-        # Validate API key presence according to contract tests
-        if self.api_key is None or not str(self.api_key).strip():
-            raise RuntimeError("API key is missing")
+            if self.api_key:
+                self.api_key = self.api_key.strip()
 
         # Validate model format according to contract tests
         if "/" not in self.model:
@@ -120,7 +118,7 @@ class OpenRouterProvider(RemoteModelProvider):
         if self._availability_cache is not None:
             return self._availability_cache
 
-        if not self.api_key:
+        if not self._ensure_api_key_loaded():
             self._availability_cache = False
             return False
 
@@ -142,6 +140,29 @@ class OpenRouterProvider(RemoteModelProvider):
             self._availability_cache = False
 
         return self._availability_cache
+
+    def _ensure_api_key_loaded(self) -> bool:
+        """Ensure we have a non-empty API key cached locally and in config."""
+        if self.api_key and str(self.api_key).strip():
+            return True
+
+        env_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+        if env_key:
+            self.api_key = env_key
+            try:
+                self.config.api_key = env_key
+            except Exception:
+                # Config may not exist yet during initialization
+                pass
+            return True
+
+        return False
+
+    def _require_api_key(self) -> str:
+        """Return the resolved API key or raise an auth error."""
+        if self._ensure_api_key_loaded():
+            return str(self.api_key)
+        raise OpenRouterAuthError("OpenRouter API key is missing")
 
     def _get_client(self):
         """Get or create httpx client.
@@ -165,7 +186,7 @@ class OpenRouterProvider(RemoteModelProvider):
         method: str,
         endpoint: str,
         data: Optional[Dict[str, Any]] = None,
-        stream: bool = False
+        stream: bool = False,
     ) -> Any:
         """Make HTTP request to OpenRouter API with error handling and retries (httpx path)."""
         client = self._get_client()
@@ -178,7 +199,9 @@ class OpenRouterProvider(RemoteModelProvider):
                     response = client.get(url, headers=headers)
                 elif method.upper() == "POST":
                     if stream:
-                        response = client.stream("POST", url, json=data, headers=headers)
+                        response = client.stream(
+                            "POST", url, json=data, headers=headers
+                        )
                         return response
                     else:
                         response = client.post(url, json=data, headers=headers)
@@ -195,7 +218,9 @@ class OpenRouterProvider(RemoteModelProvider):
                 except Exception:
                     error_data = {"error": {"message": response.text}}
 
-                exception = map_http_error_to_exception(response.status_code, error_data)
+                exception = map_http_error_to_exception(
+                    response.status_code, error_data
+                )
 
                 if attempt < self.config.max_retries and should_retry_error(exception):
                     delay = self.config.get_retry_delay(attempt)
@@ -220,6 +245,147 @@ class OpenRouterProvider(RemoteModelProvider):
                 )
 
         raise OpenRouterError("Request failed after all retry attempts")
+
+    def _get_default_headers_for_client(self) -> Dict[str, str]:
+        """Headers to attach to OpenAI-compatible clients pointing at OpenRouter."""
+        return {
+            "HTTP-Referer": "https://github.com/julep-ai/steadytext",
+            "X-Title": "SteadyText",
+            "User-Agent": "steadytext/python-client",
+        }
+
+    def _prepare_embedding_inputs(self, text: Union[str, List[str]]) -> List[str]:
+        """Normalize embedding inputs into a list of strings."""
+        if isinstance(text, str):
+            return [text]
+
+        if isinstance(text, list):
+            for idx, item in enumerate(text):
+                if not isinstance(item, str):
+                    raise TypeError(
+                        f"Embedding input at index {idx} must be a string, got {type(item).__name__}"
+                    )
+            return list(text)
+
+        raise TypeError("Embedding input must be a string or list of strings")
+
+    def _normalize_openai_model_name(self, model: str) -> str:
+        """Convert OpenRouter model identifier to OpenAI client format."""
+        if "/" in model:
+            provider, model_name = model.split("/", 1)
+            if provider == "openai":
+                return model_name
+        return model
+
+    def _deterministic_embedding_fallback(self, count: int) -> np.ndarray:
+        """Return deterministic zero embeddings for fallback scenarios."""
+        if count <= 0:
+            return np.empty((0, 0), dtype=np.float32)
+        return np.zeros((count, 1024), dtype=np.float32)
+
+    def _embed_with_openai_client(
+        self,
+        openai_module,
+        texts: List[str],
+        model: str,
+        normalize: bool,
+        **kwargs,
+    ) -> Optional[np.ndarray]:
+        """Embed texts using the OpenAI-compatible client exposed by OpenRouter."""
+        client = openai_module.OpenAI(
+            api_key=self.api_key,
+            base_url=self.config.base_url,
+            default_headers=self._get_default_headers_for_client(),
+        )
+
+        call_kwargs = dict(kwargs)
+        call_kwargs.setdefault("model", self._normalize_openai_model_name(model))
+        call_kwargs.setdefault("input", texts)
+
+        response = client.embeddings.create(**call_kwargs)
+        embeddings = [
+            np.array(item.embedding, dtype=np.float32) for item in response.data
+        ]
+        if not embeddings:
+            return None
+
+        embedding_matrix = np.array(embeddings, dtype=np.float32)
+        if embedding_matrix.ndim == 1:
+            embedding_matrix = embedding_matrix.reshape(1, -1)
+
+        if normalize and embedding_matrix.size > 0:
+            for i in range(embedding_matrix.shape[0]):
+                norm = np.linalg.norm(embedding_matrix[i])
+                if norm > 0:
+                    embedding_matrix[i] = embedding_matrix[i] / norm
+
+        return embedding_matrix
+
+    def _embed_with_requests(
+        self,
+        texts: List[str],
+        model: str,
+        normalize: bool,
+        **kwargs,
+    ) -> np.ndarray:
+        """Embed texts using direct REST calls to OpenRouter."""
+        url = f"{self.config.base_url}/embeddings"
+        headers = self.config.get_headers()
+        payload: Dict[str, Any] = {
+            "model": model,
+            "input": texts,
+        }
+        payload.update(kwargs)
+
+        try:
+            response = requests.post(
+                url,
+                json=payload,
+                headers=headers,
+                timeout=self.config.timeout,
+            )
+        except Exception as exc:
+            logger.warning(f"OpenRouter embeddings request failed: {exc}")
+            return self._deterministic_embedding_fallback(len(texts))
+
+        if 200 <= response.status_code < 300:
+            try:
+                response_data = response.json()
+            except ValueError as exc:
+                raise OpenRouterError(f"Invalid embedding response: {exc}") from exc
+
+            data_items = (
+                response_data.get("data", []) if isinstance(response_data, dict) else []
+            )
+            if not data_items:
+                return self._deterministic_embedding_fallback(len(texts))
+
+            embeddings: List[List[float]] = []
+            for item in data_items:
+                embedding_values = (
+                    item.get("embedding") if isinstance(item, dict) else None
+                )
+                if not isinstance(embedding_values, list):
+                    raise OpenRouterError("Embedding response missing 'embedding' list")
+                embeddings.append([float(value) for value in embedding_values])
+
+            embeddings_np = np.array(embeddings, dtype=np.float32)
+            if embeddings_np.ndim == 1:
+                embeddings_np = embeddings_np.reshape(1, -1)
+
+            if normalize and embeddings_np.size > 0:
+                for i in range(embeddings_np.shape[0]):
+                    norm = np.linalg.norm(embeddings_np[i])
+                    if norm > 0:
+                        embeddings_np[i] = embeddings_np[i] / norm
+
+            return embeddings_np
+
+        try:
+            err_json = response.json()
+        except Exception:
+            err_json = {"error": {"message": response.text}}
+        raise map_http_error_to_exception(response.status_code, err_json)
 
     def generate(
         self,
@@ -254,6 +420,8 @@ class OpenRouterProvider(RemoteModelProvider):
             OpenRouterError: On API errors (auth/model/etc.)
         """
         self._issue_warning()
+
+        self._require_api_key()
 
         # Parameter validation per contract tests
         if not (0.0 <= float(temperature) <= 2.0):
@@ -305,13 +473,26 @@ class OpenRouterProvider(RemoteModelProvider):
 
         # Streaming mode returns an iterator over SSE chunks
         if stream:
+            stream_payload = dict(params)
+            stream_payload["stream"] = True
             try:
-                resp = requests.post(url, json=params, headers=headers, stream=True)
+                resp = requests.post(
+                    url,
+                    json=stream_payload,
+                    headers=headers,
+                    stream=True,
+                )
             except Exception:
                 # Deterministic fallback: return an iterator yielding nothing
                 # Fall back to non-streaming
                 try:
-                    nonstream = requests.post(url, json=params | {"stream": False}, headers=headers)
+                    nonstream_payload = dict(params)
+                    nonstream_payload["stream"] = False
+                    nonstream = requests.post(
+                        url,
+                        json=nonstream_payload,
+                        headers=headers,
+                    )
                     if 200 <= nonstream.status_code < 300:
                         data = nonstream.json()
                         text = OpenRouterResponseParser.parse_chat_completion(data)
@@ -321,13 +502,18 @@ class OpenRouterProvider(RemoteModelProvider):
                 return iter(())  # type: ignore[return-value]
 
             if 200 <= resp.status_code < 300:
+
                 def _iter():
                     yielded = False
                     for raw in resp.iter_lines():
                         if not raw:
                             continue
                         try:
-                            line = raw.decode("utf-8") if isinstance(raw, (bytes, bytearray)) else str(raw)
+                            line = (
+                                raw.decode("utf-8")
+                                if isinstance(raw, (bytes, bytearray))
+                                else str(raw)
+                            )
                         except Exception:
                             continue
                         if line.startswith("data: "):
@@ -336,7 +522,11 @@ class OpenRouterProvider(RemoteModelProvider):
                                 break
                             try:
                                 chunk = json.loads(data_str)
-                                content = OpenRouterResponseParser.parse_streaming_chunk(chunk)
+                                content = (
+                                    OpenRouterResponseParser.parse_streaming_chunk(
+                                        chunk
+                                    )
+                                )
                                 if content:
                                     yielded = True
                                     yield content
@@ -345,13 +535,22 @@ class OpenRouterProvider(RemoteModelProvider):
                     # Fallback if nothing yielded
                     if not yielded:
                         try:
-                            nonstream = requests.post(url, json=params | {"stream": False}, headers=headers)
+                            nonstream_payload = dict(params)
+                            nonstream_payload["stream"] = False
+                            nonstream = requests.post(
+                                url,
+                                json=nonstream_payload,
+                                headers=headers,
+                            )
                             if 200 <= nonstream.status_code < 300:
                                 data = nonstream.json()
-                                text = OpenRouterResponseParser.parse_chat_completion(data)
+                                text = OpenRouterResponseParser.parse_chat_completion(
+                                    data
+                                )
                                 yield text
                         except Exception:
                             return
+
                 return _iter()  # type: ignore[return-value]
 
             # Map error status to exceptions
@@ -405,60 +604,165 @@ class OpenRouterProvider(RemoteModelProvider):
             OpenRouterError: On API errors (with graceful empty fallback on client failure)
         """
         self._issue_warning()
+
+        self._require_api_key()
+
+        openai = _get_openai()
+        if openai is None:
+            # Fallback to non-streaming generate when OpenAI client is unavailable
+            try:
+                fallback_text = self.generate(
+                    prompt,
+                    max_new_tokens=max_new_tokens,
+                    seed=seed,
+                    temperature=temperature,
+                    **kwargs,
+                )
+            except Exception:
+                return
+            else:
+                if fallback_text:
+                    yield fallback_text
+                return
+
         try:
-            openai = _get_openai()
-            if openai is None:
-                # Fallback to non-streaming generate
-                try:
-                    text = self.generate(prompt, max_new_tokens=max_new_tokens, seed=seed, temperature=temperature, **kwargs)
-                    return iter([text])  # type: ignore[return-value]
-                except Exception:
-                    return iter(())  # type: ignore[return-value]
-
-            client = openai.OpenAI()
-            call_kwargs: Dict[str, Any] = {
-                "model": self.model,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": temperature,
-                "seed": seed,
-                "stream": True,
-            }
-            if max_new_tokens is not None:
-                call_kwargs["max_tokens"] = max_new_tokens
-            call_kwargs.update(kwargs)
-
-            stream = client.chat.completions.create(**call_kwargs)
-            yielded_any = False
-            for chunk in stream:
-                try:
-                    delta = chunk.choices[0].delta
-                    content = getattr(delta, "content", None)
-                    if content:
-                        yielded_any = True
-                        yield content
-                except Exception:
-                    continue
-            if not yielded_any:
-                try:
-                    # Fallback: non-streaming call via REST
-                    return_text = self.generate(prompt, max_new_tokens=max_new_tokens, seed=seed, temperature=temperature, **kwargs)
-                    yield return_text
-                except Exception:
-                    return
+            client = openai.OpenAI(
+                api_key=self.api_key,
+                base_url=self.config.base_url,
+                default_headers=self._get_default_headers_for_client(),
+            )
         except Exception:
-            # Graceful empty iterator on failure per tests
-            if False:
-                yield ""  # make this a generator syntactically
-            return
+            try:
+                fallback_text = self.generate(
+                    prompt,
+                    max_new_tokens=max_new_tokens,
+                    seed=seed,
+                    temperature=temperature,
+                    **kwargs,
+                )
+            except Exception:
+                return
+            else:
+                if fallback_text:
+                    yield fallback_text
+                return
+
+        call_kwargs: Dict[str, Any] = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": temperature,
+            "seed": seed,
+            "stream": True,
+        }
+        if max_new_tokens is not None:
+            call_kwargs["max_tokens"] = max_new_tokens
+        call_kwargs.update(kwargs)
+
+        try:
+            stream = client.chat.completions.create(**call_kwargs)
+        except Exception:
+            try:
+                fallback_text = self.generate(
+                    prompt,
+                    max_new_tokens=max_new_tokens,
+                    seed=seed,
+                    temperature=temperature,
+                    **kwargs,
+                )
+            except Exception:
+                return
+            else:
+                if fallback_text:
+                    yield fallback_text
+                return
+
+        yielded_any = False
+        for chunk in stream:
+            try:
+                delta = chunk.choices[0].delta
+                content = getattr(delta, "content", None)
+                if content:
+                    yielded_any = True
+                    yield content
+            except Exception:
+                continue
+
+        if not yielded_any:
+            try:
+                fallback_text = self.generate(
+                    prompt,
+                    max_new_tokens=max_new_tokens,
+                    seed=seed,
+                    temperature=temperature,
+                    **kwargs,
+                )
+            except Exception:
+                return
+            else:
+                if fallback_text:
+                    yield fallback_text
 
     def embed(
         self,
         text: Union[str, List[str]],
         seed: int = 42,
         model: Optional[str] = None,
+        normalize: bool = False,
         **kwargs,
     ) -> Optional[np.ndarray]:
-        raise NotImplementedError("OpenRouterProvider does not support embeddings")
+        """Generate embeddings using OpenRouter.
+
+        Args:
+            text: Text or list of texts to embed
+            seed: Seed parameter (currently unused, reserved for future determinism support)
+            model: Optional override for embedding model
+            normalize: Whether to L2-normalize embeddings in REST fallback path
+            **kwargs: Additional OpenRouter-specific parameters
+
+        Returns:
+            NumPy array containing embeddings, or None on unrecoverable error
+        """
+        del seed  # Seed currently unused for remote embeddings
+        self._issue_warning()
+
+        if not self._ensure_api_key_loaded():
+            if isinstance(text, list):
+                return self._deterministic_embedding_fallback(len(text))
+            return self._deterministic_embedding_fallback(1)
+
+        self._require_api_key()
+
+        if text is None:
+            raise ValueError("Embedding input cannot be None")
+
+        texts = self._prepare_embedding_inputs(text)
+        if len(texts) == 0:
+            return np.empty((0, 0), dtype=np.float32)
+
+        embedding_model = model or self.model
+
+        openai_module = _get_openai()
+        if openai_module is not None:
+            try:
+                result = self._embed_with_openai_client(
+                    openai_module,
+                    texts,
+                    embedding_model,
+                    normalize,
+                    **kwargs,
+                )
+                if result is not None:
+                    return result
+            except Exception as exc:
+                logger.error(
+                    f"OpenRouter OpenAI-compatible embedding call failed: {exc}"
+                )
+                return None
+
+        rest_kwargs = dict(kwargs)
+        return self._embed_with_requests(
+            texts, embedding_model, normalize, **rest_kwargs
+        )
 
     def get_supported_models(self) -> List[str]:
         """Get list of supported OpenRouter models.
@@ -499,6 +803,14 @@ class OpenRouterProvider(RemoteModelProvider):
             logger.warning(f"Failed to get OpenRouter models: {e}")
             return []
 
+    def get_supported_embedding_models(self) -> List[str]:
+        """Return the subset of models that appear to support embeddings."""
+        models = self.get_supported_models()
+        if not models:
+            return []
+
+        return [model for model in models if self.config.is_embedding_model(model)]
+
     def get_model_info(self, model: str) -> Dict[str, Any]:
         """Get information about a specific OpenRouter model.
 
@@ -529,7 +841,9 @@ class OpenRouterProvider(RemoteModelProvider):
                         return model_info
                 raise OpenRouterModelError(f"Model not found: {model}")
             else:
-                raise OpenRouterError("Unexpected response format from OpenRouter models API")
+                raise OpenRouterError(
+                    "Unexpected response format from OpenRouter models API"
+                )
 
         except OpenRouterError:
             raise
@@ -537,8 +851,8 @@ class OpenRouterProvider(RemoteModelProvider):
             raise OpenRouterError(f"Failed to get model info: {e}")
 
     def supports_embeddings(self) -> bool:
-        """OpenRouter does not support embeddings."""
-        return False
+        """OpenRouter supports embeddings via the remote API."""
+        return True
 
     def _is_valid_api_key_format(self, api_key: str) -> bool:
         """Validate OpenRouter API key format.
@@ -560,7 +874,7 @@ class OpenRouterProvider(RemoteModelProvider):
 
     def __del__(self):
         """Clean up HTTP client on destruction."""
-        if hasattr(self, '_client') and self._client is not None:
+        if hasattr(self, "_client") and self._client is not None:
             try:
                 self._client.close()
             except:

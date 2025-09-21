@@ -5,7 +5,7 @@ This module defines Pydantic models for parsing OpenRouter API responses,
 ensuring type safety and validation for both chat completion and embedding responses.
 """
 
-from typing import List, Optional, Dict, Any, Union, Iterator
+from typing import List, Optional, Dict, Any, Iterator
 import numpy as np
 from pydantic import BaseModel, Field, validator
 
@@ -27,11 +27,11 @@ class Usage(BaseModel):
     completion_tokens: int = Field(..., ge=0, description="Output tokens generated")
     total_tokens: int = Field(..., ge=0, description="Total tokens used")
 
-    @validator('total_tokens')
+    @validator("total_tokens")
     def validate_total_tokens(cls, v, values):
         """Validate that total tokens equals sum of prompt and completion tokens."""
-        prompt_tokens = values.get('prompt_tokens', 0)
-        completion_tokens = values.get('completion_tokens', 0)
+        prompt_tokens = values.get("prompt_tokens", 0)
+        completion_tokens = values.get("completion_tokens", 0)
         expected_total = prompt_tokens + completion_tokens
 
         # Allow for small discrepancies due to API variations
@@ -52,10 +52,10 @@ class Message(BaseModel):
     role: str = Field(..., description="Message role (typically 'assistant')")
     content: str = Field(..., description="Generated text content")
 
-    @validator('role')
+    @validator("role")
     def validate_role(cls, v):
         """Validate message role is expected value."""
-        if v not in ['assistant', 'user', 'system']:
+        if v not in ["assistant", "user", "system"]:
             raise ValueError(f"Invalid role: {v}")
         return v
 
@@ -71,13 +71,21 @@ class Choice(BaseModel):
     message: Message = Field(..., description="Generated message content")
     finish_reason: str = Field(..., description="Reason for completion")
 
-    @validator('finish_reason')
+    @validator("finish_reason")
     def validate_finish_reason(cls, v):
         """Validate finish reason is a known value."""
-        valid_reasons = ['stop', 'length', 'error', 'content_filter', 'function_call', 'tool_calls']
+        valid_reasons = [
+            "stop",
+            "length",
+            "error",
+            "content_filter",
+            "function_call",
+            "tool_calls",
+        ]
         if v not in valid_reasons:
             # Log warning but don't fail - OpenRouter might add new reasons
             import logging
+
             logger = logging.getLogger("steadytext.providers.openrouter")
             logger.warning(f"Unknown finish_reason: {v}")
         return v
@@ -94,14 +102,14 @@ class EmbeddingData(BaseModel):
     index: int = Field(..., ge=0, description="Embedding index")
     embedding: List[float] = Field(..., description="Vector embedding values")
 
-    @validator('object')
+    @validator("object")
     def validate_object_type(cls, v):
         """Validate object type is 'embedding'."""
-        if v != 'embedding':
+        if v != "embedding":
             raise ValueError(f"Expected object type 'embedding', got '{v}'")
         return v
 
-    @validator('embedding')
+    @validator("embedding")
     def validate_embedding_values(cls, v):
         """Validate embedding contains finite numbers."""
         if not v:
@@ -131,14 +139,14 @@ class ChatCompletionResponse(BaseModel):
     choices: List[Choice] = Field(..., description="Generation choices")
     usage: Optional[Usage] = Field(None, description="Token usage information")
 
-    @validator('object')
+    @validator("object")
     def validate_object_type(cls, v):
         """Validate response object type."""
-        if v != 'chat.completion':
+        if v != "chat.completion":
             raise ValueError(f"Expected object type 'chat.completion', got '{v}'")
         return v
 
-    @validator('choices')
+    @validator("choices")
     def validate_choices_not_empty(cls, v):
         """Validate that choices list is not empty."""
         if not v:
@@ -175,9 +183,9 @@ class ChatCompletionResponse(BaseModel):
             return {}
 
         return {
-            'prompt_tokens': self.usage.prompt_tokens,
-            'completion_tokens': self.usage.completion_tokens,
-            'total_tokens': self.usage.total_tokens
+            "prompt_tokens": self.usage.prompt_tokens,
+            "completion_tokens": self.usage.completion_tokens,
+            "total_tokens": self.usage.total_tokens,
         }
 
 
@@ -194,14 +202,14 @@ class EmbeddingResponse(BaseModel):
     model: str = Field(..., description="Model used for embeddings")
     usage: Optional[Usage] = Field(None, description="Token usage information")
 
-    @validator('object')
+    @validator("object")
     def validate_object_type(cls, v):
         """Validate response object type."""
-        if v not in ['list', 'embedding']:
+        if v not in ["list", "embedding"]:
             raise ValueError(f"Expected object type 'list' or 'embedding', got '{v}'")
         return v
 
-    @validator('data')
+    @validator("data")
     def validate_data_not_empty(cls, v):
         """Validate that data list is not empty."""
         if not v:
@@ -249,9 +257,9 @@ class EmbeddingResponse(BaseModel):
             return {}
 
         return {
-            'prompt_tokens': self.usage.prompt_tokens,
-            'completion_tokens': self.usage.completion_tokens,
-            'total_tokens': self.usage.total_tokens
+            "prompt_tokens": self.usage.prompt_tokens,
+            "completion_tokens": self.usage.completion_tokens,
+            "total_tokens": self.usage.total_tokens,
         }
 
 
@@ -316,18 +324,18 @@ class OpenRouterResponseParser:
         """
         try:
             # Streaming chunks have similar structure but with delta instead of message
-            if 'choices' not in chunk_data or not chunk_data['choices']:
+            if "choices" not in chunk_data or not chunk_data["choices"]:
                 return None
 
-            choice = chunk_data['choices'][0]
-            if 'delta' not in choice:
+            choice = chunk_data["choices"][0]
+            if "delta" not in choice:
                 return None
 
-            delta = choice['delta']
-            if 'content' not in delta:
+            delta = choice["delta"]
+            if "content" not in delta:
                 return None
 
-            return delta['content']
+            return delta["content"]
         except Exception as e:
             raise OpenRouterError(f"Failed to parse streaming chunk: {e}")
 
@@ -342,11 +350,11 @@ class OpenRouterResponseParser:
             Finish reason string, or None if not available
         """
         try:
-            if 'choices' not in response_data or not response_data['choices']:
+            if "choices" not in response_data or not response_data["choices"]:
                 return None
 
-            choice = response_data['choices'][0]
-            return choice.get('finish_reason')
+            choice = response_data["choices"][0]
+            return choice.get("finish_reason")
         except Exception:
             return None
 
@@ -361,14 +369,14 @@ class OpenRouterResponseParser:
             Dictionary with token usage stats, empty if not available
         """
         try:
-            if 'usage' not in response_data:
+            if "usage" not in response_data:
                 return {}
 
-            usage_data = response_data['usage']
+            usage_data = response_data["usage"]
             return {
-                'prompt_tokens': usage_data.get('prompt_tokens', 0),
-                'completion_tokens': usage_data.get('completion_tokens', 0),
-                'total_tokens': usage_data.get('total_tokens', 0)
+                "prompt_tokens": usage_data.get("prompt_tokens", 0),
+                "completion_tokens": usage_data.get("completion_tokens", 0),
+                "total_tokens": usage_data.get("total_tokens", 0),
             }
         except Exception:
             return {}
@@ -387,6 +395,7 @@ class OpenRouterResponseParser:
             OpenRouterError: If streaming fails or chunk parsing fails
         """
         import json
+
         try:
             from .openrouter_errors import OpenRouterError
         except ImportError:
@@ -410,7 +419,9 @@ class OpenRouterResponseParser:
 
                         try:
                             chunk_data = json.loads(data_str)
-                            content = OpenRouterResponseParser.parse_streaming_chunk(chunk_data)
+                            content = OpenRouterResponseParser.parse_streaming_chunk(
+                                chunk_data
+                            )
                             if content is not None:
                                 yield content
                         except json.JSONDecodeError:

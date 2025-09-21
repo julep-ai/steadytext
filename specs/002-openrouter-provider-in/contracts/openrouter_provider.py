@@ -13,7 +13,9 @@ class OpenRouterProviderContract(ABC):
     """Contract for OpenRouter provider implementation."""
 
     @abstractmethod
-    def __init__(self, api_key: Optional[str] = None, model: str = "anthropic/claude-3.5-sonnet"):
+    def __init__(
+        self, api_key: Optional[str] = None, model: str = "anthropic/claude-3.5-sonnet"
+    ):
         """Initialize OpenRouter provider.
 
         Args:
@@ -54,7 +56,7 @@ class OpenRouterProviderContract(ABC):
         max_tokens: Optional[int] = None,
         top_p: float = 1.0,
         stream: bool = False,
-        **kwargs
+        **kwargs,
     ) -> Union[str, Iterator[str]]:
         """Generate text using OpenRouter API.
 
@@ -80,11 +82,7 @@ class OpenRouterProviderContract(ABC):
 
     @abstractmethod
     def embed(
-        self,
-        texts: Union[str, List[str]],
-        *,
-        model: Optional[str] = None,
-        **kwargs
+        self, texts: Union[str, List[str]], *, model: Optional[str] = None, **kwargs
     ) -> np.ndarray:
         """Generate embeddings using OpenRouter API.
 
@@ -128,7 +126,7 @@ class OpenRouterConfigContract:
         base_url: str = "https://openrouter.ai/api/v1",
         timeout: tuple = (30, 120),
         max_retries: int = 3,
-        retry_delay: float = 1.0
+        retry_delay: float = 1.0,
     ):
         """Initialize OpenRouter configuration.
 
@@ -237,29 +235,35 @@ def add_openrouter_cli_support() -> None:
 # Error Hierarchy Contract
 class OpenRouterError(RuntimeError):
     """Base exception for OpenRouter provider errors."""
+
     pass
 
 
 class OpenRouterAuthError(OpenRouterError):
     """Authentication/authorization errors."""
+
     pass
 
 
 class OpenRouterRateLimitError(OpenRouterError):
     """Rate limiting errors."""
+
     pass
 
 
 class OpenRouterModelError(OpenRouterError):
     """Model-related errors."""
+
     pass
 
 
 class OpenRouterTimeoutError(OpenRouterError):
     """Request timeout errors."""
+
     pass
 
 
 class OpenRouterConnectionError(OpenRouterError):
     """Network connection errors."""
+
     pass

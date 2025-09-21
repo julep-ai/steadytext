@@ -24,7 +24,7 @@ class OpenRouterError(RuntimeError):
         self,
         message: str,
         status_code: Optional[int] = None,
-        response_data: Optional[Dict[str, Any]] = None
+        response_data: Optional[Dict[str, Any]] = None,
     ):
         """Initialize OpenRouter error.
 
@@ -58,7 +58,7 @@ class OpenRouterAuthError(OpenRouterError):
         self,
         message: str = "Authentication failed",
         status_code: Optional[int] = None,
-        response_data: Optional[Dict[str, Any]] = None
+        response_data: Optional[Dict[str, Any]] = None,
     ):
         """Initialize authentication error.
 
@@ -86,7 +86,7 @@ class OpenRouterRateLimitError(OpenRouterError):
         message: str = "Rate limit exceeded",
         status_code: Optional[int] = None,
         response_data: Optional[Dict[str, Any]] = None,
-        retry_after: Optional[int] = None
+        retry_after: Optional[int] = None,
     ):
         """Initialize rate limit error.
 
@@ -120,7 +120,7 @@ class OpenRouterModelError(OpenRouterError):
         self,
         message: str = "Model error",
         status_code: Optional[int] = None,
-        response_data: Optional[Dict[str, Any]] = None
+        response_data: Optional[Dict[str, Any]] = None,
     ):
         """Initialize model error.
 
@@ -142,7 +142,7 @@ class OpenRouterTimeoutError(OpenRouterError):
         self,
         message: str = "Request timeout",
         status_code: Optional[int] = None,
-        response_data: Optional[Dict[str, Any]] = None
+        response_data: Optional[Dict[str, Any]] = None,
     ):
         """Initialize timeout error.
 
@@ -164,7 +164,7 @@ class OpenRouterConnectionError(OpenRouterError):
         self,
         message: str = "Connection failed",
         status_code: Optional[int] = None,
-        response_data: Optional[Dict[str, Any]] = None
+        response_data: Optional[Dict[str, Any]] = None,
     ):
         """Initialize connection error.
 
@@ -179,7 +179,7 @@ class OpenRouterConnectionError(OpenRouterError):
 def map_http_error_to_exception(
     status_code: int,
     response_data: Dict[str, Any],
-    default_message: str = "API request failed"
+    default_message: str = "API request failed",
 ) -> OpenRouterError:
     """Map HTTP status codes to appropriate OpenRouter exception types.
 
@@ -199,13 +199,13 @@ def map_http_error_to_exception(
     message = default_message
     if isinstance(response_data, dict):
         # Try common error message fields
-        for field in ['error', 'message', 'detail', 'error_message']:
+        for field in ["error", "message", "detail", "error_message"]:
             if field in response_data:
                 error_data = response_data[field]
                 if isinstance(error_data, str):
                     message = error_data
-                elif isinstance(error_data, dict) and 'message' in error_data:
-                    message = error_data['message']
+                elif isinstance(error_data, dict) and "message" in error_data:
+                    message = error_data["message"]
                 break
 
     # Map status codes to exception types
@@ -218,16 +218,18 @@ def map_http_error_to_exception(
     elif status_code == 429:
         # Extract retry-after header if available
         retry_after = None
-        if 'headers' in response_data:
-            headers = response_data['headers']
-            retry_after = headers.get('retry-after') or headers.get('Retry-After')
+        if "headers" in response_data:
+            headers = response_data["headers"]
+            retry_after = headers.get("retry-after") or headers.get("Retry-After")
             if retry_after:
                 try:
                     retry_after = int(retry_after)
                 except (ValueError, TypeError):
                     retry_after = None
 
-        return OpenRouterRateLimitError(message, status_code, response_data, retry_after)
+        return OpenRouterRateLimitError(
+            message, status_code, response_data, retry_after
+        )
     elif status_code >= 500:
         return OpenRouterError(f"Server error: {message}", status_code, response_data)
     else:

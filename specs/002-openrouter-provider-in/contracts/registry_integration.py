@@ -13,9 +13,7 @@ class ProviderRegistryContract(ABC):
 
     @abstractmethod
     def add_openrouter_to_registry(
-        self,
-        registry: Dict[str, Type],
-        provider_class: Type
+        self, registry: Dict[str, Type], provider_class: Type
     ) -> Dict[str, Type]:
         """Add OpenRouter provider to PROVIDER_REGISTRY.
 
@@ -77,9 +75,7 @@ class ProviderRegistryContract(ABC):
 
     @abstractmethod
     def get_openrouter_provider_instance(
-        self,
-        model: str,
-        api_key: Optional[str] = None
+        self, model: str, api_key: Optional[str] = None
     ):
         """Create OpenRouter provider instance in get_provider function.
 
@@ -118,8 +114,7 @@ class ProviderRegistryContract(ABC):
 
     @abstractmethod
     def update_remote_models_listing(
-        self,
-        models: Dict[str, List[str]]
+        self, models: Dict[str, List[str]]
     ) -> Dict[str, List[str]]:
         """Update list_remote_models to include OpenRouter models.
 
