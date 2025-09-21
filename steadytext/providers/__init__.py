@@ -8,6 +8,7 @@ the same level of determinism as local GGUF models.
 from .base import RemoteModelProvider, UnsafeModeWarning
 from .openai import OpenAIProvider
 from .cerebras import CerebrasProvider
+from .openrouter import OpenRouterProvider
 from .registry import get_provider, list_providers, is_remote_model
 
 __all__ = [
@@ -15,6 +16,7 @@ __all__ = [
     "UnsafeModeWarning",
     "OpenAIProvider",
     "CerebrasProvider",
+    "OpenRouterProvider",
     "get_provider",
     "list_providers",
     "is_remote_model",
