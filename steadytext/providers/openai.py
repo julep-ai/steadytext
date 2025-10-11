@@ -298,7 +298,27 @@ class OpenAIProvider(RemoteModelProvider):
                 "OpenAI provider not available. Install with: pip install openai"
             )
 
-        client = self._get_client()
+        # AIDEV-NOTE: Allow embed-only overrides for base URL and API key
+        # via EMBEDDING_OPENAI_BASE_URL and EMBEDDING_OPENAI_API_KEY
+        base_url_override = os.environ.get("EMBEDDING_OPENAI_BASE_URL")
+        api_key_override = os.environ.get("EMBEDDING_OPENAI_API_KEY")
+
+        if base_url_override or api_key_override:
+            openai = _get_openai()
+            if openai is None:
+                raise RuntimeError("OpenAI library not available")
+            # Normalize base URL to include /v1 suffix as expected by OpenAI-compatible servers
+            base_url: Optional[str] = base_url_override
+            if base_url:
+                trimmed = base_url.rstrip("/")
+                if not trimmed.endswith("/v1"):
+                    base_url = trimmed + "/v1"
+            client = openai.OpenAI(
+                api_key=api_key_override or self.api_key,
+                base_url=base_url,
+            )
+        else:
+            client = self._get_client()
 
         # Use specific embedding model or default
         embedding_model = model or "text-embedding-3-small"
