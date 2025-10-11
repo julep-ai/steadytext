@@ -69,6 +69,8 @@ Enable: `STEADYTEXT_USE_MINI_MODELS=true` or `--size mini`
 OpenAI, Cerebras, VoyageAI, Jina, OpenRouter - use `model="openai:gpt-4o-mini" unsafe_mode=True`
 OpenRouter provides unified access to multiple providers: `model="openrouter:anthropic/claude-3.5-sonnet"`
 
+> **Embedding overrides:** Setting `EMBEDDING_OPENAI_BASE_URL` and `EMBEDDING_OPENAI_API_KEY` auto-routes embeddings (library, CLI, pg extension). Use `EMBEDDING_OPENAI_MODEL` to change the default; explicit `model=` arguments still take precedence.
+
 
 
 ## Cache Management
@@ -193,6 +195,8 @@ STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true uv run poe test
 ```
 
 All tests are designed to pass even if models cannot be downloaded. Model-dependent tests are automatically skipped unless `STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true` is set.
+
+- Targeted env override coverage: `pytest tests/test_embedding_env_overrides.py`
 
 ### Linting and Formatting
 

@@ -517,6 +517,29 @@ def resolve_embedding_model_params(
     return EMBEDDING_MODEL_REPO, EMBEDDING_MODEL_FILENAME
 
 
+# AIDEV-ANCHOR: utils: remote embed env defaults
+# AIDEV-NOTE: Shared helper so API, CLI, and pg extension stay aligned on env overrides.
+def apply_remote_embedding_env_defaults(
+    model: Optional[str], unsafe_mode: bool
+) -> tuple[Optional[str], bool]:
+    """Apply EMBEDDING_OPENAI_* overrides when configured.
+
+    AIDEV-NOTE: Keeps docs accurate by mirroring daemon/pg extension behavior.
+    Returns updated (model, unsafe_mode) tuple without mutating inputs.
+    """
+    use_remote = bool(
+        os.environ.get("EMBEDDING_OPENAI_BASE_URL")
+        or os.environ.get("EMBEDDING_OPENAI_API_KEY")
+    )
+    if model is None and use_remote:
+        override_model = os.environ.get(
+            "EMBEDDING_OPENAI_MODEL", "text-embedding-3-small"
+        )
+        model = f"openai:{override_model}"
+        unsafe_mode = True
+    return model, unsafe_mode
+
+
 def resolve_reranking_model_params(
     size: Optional[str] = None,
     repo: Optional[str] = None,

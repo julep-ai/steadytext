@@ -1,6 +1,10 @@
 import click
 import json
 import numpy as np
+from ...utils import (
+    resolve_embedding_model_params,
+    apply_remote_embedding_env_defaults,
+)
 
 
 # AIDEV-NOTE: Fixed CLI consistency issue (2025-06-28) - Changed from single --format option
@@ -106,9 +110,9 @@ def embed(
     # AIDEV-NOTE: Create embedding directly using core function
     # Now supports remote models with unsafe_mode, mini models, and Jina v4 mode parameter
     import os
-    from ...utils import resolve_embedding_model_params
 
     # Set environment variables for mini model if specified
+    model, unsafe_mode = apply_remote_embedding_env_defaults(model, unsafe_mode)
     original_repo = os.environ.get("STEADYTEXT_EMBEDDING_MODEL_REPO")
     original_filename = os.environ.get("STEADYTEXT_EMBEDDING_MODEL_FILENAME")
 

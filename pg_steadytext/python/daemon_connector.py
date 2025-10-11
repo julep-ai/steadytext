@@ -7,6 +7,7 @@ It handles automatic daemon startup, connection management, and fallback to dire
 """
 
 import json
+import os
 import time
 import subprocess
 import logging
@@ -476,6 +477,17 @@ class SteadyTextConnector:
         Returns:
             1024-dimensional numpy array
         """
+        # AIDEV-NOTE: Auto-use remote OpenAI embeddings if EMBEDDING_OPENAI_* env vars are set
+        # This allows transparent override without requiring callers to pass model parameter
+        use_remote = bool(
+            os.environ.get("EMBEDDING_OPENAI_BASE_URL")
+            or os.environ.get("EMBEDDING_OPENAI_API_KEY")
+        )
+        if model is None and use_remote:
+            override_model = os.environ.get("EMBEDDING_OPENAI_MODEL", "text-embedding-3-small")
+            model = f"openai:{override_model}"
+            unsafe_mode = True
+
         # AIDEV-NOTE: Validate that unsafe_mode requires a model to be specified
         if unsafe_mode and not model:
             raise ValueError(
