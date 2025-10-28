@@ -24,6 +24,7 @@ try:
         generate_json,
         generate_regex,
         generate_choice,
+        apply_remote_embedding_env_defaults,
     )
     from steadytext.daemon import use_daemon
 
@@ -479,14 +480,7 @@ class SteadyTextConnector:
         """
         # AIDEV-NOTE: Auto-use remote OpenAI embeddings if EMBEDDING_OPENAI_* env vars are set
         # This allows transparent override without requiring callers to pass model parameter
-        use_remote = bool(
-            os.environ.get("EMBEDDING_OPENAI_BASE_URL")
-            or os.environ.get("EMBEDDING_OPENAI_API_KEY")
-        )
-        if model is None and use_remote:
-            override_model = os.environ.get("EMBEDDING_OPENAI_MODEL", "text-embedding-3-small")
-            model = f"openai:{override_model}"
-            unsafe_mode = True
+        model, unsafe_mode = apply_remote_embedding_env_defaults(model, unsafe_mode)
 
         # AIDEV-NOTE: Validate that unsafe_mode requires a model to be specified
         if unsafe_mode and not model:

@@ -7,7 +7,7 @@ SteadyText: Deterministic text generation and embedding with zero configuration.
 # Version of the steadytext package - should match pyproject.toml
 # AIDEV-NOTE: Always update this when bumping the lib version
 # AIDEV-NOTE: Using date-based versioning (yyyy.mm.dd) as of 2025.8.15
-__version__ = "2025.8.27"
+__version__ = "2025.10.28"
 
 # Import core functions and classes for public API
 import os
