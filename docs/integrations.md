@@ -13,7 +13,7 @@ This guide covers integrating SteadyText with popular frameworks, tools, and pla
   - [LangChain](#langchain)
   - [LlamaIndex](#llamaindex)
   - [Haystack](#haystack)
-  - [Hugging Face](#hugging-face)
+  - Hugging Face Integration
 - [Database Integrations](#database-integrations)
   - [PostgreSQL](#postgresql)
   - [MongoDB](#mongodb)
@@ -1816,7 +1816,7 @@ print(f"Answer: {answer}")
 # Hybrid search
 hybrid_results = weaviate_ai.hybrid_search("machine learning algorithms")
 
-### Hugging Face
+### Hugging Face Integration
 
 Integration with Hugging Face models and datasets.
 

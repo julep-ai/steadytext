@@ -24,8 +24,8 @@ services:
 
   postgres:
     build:
-      context: ../pg_steadytext
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: pg_steadytext/Dockerfile
       args:
         BUILDKIT_INLINE_CACHE: 1
     container_name: pg_steadytext_db

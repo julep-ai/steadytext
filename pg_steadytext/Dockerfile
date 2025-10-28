@@ -3,7 +3,7 @@
 # AIDEV-NOTE: This creates a PostgreSQL image with pg_steadytext pre-installed
 # Optimized for build caching - dependencies first, source code last
 
-FROM ghcr.io/omnigres/omnigres-17:latest
+FROM postgres:17
 
 # Build arguments for model selection
 # AIDEV-NOTE: Use STEADYTEXT_USE_FALLBACK_MODEL=true to use known working models
@@ -14,7 +14,7 @@ ENV STEADYTEXT_USE_FALLBACK_MODEL=${STEADYTEXT_USE_FALLBACK_MODEL}
 # AIDEV-NOTE: This layer is cached and rarely changes
 # AIDEV-NOTE: pgTAP added for PostgreSQL TAP testing framework
 # AIDEV-NOTE: TimescaleDB package installed for optional time-series testing
-# AIDEV-NOTE: Due to Omnigres base image constraints, TimescaleDB must be manually configured
+# AIDEV-NOTE: TimescaleDB package is optional; no shared_preload_libraries set by default
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && \
@@ -35,11 +35,12 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-# AIDEV-NOTE: This layer is cached when requirements don't change
+# Install Python dependencies from local source (parent directory)
+# AIDEV-NOTE: Build context must include repo root so ../steadytext is available
+COPY ../steadytext /opt/steadytext-src
 RUN --mount=type=cache,target=/root/.cache/pip \
+    pip3 install --break-system-packages -e /opt/steadytext-src && \
     pip3 install --break-system-packages \
-    'steadytext[unsafe]>=2.6.2' \
     pyzmq>=22.0.0 \
     numpy>=1.20.0
 
@@ -91,10 +92,8 @@ ENV POSTGRES_USER=postgres
 ENV POSTGRES_PASSWORD=password
 ENV POSTGRES_DB=postgres
 
-# Configure PostgreSQL for TimescaleDB and Omnigres
-# AIDEV-NOTE: Both Omnigres and TimescaleDB require shared_preload_libraries configuration
-# Omnigres base image requires omni to be loaded
-RUN echo "shared_preload_libraries = 'omni--0.2.11.so,timescaledb'" >> /usr/share/postgresql/postgresql.conf.sample
+# AIDEV-NOTE: Do not set shared_preload_libraries by default to avoid initdb issues.
+# If you need TimescaleDB, enable it at runtime via ALTER SYSTEM and restart.
 
 # Add healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s \

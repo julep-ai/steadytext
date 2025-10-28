@@ -775,4 +775,4 @@ SELECT st_prompt_render('nonexistent', '{}');
 
 ---
 
-For more information and updates, see the main [pg_steadytext README](../README.md) and [CHANGELOG](../CHANGELOG.md).
+For more information and updates, see the main [pg_steadytext README](https://github.com/julep-ai/steadytext/blob/main/pg_steadytext/README.md) and [Changelog](https://github.com/julep-ai/steadytext/blob/main/pg_steadytext/CHANGELOG.md).

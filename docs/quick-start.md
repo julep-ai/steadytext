@@ -1,203 +1,154 @@
-# Quick Start Guide
+# Python Quick Start
 
-Get started with SteadyText in minutes. Learn how to use custom seeds for reproducible AI generation.
+This guide walks you from installation to your first deterministic workflows in Python. If you're targeting SQL-first scenarios, head to the [Postgres Quick Start](postgresql-extension.md).
 
-## Prerequisites
+---
 
-- **Python**: 3.10 or later (3.11 recommended)
-- **RAM**: Minimum 4GB (8GB+ recommended for large models)
-- **Disk Space**: 5-15GB for model storage
+## 1. Prerequisites
+
+- **Python** `>= 3.10` (3.11+ recommended)
+- **RAM**: 4 GB minimum (8 GB+ for larger models)
+- **Disk**: 5–15 GB for cached models
 - **OS**: Linux, macOS, or Windows
 
-## Installation
+---
 
-=== "uv (Recommended - 10-100x faster)"
+## 2. Install the SDK
 
+=== "uv (recommended)"
     ```bash
-    # Install UV first
     curl -LsSf https://astral.sh/uv/install.sh | sh
-    
-    # Then install SteadyText
     uv add steadytext
     ```
 
 === "pip"
-
     ```bash
     pip install steadytext
     ```
 
 === "Poetry"
-
     ```bash
     poetry add steadytext
     ```
 
-## First Steps
+!!! note "First model download"
+    On first use SteadyText downloads roughly 5 GB of models to `~/.cache/steadytext/models/` (or `%LOCALAPPDATA%\\steadytext\\steadytext\\models\\` on Windows). Downloads are cached for future runs.
 
-!!! note "First Run"
-    On first use, SteadyText will download the required models (~5GB total). This is a one-time process.
-    Models are stored in:
-    - Linux/Mac: `~/.cache/steadytext/models/`
-    - Windows: `%LOCALAPPDATA%\steadytext\steadytext\models\`
+---
 
-### 1. Basic Text Generation
+## 3. Optional: Start the Daemon
+
+The background daemon keeps models warm and shared between processes. You can skip this step, but your first request will be slower.
+
+```bash
+st daemon start
+st daemon status  # confirm it's running
+```
+
+Shut it down with `st daemon stop` when you're done.
+
+---
+
+## 4. First Deterministic Generation
 
 ```python
 import steadytext
 
-# Generate deterministic text (always same result)
-text = steadytext.generate("Write a Python function to calculate fibonacci")
-print(text)
+code = steadytext.generate("Implement binary search in Python")
+assert "def binary_search" in code
 
-# Use custom seed for different but reproducible results
-text1 = steadytext.generate("Write a Python function", seed=123)
-text2 = steadytext.generate("Write a Python function", seed=123)  # Same as text1
-text3 = steadytext.generate("Write a Python function", seed=456)  # Different result
-
-print(f"Same seed results identical: {text1 == text2}")  # True
-print(f"Different seeds produce different output: {text1 != text3}")  # True
+variant = steadytext.generate(
+    "Implement binary search in Python",
+    seed=1234,  # choose any integer seed
+)
 ```
 
-### 2. Streaming Generation
+- Same prompt + seed ⇒ same output on any machine.
+- Different seeds ⇒ controlled, reproducible variations for tests and reviews.
 
-For real-time output:
+Streaming uses the same deterministic guarantees:
 
 ```python
-# Default streaming
-for token in steadytext.generate_iter("Explain machine learning"):
-    print(token, end="", flush=True)
-
-# Streaming with custom seed for reproducible streams
-print("\nStream 1 (seed 789):")
-for token in steadytext.generate_iter("Tell me a joke", seed=789):
-    print(token, end="", flush=True)
-
-print("\nStream 2 (same seed - identical result):")
-for token in steadytext.generate_iter("Tell me a joke", seed=789):
+for token in steadytext.generate_iter("Explain dynamic programming", seed=42):
     print(token, end="", flush=True)
 ```
 
-### 3. Create Embeddings
+---
+
+## 5. Deterministic Embeddings
 
 ```python
-# Single text (deterministic)
 vector = steadytext.embed("Hello world")
-print(f"Embedding shape: {vector.shape}")  # (1024,)
+print(vector.shape)  # (1024,)
 
-# Multiple texts (returns a single, averaged embedding)
-vector = steadytext.embed(["Hello", "world", "AI"])
-
-# Custom seeds for different embedding variations
-vec1 = steadytext.embed("artificial intelligence", seed=100)
-vec2 = steadytext.embed("artificial intelligence", seed=100)  # Identical
-vec3 = steadytext.embed("artificial intelligence", seed=200)  # Different
-
-import numpy as np
-print(f"Same seed embeddings equal: {np.array_equal(vec1, vec2)}")  # True
-print(f"Different seed similarity: {np.dot(vec1, vec3):.3f}")  # Cosine similarity
+pair = steadytext.embed(["coffee", "espresso"])
 ```
 
-## Command Line Usage
+Embeddings also respect seeds:
 
-SteadyText includes both `steadytext` and `st` commands:
+```python
+vec_a = steadytext.embed("release checklist", seed=100)
+vec_b = steadytext.embed("release checklist", seed=100)
+assert (vec_a == vec_b).all()
+```
+
+Use CLI helpers for quick experiments:
 
 ```bash
-# Generate text (deterministic)
-st generate "write a haiku about programming"
-
-# Generate with custom seed for reproducible variations
-st generate "write a haiku about programming" --seed 123
-st generate "write a haiku about programming" --seed 456  # Different result
-
-# Stream generation with seed
-echo "explain quantum computing" | st --seed 789
-
-# Create embeddings with custom seed
-st embed "machine learning concepts" --seed 100
-
-# JSON output with metadata
-st generate "list 3 colors" --json --seed 555
-
-# Control output length
-st generate "explain AI" --max-new-tokens 100 --seed 42
-
-# Vector operations with seeds
-st vector similarity "cat" "dog" --seed 777
-
-# Preload models (optional)
-st models --preload
+echo "Explain retrievers" | st --seed 7
+echo "incident report" | st embed --seed 99
 ```
 
-## Model Management
+---
 
-Models are automatically downloaded on first use to:
-
-- **Linux/Mac**: `~/.cache/steadytext/models/`
-- **Windows**: `%LOCALAPPDATA%\steadytext\steadytext\models\`
+## 6. Structured Outputs & Validation
 
 ```python
-# Check where models are stored
-cache_dir = steadytext.get_model_cache_dir()
-print(f"Models stored at: {cache_dir}")
+from pydantic import BaseModel
+from steadytext import generate
 
-# Preload models manually (optional)
-steadytext.preload_models(verbose=True)
+class Ticket(BaseModel):
+    title: str
+    severity: str
+
+result = generate(
+    "Create a sev2 incident summary about retries failing",
+    schema=Ticket,
+)
+print(result)  # deterministic JSON payload
 ```
 
-## Configuration
+Key follow-ups:
 
-Control caching and behavior via environment variables:
+- [Structured generation guide](structured-generation.md)
+- [Tooling examples](examples/tooling.md)
 
-```bash
-# Generation cache settings
-export STEADYTEXT_GENERATION_CACHE_CAPACITY=512
-export STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB=100
+---
 
-# Embedding cache settings  
-export STEADYTEXT_EMBEDDING_CACHE_CAPACITY=1024
-export STEADYTEXT_EMBEDDING_CACHE_MAX_SIZE_MB=200
-
-# Model compatibility settings
-export STEADYTEXT_USE_FALLBACK_MODEL=true  # Use compatible models
-
-# Default seed (optional)
-export STEADYTEXT_DEFAULT_SEED=42
-```
-
-## Common Patterns
-
-### Reproducible Research
+## 7. Reranking & Retrieval Workflows
 
 ```python
-# Document your seeds for reproducibility
-RESEARCH_SEED = 42
+from steadytext import rerank
 
-results = []
-for prompt in research_prompts:
-    result = steadytext.generate(prompt, seed=RESEARCH_SEED)
-    results.append(result)
-    RESEARCH_SEED += 1  # Increment for each generation
+docs = ["Reset password steps", "SSL handshake failure", "CORS issue"]
+ranked = rerank("TLS handshake failed", docs)
 ```
 
-### A/B Testing
+Combine embeddings, indexes, and reranking to build full retrieval pipelines. See:
 
-```python
-# Generate content variations
-prompt = "Write a product description"
-variant_a = steadytext.generate(prompt, seed=100)  # Version A
-variant_b = steadytext.generate(prompt, seed=200)  # Version B
+- [Vector indexing](vector-indexing.md)
+- [Reranking overview](reranking.md)
+- [Log analysis example](examples/log-analysis.md)
 
-# Test which performs better
-print(f"Variant A: {variant_a[:100]}...")
-print(f"Variant B: {variant_b[:100]}...")
-```
+---
 
-### Content Variations
+## 8. Keep Going
 
-```python
-# Generate multiple versions for testing
-base_prompt = "Explain machine learning"
+- Explore end-to-end scenarios in the [Python tutorials](examples/index.md#python-library).
+- Configure caching, seeds, and fallbacks via [Configuration Reference](configuration-reference.md).
+- Need SQL parity? Jump to the [Postgres Extension Journey](postgresql-extension.md#postgres-quick-start).
+
+Let us know what you build—anchor your questions with `AIDEV-ANCHOR:` references for faster feedback.
 variations = []
 
 for i, style_seed in enumerate([300, 400, 500], 1):

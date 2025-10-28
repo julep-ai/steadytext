@@ -100,7 +100,11 @@ def core_embed(
 
     # AIDEV-NOTE: Check for remote models first
     if model:
-        from ..providers.registry import is_remote_model, get_provider, parse_remote_model
+        from ..providers.registry import (
+            is_remote_model,
+            get_provider,
+            parse_remote_model,
+        )
 
         if is_remote_model(model):
             # AIDEV-NOTE: Temporarily enable unsafe mode for this call if requested
@@ -112,7 +116,11 @@ def core_embed(
                 # AIDEV-NOTE: Pass embedding-only API key override for OpenAI provider
                 # This allows using a different API key/base URL for embeddings vs generation
                 provider_name, _ = parse_remote_model(model)
-                api_key_override = os.environ.get("EMBEDDING_OPENAI_API_KEY") if provider_name == "openai" else None
+                api_key_override = (
+                    os.environ.get("EMBEDDING_OPENAI_API_KEY")
+                    if provider_name == "openai"
+                    else None
+                )
                 provider = get_provider(model, api_key=api_key_override)
 
                 # Check if provider supports embeddings

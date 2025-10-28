@@ -1,0 +1,10 @@
+services:
+  postgres:
+    # Use a standard PostgreSQL image instead of Omnigres to avoid segfaults
+    image: postgres:17
+    # Override the shared_preload_libraries to avoid segfault
+    environment:
+      POSTGRES_SHARED_PRELOAD_LIBRARIES: ""
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: postgres

@@ -7,7 +7,6 @@ It handles automatic daemon startup, connection management, and fallback to dire
 """
 
 import json
-import os
 import time
 import subprocess
 import logging

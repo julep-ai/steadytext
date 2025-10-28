@@ -1,163 +1,164 @@
-# PostgreSQL Extension (pg_steadytext)
+# Postgres Quick Start
 
-The **pg_steadytext** PostgreSQL extension provides native SQL functions for deterministic text generation and embeddings by integrating with the SteadyText library. It brings the power of modern language models directly into your PostgreSQL database.
+Use this guide to install the `pg_steadytext` extension, connect it to the SteadyText daemon, and run your first deterministic SQL workflows. If you are building with the Python SDK, start with the [Python Quick Start](quick-start.md).
 
-## Overview
+---
 
-pg_steadytext extends PostgreSQL with:
+## 1. Prerequisites
 
-- **Deterministic Text Generation**: SQL functions that generate consistent text output with custom seeds
-- **Vector Embeddings**: Create 1024-dimensional embeddings compatible with pgvector
-- **Built-in Caching**: PostgreSQL-based frecency cache for optimal performance
-- **Daemon Integration**: Seamless integration with SteadyText's ZeroMQ daemon
-- **Custom Seed Support**: Full control over deterministic generation with custom seeds
-- **Reliable Error Handling**: Functions return NULL on errors instead of fallback text
-- **Security**: Input validation, rate limiting, and safe error handling
+- **PostgreSQL** 14–17 with superuser access for extension install
+- **Extensions**: `plpython3u`, `pgvector`, `omni_python`
+- **Python runtime** (for daemon + plpython3u) 3.10+
+- **Daemon host**: access to a running SteadyText daemon (`st daemon start`)
 
-## Requirements
+Verify prerequisites inside psql:
 
-- **PostgreSQL**: 14+ (tested on 14, 15, 16, 17)
-- **Python**: 3.8+ (matches plpython3u version)
-- **SteadyText**: 2.3.0+ (for reranking support, daemon, and custom seeds)
-- **Extensions**:
-  - `plpython3u` (required for Python integration)
-  - `pgvector` (required for embedding storage)
-  - `omni_python` (required for enhanced Python integration, see https://docs.omnigres.org/quick_start/)
+```sql
+SHOW server_version;
+SELECT extname FROM pg_extension WHERE extname IN ('plpython3u', 'pgvector', 'omni_python');
+```
 
-## Installation
+---
 
-### Quick Installation
+## 2. Install the Extension
+
+### Option A — Package / Source Install
 
 ```bash
-# Install Python dependencies
-pip3 install steadytext>=2.3.0 pyzmq numpy
+# Install Python dependencies for plpython3u
+pip install "steadytext>=2025.10.0" pyzmq numpy
 
-# Install omni-python (if not available via package manager)
-git clone https://github.com/omnigres/omnigres.git
-cd omnigres/extensions/omni_python
-make && sudo make install
-cd ../../..
-
-# Clone the SteadyText repository
+# Build and install pg_steadytext
 git clone https://github.com/julep-ai/steadytext.git
 cd steadytext/pg_steadytext
-
-# Build and install the extension
 make && sudo make install
-
-# Enable in PostgreSQL
-psql -U postgres -c "CREATE EXTENSION IF NOT EXISTS plpython3u CASCADE;"
-psql -U postgres -c "CREATE EXTENSION IF NOT EXISTS omni_python CASCADE;"
-psql -U postgres -c "CREATE EXTENSION IF NOT EXISTS pgvector CASCADE;"
-psql -U postgres -c "CREATE EXTENSION pg_steadytext CASCADE;"
 ```
 
-### Docker Installation
-
-For a complete containerized setup:
+### Option B — Docker Playground
 
 ```bash
-# Standard build
+cd steadytext/pg_steadytext
 docker build -t pg_steadytext .
-
-# Build with fallback model (recommended for compatibility)
-docker build --build-arg STEADYTEXT_USE_FALLBACK_MODEL=true -t pg_steadytext .
-
-# Run the container
 docker run -d -p 5432:5432 --name pg_steadytext pg_steadytext
-
-# Test the installation
-docker exec -it pg_steadytext psql -U postgres -c "SELECT steadytext_version();"
 ```
 
-## Core Functions
+---
 
-### Text Generation
+## 3. Enable Required Extensions
 
-#### `steadytext_generate()`
-
-Generate deterministic text from a prompt with full customization options.
+Inside `psql` (or another SQL client):
 
 ```sql
-steadytext_generate(
-    prompt TEXT,
-    max_tokens INTEGER DEFAULT 512,
-    use_cache BOOLEAN DEFAULT true,
-    seed INTEGER DEFAULT 42
-) RETURNS TEXT
--- Returns NULL if generation fails
+CREATE EXTENSION IF NOT EXISTS plpython3u;
+CREATE EXTENSION IF NOT EXISTS omni_python;
+CREATE EXTENSION IF NOT EXISTS pgvector;
+CREATE EXTENSION IF NOT EXISTS pg_steadytext;
 ```
 
-**Examples:**
+Check the version:
 
 ```sql
--- Simple text generation (uses default seed 42)
-SELECT steadytext_generate('Write a haiku about PostgreSQL');
+SELECT steadytext_version();
+```
 
--- Custom seed for reproducible results
+---
+
+## 4. Connect to the Daemon
+
+The extension talks to the same daemon the Python SDK uses. On your app host (or another reachable machine) run:
+
+```bash
+st daemon start --host 0.0.0.0 --port 5556
+```
+
+Then configure connection details inside Postgres:
+
+```sql
+ALTER SYSTEM SET steadytext.daemon_host = '127.0.0.1';
+ALTER SYSTEM SET steadytext.daemon_port = 5556;
+SELECT pg_reload_conf();
+```
+
+Confirm connectivity:
+
+```sql
+SELECT steadytext_healthcheck();
+```
+
+---
+
+## 5. First Deterministic Query
+
+```sql
 SELECT steadytext_generate(
-    'Tell me a story',
-    max_tokens := 256,
-    seed := 12345
+  prompt      => 'Write a release announcement for v2025.10',
+  max_tokens  => 200,
+  seed        => 42
+);
+```
+
+- Same prompt + seed ⇒ identical output across environments.
+- Set `use_cache := false` to bypass the shared frecency cache.
+
+Streaming mirrors the Python behavior via `steadytext_generate_stream` (see [Function Catalog](postgresql-extension-reference.md)).
+
+---
+
+## 6. Embeddings & Retrieval
+
+```sql
+SELECT steadytext_embed('Customer escalated about latency');
+```
+
+Store vectors with pgvector:
+
+```sql
+CREATE TABLE support_docs (
+  id SERIAL PRIMARY KEY,
+  content TEXT,
+  embedding VECTOR(1024)
 );
 
--- Disable caching for fresh results
-SELECT steadytext_generate(
-    'Random joke',
-    use_cache := false,
-    seed := 999
+INSERT INTO support_docs (content, embedding)
+VALUES (
+  'Investigate connection pooling saturation',
+  steadytext_embed('Investigate connection pooling saturation')
 );
-
--- Handle NULL results from failed generation
-SELECT COALESCE(
-    steadytext_generate('Generate text', seed := 100),
-    'Generation failed - please check daemon status'
-) AS result;
-
--- Compare outputs with different seeds
-SELECT 
-    'Seed 100' AS variant,
-    steadytext_generate('Explain machine learning', seed := 100) AS output
-UNION ALL
-SELECT 
-    'Seed 200' AS variant,
-    steadytext_generate('Explain machine learning', seed := 200) AS output;
 ```
 
-#### `steadytext_generate_stream()`
-
-Stream text generation for real-time applications (future feature).
+Combine embeddings with reranking:
 
 ```sql
-steadytext_generate_stream(
-    prompt TEXT,
-    max_tokens INTEGER DEFAULT 512,
-    seed INTEGER DEFAULT 42
-) RETURNS SETOF TEXT
+WITH candidates AS (
+  SELECT id, content
+  FROM support_docs
+  ORDER BY content <-> steadytext_embed('timeouts on checkout')  -- pgvector distance
+  LIMIT 10
+)
+SELECT * FROM steadytext_rerank(
+  'timeouts on checkout',
+  ARRAY(SELECT content FROM candidates)
+);
 ```
 
-### Embeddings
+---
 
-#### `steadytext_embed()`
+## 7. Operational Flight Checks
 
-Generate 1024-dimensional L2-normalized embeddings for text.
+- Monitor daemon status with `steadytext_healthcheck()`.
+- Use `steadytext_cache_stats()` to view shared cache metrics.
+- Toggle deterministic defaults via `ALTER SYSTEM SET steadytext.default_seed = 42;`.
+- For async workflows see [Postgres Async Operations](postgresql-extension-async.md).
 
-```sql
-steadytext_embed(
-    text_input TEXT,
-    use_cache BOOLEAN DEFAULT true,
-    seed INTEGER DEFAULT 42
-) RETURNS vector(1024)
--- Returns NULL vector if embedding fails
-```
+---
 
-**Examples:**
+## 8. Next Steps
 
-```sql
--- Simple embedding (uses default seed 42)
-SELECT steadytext_embed('PostgreSQL is a powerful database');
+- Follow the [Postgres Journey](examples/postgresql-integration.md) for deeper tutorials.
+- Browse the [Function Catalog](postgresql-extension-reference.md) for full SQL signatures.
+- Configure production rollouts using the [Deployment guides](deployment.md) and [Cloudflare recipe](deployment/cloudflare.md).
 
--- Custom seed for reproducible embeddings
+Need parity with Python workflows? Visit the [Core Platform Hub](architecture.md) to see how the pillars share models, caching, and structured generation.
 SELECT steadytext_embed(
     'artificial intelligence',
     seed := 123
@@ -217,7 +218,9 @@ The extension supports structured text generation using llama.cpp's native gramm
 
 📖 **[Full Structured Generation Documentation →](postgresql-extension-structured.md)**
 
-### Document Reranking (v1.3.0+)
+### Document Reranking
+
+Available since v1.3.0+.
 
 Rerank documents by relevance using the Qwen3-Reranker-4B model:
 

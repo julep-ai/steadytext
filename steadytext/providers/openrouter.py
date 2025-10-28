@@ -883,5 +883,5 @@ class OpenRouterProvider(RemoteModelProvider):
         if hasattr(self, "_client") and self._client is not None:
             try:
                 self._client.close()
-            except:
+            except Exception:
                 pass  # Ignore cleanup errors

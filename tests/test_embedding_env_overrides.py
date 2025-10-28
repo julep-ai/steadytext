@@ -121,7 +121,9 @@ class TestEmbeddingEnvOverrides:
         monkeypatch.setattr(
             "steadytext.core.embedder.core_embed", fake_create_embedding
         )
-        monkeypatch.setattr(steadytext, "core_embed", fake_create_embedding, raising=False)
+        monkeypatch.setattr(
+            steadytext, "core_embed", fake_create_embedding, raising=False
+        )
 
         runner = CliRunner()
         result = runner.invoke(cli, ["embed", "sample", "--json"])
@@ -148,7 +150,9 @@ class TestEmbeddingEnvOverrides:
         monkeypatch.setattr(
             "steadytext.core.embedder.core_embed", fake_create_embedding
         )
-        monkeypatch.setattr(steadytext, "core_embed", fake_create_embedding, raising=False)
+        monkeypatch.setattr(
+            steadytext, "core_embed", fake_create_embedding, raising=False
+        )
 
         runner = CliRunner()
         result = runner.invoke(cli, ["embed", "sample", "--json"])

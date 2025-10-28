@@ -1,164 +1,69 @@
-# SteadyText
+# SteadyText Documentation
 
-*Deterministic text generation and embeddings with zero configuration*
+Deterministic AI for app developers **and** database teams. Same inputs, same outputs—across Python and Postgres.
 
-[![PyPI Version](https://img.shields.io/pypi/v/steadytext.svg)](https://pypi.org/project/steadytext/)
-[![Python Versions](https://img.shields.io/pypi/pyversions/steadytext.svg)](https://pypi.org/project/steadytext/)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/julep-ai/steadytext/blob/main/LICENSE)
-
-!!! important "Version 2025.8.16 - Date-Based Versioning"
-    SteadyText has transitioned from semantic versioning to **date-based versioning** (yyyy.mm.dd format).
-    
-    **Why this change?** The rapid pace of AI model improvements and feature additions made traditional semantic versioning impractical. With models evolving weekly and new capabilities being added frequently, date-based versioning provides clearer insight into release recency and better aligns with our continuous improvement philosophy.
-    
-    This applies to both the Python package and the PostgreSQL extension (pg_steadytext).
-
-**Same input → same output. Every time.**
-
-No more flaky tests, unpredictable CLI tools, or inconsistent docs. SteadyText makes AI outputs as reliable as hash functions.
-
-Ever had an AI test fail randomly? Or a CLI tool give different answers each run? SteadyText makes AI outputs reproducible - perfect for testing, tooling, and anywhere you need consistent results.
-
-!!! tip "Powered by Julep"
-    ✨ _Powered by open-source AI workflows from [**Julep**](https://julep.ai)._ ✨
+!!! important "Versioning"
+    Releases follow `yyyy.mm.dd`. The current docs track the **2025.10.xx** train covering both the Python SDK and the `pg_steadytext` extension.
 
 ---
 
-## 🚀 Quick Start
+## Choose Your Track
 
-```bash
-# Using UV (recommended - 10-100x faster)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv add steadytext
+=== "Python Library"
+Time-to-first-deterministic-result in minutes. Install the SDK, run your first `steadytext.generate`, and wire deterministic workflows into apps or CI.
 
-# Or using pip
-pip install steadytext
-```
+- Start with the [Python Quick Start](quick-start.md)
+- Follow the tutorials grouped under the Python Library pillar.
+- Dive into the [API Reference](api/index.md) and operations playbooks
 
-=== "Python API"
+=== "Postgres Extension"
+Bring deterministic generation, embeddings, and reranking into SQL. Install the extension, connect to the daemon, and build pipelines inside Postgres.
 
-    ```python
-    import steadytext
-
-    # Deterministic text generation
-    code = steadytext.generate("implement binary search in Python")
-    assert "def binary_search" in code  # Always passes!
-
-    # Streaming (also deterministic)
-    for token in steadytext.generate_iter("explain quantum computing"):
-        print(token, end="", flush=True)
-
-    # Deterministic embeddings
-    vec = steadytext.embed("Hello world")  # 1024-dim numpy array
-    
-    # Structured generation (v2.4.1+)
-    from pydantic import BaseModel
-    class User(BaseModel):
-        name: str
-        age: int
-    
-    result = steadytext.generate("Create user Alice age 30", schema=User)
-    # Returns: '...<json-output>{"name": "Alice", "age": 30}</json-output>'
-    ```
-
-=== "Command Line"
-
-    ```bash
-    # Generate text (pipe syntax)
-    echo "hello world" | st
-
-    # Stream output (default)  
-    echo "explain recursion" | st
-
-    # Wait for complete output
-    echo "explain recursion" | st --wait
-
-    # Get embeddings
-    echo "machine learning" | st embed
-
-    # Start daemon for faster responses
-    st daemon start
-    ```
+- Begin with the [Postgres Quick Start](postgresql-extension.md)
+- Follow the tutorials grouped under the Postgres Extension pillar.
+- Explore the [Function Catalog](postgresql-extension-reference.md) and operations guides
 
 ---
 
-## 🔧 How It Works
+## Core Platform at a Glance
 
-SteadyText achieves determinism via:
+- **Daemon-backed services** keep models hot and provide shared caching across SDK and SQL.
+- **Deterministic execution** guarantees reproducible outputs with seed control and graceful fallbacks.
+- **Structured generation & reranking** work the same in Python and SQL, powered by a shared model registry.
+- **Vector indexing** via FAISS integrates with CLI helpers and Postgres search functions.
 
-* **Customizable seeds**: Control determinism with a `seed` parameter, while still defaulting to `42`.
-* **Greedy decoding**: Always chooses highest-probability token
-* **Frecency cache**: LRU cache with frequency counting—popular prompts stay cached longer
-* **Quantized models**: 8-bit quantization ensures identical results across platforms
+Read the [Core Platform Hub](architecture.md) to learn how the pillars connect and when to choose each surface.
 
-This means `generate("hello")` returns the exact same 512 tokens on any machine, every single time.
+---
 
-## 🌐 Ecosystem
+## Why Teams Ship with SteadyText
 
-SteadyText is more than just a library. It's a full ecosystem for deterministic AI:
+- **Predictable CI** – deterministic responses eliminate flaky AI-based tests.
+- **Hybrid deployment** – mix Python services with SQL automation without managing separate model stacks.
+- **Timeboxed iteration** – date-based versions and changelog callouts make upgrades deliberate.
+- **Open ecosystem** – models, cache backends, and integrations are swappable via configuration.
 
-- **Python Library**: The core `steadytext` library for programmatic use in your applications.
-- **Command-Line Interface (CLI)**: A powerful `st` command to use SteadyText from your shell for scripting and automation.
-- **Shell Integration**: [Tab completion and AI-powered command suggestions](shell-integration.md) for bash, zsh, and fish.
-- **PostgreSQL Extension**: Run deterministic AI functions directly within your PostgreSQL database.
-- **Cloudflare Worker**: Deploy SteadyText to the edge with a Cloudflare Worker for distributed, low-latency applications.
+See [Benchmarks](benchmarks.md) for performance data and [FAQ](faq.md) for quick answers.
 
-### Daemon Mode (v1.3+)
+---
 
-SteadyText includes an optional daemon mode that keeps models loaded in memory for instant responses:
+## What’s New
 
-* **160x faster first request**: No model loading overhead
-* **Persistent cache**: Shared across all operations
-* **Explicit startup required**: Start daemon with `st daemon start` for best performance
-* **Automatic fallback**: Works without daemon if unavailable
+- **Twin Pillars navigation**: mirrored quick starts and tutorials for Python and Postgres.
+- **Expanded Postgres coverage**: async workflows, reranking, and prompt registry guidance.
+- **Operations consolidation**: deployment, caching, and unsafe-mode docs share a single home.
 
-```bash
-# Start daemon for better performance (optional but recommended)
-st daemon start
+Check [Version History](version_history.md) and [Changelog (GitHub)](https://github.com/julep-ai/steadytext/blob/main/CHANGELOG.md) for release specifics.
 
-# Check status
-st daemon status
+---
 
-# All operations now use daemon if running
-echo "hello" | st  # Instant response with daemon running!
-```
+## Need Help?
 
-### FAISS Indexing (v1.3.3+)
+- Operations questions → [Operations & Integrations](deployment.md)
+- Community support → [Contributing Guide](contributing.md) & Slack/Discord
+- Found a gap? Open an issue or ping the docs team with anchor references.
 
-Create and search vector indexes for retrieval-augmented generation:
-
-```bash
-# Create index from documents
-st index create *.txt --output docs.faiss
-
-# Search index
-st index search docs.faiss "query text" --top-k 5
-
-# Use with generation (automatic with default.faiss)
-echo "explain this error" | st --index-file docs.faiss
-```
-
-### Document Reranking (v2.5.1+)
-
-Reorder search results by relevance using the Qwen3-Reranker-4B model:
-
-```python
-import steadytext
-
-# Basic reranking
-docs = ["Python tutorial", "Cat photos", "Python snakes"]
-ranked = steadytext.rerank("Python programming", docs)
-# Returns documents sorted by relevance
-
-# CLI usage
-st rerank "machine learning" doc1.txt doc2.txt doc3.txt
-
-# PostgreSQL integration
-SELECT * FROM steadytext_rerank(
-    'customer complaint',
-    ARRAY(SELECT ticket_text FROM support_tickets)
-);
-```
+You're now ready to pick a track and explore. Happy shipping!
 
 ---
 

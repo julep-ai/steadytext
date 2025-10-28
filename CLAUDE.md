@@ -24,6 +24,7 @@ Structured, greppable comments for navigation and documentation.
 - Place anchors above major blocks (classes, functions, routes)
 - Keep ~1 anchor per 40-60 lines
 - Format refs: `AIDEV-REF: path/file.py -> anchor text`
+- For documentation rewrite, follow the addendum at `specs/003-documentation-rewrite/anchor-guidelines.md`
 
 > For detailed anchor management, use the **anchor-comment-manager** agent.
 

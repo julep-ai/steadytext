@@ -1,203 +1,116 @@
-# Frequently Asked Questions (FAQ)
+# Frequently Asked Questions
 
-Find answers to common questions about SteadyText, troubleshooting tips, and best practices.
+Curated answers grouped by theme. Use the tabs below to jump to the section that matches your role.
 
-## Table of Contents
+---
 
-- [General Questions](#general-questions)
-- [Installation & Setup](#installation--setup)
-- [Usage Questions](#usage-questions)
-- [Performance Questions](#performance-questions)
-- [Model Questions](#model-questions)
-- [Caching Questions](#caching-questions)
-- [Daemon Questions](#daemon-questions)
-- [PostgreSQL Extension](#postgresql-extension)
-- [Troubleshooting](#troubleshooting)
-- [Advanced Topics](#advanced-topics)
+## Platform & Licensing
 
-## General Questions
+**What is SteadyText?**  
+A deterministic AI platform with two first-class surfaces: the Python SDK and the `pg_steadytext` Postgres extension. Both share models, daemon, cache, and structured generation capabilities.
 
-### What is SteadyText?
+**Is it production-ready?**  
+Yes. Deterministic outputs, `never fail` semantics, and daemon-backed caching are designed for CI, data pipelines, and transactional SQL workloads.
 
-SteadyText is a deterministic AI text generation and embedding library for Python. It ensures that the same input always produces the same output, making it ideal for:
+**What models ship with the platform?**  
+Default bundles include Qwen3-based generators, Jina v4 embeddings (truncated to 1024 dims), and Qwen3 rerankers. You can swap or override via configuration (see [Model Switching](model-switching.md)).
 
-- Reproducible research
-- Testing AI-powered applications
-- Consistent embeddings for search
-- Deterministic content generation
+**What about licensing?**  
+SteadyText is MIT licensed. Bundled models inherit their upstream licenses (Qwen, Jina); review `LICENSE` and model-specific notices before redistribution.
 
-### How is SteadyText different from other AI libraries?
+---
 
-| Feature | SteadyText | Other Libraries |
-|---------|------------|-----------------|
-| Deterministic | ✅ Always | ❌ Usually random |
-| Never fails | ✅ Returns None | ❌ Throws exceptions |
-| Zero config | ✅ Works instantly | ❌ Complex setup |
-| Built-in cache | ✅ Automatic | ❌ Manual setup |
-| PostgreSQL | ✅ Native extension | ❌ External integration |
+## Python SDK
 
-### What models does SteadyText use?
+**Supported Python versions?**  
+3.10+ (3.11 recommended). Earlier versions are not tested in current releases.
 
-- **Text Generation**: Gemma-3n models (2B and 4B parameters)
-- **Embeddings**: Qwen3-Embedding-0.6B (1024 dimensions)
-- **Format**: GGUF quantized models for efficiency
-
-### Is SteadyText suitable for production?
-
-Yes! SteadyText is designed for production use:
-
-- **Daemon mode**: 160x faster responses
-- **Thread-safe**: Handles concurrent requests
-- **Resource efficient**: Quantized models use less memory
-- **Battle-tested**: Used in production environments
-- **PostgreSQL integration**: Database-native AI
-
-## Installation & Setup {#installation--setup}
-
-### How do I install SteadyText?
+**Fastest way to install?**  
+Use UV for reproducible environments:
 
 ```bash
-# Using pip
-pip install steadytext
-
-# Using UV (recommended)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 uv add steadytext
-
-# With PostgreSQL extension
-pip install steadytext[postgres]
 ```
 
-### What are the system requirements?
+See the [Python Quick Start](quick-start.md) for daemon setup and first-generation snippets.
 
-- **Python**: 3.8 or higher
-- **Memory**: 4GB RAM minimum (8GB recommended)
-- **Disk**: 2GB for models
-- **OS**: Linux, macOS, Windows
-
-### Do I need a GPU?
-
-No, SteadyText is optimized for CPU inference. GPU support is planned for future releases.
-
-### How do I verify the installation?
-
-```bash
-# Check CLI
-st --version
-
-# Test generation
-echo "Hello world" | st
-
-# Python test
-python -c "import steadytext; print(steadytext.generate('Hello'))"
-```
-
-## Usage Questions
-
-### How do I ensure deterministic results?
-
-Use the same seed value:
+**How do I guarantee deterministic outputs?**  
+Provide the same seed. Seeds propagate across `generate`, `generate_iter`, `embed`, and structured generation helpers.
 
 ```python
-# Always produces the same output
-result1 = steadytext.generate("Hello", seed=42)
-result2 = steadytext.generate("Hello", seed=42)
-assert result1 == result2
+result_a = steadytext.generate("Summarize incidents", seed=7)
+result_b = steadytext.generate("Summarize incidents", seed=7)
+assert result_a == result_b
 ```
 
-### Can I use custom prompts?
+**Can I stream results?**  
+Yes. `steadytext.generate_iter(prompt, seed=...)` yields deterministic token streams suitable for TUI/CLI output.
 
-Yes, any text prompt works:
+**How do I debug errors?**  
+Use `steadytext.generate(..., raise_on_error=True)` during development, or inspect `steadytext.get_last_error()` when working with `None` results. For CI, log seeds whenever you capture outputs.
 
-```python
-# Simple prompts
-text = steadytext.generate("Write a poem")
+---
 
-# Complex prompts with instructions
-prompt = """
-You are a helpful assistant. Please:
-1. Summarize the following text
-2. Extract key points
-3. Suggest improvements
+## Postgres Extension
 
-Text: [your text here]
-"""
-result = steadytext.generate(prompt)
+**Which Postgres versions are supported?**  
+14, 15, 16, and 17. Requires `plpython3u`, `pgvector`, and `omni_python`.
+
+**How do I point the extension at the daemon?**  
+Set GUCs and reload:
+
+```sql
+ALTER SYSTEM SET steadytext.daemon_host = '127.0.0.1';
+ALTER SYSTEM SET steadytext.daemon_port = 5556;
+SELECT pg_reload_conf();
 ```
 
-### How do I generate longer texts?
+**What functions are available?**  
+`steadytext_generate`, `steadytext_generate_stream`, `steadytext_embed`, `steadytext_rerank`, prompt-registry helpers, async queue functions, and more. See the [Function Catalog](postgresql-extension-reference.md).
 
-Adjust the `max_new_tokens` parameter:
+**How do I keep outputs deterministic inside transactions?**  
+Pass explicit seeds and keep prompt text stable. The cache ensures identical SQL calls return identical results, even inside repeatable read transactions.
 
-```python
-# Default: 512 tokens
-short = steadytext.generate("Story", max_new_tokens=100)
+**Where do I start for real projects?**  
+Follow the [Postgres Quick Start](postgresql-extension.md) and dive into the [Postgres journey tutorials](examples/index.md#postgres-extension).
 
-# Longer output
-long = steadytext.generate("Story", max_new_tokens=2000)
-```
+---
 
-### Can I stream the output?
+## Operations & Performance
 
-Yes, use the streaming API:
+**Why is the first call slow?**  
+Models download and load on demand. Start the daemon (`st daemon start`) or preload (`st models preload`) to warm caches.
 
-```python
-for chunk in steadytext.generate_iter("Write a long story"):
-    print(chunk, end='', flush=True)
-```
+**How do I monitor health?**  
+Run `steadytext_healthcheck()` from SQL or `st daemon status` from the CLI. Export metrics via standard Postgres monitoring or wrap the daemon in systemd with health scripts.
 
-### How do embeddings work?
+**Can I change cache/backends?**  
+Yes. Configure `STEADYTEXT_CACHE_BACKEND`, `STEADYTEXT_CACHE_CAPACITY`, and related env vars. Review [Cache Backends](cache-backends.md) and [Caching Recipes](examples/caching.md).
 
-```python
-# Create embedding
-embedding = steadytext.embed("Machine learning")
-# Returns: numpy array of shape (1024,)
+**What are typical response times?**  
+Once warm: generation \<100 ms, embeddings \<15 ms, reranking \<50 ms. Performance depends on hardware and cache hit rate.
 
-# Compare similarity
-emb1 = steadytext.embed("cat")
-emb2 = steadytext.embed("dog")
-similarity = np.dot(emb1, emb2)  # Cosine similarity
-```
+**How do upgrades work?**
+Releases follow date-based versioning. Check [Version History](version_history.md) and [Changelog (GitHub)](https://github.com/julep-ai/steadytext/blob/main/CHANGELOG.md), then upgrade SDK/extension in lockstep to keep parity.
 
-## Performance Questions
+---
 
-### Why is the first generation slow?
+## Troubleshooting
 
-The first call loads the model into memory (2-3 seconds). Subsequent calls are fast (<100ms). To avoid this:
+**Generation returns NULL/None. What now?**  
+Inspect the daemon logs, confirm connectivity (`steadytext_healthcheck()`), and ensure models are downloaded. In Postgres, review `steadytext.get_last_error()` via plpython3u helpers.
 
-```bash
-# Option 1: Use daemon mode
-st daemon start
+**Daemon can’t bind to a port.**  
+Verify no other process is using the port. On shared hosts, bind with `--host 0.0.0.0 --port 5556` and restrict via firewall/security groups.
 
-# Option 2: Preload models
-st models preload
-```
+**Embeddings differ between Python and SQL.**  
+Ensure both pillars target the same daemon and model version. Mixed versions or different seeds cause divergence.
 
-### How can I improve performance?
+**Link checker failures during docs build.**  
+Run the command documented in the migration checklist (see project repo) and confirm any renamed pages have updated redirects.
 
-1. **Use daemon mode** (160x faster):
-   ```bash
-   st daemon start
-   ```
-
-2. **Enable caching** (enabled by default):
-   ```python
-   # Cache automatically stores results
-   result = steadytext.generate("Same prompt")  # First: slow
-   result = steadytext.generate("Same prompt")  # Second: instant
-   ```
-
-3. **Batch operations**:
-   ```python
-   prompts = ["Prompt 1", "Prompt 2", "Prompt 3"]
-   results = [steadytext.generate(p) for p in prompts]
-   ```
-
-### What are typical response times?
-
-| Operation | First Call | Cached | With Daemon |
-|-----------|------------|---------|-------------|
-| Generate | 2-3s | <10ms | <20ms |
-| Embed | 1-2s | <5ms | <15ms |
+Still stuck? Open an issue with reproduction details (prompt, seed, command) and include anchor references from the relevant docs section.
 | Batch (100) | 3-5s | <100ms | <200ms |
 
 ## Model Questions
