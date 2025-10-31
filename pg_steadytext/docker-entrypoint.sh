@@ -9,10 +9,8 @@ if [ "$STEADYTEXT_USE_FALLBACK_MODEL" = "true" ]; then
     echo "Using fallback model (Qwen) instead of default (Gemma-3n)"
 fi
 
-# AIDEV-NOTE: Configure TimescaleDB in postgresql.conf
-# TimescaleDB requires shared_preload_libraries to be set
-# The Omnigres base image already sets omni--0.2.11.so, so we need to append
-echo 'Configuring TimescaleDB...'
+# AIDEV-NOTE: TimescaleDB shared_preload_libraries configured in Docker build
+echo 'Validating TimescaleDB...'
 
 # Wait for PostgreSQL to be ready
 until pg_isready -U "$POSTGRES_USER"; do
@@ -26,8 +24,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
     CREATE EXTENSION IF NOT EXISTS vector CASCADE;
     
     -- Try to create TimescaleDB extension if available
-    -- AIDEV-NOTE: TimescaleDB is optional - requires manual shared_preload_libraries configuration
-    -- AIDEV-NOTE: To enable: ALTER SYSTEM SET shared_preload_libraries = 'omni--0.2.11.so,timescaledb';
+    -- AIDEV-NOTE: Shared preload includes timescaledb by default; surface warnings if it fails
     DO \$\$
     BEGIN
         IF EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'timescaledb') THEN
@@ -36,7 +33,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
                 RAISE NOTICE 'TimescaleDB extension installed successfully';
             EXCEPTION
                 WHEN OTHERS THEN
-                    RAISE NOTICE 'TimescaleDB available but not configured - requires shared_preload_libraries setup';
+                    RAISE NOTICE 'TimescaleDB available but CREATE EXTENSION failed; verify shared_preload_libraries and restart if needed';
             END;
         END IF;
     END\$\$;

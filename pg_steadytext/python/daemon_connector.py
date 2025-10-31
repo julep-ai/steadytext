@@ -303,12 +303,6 @@ class SteadyTextConnector:
         if max_new_tokens is None:
             max_new_tokens = max_tokens or 512
 
-        # AIDEV-NOTE: Validate that unsafe_mode requires a model to be specified
-        if unsafe_mode and not kwargs.get("model"):
-            raise ValueError(
-                "unsafe_mode=True requires a model parameter to be specified"
-            )
-
         if not STEADYTEXT_AVAILABLE:
             # Return deterministic fallback if SteadyText not available
             return self._fallback_generate(prompt, max_new_tokens)
@@ -389,11 +383,6 @@ class SteadyTextConnector:
         Yields:
             Text tokens as they are generated
         """
-        # AIDEV-NOTE: Validate that unsafe_mode requires a model to be specified
-        if unsafe_mode and not kwargs.get("model"):
-            raise ValueError(
-                "unsafe_mode=True requires a model parameter to be specified"
-            )
         if not STEADYTEXT_AVAILABLE:
             # Yield fallback in chunks
             result = self._fallback_generate(prompt, max_tokens)
@@ -480,12 +469,6 @@ class SteadyTextConnector:
         # AIDEV-NOTE: Auto-use remote OpenAI embeddings if EMBEDDING_OPENAI_* env vars are set
         # This allows transparent override without requiring callers to pass model parameter
         model, unsafe_mode = apply_remote_embedding_env_defaults(model, unsafe_mode)
-
-        # AIDEV-NOTE: Validate that unsafe_mode requires a model to be specified
-        if unsafe_mode and not model:
-            raise ValueError(
-                "unsafe_mode=True requires a model parameter to be specified"
-            )
 
         if not STEADYTEXT_AVAILABLE:
             # Return zero vector as fallback

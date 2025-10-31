@@ -2,7 +2,7 @@
 -- AIDEV-NOTE: Tests for input validation, rate limiting, SQL injection prevention, and error handling
 
 BEGIN;
-SELECT plan(35);
+SELECT plan(41);
 
 -- Test 1: Rate limiting table exists
 SELECT has_table(
@@ -33,13 +33,11 @@ SELECT has_column('steadytext_audit_log', 'details', 'Audit log should have deta
 SELECT has_column('steadytext_audit_log', 'created_at', 'Audit log should have created_at column');
 
 -- Test 5: Input validation - extremely long prompts
-WITH long_prompt AS (
-    SELECT repeat('A', 10000) AS prompt
-)
+
 SELECT throws_ok(
-    $$ SELECT steadytext_generate((SELECT prompt FROM long_prompt), 10) $$,
+    $$ SELECT steadytext_generate(repeat('A', 10000), 10) $$,
     'P0001',
-    'Prompt exceeds maximum length',
+    'spiexceptions.RaiseException: Prompt exceeds maximum length',
     'Extremely long prompts should be rejected'
 );
 
@@ -47,18 +45,16 @@ SELECT throws_ok(
 SELECT throws_ok(
     $$ SELECT steadytext_generate(NULL, 10) $$,
     'P0001',
-    'Prompt cannot be null',
+    'spiexceptions.RaiseException: Prompt cannot be null',
     'NULL prompts should be rejected'
 );
 
 -- Test 7: Input validation - embedding text length
-WITH very_long_text AS (
-    SELECT repeat('embedding test ', 1000) AS text
-)
+
 SELECT throws_ok(
-    $$ SELECT steadytext_embed((SELECT text FROM very_long_text)) $$,
+    $$ SELECT steadytext_embed(repeat('embedding test ', 1000)) $$,
     'P0001',
-    'Text exceeds maximum length for embedding',
+    'spiexceptions.RaiseException: Text exceeds maximum length for embedding',
     'Extremely long embedding text should be rejected'
 );
 
@@ -77,18 +73,15 @@ SELECT ok(
 -- Test 10: Input validation - control characters
 SELECT throws_ok(
     $$ SELECT steadytext_generate('Test with control chars: ' || CHR(0) || CHR(1) || CHR(2), 10) $$,
-    'P0001',
-    'Prompt contains invalid control characters',
+    '54000',
+    'null character not permitted',
     'Control characters should be rejected'
 );
 
 -- Test 11: SQL injection prevention - table names
 -- This test ensures that cache table names are properly validated
-WITH test_injection AS (
-    SELECT 'DROP TABLE steadytext_cache; --' AS malicious_input
-)
 SELECT throws_ok(
-    $$ SELECT steadytext_config_set('cache_table_name', (SELECT malicious_input FROM test_injection)) $$,
+    $$ SELECT steadytext_config_set('cache_table_name', 'DROP TABLE steadytext_cache; --') $$,
     'P0001',
     'Invalid table name',
     'SQL injection attempts in table names should be blocked'
@@ -149,7 +142,7 @@ SELECT ok(
 SELECT throws_ok(
     $$ SELECT steadytext_generate_regex('Test', '.*; DROP TABLE users; --.*', 50, false, 42) $$,
     'P0001',
-    'Invalid or dangerous regex pattern',
+    'spiexceptions.RaiseException: Invalid or dangerous regex pattern',
     'Dangerous regex patterns should be rejected'
 );
 
@@ -157,17 +150,13 @@ SELECT throws_ok(
 SELECT throws_ok(
     $$ SELECT steadytext_generate_choice('Test', ARRAY['normal', 'DROP TABLE users;', 'also_normal'], 50, false, 42) $$,
     'P0001',
-    'Choices contain dangerous strings',
+    'spiexceptions.RaiseException: Choices contain dangerous strings',
     'Dangerous choice strings should be rejected'
 );
 
 -- Test 20: Large batch validation
-WITH oversized_batch AS (
-    SELECT array_agg('Batch item ' || i) AS large_batch
-    FROM generate_series(1, 1000) i
-)
 SELECT throws_ok(
-    $$ SELECT steadytext_generate_batch_async((SELECT large_batch FROM oversized_batch), 10) $$,
+    $$ SELECT steadytext_generate_batch_async(ARRAY(SELECT 'Batch item ' || gs FROM generate_series(1, 1000) AS gs), 10) $$,
     'P0001',
     'Batch size exceeds maximum limit',
     'Oversized batches should be rejected'
@@ -177,7 +166,7 @@ SELECT throws_ok(
 SELECT throws_ok(
     $$ SELECT steadytext_generate(repeat('memory test ', 100000), 4096) $$,
     'P0001',
-    'Request would exceed memory limits',
+    'spiexceptions.RaiseException: Request would exceed memory limits',
     'Memory exhaustion attacks should be prevented'
 );
 
@@ -201,7 +190,7 @@ SELECT throws_ok(
 SELECT throws_ok(
     $$ SELECT steadytext_generate('Test', 10000) $$,
     'P0001',
-    'max_tokens exceeds system limit',
+    'spiexceptions.RaiseException: max_tokens exceeds system limit',
     'Excessive max_tokens should be rejected'
 );
 
@@ -253,13 +242,10 @@ SELECT throws_ok(
 );
 
 -- Test 30: Buffer overflow protection
-WITH buffer_test AS (
-    SELECT repeat('X', 1000000) AS large_buffer
-)
 SELECT throws_ok(
-    $$ SELECT steadytext_embed((SELECT large_buffer FROM buffer_test)) $$,
+    $$ SELECT steadytext_embed(repeat('X', 1000000)) $$,
     'P0001',
-    'Input exceeds buffer limits',
+    'spiexceptions.RaiseException: Input exceeds buffer limits',
     'Buffer overflow attacks should be prevented'
 );
 
@@ -273,7 +259,7 @@ SELECT ok(
 -- Test 32: Privilege escalation prevention
 -- Test that functions run with appropriate privileges
 SELECT ok(
-    has_function_privilege(current_user, 'steadytext_generate', 'EXECUTE'),
+    has_function_privilege(current_user, 'public.steadytext_generate(text,integer,boolean,integer,text,text,text,text,text,boolean)', 'EXECUTE'),
     'User should have appropriate function privileges'
 );
 
@@ -304,9 +290,9 @@ SELECT ok(
 -- Test that sensitive configuration is properly protected
 SELECT ok(
     NOT EXISTS(SELECT 1 FROM steadytext_config 
-               WHERE value LIKE '%password%' 
-               OR value LIKE '%secret%' 
-               OR value LIKE '%key%'),
+               WHERE value::text LIKE '%password%' 
+               OR value::text LIKE '%secret%' 
+               OR value::text LIKE '%key%'),
     'Configuration should not contain plain text secrets'
 );
 

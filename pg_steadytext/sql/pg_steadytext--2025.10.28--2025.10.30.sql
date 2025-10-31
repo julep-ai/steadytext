@@ -1,112 +1,7 @@
--- pg_steadytext--2025.8.26.sql
--- Complete schema for pg_steadytext extension version 2025.8.26
--- Includes schema qualification fixes and summarization enhancements
+-- pg_steadytext--2025.10.28--2025.10.30.sql
+-- Upgrade script refreshing PL/Python functions for sanitized error handling and streaming support
+-- Recreates all CREATE OR REPLACE FUNCTION bodies from 2025.10.30 base install without touching tables
 
--- AIDEV-SECTION: CORE_TABLE_DEFINITIONS
--- AIDEV-NOTE: Drop tables before creating to ensure proper extension membership
--- When tables are created with IF NOT EXISTS and already exist, they won't be added to the extension
-DROP TABLE IF EXISTS steadytext_cache CASCADE;
-
--- Cache table that mirrors and extends SteadyText's SQLite cache
-CREATE TABLE steadytext_cache (
-    id SERIAL PRIMARY KEY,
-    cache_key TEXT UNIQUE NOT NULL,  -- Matches SteadyText's cache key generation
-    prompt TEXT NOT NULL,
-    response TEXT,
-    embedding vector(1024),  -- For embedding cache using pgvector
-
-    -- Frecency statistics (synced with SteadyText's cache)
-    access_count INT DEFAULT 1,
-    last_accessed TIMESTAMPTZ DEFAULT NOW(),
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-
-    -- SteadyText integration metadata
-    steadytext_cache_hit BOOLEAN DEFAULT FALSE,  -- Whether this came from ST's cache
-    model_name TEXT NOT NULL DEFAULT 'qwen3-1.7b',  -- Model used (supports switching)
-    model_size TEXT CHECK (model_size IN ('small', 'medium', 'large')),
-    seed INTEGER DEFAULT 42,  -- Seed used for generation
-    eos_string TEXT,  -- Custom end-of-sequence string if used
-
-    -- Generation parameters
-    generation_params JSONB,  -- temperature, max_tokens, seed, etc.
-    response_size INT,
-    generation_time_ms INT  -- Time taken to generate (if not cached)
-
-    -- AIDEV-NOTE: frecency_score removed - calculated via view instead
-    -- Previously used GENERATED column with NOW() which is not immutable
-);
-
--- Create indexes for performance
-CREATE INDEX IF NOT EXISTS idx_steadytext_cache_key ON steadytext_cache(cache_key);
-CREATE INDEX IF NOT EXISTS idx_steadytext_cache_last_accessed ON steadytext_cache(last_accessed);
-CREATE INDEX IF NOT EXISTS idx_steadytext_cache_access_count ON steadytext_cache(access_count);
-
--- Request queue for async operations with priority and resource management
-DROP TABLE IF EXISTS steadytext_queue CASCADE;
-CREATE TABLE steadytext_queue (
-    id SERIAL PRIMARY KEY,
-    request_id UUID DEFAULT gen_random_uuid(),
-    request_type TEXT CHECK (request_type IN ('generate', 'embed', 'batch_embed', 'rerank', 'batch_rerank')),
-
-    -- Request data
-    prompt TEXT,  -- For single requests
-    prompts TEXT[],  -- For batch requests
-    params JSONB,  -- Model params, seed, etc.
-
-    -- Priority and scheduling
-    priority INT DEFAULT 5 CHECK (priority BETWEEN 1 AND 10),
-    user_id TEXT,  -- For rate limiting per user
-    session_id TEXT,  -- For request grouping
-
-    -- Status tracking
-    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'cancelled')),
-    result TEXT,
-    results TEXT[],  -- For batch results
-    embedding vector(1024),
-    embeddings vector(1024)[],  -- For batch embeddings
-    error TEXT,
-
-    -- Timing
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    started_at TIMESTAMPTZ,
-    completed_at TIMESTAMPTZ,
-    processing_time_ms INT,
-
-    -- Resource tracking
-    retry_count INT DEFAULT 0,
-    max_retries INT DEFAULT 3,
-    daemon_endpoint TEXT  -- Which daemon instance handled this
-);
-
-CREATE INDEX IF NOT EXISTS idx_steadytext_queue_status_priority_created ON steadytext_queue(status, priority DESC, created_at);
-CREATE INDEX IF NOT EXISTS idx_steadytext_queue_request_id ON steadytext_queue(request_id);
-CREATE INDEX IF NOT EXISTS idx_steadytext_queue_user_created ON steadytext_queue(user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_steadytext_queue_session ON steadytext_queue(session_id);
-
--- Configuration storage
-DROP TABLE IF EXISTS steadytext_config CASCADE;
-CREATE TABLE steadytext_config (
-    key TEXT PRIMARY KEY,
-    value JSONB NOT NULL,
-    description TEXT,
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_by TEXT DEFAULT current_user
-);
-
--- Insert default configuration
-INSERT INTO @extschema@.steadytext_config (key, value, description) VALUES
-    ('daemon_host', '"localhost"', 'SteadyText daemon host'),
-    ('daemon_port', '5555', 'SteadyText daemon port'),
-    ('cache_enabled', 'false', 'Enable caching'),
-    ('cache_eviction_enabled', 'true', 'Enable automatic cache eviction'),
-    ('cache_max_entries', '10000', 'Maximum cache entries'),
-    ('cache_max_size_mb', '100', 'Maximum cache size in MB'),
-    ('default_max_tokens', '512', 'Default max tokens for generation'),
-    ('default_seed', '42', 'Default seed for deterministic generation'),
-    ('daemon_auto_start', 'true', 'Auto-start daemon if not running')
-    ON CONFLICT (key) DO NOTHING;
-
--- Helper to raise standardized extension errors
 CREATE OR REPLACE FUNCTION @extschema@._steadytext_raise_p0001(message TEXT)
 RETURNS void
 LANGUAGE plpgsql
@@ -116,72 +11,170 @@ BEGIN
 END;
 $$;
 
--- Daemon health monitoring
-DROP TABLE IF EXISTS steadytext_daemon_health CASCADE;
-CREATE TABLE steadytext_daemon_health (
-    daemon_id TEXT PRIMARY KEY DEFAULT 'default',
-    endpoint TEXT NOT NULL,
-    last_heartbeat TIMESTAMPTZ DEFAULT NOW(),
-    uptime_seconds INT DEFAULT 0,
-    status TEXT DEFAULT 'unknown' CHECK (status IN ('healthy', 'unhealthy', 'starting', 'stopping', 'unknown')),
-    version TEXT,
-    models_loaded TEXT[],
-    memory_usage_mb INT,
-    active_connections INT DEFAULT 0,
-    total_requests BIGINT DEFAULT 0,
-    error_count INT DEFAULT 0,
-    avg_response_time_ms INT
-);
+DO $$
+BEGIN
+    BEGIN
+        ALTER EXTENSION pg_steadytext DROP FUNCTION steadytext_generate_stream(text, integer);
+    EXCEPTION WHEN OTHERS THEN
+        NULL;
+    END;
 
--- Insert default daemon entry
-INSERT INTO @extschema@.steadytext_daemon_health (daemon_id, endpoint, status, uptime_seconds)
-VALUES ('default', 'tcp://localhost:5555', 'unknown', 0)
-ON CONFLICT (daemon_id) DO NOTHING;
+    DROP FUNCTION IF EXISTS steadytext_generate_stream(text, integer);
+END $$;
 
--- Rate limiting per user
-DROP TABLE IF EXISTS steadytext_rate_limits CASCADE;
-CREATE TABLE steadytext_rate_limits (
-    user_id TEXT PRIMARY KEY,
-    requests_per_minute INT DEFAULT 60,
-    requests_per_hour INT DEFAULT 1000,
-    requests_per_day INT DEFAULT 10000,
-    current_minute_count INT DEFAULT 0,
-    current_hour_count INT DEFAULT 0,
-    current_day_count INT DEFAULT 0,
-    last_reset TIMESTAMPTZ DEFAULT NOW(),
-    last_reset_minute TIMESTAMPTZ DEFAULT NOW(),
-    last_reset_hour TIMESTAMPTZ DEFAULT NOW(),
-    last_reset_day TIMESTAMPTZ DEFAULT NOW(),
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
+CREATE OR REPLACE FUNCTION steadytext_generate_stream(
+    prompt TEXT,
+    max_tokens INT DEFAULT NULL,
+    use_cache BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42,
+    eos_string TEXT DEFAULT '[EOS]',
+    model TEXT DEFAULT NULL,
+    model_repo TEXT DEFAULT NULL,
+    model_filename TEXT DEFAULT NULL,
+    size TEXT DEFAULT NULL,
+    unsafe_mode BOOLEAN DEFAULT FALSE
+)
+RETURNS SETOF TEXT
+LANGUAGE plpython3u
+IMMUTABLE PARALLEL SAFE
+AS $c$
+import json
 
--- Audit log for security and debugging
-DROP TABLE IF EXISTS steadytext_audit_log CASCADE;
-CREATE TABLE steadytext_audit_log (
-    id SERIAL PRIMARY KEY,
-    event_id UUID DEFAULT gen_random_uuid(),
-    event_type TEXT NOT NULL,
-    user_id TEXT DEFAULT current_user,
-    request_id UUID,
-    details JSONB,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    ip_address INET,
-    success BOOLEAN DEFAULT TRUE,
-    error_message TEXT
-);
+def raise_p0001(message: str) -> None:
+    security = GD.get('module_security')
+    if security and hasattr(security, 'raise_sqlstate'):
+        security.raise_sqlstate(message, "P0001")
+        return
 
-CREATE INDEX IF NOT EXISTS idx_steadytext_audit_timestamp ON steadytext_audit_log(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_steadytext_audit_user ON steadytext_audit_log(user_id, created_at DESC);
+    plan = GD.get('steadytext_raise_plan')
+    if plan is None:
+        ext_schema_result = plpy.execute("SELECT nspname FROM pg_extension e JOIN pg_namespace n ON e.extnamespace = n.oid WHERE e.extname = 'pg_steadytext'")
+        ext_schema = ext_schema_result[0]['nspname'] if ext_schema_result else 'public'
+        plan = plpy.prepare(f"SELECT {plpy.quote_ident(ext_schema)}._steadytext_raise_p0001($1)", ["text"])
+        GD['steadytext_raise_plan'] = plan
 
--- AIDEV-SECTION: VIEWS
--- AIDEV-NOTE: View steadytext_cache_with_frecency is created later (line ~1115)
--- with age-based scoring for v1.4.1+ compatibility
+    plpy.execute(plan, [message])
 
--- AIDEV-SECTION: PYTHON_INTEGRATION
--- AIDEV-NOTE: Python integration layer path setup
--- This is now handled by the _steadytext_init_python function instead
+if not GD.get('steadytext_initialized', False):
+    ext_schema_result = plpy.execute("SELECT nspname FROM pg_extension e JOIN pg_namespace n ON e.extnamespace = n.oid WHERE e.extname = 'pg_steadytext'")
+    ext_schema = ext_schema_result[0]['nspname'] if ext_schema_result else 'public'
+    plpy.execute(f"SELECT {plpy.quote_ident(ext_schema)}._steadytext_init_python()")
+    if not GD.get('steadytext_initialized', False):
+        plpy.error("Failed to initialize pg_steadytext Python environment")
+else:
+    ext_schema_result = plpy.execute("SELECT nspname FROM pg_extension e JOIN pg_namespace n ON e.extnamespace = n.oid WHERE e.extname = 'pg_steadytext'")
+    ext_schema = ext_schema_result[0]['nspname'] if ext_schema_result else 'public'
 
--- Create Python function container
+security_module = GD.get('module_security')
+if not security_module:
+    plpy.error("security module not loaded")
+
+security_validator = security_module.SecurityValidator()
+
+config_plan = GD.get('steadytext_config_plan_stream')
+if config_plan is None:
+    config_plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(ext_schema)}.steadytext_config WHERE key = $1", ["text"])
+    GD['steadytext_config_plan_stream'] = config_plan
+
+resolved_max_tokens = max_tokens
+if resolved_max_tokens is None:
+    rv = plpy.execute(config_plan, ["default_max_tokens"])
+    resolved_max_tokens = json.loads(rv[0]["value"]) if rv else 512
+
+resolved_seed = seed
+if resolved_seed is None:
+    rv = plpy.execute(config_plan, ["default_seed"])
+    resolved_seed = json.loads(rv[0]["value"]) if rv else 42
+
+if prompt is None:
+    raise_p0001("Prompt cannot be null")
+
+if isinstance(prompt, str) and prompt.strip() == "":
+    raise_p0001("Prompt cannot be empty")
+
+is_valid_prompt, prompt_error = security_validator.validate_prompt(prompt)
+if not is_valid_prompt:
+    raise_p0001(prompt_error)
+
+is_valid_tokens, tokens_error = security_validator.validate_max_tokens(resolved_max_tokens)
+if not is_valid_tokens:
+    raise_p0001(tokens_error)
+
+if resolved_seed < 0:
+    raise_p0001("seed must be non-negative")
+
+if not unsafe_mode and model and ':' in model:
+    raise_p0001("Remote models (containing ':' ) require unsafe_mode=TRUE")
+
+if unsafe_mode and not model:
+    raise_p0001("unsafe_mode=TRUE requires a model parameter to be specified")
+
+generate_plan = GD.get('steadytext_generate_plan_stream')
+if generate_plan is None:
+    generate_plan = plpy.prepare(
+        f"""SELECT {plpy.quote_ident(ext_schema)}.steadytext_generate(
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+            ) AS result""",
+        ["text", "int4", "bool", "int4", "text", "text", "text", "text", "text", "bool"]
+    )
+    GD['steadytext_generate_plan_stream'] = generate_plan
+
+rv = plpy.execute(
+    generate_plan,
+    [prompt, resolved_max_tokens, use_cache, resolved_seed, eos_string, model, model_repo, model_filename, size, unsafe_mode]
+)
+
+if not rv or rv[0]['result'] is None:
+    return
+
+full_text = rv[0]['result']
+
+parts = full_text.split(' ')
+
+for idx, part in enumerate(parts):
+    if idx < len(parts) - 1:
+        yield part + ' '
+    else:
+        yield part
+$c$;
+
+DO $$
+BEGIN
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION steadytext_generate_stream(text, integer, boolean, integer, text, text, text, text, text, boolean);
+    EXCEPTION WHEN OTHERS THEN
+        NULL;
+    END;
+END $$;
+
+CREATE OR REPLACE FUNCTION st_generate_stream(
+    prompt TEXT,
+    max_tokens INT DEFAULT NULL,
+    use_cache BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42,
+    eos_string TEXT DEFAULT '[EOS]',
+    model TEXT DEFAULT NULL,
+    model_repo TEXT DEFAULT NULL,
+    model_filename TEXT DEFAULT NULL,
+    size TEXT DEFAULT NULL,
+    unsafe_mode BOOLEAN DEFAULT FALSE
+)
+RETURNS SETOF TEXT
+LANGUAGE sql
+IMMUTABLE PARALLEL SAFE
+AS $alias$
+    SELECT * FROM steadytext_generate_stream($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
+$alias$;
+
+DO $$
+BEGIN
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_generate_stream(text, integer, boolean, integer, text, text, text, text, text, boolean);
+    EXCEPTION WHEN OTHERS THEN
+        NULL;
+    END;
+END $$;
+
 CREATE OR REPLACE FUNCTION _steadytext_init_python()
 RETURNS void
 LANGUAGE plpython3u
@@ -359,13 +352,6 @@ except Exception as e:
     plpy.error(f"Unexpected error during initialization: {e}")
 $c$;
 
--- AIDEV-NOTE: Initialization is now done on-demand in each function
--- This ensures proper initialization even across session boundaries
-
--- AIDEV-SECTION: CORE_FUNCTIONS
--- Core function: Synchronous text generation
--- Returns NULL if generation fails (no fallback text)
--- Handle removal of old function signature before creating new one
 DO $$
 BEGIN
     -- Try to remove old function from extension if it exists
@@ -631,7 +617,6 @@ else:
         plpy.error(f"Generation failed: {str(e)}")
 $c$;
 
--- Add new function to extension (idempotent)
 DO $$
 BEGIN
     -- Try to add function to extension
@@ -643,8 +628,6 @@ BEGIN
     END;
 END $$;
 
--- Core function: Synchronous embedding generation
--- Returns NULL if embedding generation fails (no fallback vector)
 CREATE OR REPLACE FUNCTION steadytext_embed(
     text_input TEXT,
     use_cache BOOLEAN DEFAULT TRUE,
@@ -793,8 +776,6 @@ except Exception as e:
 return [0.0] * 1024
 $c$;
 
--- AIDEV-SECTION: DAEMON_MANAGEMENT_FUNCTIONS
--- Daemon management functions
 CREATE OR REPLACE FUNCTION steadytext_daemon_start()
 RETURNS BOOLEAN
 LANGUAGE plpython3u
@@ -844,7 +825,6 @@ except Exception as e:
     return False
 $c$;
 
--- Get daemon status
 CREATE OR REPLACE FUNCTION steadytext_daemon_status()
 RETURNS TABLE(
     daemon_id TEXT,
@@ -926,7 +906,6 @@ except Exception as e:
     return plpy.execute(select_plan)
 $c$;
 
--- Stop daemon
 CREATE OR REPLACE FUNCTION steadytext_daemon_stop()
 RETURNS BOOLEAN
 LANGUAGE plpython3u
@@ -977,8 +956,6 @@ plpy.execute(update_plan, [status_value])
 return stopped_successfully
 $c$;
 
--- AIDEV-SECTION: CACHE_MANAGEMENT_FUNCTIONS
--- Cache management functions
 CREATE OR REPLACE FUNCTION steadytext_cache_stats()
 RETURNS TABLE(
     total_entries BIGINT,
@@ -1001,7 +978,6 @@ AS $c$
     FROM @extschema@.steadytext_cache;
 $c$;
 
--- Clear cache
 CREATE OR REPLACE FUNCTION steadytext_cache_clear()
 RETURNS BIGINT
 LANGUAGE sql
@@ -1013,8 +989,6 @@ AS $c$
     SELECT COUNT(*) FROM deleted;
 $c$;
 
--- AIDEV-SECTION: UPDATE_EVICTION_FUNCTIONS
--- Replace frecency-based eviction with age-based eviction
 CREATE OR REPLACE FUNCTION steadytext_cache_evict_by_age(
     target_entries INT DEFAULT NULL,
     target_size_mb FLOAT DEFAULT NULL,
@@ -1133,8 +1107,6 @@ AS $c$
     SELECT * FROM steadytext_cache_evict_by_age(target_entries, target_size_mb, batch_size, min_age_hours);
 $c$;
 
-
--- Update the scheduled eviction function to use age-based eviction
 CREATE OR REPLACE FUNCTION steadytext_cache_scheduled_eviction()
 RETURNS void
 LANGUAGE plpgsql
@@ -1164,7 +1136,6 @@ BEGIN
 END;
 $c$;
 
--- Update cache preview to show age instead of frecency
 CREATE OR REPLACE FUNCTION steadytext_cache_preview_eviction(
     preview_count INT DEFAULT 10
 )
@@ -1194,7 +1165,6 @@ AS $c$
     LIMIT preview_count;
 $c$;
 
--- Update cache analysis to reflect age-based strategy
 CREATE OR REPLACE FUNCTION steadytext_cache_analyze_usage()
 RETURNS TABLE(
     age_bucket TEXT,
@@ -1243,37 +1213,14 @@ AS $c$
         END;
 $c$;
 
--- AIDEV-NOTE: The view steadytext_cache_with_frecency is kept for compatibility
--- but now shows age_score instead of frecency_score
-CREATE OR REPLACE VIEW steadytext_cache_with_frecency AS
-SELECT *,
-    -- Simple age-based score for compatibility (higher = older = more likely to evict)
-    EXTRACT(EPOCH FROM (NOW() - created_at)) / 86400.0 AS frecency_score
-FROM @extschema@.steadytext_cache;
-
-COMMENT ON VIEW steadytext_cache_with_frecency IS 
-'Compatibility view - frecency_score now represents age in days (v1.4.1+)';
-
--- Add comment explaining the cache strategy change
-COMMENT ON TABLE steadytext_cache IS 
-'Write-once cache for SteadyText results. Uses age-based eviction (FIFO) as of v1.4.1 to maintain IMMUTABLE function guarantees.';
-
--- Get extension version
 CREATE OR REPLACE FUNCTION steadytext_version()
 RETURNS TEXT
 LANGUAGE sql
 IMMUTABLE PARALLEL SAFE LEAKPROOF
 AS $c$
-    SELECT '2025.10.28'::TEXT;
+    SELECT '2025.10.30'::TEXT;
 $c$;
 
--- (removed duplicate non-STRICT steadytext_config_get; see later STRICT version)
-
--- AIDEV-SECTION: STRUCTURED_GENERATION_FUNCTIONS
--- Structured generation functions using llama.cpp grammars
-
--- Generate JSON with schema validation
--- Handle removal of old function signature before creating new one
 DO $$
 BEGIN
     -- Try to remove old function from extension if it exists
@@ -1486,7 +1433,6 @@ except Exception as e:
 return ensure_json_string(result)
 $c$;
 
--- Add new function to extension (idempotent)
 DO $$
 BEGIN
     -- Try to add function to extension
@@ -1498,8 +1444,6 @@ BEGIN
     END;
 END $$;
 
--- Generate text matching a regex pattern
--- Handle removal of old function signature before creating new one
 DO $$
 BEGIN
     -- Try to remove old function from extension if it exists
@@ -1692,7 +1636,6 @@ except Exception as e:
     return fallback_value
 $c$;
 
--- Add new function to extension (idempotent)
 DO $$
 BEGIN
     -- Try to add function to extension
@@ -1704,8 +1647,6 @@ BEGIN
     END;
 END $$;
 
--- Generate text from a list of choices
--- Handle removal of old function signature before creating new one
 DO $$
 BEGIN
     -- Try to remove old function from extension if it exists
@@ -1900,7 +1841,6 @@ except Exception as e:
     return ensure_choice(None, choices_list)
 $c$;
 
--- Add new function to extension (idempotent)
 DO $$
 BEGIN
     -- Try to add function to extension
@@ -1912,10 +1852,6 @@ BEGIN
     END;
 END $$;
 
--- AIDEV-SECTION: AI_SUMMARIZATION_AGGREGATES
--- AI summarization aggregate functions with TimescaleDB support
-
--- Helper function to extract facts from text using JSON generation
 CREATE OR REPLACE FUNCTION steadytext_extract_facts(
     input_text text,
     max_facts integer DEFAULT 10
@@ -1954,7 +1890,6 @@ AS $c$
     return json.dumps({"facts": facts})
 $c$;
 
--- Helper function to deduplicate facts using embeddings
 CREATE OR REPLACE FUNCTION steadytext_deduplicate_facts(
     facts_array jsonb,
     similarity_threshold float DEFAULT 0.85
@@ -2070,7 +2005,6 @@ AS $c$
     return json.dumps(unique_facts)
 $c$;
 
--- State accumulator function for AI summarization
 CREATE OR REPLACE FUNCTION steadytext_summarize_accumulate(
     state jsonb,
     value text,
@@ -2155,7 +2089,6 @@ AS $c$
     return json.dumps(state_data)
 $c$;
 
--- Combiner function for parallel aggregation
 CREATE OR REPLACE FUNCTION steadytext_summarize_combine(
     state1 jsonb,
     state2 jsonb
@@ -2241,7 +2174,6 @@ AS $c$
     })
 $c$;
 
--- Finalizer function to generate summary
 CREATE OR REPLACE FUNCTION steadytext_summarize_finalize(
     state jsonb
 ) RETURNS text
@@ -2328,26 +2260,6 @@ AS $c$
     return "Unable to generate summary"
 $c$;
 
--- AIDEV-NOTE: Since we use STYPE = jsonb, PostgreSQL handles serialization automatically for parallel processing.
-
--- Create the main aggregate
-CREATE OR REPLACE AGGREGATE steadytext_summarize(text, jsonb) (
-    SFUNC = steadytext_summarize_accumulate,
-    STYPE = jsonb,
-    FINALFUNC = steadytext_summarize_finalize,
-    COMBINEFUNC = steadytext_summarize_combine,
-    PARALLEL = SAFE
-);
-
--- Create partial aggregate for TimescaleDB continuous aggregates
-CREATE OR REPLACE AGGREGATE steadytext_summarize_partial(text, jsonb) (
-    SFUNC = steadytext_summarize_accumulate,
-    STYPE = jsonb,
-    COMBINEFUNC = steadytext_summarize_combine,
-    PARALLEL = SAFE
-);
-
--- Helper function to combine partial states for final aggregation
 CREATE OR REPLACE FUNCTION steadytext_summarize_combine_states(
     state1 jsonb,
     partial_state jsonb
@@ -2361,15 +2273,6 @@ BEGIN
 END;
 $c$;
 
--- Create final aggregate that works on partial results
-CREATE OR REPLACE AGGREGATE steadytext_summarize_final(jsonb) (
-    SFUNC = steadytext_summarize_combine_states,
-    STYPE = jsonb,
-    FINALFUNC = steadytext_summarize_finalize,
-    PARALLEL = SAFE
-);
-
--- Convenience function for single-value summarization with unsafe_mode and model support
 CREATE OR REPLACE FUNCTION steadytext_summarize_text(
     input_text text,
     metadata jsonb DEFAULT '{}'::jsonb,
@@ -2427,25 +2330,6 @@ if result and result[0]["summary"]:
 return "Unable to generate summary"
 $c$;
 
--- Add helpful comments
-COMMENT ON AGGREGATE steadytext_summarize(text, jsonb) IS
-'AI-powered text summarization aggregate that handles non-transitivity through structured fact extraction';
-
-COMMENT ON AGGREGATE steadytext_summarize_partial(text, jsonb) IS
-'Partial aggregate for use with TimescaleDB continuous aggregates';
-
-COMMENT ON AGGREGATE steadytext_summarize_final(jsonb) IS
-'Final aggregate for completing partial aggregations from continuous aggregates';
-
-COMMENT ON FUNCTION steadytext_extract_facts(text, integer) IS
-'Extract structured facts from text using SteadyText JSON generation';
-
-COMMENT ON FUNCTION steadytext_deduplicate_facts(jsonb, float) IS
-'Deduplicate facts based on semantic similarity using embeddings';
-
--- AIDEV-SECTION: RERANKING_FUNCTIONS
--- Basic rerank function returning documents with scores
-DROP FUNCTION IF EXISTS steadytext_rerank;
 CREATE OR REPLACE FUNCTION steadytext_rerank(
     query text,
     documents text[],
@@ -2718,7 +2602,6 @@ BEGIN
 END;
 $$;
 
-DROP FUNCTION IF EXISTS steadytext_generate_batch_async(TEXT[], INT);
 CREATE OR REPLACE FUNCTION steadytext_generate_batch_async(
     prompts TEXT[],
     max_tokens INT DEFAULT 512
@@ -2752,9 +2635,6 @@ BEGIN
 END;
 $$;
 
--- Async rerank function
--- AIDEV-NOTE: Async reranking with proper UUID handling and schema qualification
--- AIDEV-FIX: Cast request_id to UUID explicitly to avoid type mismatch errors
 CREATE OR REPLACE FUNCTION steadytext_rerank_async(
     query text,
     documents text[],
@@ -2993,8 +2873,6 @@ BEGIN
 END;
 $$;
 
--- Function to get configuration values
-DROP FUNCTION IF EXISTS steadytext_config_get(TEXT);
 CREATE OR REPLACE FUNCTION steadytext_config_get(
     config_key TEXT
 )
@@ -3005,10 +2883,6 @@ AS $$
     SELECT value #>> '{}' FROM @extschema@.steadytext_config WHERE key = config_key;
 $$;
 
--- AIDEV-SECTION: ASYNC_RESULT_RETRIEVAL
--- Functions for checking and retrieving async operation results
-
--- Enhanced async check function that handles all result types
 CREATE OR REPLACE FUNCTION steadytext_check_async(
     request_id UUID
 )
@@ -3042,7 +2916,6 @@ AS $$
     WHERE @extschema@.steadytext_queue.request_id = steadytext_check_async.request_id;
 $$;
 
--- Convenience function to get result directly (blocks until ready or timeout)
 CREATE OR REPLACE FUNCTION steadytext_get_async_result(
     request_id UUID,
     timeout_seconds INT DEFAULT 30
@@ -3093,7 +2966,6 @@ BEGIN
 END;
 $$;
 
--- Function to cancel an async request
 CREATE OR REPLACE FUNCTION steadytext_cancel_async(
     request_id UUID
 )
@@ -3117,7 +2989,6 @@ BEGIN
 END;
 $$;
 
--- Batch async functions for checking multiple requests
 CREATE OR REPLACE FUNCTION steadytext_embed_batch_async(
     texts TEXT[]
 )
@@ -3158,7 +3029,6 @@ BEGIN
 END;
 $$;
 
--- Function to check multiple async requests at once
 CREATE OR REPLACE FUNCTION steadytext_check_async_batch(
     request_ids UUID[]
 )
@@ -3182,10 +3052,6 @@ AS $$
     WHERE request_id = ANY(request_ids)
     ORDER BY array_position(request_ids, request_id);
 $$;
-
--- AIDEV-SECTION: VOLATILE_WRAPPER_FUNCTIONS
--- These functions provide cache-writing capability for users who need it
--- They wrap the IMMUTABLE functions and handle cache population
 
 CREATE OR REPLACE FUNCTION steadytext_generate_cached(
     prompt TEXT,
@@ -3261,7 +3127,9 @@ BEGIN
     
     -- Validate remote model requirements
     IF model IS NOT NULL AND position(':' IN model) > 0 AND NOT unsafe_mode THEN
-        RAISE EXCEPTION 'Remote models (containing '':' ) require unsafe_mode=TRUE';
+        RAISE EXCEPTION USING 
+            ERRCODE = 'P0001',
+            MESSAGE = 'Remote models (containing '':'' ) require unsafe_mode=TRUE';
     END IF;
     
     -- Generate result using IMMUTABLE function
@@ -3294,7 +3162,6 @@ BEGIN
 END;
 $c$;
 
--- Create async embedding function with model and unsafe_mode parameters
 CREATE OR REPLACE FUNCTION steadytext_embed_async(
     text_input TEXT,
     use_cache BOOLEAN DEFAULT TRUE,
@@ -3312,7 +3179,9 @@ BEGIN
     
     -- Validate remote model requirements
     IF model IS NOT NULL AND position(':' IN model) > 0 AND NOT unsafe_mode THEN
-        RAISE EXCEPTION 'Remote models (containing '':' ) require unsafe_mode=TRUE';
+        RAISE EXCEPTION USING 
+            ERRCODE = 'P0001',
+            MESSAGE = 'Remote models (containing '':'' ) require unsafe_mode=TRUE';
     END IF;
     
     request_id := gen_random_uuid();
@@ -3355,95 +3224,6 @@ BEGIN
 END;
 $$;
 
--- Add comments explaining the wrapper functions
-COMMENT ON FUNCTION steadytext_generate_cached IS 
-'VOLATILE wrapper for steadytext_generate that handles cache population. Use when automatic caching is needed.';
-
-COMMENT ON FUNCTION steadytext_embed_cached IS 
-'VOLATILE wrapper for steadytext_embed that handles cache population. Use when automatic caching is needed.';
-
-COMMENT ON FUNCTION steadytext_embed_async IS
-'Async embedding generation with remote model support. Returns UUID for checking status with steadytext_get_result.';
-
--- Add note about cache population strategies
-COMMENT ON FUNCTION steadytext_generate(text, integer, boolean, integer, text, text, text, text, text, boolean) IS 
-'IMMUTABLE function for text generation. Only reads from cache, never writes. For automatic cache population, use steadytext_generate_cached.';
-
-COMMENT ON FUNCTION steadytext_embed IS 
-'IMMUTABLE function for embeddings. Only reads from cache, never writes. For automatic cache population, use steadytext_embed_cached.';
-
--- Grant appropriate permissions
-GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO PUBLIC;
-GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO PUBLIC;
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO PUBLIC;
-
--- AIDEV-NOTE: This completes the base schema for pg_steadytext v1.4.2
---
--- AIDEV-SECTION: CHANGES_MADE_IN_REVIEW
--- The following issues were identified and fixed during review:
--- 1. Added missing columns: model_size, eos_string, response_size, daemon_endpoint
--- 2. Enhanced queue table with priority, user_id, session_id, batch support
--- 3. Added rate limiting and audit logging tables
--- 4. Fixed cache key generation to use SHA256 and match SteadyText format
--- 5. Fixed daemon integration to use proper SteadyText API methods
--- 6. Added proper indexes for performance
---
--- AIDEV-TODO: Future versions should add:
--- - Async processing functions (steadytext_generate_async, steadytext_get_result)
--- - Streaming generation function (steadytext_generate_stream)
--- - Batch operations (steadytext_embed_batch)
--- - FAISS index operations (steadytext_index_create, steadytext_index_search)
--- - Worker management functions
--- - Enhanced security and rate limiting functions
--- - Support for Pydantic models in structured generation (needs JSON serialization)
--- - Tests for structured generation functions
-
--- AIDEV-NOTE: Added in v1.0.1 (2025-07-07):
--- Marked all deterministic functions as IMMUTABLE, PARALLEL SAFE, and LEAKPROOF (where allowed):
--- - steadytext_generate(), steadytext_embed(), steadytext_generate_json(),
---   steadytext_generate_regex(), steadytext_generate_choice() are IMMUTABLE PARALLEL SAFE
--- - steadytext_version() is IMMUTABLE PARALLEL SAFE LEAKPROOF
--- - steadytext_cache_stats() and steadytext_config_get() are STABLE PARALLEL SAFE
--- - steadytext_config_get() is also LEAKPROOF since it's a simple SQL function
--- This enables use with TimescaleDB and in aggregates, and improves query optimization
-
--- AIDEV-NOTE: Added in v1.1.0 (2025-07-08):
--- AI summarization aggregate functions with the following features:
--- 1. Structured fact extraction to mitigate non-transitivity
--- 2. Semantic deduplication using embeddings
--- 3. Statistical tracking (row counts, character lengths)
--- 4. Sample preservation for context
--- 5. Combine depth tracking for adaptive prompts
--- 6. Full TimescaleDB continuous aggregate support
--- 7. Serialization for distributed aggregation
-
--- AIDEV-NOTE: Updated in v1.2.0 (2025-07-08):
--- Improved AI summarization aggregate functions with:
--- 1. Better error handling throughout all functions
--- 2. Input validation for all parameters
--- 3. Protection against division by zero in cosine similarity calculations
--- 4. Specific exception handling instead of bare except clauses
--- 5. Proper handling of invalid JSON inputs
--- 6. Zero-norm vector protection in similarity calculations
--- 7. Graceful fallback when parsing fails
--- 8. FIXED: Removed serialization functions to resolve "serialization functions may be
---    specified only when the aggregate transition data type is internal" error
-
--- AIDEV-NOTE: Added in v1.3.0 (2025-07-09):
--- Reranking functions for query-document relevance scoring:
--- 1. Basic rerank function with optional score return
--- 2. Document-only variant for simplified output
--- 3. Top-k filtering for returning best matches
--- 4. Async processing support via queue system
--- 5. Batch reranking for multiple queries
--- 6. Integration with SteadyText daemon for Qwen3-Reranker-4B model
-
--- AIDEV-NOTE: Added in v2025.8.15 (2025-07-31):
--- Short aliases for all steadytext functions (st_* for steadytext_*)
--- Manual creation is required to preserve default parameter values
--- Dynamic generation would create functions without DEFAULT clauses, breaking the API
-
--- st_generate alias
 CREATE OR REPLACE FUNCTION st_generate(
     prompt TEXT,
     max_tokens INT DEFAULT NULL,
@@ -3463,7 +3243,6 @@ AS $alias$
     SELECT steadytext_generate($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
 $alias$;
 
--- st_embed alias
 CREATE OR REPLACE FUNCTION st_embed(
     text_input TEXT,
     use_cache BOOLEAN DEFAULT TRUE,
@@ -3478,7 +3257,6 @@ AS $alias$
     SELECT steadytext_embed($1, $2, $3, $4, $5);
 $alias$;
 
--- st_embed_cached alias
 CREATE OR REPLACE FUNCTION st_embed_cached(
     text_input TEXT,
     seed INT DEFAULT 42,
@@ -3492,7 +3270,6 @@ AS $alias$
     SELECT steadytext_embed_cached($1, $2, $3, $4);
 $alias$;
 
--- st_embed_async alias
 CREATE OR REPLACE FUNCTION st_embed_async(
     text_input TEXT,
     use_cache BOOLEAN DEFAULT TRUE,
@@ -3507,7 +3284,6 @@ AS $alias$
     SELECT steadytext_embed_async($1, $2, $3, $4, $5);
 $alias$;
 
--- st_generate_cached alias
 CREATE OR REPLACE FUNCTION st_generate_cached(
     prompt TEXT,
     max_tokens INT DEFAULT NULL,
@@ -3520,7 +3296,6 @@ AS $alias$
     SELECT steadytext_generate_cached($1, $2, $3);
 $alias$;
 
--- st_generate_json alias
 CREATE OR REPLACE FUNCTION st_generate_json(
     prompt TEXT,
     schema JSONB,
@@ -3536,7 +3311,6 @@ AS $alias$
     SELECT steadytext_generate_json($1, $2, $3, $4, $5, $6);
 $alias$;
 
--- st_generate_regex alias
 CREATE OR REPLACE FUNCTION st_generate_regex(
     prompt TEXT,
     pattern TEXT,
@@ -3552,7 +3326,6 @@ AS $alias$
     SELECT steadytext_generate_regex($1, $2, $3, $4, $5, $6);
 $alias$;
 
--- st_generate_choice alias
 CREATE OR REPLACE FUNCTION st_generate_choice(
     prompt TEXT,
     choices TEXT[],
@@ -3568,7 +3341,6 @@ AS $alias$
     SELECT steadytext_generate_choice($1, $2, $3, $4, $5, $6);
 $alias$;
 
--- st_rerank alias
 CREATE OR REPLACE FUNCTION st_rerank(
     query TEXT,
     documents TEXT[],
@@ -3583,7 +3355,6 @@ AS $alias$
     SELECT * FROM steadytext_rerank($1, $2, $3, $4, $5);
 $alias$;
 
--- st_rerank_docs_only alias
 CREATE OR REPLACE FUNCTION st_rerank_docs_only(
     query TEXT,
     documents TEXT[],
@@ -3597,7 +3368,6 @@ AS $alias$
     SELECT * FROM steadytext_rerank_docs_only($1, $2, $3, $4);
 $alias$;
 
--- st_rerank_top_k alias
 CREATE OR REPLACE FUNCTION st_rerank_top_k(
     query TEXT,
     documents TEXT[],
@@ -3613,8 +3383,6 @@ AS $alias$
     SELECT * FROM steadytext_rerank_top_k($1, $2, $3, $4, $5, $6);
 $alias$;
 
--- st_rerank_batch alias
-DROP FUNCTION IF EXISTS st_rerank_batch(TEXT[], TEXT[], TEXT, BOOLEAN, INTEGER);
 CREATE OR REPLACE FUNCTION st_rerank_batch(
     queries TEXT[],
     documents TEXT[],
@@ -3629,8 +3397,6 @@ AS $alias$
     SELECT * FROM steadytext_rerank_batch($1, $2, $3, $4, $5);
 $alias$;
 
--- Async function aliases
--- st_generate_async alias
 CREATE OR REPLACE FUNCTION st_generate_async(
     prompt TEXT,
     max_tokens INT DEFAULT NULL
@@ -3642,7 +3408,6 @@ AS $alias$
     SELECT steadytext_generate_async($1, $2);
 $alias$;
 
--- st_rerank_async alias
 CREATE OR REPLACE FUNCTION st_rerank_async(
     query TEXT,
     documents TEXT[],
@@ -3657,7 +3422,6 @@ AS $alias$
     SELECT steadytext_rerank_async($1, $2, $3, $4, $5);
 $alias$;
 
--- st_rerank_batch_async alias
 CREATE OR REPLACE FUNCTION st_rerank_batch_async(
     queries TEXT[],
     documents TEXT[],
@@ -3672,7 +3436,6 @@ AS $alias$
     SELECT steadytext_rerank_batch_async($1, $2, $3, $4, $5);
 $alias$;
 
--- st_check_async alias
 CREATE OR REPLACE FUNCTION st_check_async(
     request_id UUID
 )
@@ -3694,7 +3457,6 @@ AS $alias$
     SELECT * FROM steadytext_check_async($1);
 $alias$;
 
--- st_get_async_result alias
 CREATE OR REPLACE FUNCTION st_get_async_result(
     request_id UUID,
     timeout_seconds INT DEFAULT 30
@@ -3706,8 +3468,6 @@ AS $alias$
     SELECT steadytext_get_async_result($1, $2);
 $alias$;
 
--- Cache management aliases
--- st_cache_stats alias
 CREATE OR REPLACE FUNCTION st_cache_stats()
 RETURNS TABLE(total_entries BIGINT, total_size_mb DOUBLE PRECISION, cache_hit_rate DOUBLE PRECISION, avg_access_count DOUBLE PRECISION, oldest_entry TIMESTAMP WITH TIME ZONE, newest_entry TIMESTAMP WITH TIME ZONE)
 LANGUAGE sql
@@ -3716,7 +3476,6 @@ AS $alias$
     SELECT * FROM steadytext_cache_stats();
 $alias$;
 
--- st_cache_clear alias
 CREATE OR REPLACE FUNCTION st_cache_clear()
 RETURNS BIGINT
 LANGUAGE sql
@@ -3725,7 +3484,6 @@ AS $alias$
     SELECT steadytext_cache_clear();
 $alias$;
 
--- st_cache_evict_by_age alias
 CREATE OR REPLACE FUNCTION st_cache_evict_by_age(
     target_entries INT DEFAULT NULL,
     target_size_mb DOUBLE PRECISION DEFAULT NULL,
@@ -3739,7 +3497,6 @@ AS $alias$
     SELECT * FROM steadytext_cache_evict_by_age($1, $2, $3, $4);
 $alias$;
 
--- st_cache_preview_eviction alias
 CREATE OR REPLACE FUNCTION st_cache_preview_eviction(
     preview_count INT DEFAULT 10
 )
@@ -3750,7 +3507,6 @@ AS $alias$
     SELECT * FROM steadytext_cache_preview_eviction($1);
 $alias$;
 
--- st_cache_analyze_usage alias
 CREATE OR REPLACE FUNCTION st_cache_analyze_usage()
 RETURNS TABLE(age_bucket TEXT, entry_count BIGINT, avg_access_count DOUBLE PRECISION, total_size_mb DOUBLE PRECISION, percentage_of_cache DOUBLE PRECISION)
 LANGUAGE sql
@@ -3759,7 +3515,6 @@ AS $alias$
     SELECT * FROM steadytext_cache_analyze_usage();
 $alias$;
 
--- st_cache_scheduled_eviction alias
 CREATE OR REPLACE FUNCTION st_cache_scheduled_eviction()
 RETURNS VOID
 LANGUAGE sql
@@ -3768,8 +3523,6 @@ AS $alias$
     SELECT steadytext_cache_scheduled_eviction();
 $alias$;
 
--- Daemon management aliases
--- st_daemon_start alias
 CREATE OR REPLACE FUNCTION st_daemon_start()
 RETURNS BOOLEAN
 LANGUAGE sql
@@ -3778,7 +3531,6 @@ AS $alias$
     SELECT @extschema@.steadytext_daemon_start();
 $alias$;
 
--- st_daemon_status alias
 CREATE OR REPLACE FUNCTION st_daemon_status()
 RETURNS TABLE(daemon_id TEXT, status TEXT, endpoint TEXT, last_heartbeat TIMESTAMP WITH TIME ZONE, uptime_seconds INTEGER)
 LANGUAGE sql
@@ -3787,7 +3539,6 @@ AS $alias$
     SELECT * FROM @extschema@.steadytext_daemon_status();
 $alias$;
 
--- st_daemon_stop alias
 CREATE OR REPLACE FUNCTION st_daemon_stop()
 RETURNS BOOLEAN
 LANGUAGE sql
@@ -3796,8 +3547,6 @@ AS $alias$
     SELECT @extschema@.steadytext_daemon_stop();
 $alias$;
 
--- Configuration aliases
--- st_config_get alias
 CREATE OR REPLACE FUNCTION st_config_get(
     key TEXT
 )
@@ -3808,7 +3557,6 @@ AS $alias$
     SELECT steadytext_config_get($1);
 $alias$;
 
--- st_config_set alias
 CREATE OR REPLACE FUNCTION st_config_set(
     key TEXT,
     value TEXT
@@ -3820,7 +3568,6 @@ AS $alias$
     SELECT steadytext_config_set($1, $2);
 $alias$;
 
--- st_version alias
 CREATE OR REPLACE FUNCTION st_version()
 RETURNS TEXT
 LANGUAGE sql
@@ -3829,8 +3576,6 @@ AS $alias$
     SELECT steadytext_version();
 $alias$;
 
--- AIDEV-SECTION: SUMMARIZATION_ALIASES
--- Create st_ aliases for summarization functions
 CREATE OR REPLACE FUNCTION st_summarize_text(
     input_text text,
     metadata jsonb DEFAULT '{}'::jsonb,
@@ -3860,56 +3605,6 @@ AS $$
     SELECT @extschema@.steadytext_deduplicate_facts($1, $2);
 $$;
 
--- Aggregate aliases
-CREATE OR REPLACE AGGREGATE st_summarize(text, jsonb) (
-    SFUNC = steadytext_summarize_accumulate,
-    STYPE = jsonb,
-    COMBINEFUNC = steadytext_summarize_combine,
-    FINALFUNC = steadytext_summarize_finalize,
-    PARALLEL = SAFE
-);
-
--- ================================================================
--- PROMPT REGISTRY FEATURE (v2025.9.6)
--- ================================================================
--- AIDEV-NOTE: Lightweight Jinja2-based prompt template management with versioning
-
--- Drop tables if they exist (for clean installation)
-DROP TABLE IF EXISTS steadytext_prompt_versions CASCADE;
-DROP TABLE IF EXISTS steadytext_prompts CASCADE;
-
--- Create prompts table
-CREATE TABLE steadytext_prompts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    slug TEXT UNIQUE NOT NULL CHECK (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$' AND LENGTH(slug) BETWEEN 3 AND 100),
-    description TEXT CHECK (LENGTH(description) <= 500),
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    created_by TEXT DEFAULT current_user,
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_by TEXT DEFAULT current_user
-);
-
--- Create prompt versions table
-CREATE TABLE steadytext_prompt_versions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    prompt_id UUID NOT NULL REFERENCES steadytext_prompts(id) ON DELETE CASCADE,
-    version INTEGER NOT NULL CHECK (version > 0),
-    template TEXT NOT NULL CHECK (LENGTH(template) > 0),
-    required_variables TEXT[],
-    metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    created_by TEXT DEFAULT current_user,
-    is_active BOOLEAN DEFAULT FALSE,
-    UNIQUE(prompt_id, version)
-);
-
--- Create indexes for performance
-CREATE INDEX idx_steadytext_prompts_slug ON steadytext_prompts(slug);
-CREATE INDEX idx_steadytext_prompts_created_at ON steadytext_prompts(created_at DESC);
-CREATE INDEX idx_steadytext_prompt_versions_prompt_id_active ON steadytext_prompt_versions(prompt_id, is_active) WHERE is_active = TRUE;
-CREATE INDEX idx_steadytext_prompt_versions_created_at ON steadytext_prompt_versions(created_at DESC);
-
--- Helper function to get next version number
 CREATE OR REPLACE FUNCTION _get_next_version(p_prompt_id UUID)
 RETURNS INTEGER
 LANGUAGE sql
@@ -3920,7 +3615,6 @@ AS $$
     WHERE prompt_id = p_prompt_id;
 $$;
 
--- Python function to validate Jinja2 templates
 CREATE OR REPLACE FUNCTION _validate_jinja2_template(template TEXT)
 RETURNS TABLE(is_valid BOOLEAN, required_variables TEXT[], error_message TEXT)
 LANGUAGE plpython3u
@@ -3962,7 +3656,6 @@ AS $$
         return [(False, None, f"Unexpected error: {str(e)}")]
 $$;
 
--- Create prompt with first version
 CREATE OR REPLACE FUNCTION steadytext_prompt_create(
     slug TEXT,
     template TEXT,
@@ -4007,7 +3700,6 @@ EXCEPTION
 END;
 $$;
 
--- Update prompt (create new version)
 CREATE OR REPLACE FUNCTION steadytext_prompt_update(
     slug TEXT,
     template TEXT,
@@ -4067,7 +3759,6 @@ BEGIN
 END;
 $$;
 
--- Get prompt template
 CREATE OR REPLACE FUNCTION steadytext_prompt_get(
     slug TEXT,
     version INTEGER DEFAULT NULL
@@ -4117,7 +3808,6 @@ BEGIN
 END;
 $$;
 
--- Render prompt template
 CREATE OR REPLACE FUNCTION steadytext_prompt_render(
     slug TEXT,
     variables JSONB,
@@ -4220,7 +3910,6 @@ AS $$
         plpy.error(f"Template rendering error: {str(e)}")
 $$;
 
--- List all prompts
 CREATE OR REPLACE FUNCTION steadytext_prompt_list()
 RETURNS TABLE(
     prompt_id UUID,
@@ -4248,7 +3937,6 @@ AS $$
     ORDER BY p.created_at DESC;
 $$;
 
--- List versions of a prompt
 CREATE OR REPLACE FUNCTION steadytext_prompt_versions(slug TEXT)
 RETURNS TABLE(
     version_num INTEGER,
@@ -4283,7 +3971,6 @@ BEGIN
 END;
 $$;
 
--- Delete prompt and all versions
 CREATE OR REPLACE FUNCTION steadytext_prompt_delete(slug TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -4308,7 +3995,6 @@ BEGIN
 END;
 $$;
 
--- Create short aliases for all prompt functions
 CREATE OR REPLACE FUNCTION st_prompt_create(
     slug TEXT,
     template TEXT,
@@ -4394,7 +4080,3 @@ LANGUAGE sql
 AS $$
     SELECT @extschema@.steadytext_prompt_delete($1);
 $$;
-
--- AIDEV-NOTE: Prompt registry feature added in v2025.9.6
--- Provides lightweight Jinja2-based template management with versioning
--- All functions have st_* aliases for convenience

@@ -1,5 +1,5 @@
--- pg_steadytext--2025.8.26.sql
--- Complete schema for pg_steadytext extension version 2025.8.26
+-- pg_steadytext--2025.10.30.sql
+-- Complete schema for pg_steadytext extension version 2025.10.30
 -- Includes schema qualification fixes and summarization enhancements
 
 -- AIDEV-SECTION: CORE_TABLE_DEFINITIONS
@@ -378,6 +378,148 @@ BEGIN
     
     -- Try to drop old function if it exists
     DROP FUNCTION IF EXISTS steadytext_generate(text, integer, boolean, integer);
+END $$;
+
+-- Streaming generation wrapper that yields tokens from steadytext_generate
+DO $$
+BEGIN
+    BEGIN
+        ALTER EXTENSION pg_steadytext DROP FUNCTION steadytext_generate_stream(text, integer);
+    EXCEPTION WHEN OTHERS THEN
+        NULL;
+    END;
+
+    DROP FUNCTION IF EXISTS steadytext_generate_stream(text, integer);
+END $$;
+
+CREATE OR REPLACE FUNCTION steadytext_generate_stream(
+    prompt TEXT,
+    max_tokens INT DEFAULT NULL,
+    use_cache BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42,
+    eos_string TEXT DEFAULT '[EOS]',
+    model TEXT DEFAULT NULL,
+    model_repo TEXT DEFAULT NULL,
+    model_filename TEXT DEFAULT NULL,
+    size TEXT DEFAULT NULL,
+    unsafe_mode BOOLEAN DEFAULT FALSE
+)
+RETURNS SETOF TEXT
+LANGUAGE plpython3u
+IMMUTABLE PARALLEL SAFE
+AS $c$
+import json
+
+def raise_p0001(message: str) -> None:
+    security = GD.get('module_security')
+    if security and hasattr(security, 'raise_sqlstate'):
+        security.raise_sqlstate(message, "P0001")
+        return
+
+    plan = GD.get('steadytext_raise_plan')
+    if plan is None:
+        ext_schema_result = plpy.execute("SELECT nspname FROM pg_extension e JOIN pg_namespace n ON e.extnamespace = n.oid WHERE e.extname = 'pg_steadytext'")
+        ext_schema = ext_schema_result[0]['nspname'] if ext_schema_result else 'public'
+        plan = plpy.prepare(f"SELECT {plpy.quote_ident(ext_schema)}._steadytext_raise_p0001($1)", ["text"])
+        GD['steadytext_raise_plan'] = plan
+
+    plpy.execute(plan, [message])
+
+# Initialize Python environment if necessary
+if not GD.get('steadytext_initialized', False):
+    ext_schema_result = plpy.execute("SELECT nspname FROM pg_extension e JOIN pg_namespace n ON e.extnamespace = n.oid WHERE e.extname = 'pg_steadytext'")
+    ext_schema = ext_schema_result[0]['nspname'] if ext_schema_result else 'public'
+    plpy.execute(f"SELECT {plpy.quote_ident(ext_schema)}._steadytext_init_python()")
+    if not GD.get('steadytext_initialized', False):
+        plpy.error("Failed to initialize pg_steadytext Python environment")
+else:
+    ext_schema_result = plpy.execute("SELECT nspname FROM pg_extension e JOIN pg_namespace n ON e.extnamespace = n.oid WHERE e.extname = 'pg_steadytext'")
+    ext_schema = ext_schema_result[0]['nspname'] if ext_schema_result else 'public'
+
+security_module = GD.get('module_security')
+if not security_module:
+    plpy.error("security module not loaded")
+
+security_validator = security_module.SecurityValidator()
+
+# Resolve defaults from configuration
+config_plan = GD.get('steadytext_config_plan_stream')
+if config_plan is None:
+    config_plan = plpy.prepare(f"SELECT value FROM {plpy.quote_ident(ext_schema)}.steadytext_config WHERE key = $1", ["text"])
+    GD['steadytext_config_plan_stream'] = config_plan
+
+resolved_max_tokens = max_tokens
+if resolved_max_tokens is None:
+    rv = plpy.execute(config_plan, ["default_max_tokens"])
+    resolved_max_tokens = json.loads(rv[0]["value"]) if rv else 512
+
+resolved_seed = seed
+if resolved_seed is None:
+    rv = plpy.execute(config_plan, ["default_seed"])
+    resolved_seed = json.loads(rv[0]["value"]) if rv else 42
+
+# Input validation mirrors steadytext_generate
+if prompt is None:
+    raise_p0001("Prompt cannot be null")
+
+if isinstance(prompt, str) and prompt.strip() == "":
+    raise_p0001("Prompt cannot be empty")
+
+is_valid_prompt, prompt_error = security_validator.validate_prompt(prompt)
+if not is_valid_prompt:
+    raise_p0001(prompt_error)
+
+is_valid_tokens, tokens_error = security_validator.validate_max_tokens(resolved_max_tokens)
+if not is_valid_tokens:
+    raise_p0001(tokens_error)
+
+if resolved_seed < 0:
+    raise_p0001("seed must be non-negative")
+
+if not unsafe_mode and model and ':' in model:
+    raise_p0001("Remote models (containing ':' ) require unsafe_mode=TRUE")
+
+if unsafe_mode and not model:
+    raise_p0001("unsafe_mode=TRUE requires a model parameter to be specified")
+
+# Reuse steadytext_generate via prepared plan for deterministic output
+generate_plan = GD.get('steadytext_generate_plan_stream')
+if generate_plan is None:
+    generate_plan = plpy.prepare(
+        f"""SELECT {plpy.quote_ident(ext_schema)}.steadytext_generate(
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+            ) AS result""",
+        ["text", "int4", "bool", "int4", "text", "text", "text", "text", "text", "bool"]
+    )
+    GD['steadytext_generate_plan_stream'] = generate_plan
+
+rv = plpy.execute(
+    generate_plan,
+    [prompt, resolved_max_tokens, use_cache, resolved_seed, eos_string, model, model_repo, model_filename, size, unsafe_mode]
+)
+
+if not rv or rv[0]['result'] is None:
+    return
+
+full_text = rv[0]['result']
+
+# Simple tokenization: preserve spaces between words
+parts = full_text.split(' ')
+
+for idx, part in enumerate(parts):
+    if idx < len(parts) - 1:
+        yield part + ' '
+    else:
+        yield part
+$c$;
+
+DO $$
+BEGIN
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION steadytext_generate_stream(text, integer, boolean, integer, text, text, text, text, text, boolean);
+    EXCEPTION WHEN OTHERS THEN
+        NULL;
+    END;
 END $$;
 
 CREATE OR REPLACE FUNCTION steadytext_generate(
@@ -1264,7 +1406,7 @@ RETURNS TEXT
 LANGUAGE sql
 IMMUTABLE PARALLEL SAFE LEAKPROOF
 AS $c$
-    SELECT '2025.10.28'::TEXT;
+    SELECT '2025.10.30'::TEXT;
 $c$;
 
 -- (removed duplicate non-STRICT steadytext_config_get; see later STRICT version)
@@ -3261,7 +3403,9 @@ BEGIN
     
     -- Validate remote model requirements
     IF model IS NOT NULL AND position(':' IN model) > 0 AND NOT unsafe_mode THEN
-        RAISE EXCEPTION 'Remote models (containing '':' ) require unsafe_mode=TRUE';
+        RAISE EXCEPTION USING 
+            ERRCODE = 'P0001',
+            MESSAGE = 'Remote models (containing '':'' ) require unsafe_mode=TRUE';
     END IF;
     
     -- Generate result using IMMUTABLE function
@@ -3312,7 +3456,9 @@ BEGIN
     
     -- Validate remote model requirements
     IF model IS NOT NULL AND position(':' IN model) > 0 AND NOT unsafe_mode THEN
-        RAISE EXCEPTION 'Remote models (containing '':' ) require unsafe_mode=TRUE';
+        RAISE EXCEPTION USING 
+            ERRCODE = 'P0001',
+            MESSAGE = 'Remote models (containing '':'' ) require unsafe_mode=TRUE';
     END IF;
     
     request_id := gen_random_uuid();
@@ -3462,6 +3608,35 @@ IMMUTABLE PARALLEL SAFE
 AS $alias$
     SELECT steadytext_generate($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
 $alias$;
+
+-- st_generate_stream alias
+CREATE OR REPLACE FUNCTION st_generate_stream(
+    prompt TEXT,
+    max_tokens INT DEFAULT NULL,
+    use_cache BOOLEAN DEFAULT TRUE,
+    seed INT DEFAULT 42,
+    eos_string TEXT DEFAULT '[EOS]',
+    model TEXT DEFAULT NULL,
+    model_repo TEXT DEFAULT NULL,
+    model_filename TEXT DEFAULT NULL,
+    size TEXT DEFAULT NULL,
+    unsafe_mode BOOLEAN DEFAULT FALSE
+)
+RETURNS SETOF TEXT
+LANGUAGE sql
+IMMUTABLE PARALLEL SAFE
+AS $alias$
+    SELECT * FROM steadytext_generate_stream($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
+$alias$;
+
+DO $$
+BEGIN
+    BEGIN
+        ALTER EXTENSION pg_steadytext ADD FUNCTION st_generate_stream(text, integer, boolean, integer, text, text, text, text, text, boolean);
+    EXCEPTION WHEN OTHERS THEN
+        NULL;
+    END;
+END $$;
 
 -- st_embed alias
 CREATE OR REPLACE FUNCTION st_embed(

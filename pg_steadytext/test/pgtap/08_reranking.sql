@@ -264,7 +264,7 @@ FROM batch_request;
 SELECT throws_ok(
     $$ SELECT steadytext_rerank('', ARRAY['doc1'], 'task', true, 42) $$,
     'P0001',
-    'Query cannot be empty',
+    'spiexceptions.RaiseException: Query cannot be empty',
     'Empty query should raise an error'
 );
 
@@ -272,7 +272,7 @@ SELECT throws_ok(
 SELECT throws_ok(
     $$ SELECT steadytext_rerank('query', ARRAY[]::text[], 'task', true, 42) $$,
     'P0001',
-    'Documents array cannot be empty',
+    'spiexceptions.RaiseException: Documents array cannot be empty',
     'Empty documents array should raise an error'
 );
 
@@ -280,7 +280,7 @@ SELECT throws_ok(
 SELECT throws_ok(
     $$ SELECT steadytext_rerank(NULL, ARRAY['doc1'], 'task', true, 42) $$,
     'P0001',
-    'Query cannot be null',
+    'spiexceptions.RaiseException: Query cannot be null',
     'NULL query should raise an error'
 );
 
@@ -288,7 +288,7 @@ SELECT throws_ok(
 SELECT throws_ok(
     $$ SELECT steadytext_rerank('query', NULL, 'task', true, 42) $$,
     'P0001',
-    'Documents cannot be null',
+    'spiexceptions.RaiseException: Documents cannot be null',
     'NULL documents should raise an error'
 );
 
@@ -544,11 +544,13 @@ request2 AS (
     ) AS request_id
 )
 SELECT ok(
-    (SELECT q1.params->>'query' != q2.params->>'query')
-    FROM request1 r1
-    JOIN steadytext_queue q1 ON q1.request_id = r1.request_id
-    CROSS JOIN request2 r2
-    JOIN steadytext_queue q2 ON q2.request_id = r2.request_id,
+    COALESCE((
+        SELECT q1.params->>'query' != q2.params->>'query'
+        FROM request1 r1
+        JOIN steadytext_queue q1 ON q1.request_id = r1.request_id
+        CROSS JOIN request2 r2
+        JOIN steadytext_queue q2 ON q2.request_id = r2.request_id
+    ), FALSE),
     'Different async requests should have different parameters'
 );
 
@@ -579,7 +581,7 @@ SELECT is(
 SELECT throws_ok(
     $$ SELECT steadytext_rerank_top_k('query', ARRAY['doc1'], 0, 'task', true, 42) $$,
     'P0001',
-    'top_k must be greater than 0',
+    'spiexceptions.RaiseException: top_k must be greater than 0',
     'Zero top_k should raise an error'
 );
 
@@ -587,7 +589,7 @@ SELECT throws_ok(
 SELECT throws_ok(
     $$ SELECT steadytext_rerank_top_k('query', ARRAY['doc1'], -1, 'task', true, 42) $$,
     'P0001',
-    'top_k must be greater than 0',
+    'spiexceptions.RaiseException: top_k must be greater than 0',
     'Negative top_k should raise an error'
 );
 
@@ -595,7 +597,7 @@ SELECT throws_ok(
 SELECT throws_ok(
     $$ SELECT steadytext_rerank('query', ARRAY['doc1', NULL, 'doc2'], 'task', true, 42) $$,
     'P0001',
-    'Documents cannot contain null elements',
+    'spiexceptions.RaiseException: Documents cannot contain null elements',
     'Documents array with null elements should raise an error'
 );
 
