@@ -1,0 +1,144 @@
+name: pgTAP Tests
+
+on:
+  push:
+    branches: ["main", "work"]
+    paths:
+      - 'pg_steadytext/**'
+      - '.github/workflows/pgtap.yml'
+  pull_request:
+    branches: ["main", "work"]
+    paths:
+      - 'pg_steadytext/**'
+      - '.github/workflows/pgtap.yml'
+  workflow_dispatch:
+
+jobs:
+  pgtap:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: test_postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16
+
+      - name: Install pgTAP
+        run: |
+          # Install pgTAP from source
+          git clone https://github.com/theory/pgtap.git
+          cd pgtap
+          make
+          sudo make install
+          cd ..
+          rm -rf pgtap
+
+          # Verify pgTAP installation
+          sudo -u postgres psql -h localhost -p 5432 -U postgres -d test_postgres -c "CREATE EXTENSION IF NOT EXISTS pgtap;"
+
+      - name: Install Python and uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install Python dependencies
+        env:
+          FORCE_CMAKE: "1"
+          CMAKE_ARGS: "-DLLAVA_BUILD=OFF -DGGML_ACCELERATE=OFF -DGGML_BLAS=OFF -DGGML_CUDA=OFF -DGGML_BUILD_TESTS=OFF -DGGML_BUILD_EXAMPLES=OFF"
+        run: |
+          cd ${{ github.workspace }}
+          uv sync --locked --all-extras --dev
+
+      - name: Install PostgreSQL extensions
+        env:
+          PGPASSWORD: password
+        run: |
+          # Install required extensions
+          psql -h localhost -p 5432 -U postgres -d test_postgres <<EOF
+          -- Install base extensions
+          CREATE EXTENSION IF NOT EXISTS plpython3u CASCADE;
+          CREATE EXTENSION IF NOT EXISTS vector CASCADE;
+          CREATE EXTENSION IF NOT EXISTS pgcrypto CASCADE;
+          CREATE EXTENSION IF NOT EXISTS pgtap CASCADE;
+          EOF
+
+      - name: Build and install pg_steadytext
+        env:
+          PGPASSWORD: password
+        run: |
+          cd pg_steadytext
+
+          # Build the extension
+          make clean
+          make
+          sudo make install
+
+          # Install the extension in the test database
+          psql -h localhost -p 5432 -U postgres -d test_postgres -c "CREATE EXTENSION IF NOT EXISTS pg_steadytext CASCADE;"
+
+          # Verify installation
+          psql -h localhost -p 5432 -U postgres -d test_postgres -c "SELECT steadytext_version();"
+
+      - name: Run pgTAP tests
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: password
+          PGDATABASE: test_postgres
+          STEADYTEXT_USE_MINI_MODELS: "true"  # Use mini models to prevent timeouts
+        run: |
+          cd pg_steadytext
+
+          # Run tests with TAP output for CI
+          ./run_pgtap_tests.sh --tap
+
+      - name: Run pgTAP tests with prove (alternative)
+        if: always()
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: password
+          PGDATABASE: test_postgres
+          STEADYTEXT_USE_MINI_MODELS: "true"
+        run: |
+          cd pg_steadytext
+
+          # Install prove if not available
+          which prove || sudo apt-get install -y libtest-harness-perl
+
+          # Run tests with prove for better output formatting
+          prove -v --exec "psql -h localhost -p 5432 -U postgres -d test_postgres -X -q -f" test/pgtap/*.sql || true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pgtap-test-results
+          path: |
+            pg_steadytext/test-results/
+            pg_steadytext/*.log
+          if-no-files-found: ignore
