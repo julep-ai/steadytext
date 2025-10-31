@@ -850,3 +850,229 @@ print(f"Second: {time.time() - start:.2f}s")
 steadytext.preload_models()  # Load once at startup
 # Now all embeddings will be fast
 ```
+
+---
+
+## Remote OpenAI-Compatible Embeddings
+
+SteadyText supports using remote OpenAI-compatible embedding servers for embeddings while keeping local models for generation. This is useful for leveraging custom embedding endpoints or self-hosted OpenAI-compatible services.
+
+!!! info "Automatic Routing"
+    When the environment variables below are present, **all embedding entry points** (`steadytext.embed(...)`, `st embed`, and the `pg_steadytext` PostgreSQL extension) automatically call the remote endpoint. You no longer need to pass `model="openai:..."` or `--unsafe-mode` manually unless you want to override the detected values.
+
+### Environment Variables
+
+Configure remote OpenAI embeddings using these environment variables:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `EMBEDDING_OPENAI_BASE_URL` | Base URL for OpenAI-compatible embedding server | `http://52.6.190.181` |
+| `EMBEDDING_OPENAI_API_KEY` | API key for the embedding server | `sk-...` |
+| `EMBEDDING_OPENAI_MODEL` | Model name to use (optional, default: `text-embedding-3-small`) | `text-embedding-3-small` |
+
+!!! note "Environment Variable Scope"
+    These variables **only affect embeddings**, not text generation. Generation continues to use local models or its own remote configuration.
+
+### Python SDK Usage
+
+When the environment variables are set, embeddings automatically use the remote server:
+
+```python
+import os
+import steadytext
+
+# Configure remote embedding server
+os.environ["EMBEDDING_OPENAI_BASE_URL"] = "http://52.6.190.181"
+os.environ["EMBEDDING_OPENAI_API_KEY"] = "sk-your-api-key"
+os.environ["EMBEDDING_OPENAI_MODEL"] = "text-embedding-3-small"  # Optional
+
+# Standard embed calls automatically use remote server
+vector = steadytext.embed("Hello world")
+
+# Or explicitly specify the model (takes precedence over env vars)
+vector = steadytext.embed(
+    "Hello world",
+    model="openai:text-embedding-3-small",
+    unsafe_mode=True
+)
+```
+
+### CLI Usage
+
+Set environment variables before running CLI commands:
+
+```bash
+# Set environment variables
+export EMBEDDING_OPENAI_BASE_URL=http://52.6.190.181
+export EMBEDDING_OPENAI_API_KEY=sk-your-api-key
+export EMBEDDING_OPENAI_MODEL=text-embedding-3-small
+
+# Embeddings automatically use remote server; unsafe-mode flag is inferred
+st embed "Hello world" --json
+
+# Or explicitly specify remote model (overrides env vars)
+st embed "Hello world" \
+  --model openai:text-embedding-3-small \
+  --unsafe-mode \
+  --json
+```
+
+### PostgreSQL Extension Usage
+
+The `pg_steadytext` extension automatically detects and uses the environment variables:
+
+```sql
+-- Set environment variables in PostgreSQL session
+-- (typically set at system level or in postgresql.conf)
+
+-- Standard embedding function automatically uses remote when env vars are set
+SELECT steadytext_embed('Hello world');
+
+-- Returns pgvector-compatible vector using remote OpenAI server
+SELECT steadytext_embed('Machine learning') AS embedding;
+```
+
+To configure environment variables for PostgreSQL:
+
+```bash
+# System-wide (add to /etc/environment or .bashrc)
+export EMBEDDING_OPENAI_BASE_URL=http://52.6.190.181
+export EMBEDDING_OPENAI_API_KEY=sk-your-api-key
+
+# Or in postgresql.conf
+# Add to postgresql.conf:
+# environment_variables = 'EMBEDDING_OPENAI_BASE_URL=http://52.6.190.181,EMBEDDING_OPENAI_API_KEY=sk-...'
+
+# Restart PostgreSQL
+sudo systemctl restart postgresql
+```
+
+### HTTP Request Equivalent
+
+When you use the remote embedding configuration, SteadyText makes requests equivalent to:
+
+```bash
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $EMBEDDING_OPENAI_API_KEY" \
+  "$EMBEDDING_OPENAI_BASE_URL/v1/embeddings" \
+  -d '{
+    "input": "Hello world",
+    "model": "text-embedding-3-small"
+  }'
+```
+
+!!! tip "Base URL Normalization"
+    SteadyText automatically appends `/v1` to the base URL if not present, ensuring compatibility with OpenAI-compatible servers.
+
+!!! tip "Testing Overrides"
+    Run `pytest tests/test_embedding_env_overrides.py` to verify Python, CLI, and PostgreSQL connector behaviour against the environment overrides.
+
+### Use Cases
+
+**Self-Hosted Embedding Services**
+```python
+import os
+import steadytext
+
+# Point to self-hosted embedding server
+os.environ["EMBEDDING_OPENAI_BASE_URL"] = "http://localhost:8000"
+os.environ["EMBEDDING_OPENAI_API_KEY"] = "local-key"
+
+# All embeddings use local server
+embeddings = [steadytext.embed(text) for text in documents]
+```
+
+**Hybrid Setup: Local Generation + Remote Embeddings**
+```python
+import os
+import steadytext
+
+# Configure remote embeddings only
+os.environ["EMBEDDING_OPENAI_BASE_URL"] = "http://embedding-server.example.com"
+os.environ["EMBEDDING_OPENAI_API_KEY"] = "embedding-key"
+
+# Embeddings use remote server
+vector = steadytext.embed("Document text")
+
+# Text generation still uses local models
+text = steadytext.generate("Write a summary")
+```
+
+**Environment-Specific Configuration**
+```python
+import os
+import steadytext
+
+# Development: Use local models
+if os.getenv("ENV") == "development":
+    pass  # Use default local embeddings
+
+# Production: Use dedicated embedding service
+elif os.getenv("ENV") == "production":
+    os.environ["EMBEDDING_OPENAI_BASE_URL"] = "http://prod-embeddings.internal"
+    os.environ["EMBEDDING_OPENAI_API_KEY"] = os.getenv("PROD_EMBEDDING_KEY")
+
+# Now embed with environment-appropriate backend
+vector = steadytext.embed("Production document")
+```
+
+### Security Considerations
+
+!!! warning "API Key Security"
+    - Never commit API keys to version control
+    - Use environment variables or secret management systems
+    - Rotate keys regularly
+    - Use HTTPS for production endpoints
+
+```python
+# Good: Load from environment
+import os
+api_key = os.getenv("EMBEDDING_OPENAI_API_KEY")
+
+# Bad: Hardcoded in code
+# api_key = "sk-1234..."  # Never do this!
+```
+
+### Troubleshooting
+
+**Issue: Connection errors to remote server**
+```python
+# Check connectivity
+import requests
+import os
+
+base_url = os.getenv("EMBEDDING_OPENAI_BASE_URL")
+try:
+    response = requests.get(f"{base_url}/v1/models", timeout=5)
+    print(f"Server reachable: {response.status_code}")
+except Exception as e:
+    print(f"Cannot reach server: {e}")
+```
+
+**Issue: Authentication failures**
+```python
+# Verify API key is set correctly
+import os
+
+api_key = os.getenv("EMBEDDING_OPENAI_API_KEY")
+if not api_key:
+    print("ERROR: EMBEDDING_OPENAI_API_KEY not set")
+elif not api_key.startswith("sk-"):
+    print("WARNING: API key may be invalid (should start with 'sk-')")
+else:
+    print(f"API key configured: {api_key[:10]}...")
+```
+
+**Issue: Wrong model used**
+```python
+# Check which model is being used
+import os
+
+model = os.getenv("EMBEDDING_OPENAI_MODEL", "text-embedding-3-small")
+print(f"Using embedding model: {model}")
+
+# Explicitly set if needed
+os.environ["EMBEDDING_OPENAI_MODEL"] = "text-embedding-3-large"
+```
+```

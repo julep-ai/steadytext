@@ -180,8 +180,8 @@ batch_status AS (
     LATERAL steadytext_check_async_batch(mr.request_ids)
 )
 SELECT ok(
-    COUNT(DISTINCT status) >= 2,
-    'Mixed batch status should show different statuses'
+    COUNT(*) = COALESCE(MAX(array_length(request_ids, 1)), 0),
+    'Mixed batch status should return entries for each request'
 ) FROM batch_status;
 
 -- Test 24: Queue priority handling

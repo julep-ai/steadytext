@@ -24,6 +24,7 @@ Structured, greppable comments for navigation and documentation.
 - Place anchors above major blocks (classes, functions, routes)
 - Keep ~1 anchor per 40-60 lines
 - Format refs: `AIDEV-REF: path/file.py -> anchor text`
+- For documentation rewrite, follow the addendum at `specs/003-documentation-rewrite/anchor-guidelines.md`
 
 > For detailed anchor management, use the **anchor-comment-manager** agent.
 
@@ -68,6 +69,8 @@ Enable: `STEADYTEXT_USE_MINI_MODELS=true` or `--size mini`
 ### Remote Models (Unsafe Mode)
 OpenAI, Cerebras, VoyageAI, Jina, OpenRouter - use `model="openai:gpt-4o-mini" unsafe_mode=True`
 OpenRouter provides unified access to multiple providers: `model="openrouter:anthropic/claude-3.5-sonnet"`
+
+> **Embedding overrides:** Setting `EMBEDDING_OPENAI_BASE_URL` and `EMBEDDING_OPENAI_API_KEY` auto-routes embeddings (library, CLI, pg extension). Use `EMBEDDING_OPENAI_MODEL` to change the default; explicit `model=` arguments still take precedence.
 
 
 
@@ -193,6 +196,8 @@ STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true uv run poe test
 ```
 
 All tests are designed to pass even if models cannot be downloaded. Model-dependent tests are automatically skipped unless `STEADYTEXT_ALLOW_MODEL_DOWNLOADS=true` is set.
+
+- Targeted env override coverage: `pytest tests/test_embedding_env_overrides.py`
 
 ### Linting and Formatting
 

@@ -7,7 +7,7 @@ SteadyText: Deterministic text generation and embedding with zero configuration.
 # Version of the steadytext package - should match pyproject.toml
 # AIDEV-NOTE: Always update this when bumping the lib version
 # AIDEV-NOTE: Using date-based versioning (yyyy.mm.dd) as of 2025.8.15
-__version__ = "2025.8.27"
+__version__ = "2025.10.30"
 
 # Import core functions and classes for public API
 import os
@@ -34,6 +34,7 @@ from .utils import (
     GENERATION_MAX_NEW_TOKENS,
     EMBEDDING_DIMENSION,
     get_cache_dir,
+    apply_remote_embedding_env_defaults,
 )
 from .models.loader import get_generator_model_instance, get_embedding_model_instance
 from .daemon.client import DaemonClient, use_daemon, get_daemon_client
@@ -313,6 +314,10 @@ def embed(
         # Multiple texts with mode
         doc_embs = embed(["Doc 1", "Doc 2"], mode="passage")
     """
+    # AIDEV-ANCHOR: embed: env overrides
+    # Apply EMBEDDING_OPENAI_* environment overrides when caller leaves model unset
+    model, unsafe_mode = apply_remote_embedding_env_defaults(model, unsafe_mode)
+
     # AIDEV-NOTE: Skip daemon for remote models to avoid loading local embedding model
     # Remote models (containing ':' in the name) are handled directly by core_embed
     is_remote_model = model and ":" in model and unsafe_mode

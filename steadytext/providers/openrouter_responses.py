@@ -9,11 +9,7 @@ from typing import List, Optional, Dict, Any, Iterator
 import numpy as np
 from pydantic import BaseModel, Field, validator
 
-try:
-    from .openrouter_errors import OpenRouterError
-except ImportError:
-    # Handle direct import case
-    from openrouter_errors import OpenRouterError
+from .openrouter_errors import OpenRouterError
 
 
 class Usage(BaseModel):

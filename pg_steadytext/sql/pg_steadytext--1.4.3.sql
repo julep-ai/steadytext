@@ -2447,12 +2447,15 @@ if auto_start and not connector.is_daemon_running():
 
 # Generate embedding
 try:
+    # AIDEV-NOTE: The underlying Python embed functions now automatically handle
+    # EMBEDDING_OPENAI_* environment variables, so no special logic is needed here.
+
     if connector.is_daemon_running():
-        result = connector.embed(text=text_input)
+        result = connector.embed(text=text_input, seed=resolved_seed)
     else:
         # Direct embedding fallback
         from steadytext import embed as steadytext_embed
-        result = steadytext_embed(text_input)
+        result = steadytext_embed(text_input, seed=resolved_seed)
     
     # Convert to vector format if needed
     if result is not None:

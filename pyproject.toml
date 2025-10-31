@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "steadytext"
-version = "2025.9.21"
+version = "2025.10.30"
 description = "Deterministic text generation and embedding with zero configuration"
 readme = "README.md"
 authors = [
@@ -76,18 +76,18 @@ st = "steadytext.cli:main"
 
 [tool.poe.tasks]
 # AIDEV-NOTE: Tests use mini models by default for fast CI/testing
-test = { cmd = "pytest", env = { STEADYTEXT_USE_MINI_MODELS = "true", STEADYTEXT_ALLOW_MODEL_DOWNLOADS = "true" } }
-test-cov = { cmd = "pytest --cov=steadytext --cov-report=term-missing --cov-report=html --cov-report=xml", env = { STEADYTEXT_USE_MINI_MODELS = "true", STEADYTEXT_ALLOW_MODEL_DOWNLOADS = "true" } }
-test-parallel = { cmd = "pytest -p no:xdist", env = { STEADYTEXT_USE_MINI_MODELS = "true", STEADYTEXT_ALLOW_MODEL_DOWNLOADS = "true" } }
+test = { cmd = "python -m pytest", env = { STEADYTEXT_USE_MINI_MODELS = "true", STEADYTEXT_ALLOW_MODEL_DOWNLOADS = "true" } }
+test-cov = { cmd = "python -m pytest --cov=steadytext --cov-report=term-missing --cov-report=html --cov-report=xml", env = { STEADYTEXT_USE_MINI_MODELS = "true", STEADYTEXT_ALLOW_MODEL_DOWNLOADS = "true" } }
+test-parallel = { cmd = "python -m pytest -p no:xdist", env = { STEADYTEXT_USE_MINI_MODELS = "true", STEADYTEXT_ALLOW_MODEL_DOWNLOADS = "true" } }
 # Test with full models (not mini)
-test-full = "pytest"
-lint = "ruff check --fix --unsafe-fixes"
-format = "ruff format"
-typecheck = "ty check"
-pre-commit = "pre-commit run --all-files"
-docs-build = "mkdocs build"
-docs-serve = "mkdocs serve"
-docs-deploy = "mkdocs gh-deploy"
+test-full = "python -m pytest"
+lint = "python -m ruff check --fix --unsafe-fixes"
+format = "python -m ruff format"
+typecheck = "python -m ty check"
+pre-commit = "python -m pre_commit run --all-files"
+docs-build = "python -m mkdocs build"
+docs-serve = "python -m mkdocs serve"
+docs-deploy = "python -m mkdocs gh-deploy"
 check = [
   "format",
   "lint",

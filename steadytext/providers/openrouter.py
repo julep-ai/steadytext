@@ -83,6 +83,12 @@ class OpenRouterProvider(RemoteModelProvider):
             api_key: OpenRouter API key. If None, uses OPENROUTER_API_KEY env var
             model: Model to use in OpenRouter format (provider/model-name)
         """
+        if api_key is not None:
+            api_key_stripped = api_key.strip()
+            if not api_key_stripped:
+                raise ValueError("OpenRouter API key cannot be empty or whitespace")
+            api_key = api_key_stripped
+
         super().__init__(api_key)
         self.model = model
 
@@ -877,5 +883,5 @@ class OpenRouterProvider(RemoteModelProvider):
         if hasattr(self, "_client") and self._client is not None:
             try:
                 self._client.close()
-            except:
+            except Exception:
                 pass  # Ignore cleanup errors

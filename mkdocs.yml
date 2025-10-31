@@ -38,76 +38,78 @@ theme:
 
 nav:
   - Home: index.md
-  - Quick Start: quick-start.md
-  - Core Concepts: concepts.md
-  - Why SteadyText: why-steadytext.md
-  - Architecture: architecture.md
-  - Configuration: configuration-reference.md
-  - API Reference:
-    - Overview: api/index.md
-    - Text Generation: api/generation.md
-    - Embeddings: api/embedding.md
-    - Structured Generation: structured-generation.md
-    - CLI Reference: api/cli.md
-    - Configuration: api/configuration.md
-    - Full API Reference: api.md
-  - Examples:
-    - Overview: examples/index.md
-    - Basic Usage: examples/basic-usage.md
-    - Custom Seeds: examples/custom-seeds.md
-    - Testing with AI: examples/testing.md
-    - CLI Tools: examples/tooling.md
-    - Log Analysis: examples/log-analysis.md
-    - Data Pipelines: examples/data-pipelines.md
-    - Content Management: examples/content-management.md
-    - Customer Intelligence: examples/customer-intelligence.md
-    - PostgreSQL Examples:
-      - Overview: examples/postgresql-integration.md
-      - Blog & CMS: examples/postgresql-blog-cms.md
-      - E-commerce: examples/postgresql-ecommerce.md
-      - Semantic Search: examples/postgresql-search.md
-      - Real-time Apps: examples/postgresql-realtime.md
-      - Analytics: examples/postgresql-analytics.md
-  - PostgreSQL Extension:
-    - Overview: postgresql-extension.md
-    - Function Reference: postgresql-extension-reference.md
-    - Advanced Features: postgresql-extension-advanced.md
-    - AI Integration: postgresql-extension-ai.md
-    - Async Operations: postgresql-extension-async.md
-    - Structured Generation: postgresql-extension-structured.md
-    - Document Reranking: postgresql-extension-reranking.md
-    - Prompt Registry: postgresql-extension-prompt-registry.md
-    - Troubleshooting: postgresql-extension-troubleshooting.md
-  - Deployment:
-    - Overview: deployment.md
-    - Production: deployment/production.md
-    - Cloudflare Edge: deployment/cloudflare.md
-  - Migration Guide:
-    - Overview: migration-guide.md
-    - From OpenAI: migration/from-openai.md
-    - From LangChain: migration/from-langchain.md
-    - From Embeddings APIs: migration/from-embeddings-api.md
-  - Integrations:
-    - Overview: integrations.md
-    - TimescaleDB: integrations/timescaledb.md
-  - Advanced Topics:
-    - Caching: examples/caching.md
-    - Cache Backends: cache-backends.md
-    - Daemon Usage: examples/daemon-usage.md
-    - Error Handling: examples/error-handling.md
-    - Performance Tuning: examples/performance-tuning.md
-    - Model Switching: model-switching.md
-    - EOS String Implementation: eos-string-implementation.md
-    - Reranking: reranking.md
-    - Shell Integration: shell-integration.md
-    - Vector Indexing: vector-indexing.md
-    - Remote Models (Unsafe Mode): unsafe-mode.md
-  - Reference:
-    - FAQ: faq.md
-    - Benchmarks: benchmarks.md
-    - Version History: version_history.md
-    - Troubleshooting: troubleshooting.md
-  - Contributing: contributing.md
+  - Core Platform:
+      - Value Proposition: why-steadytext.md
+      - Architecture Overview: architecture.md
+      - Deterministic Concepts: concepts.md
+      - Structured Generation: structured-generation.md
+      - Model Switching: model-switching.md
+      - Vector Indexing: vector-indexing.md
+      - Reranking Overview: reranking.md
+      - EOS String Implementation: eos-string-implementation.md
+      - Benchmarks: benchmarks.md
+      - FAQ: faq.md
+      - Examples Hub: examples/index.md
+  - Python Library:
+      - Quick Start: quick-start.md
+      - Tutorials:
+          - Basic Usage: examples/basic-usage.md
+          - Custom Seeds: examples/custom-seeds.md
+          - Content Management: examples/content-management.md
+          - Customer Intelligence: examples/customer-intelligence.md
+          - Data Pipelines: examples/data-pipelines.md
+          - Log Analysis: examples/log-analysis.md
+      - Reference:
+          - API Overview: api/index.md
+          - Text Generation API: api/generation.md
+          - Embeddings API: api/embedding.md
+          - CLI Reference: api/cli.md
+          - Configuration API: api/configuration.md
+          - Full API Reference: api.md
+      - Operations:
+          - Configuration Reference: configuration-reference.md
+          - Testing with AI: examples/testing.md
+          - Error Handling: examples/error-handling.md
+          - Tooling & Automation: examples/tooling.md
+          - Shell Integration: shell-integration.md
+  - Postgres Extension:
+      - Quick Start: postgresql-extension.md
+      - Tutorials:
+          - Integration Overview: examples/postgresql-integration.md
+          - Analytics Playbook: examples/postgresql-analytics.md
+          - Blog & CMS: examples/postgresql-blog-cms.md
+          - E-commerce: examples/postgresql-ecommerce.md
+          - Semantic Search: examples/postgresql-search.md
+          - Real-time Apps: examples/postgresql-realtime.md
+          - Async Workflows: postgresql-extension-async.md
+          - Advanced Workflows: postgresql-extension-advanced.md
+          - Prompt Registry: postgresql-extension-prompt-registry.md
+          - Structured Generation: postgresql-extension-structured.md
+          - Document Reranking: postgresql-extension-reranking.md
+      - Reference:
+          - Function Catalog: postgresql-extension-reference.md
+      - Operations:
+          - AI Integration: postgresql-extension-ai.md
+          - Troubleshooting: postgresql-extension-troubleshooting.md
+  - Operations & Integrations:
+      - Deployment Overview: deployment.md
+      - Production Runbook: deployment/production.md
+      - Cloudflare Edge: deployment/cloudflare.md
+      - Cache Backends: cache-backends.md
+      - Caching Recipes: examples/caching.md
+      - Daemon Operations: examples/daemon-usage.md
+      - Performance Tuning: examples/performance-tuning.md
+      - Unsafe Mode: unsafe-mode.md
+      - Troubleshooting Index: troubleshooting.md
+      - Migration Hub: migration-guide.md
+      - Migration from OpenAI: migration/from-openai.md
+      - Migration from LangChain: migration/from-langchain.md
+      - Migration from Embeddings APIs: migration/from-embeddings-api.md
+      - Integrations Hub: integrations.md
+      - TimescaleDB: integrations/timescaledb.md
+  - Contribute & Changelog:
+      - Contributor Guide: contributing.md
+      - Version History: version_history.md
 
 markdown_extensions:
   - pymdownx.highlight:

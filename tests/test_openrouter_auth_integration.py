@@ -3,12 +3,14 @@
 AIDEV-NOTE: Validate API key handling and environment lookup for the
 OpenRouter provider without duplicating upstream behavior."""
 
+from typing import Any
+
 import pytest
 
 try:
     from steadytext.providers.openrouter import OpenRouterProvider
 except ImportError:  # pragma: no cover - provider not yet implemented
-    OpenRouterProvider = None
+    OpenRouterProvider: Any = None
 
 pytestmark = pytest.mark.skipif(
     OpenRouterProvider is None, reason="OpenRouterProvider not available"

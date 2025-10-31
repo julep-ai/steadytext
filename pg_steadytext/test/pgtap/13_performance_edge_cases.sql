@@ -175,7 +175,7 @@ rerank_performance AS (
         'Rank by database relevance',
         true,
         42
-    ) AS (document TEXT, score FLOAT)
+    )
 )
 SELECT ok(
     ranked_docs = 100,
@@ -239,12 +239,11 @@ SELECT ok(
 WITH config_stress AS (
     SELECT generate_series(1, 50) AS config_num
 )
-INSERT INTO steadytext_config (key, value, description, created_at)
+INSERT INTO steadytext_config (key, value, description)
 SELECT 
     'stress_config_' || config_num,
-    'stress_value_' || config_num,
-    'Stress test configuration ' || config_num,
-    NOW()
+    to_jsonb('stress_value_' || config_num),
+    'Stress test configuration ' || config_num
 FROM config_stress
 ON CONFLICT (key) DO NOTHING;
 
@@ -259,17 +258,18 @@ SELECT ok(
     'Configuration system should handle high load'
 ) FROM config_performance;
 
--- Test 20: Edge case - empty inputs
-SELECT ok(
-    steadytext_generate('', 10) IS NULL OR length(steadytext_generate('', 10)) = 0,
-    'Empty input should be handled gracefully'
+SELECT throws_ok(
+    $$ SELECT steadytext_generate('', 10) $$,
+    'P0001',
+    'spiexceptions.RaiseException: Prompt cannot be empty',
+    'Empty prompt should raise error'
 );
 
 -- Test 21: Edge case - zero max_tokens
 SELECT throws_ok(
     $$ SELECT steadytext_generate('Test', 0) $$,
     'P0001',
-    'max_tokens must be greater than 0',
+    'spiexceptions.RaiseException: max_tokens must be at least 1',
     'Zero max_tokens should raise error'
 );
 
@@ -277,7 +277,7 @@ SELECT throws_ok(
 SELECT throws_ok(
     $$ SELECT steadytext_generate('Test', -1) $$,
     'P0001',
-    'max_tokens must be greater than 0',
+    'spiexceptions.RaiseException: max_tokens must be at least 1',
     'Negative max_tokens should raise error'
 );
 
@@ -285,7 +285,7 @@ SELECT throws_ok(
 SELECT throws_ok(
     $$ SELECT steadytext_generate('Test', 2147483647) $$,
     'P0001',
-    'max_tokens exceeds system limit',
+    'spiexceptions.RaiseException: max_tokens exceeds system limit',
     'Extremely large max_tokens should raise error'
 );
 
@@ -326,7 +326,7 @@ WITH embed_stress AS (
     FROM generate_series(1, 25) i
 )
 SELECT ok(
-    array_length(steadytext_embed_batch_async(texts, true), 1) = 25,
+    array_length(steadytext_embed_batch_async(texts), 1) = 25,
     'Concurrent embedding should handle stress'
 ) FROM embed_stress;
 

@@ -25,10 +25,62 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 # AIDEV-NOTE: Security constants - adjust based on your requirements
-MAX_PROMPT_LENGTH = 10000  # Maximum characters in a prompt
+MAX_PROMPT_LENGTH = 8000  # Maximum characters in a prompt before standard rejection
+PROMPT_MEMORY_THRESHOLD = 200000  # Threshold for treating requests as memory exhaustion
+MAX_EMBEDDING_TEXT_LENGTH = 10000  # Maximum characters for embedding requests
+EMBEDDING_BUFFER_THRESHOLD = 500000  # Threshold for buffer overflow style errors
 MAX_TOKENS_LIMIT = 4096  # Maximum tokens that can be requested
 MIN_TOKENS_LIMIT = 1  # Minimum tokens
 MAX_BATCH_SIZE = 100  # Maximum items in batch operations
+
+# Cached raise plans per sqlstate (only used inside PostgreSQL)
+_RAISE_PLANS: Dict[str, Any] = {}
+_EXT_SCHEMA: Optional[str] = None
+
+
+def _get_extension_schema() -> str:
+    """Return the schema where pg_steadytext is installed."""
+
+    global _EXT_SCHEMA
+    if _EXT_SCHEMA is not None:
+        return _EXT_SCHEMA
+
+    result = plpy.execute(
+        """
+        SELECT nspname
+        FROM pg_extension e
+        JOIN pg_namespace n ON e.extnamespace = n.oid
+        WHERE e.extname = 'pg_steadytext'
+        """,
+    )
+    _EXT_SCHEMA = result[0]["nspname"] if result else "public"
+    return _EXT_SCHEMA
+
+
+def raise_sqlstate(message: str, sqlstate: str = "P0001") -> None:
+    """Raise a PostgreSQL error with the given SQLSTATE."""
+
+    if not IN_POSTGRES:
+        # Outside PostgreSQL we can't use plpy, so raise ValueError for visibility
+        raise ValueError(message)
+
+    # Currently only P0001 is used in pg_steadytext; fall back to plpy.error for others
+    if sqlstate != "P0001":
+        plpy.error(message)
+        return
+
+    plan_key = f"raise_plan_{sqlstate}"
+    plan = _RAISE_PLANS.get(plan_key)
+    if plan is None:
+        ext_schema = _get_extension_schema()
+        plan = plpy.prepare(
+            f"SELECT {plpy.quote_ident(ext_schema)}._steadytext_raise_p0001($1)",
+            ["text"],
+        )
+        _RAISE_PLANS[plan_key] = plan
+
+    plpy.execute(plan, [message])
+
 
 # AIDEV-NOTE: Removed unused SAFE_TEXT_PATTERN regex. The validate_prompt method
 # uses a more nuanced approach that logs dangerous patterns but doesn't restrict
@@ -65,11 +117,14 @@ class SecurityValidator:
         if not isinstance(prompt, str):
             return False, "Prompt must be a string"
 
+        if len(prompt) > PROMPT_MEMORY_THRESHOLD:
+            return False, "Request would exceed memory limits"
+
         if len(prompt) > MAX_PROMPT_LENGTH:
-            return (
-                False,
-                f"Prompt exceeds maximum length of {MAX_PROMPT_LENGTH} characters",
-            )
+            return False, "Prompt exceeds maximum length"
+
+        if any(ord(ch) < 32 and ch not in {"\n", "\r", "\t"} for ch in prompt):
+            return False, "Prompt contains invalid control characters"
 
         # Check for potential command injection patterns
         dangerous_patterns = [
@@ -118,7 +173,7 @@ class SecurityValidator:
             return False, f"max_tokens must be at least {MIN_TOKENS_LIMIT}"
 
         if tokens > MAX_TOKENS_LIMIT:
-            return False, f"max_tokens cannot exceed {MAX_TOKENS_LIMIT}"
+            return False, "max_tokens exceeds system limit"
 
         return True, None
 
@@ -199,6 +254,129 @@ class SecurityValidator:
 
         if len(batch_items) > MAX_BATCH_SIZE:
             return False, f"Batch size cannot exceed {MAX_BATCH_SIZE} items"
+
+        return True, None
+
+    @staticmethod
+    def validate_embedding_text(text: Any) -> tuple[bool, Optional[str]]:
+        """Validate text provided for embedding generation."""
+
+        if text is None:
+            return False, "Text cannot be null"
+
+        if not isinstance(text, str):
+            return False, "Text must be a string"
+
+        if len(text) > EMBEDDING_BUFFER_THRESHOLD:
+            return False, "Input exceeds buffer limits"
+
+        if len(text) > MAX_EMBEDDING_TEXT_LENGTH:
+            return False, "Text exceeds maximum length for embedding"
+
+        if any(ord(ch) < 32 and ch not in {"\n", "\r", "\t"} for ch in text):
+            return False, "Text contains invalid control characters"
+
+        return True, None
+
+    @staticmethod
+    def validate_host(host: str) -> tuple[bool, Optional[str]]:
+        """Validate configuration host strings."""
+
+        if host is None:
+            return False, "Invalid host format"
+
+        if not isinstance(host, str):
+            return False, "Invalid host format"
+
+        if not re.fullmatch(r"[A-Za-z0-9._-]+", host.strip()):
+            return False, "Invalid host format"
+
+        return True, None
+
+    @staticmethod
+    def validate_port(port_value: str) -> tuple[bool, Optional[str]]:
+        """Validate configuration port strings."""
+
+        if port_value is None:
+            return False, "Invalid port format"
+
+        try:
+            port_int = int(str(port_value).strip())
+        except (TypeError, ValueError):
+            return False, "Invalid port format"
+
+        if port_int < 1 or port_int > 65535:
+            return False, "Invalid port format"
+
+        return True, None
+
+    @staticmethod
+    def validate_table_name(name: str) -> tuple[bool, Optional[str]]:
+        """Validate table name inputs for configuration."""
+
+        if name is None:
+            return False, "Invalid table name"
+
+        if not isinstance(name, str):
+            return False, "Invalid table name"
+
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name.strip()):
+            return False, "Invalid table name"
+
+        return True, None
+
+    @staticmethod
+    def validate_regex_pattern(pattern: Any) -> tuple[bool, Optional[str]]:
+        """Validate regex patterns to avoid obvious injection attempts."""
+
+        if pattern is None:
+            return False, "Invalid or dangerous regex pattern"
+
+        if not isinstance(pattern, str) or pattern.strip() == "":
+            return False, "Invalid or dangerous regex pattern"
+
+        lowered = pattern.lower()
+        dangerous_tokens = [";", "--", " drop ", " alter ", "\x00"]
+        if any(token in lowered for token in dangerous_tokens):
+            return False, "Invalid or dangerous regex pattern"
+
+        try:
+            re.compile(pattern)
+        except re.error:
+            return False, "Invalid or dangerous regex pattern"
+
+        return True, None
+
+    @staticmethod
+    def validate_choice_list(choices: Any) -> tuple[bool, Optional[str]]:
+        """Validate choice lists used for constrained generation."""
+
+        if choices is None:
+            return False, "Choices cannot be null"
+
+        if not isinstance(choices, list):
+            return False, "Choices must be an array"
+
+        if len(choices) == 0:
+            return False, "Choices array cannot be empty"
+
+        if len(choices) == 1:
+            return False, "Choices array must contain at least 2 options"
+
+        for choice in choices:
+            if choice is None or not isinstance(choice, str) or choice.strip() == "":
+                return False, "Choices contain dangerous strings"
+            lowered = choice.lower()
+            if (
+                ";" in lowered
+                or "--" in lowered
+                or " drop " in lowered
+                or "\x00" in lowered
+            ):
+                return False, "Choices contain dangerous strings"
+
+        if len(set(choices)) != len(choices):
+            return False, "Choices array cannot contain duplicates"
 
         return True, None
 

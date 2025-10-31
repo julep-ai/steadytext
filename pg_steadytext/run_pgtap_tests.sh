@@ -122,6 +122,7 @@ psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" <<EOF >/dev/null 2>
 -- Install prerequisites
 CREATE EXTENSION IF NOT EXISTS plpython3u CASCADE;
 CREATE EXTENSION IF NOT EXISTS vector CASCADE;
+CREATE EXTENSION IF NOT EXISTS pgcrypto CASCADE;
 
 -- Install pgTAP
 CREATE EXTENSION IF NOT EXISTS pgtap CASCADE;
@@ -130,9 +131,16 @@ CREATE EXTENSION IF NOT EXISTS pgtap CASCADE;
 -- AIDEV-NOTE: TimescaleDB is optional but enables additional integration tests
 DO \$\$
 BEGIN
-    IF EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'timescaledb') THEN
-        CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
-        RAISE NOTICE 'TimescaleDB extension installed for integration tests';
+    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'timescaledb') THEN
+        RAISE NOTICE 'TimescaleDB extension already installed';
+    ELSIF EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'timescaledb') THEN
+        -- Check if TimescaleDB is in shared_preload_libraries
+        IF current_setting('shared_preload_libraries') LIKE '%timescaledb%' THEN
+            CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
+            RAISE NOTICE 'TimescaleDB extension installed for integration tests';
+        ELSE
+            RAISE NOTICE 'TimescaleDB available but not preloaded (needs shared_preload_libraries), some tests will be skipped';
+        END IF;
     ELSE
         RAISE NOTICE 'TimescaleDB not available, some tests will be skipped';
     END IF;
@@ -143,6 +151,29 @@ CREATE EXTENSION pg_steadytext CASCADE;
 
 -- Verify installation
 SELECT steadytext_version();
+
+-- Helper fixtures referenced by pgTAP tests
+CREATE TABLE IF NOT EXISTS long_prompt(prompt TEXT);
+TRUNCATE long_prompt;
+INSERT INTO long_prompt(prompt) VALUES (repeat('A', 10000));
+
+CREATE TABLE IF NOT EXISTS very_long_text(text TEXT);
+TRUNCATE very_long_text;
+INSERT INTO very_long_text(text) VALUES (repeat('embedding test ', 1000));
+
+CREATE TABLE IF NOT EXISTS test_injection(malicious_input TEXT);
+TRUNCATE test_injection;
+INSERT INTO test_injection(malicious_input)
+VALUES ('DROP TABLE steadytext_cache; --');
+
+CREATE TABLE IF NOT EXISTS buffer_test(large_buffer TEXT);
+TRUNCATE buffer_test;
+INSERT INTO buffer_test(large_buffer) VALUES (repeat('X', 1000000));
+
+CREATE TABLE IF NOT EXISTS oversized_batch(large_batch TEXT[]);
+TRUNCATE oversized_batch;
+INSERT INTO oversized_batch(large_batch)
+SELECT array_agg('Batch item ' || i) FROM generate_series(1, 1000) i;
 EOF
 
 # Run pgTAP tests

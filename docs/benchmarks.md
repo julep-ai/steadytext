@@ -1,163 +1,68 @@
-# SteadyText Performance Benchmarks
+# Benchmarks
 
-This document provides detailed performance and accuracy benchmarks for SteadyText v1.3.3.
+First-pass numbers for the 2025.10 release train. Results cover deterministic generation, embeddings, and reranking across both the Python SDK and Postgres extension. Raw benchmark exports live in `benchmarks/results/` for full detail.
 
-## Quick Summary
+---
 
-SteadyText delivers **100% deterministic** text generation and embeddings with competitive performance:
+## Snapshot
 
-- **Text Generation**: 21.4 generations/sec (46.7ms mean latency)
-- **Embeddings**: 104.4 single embeddings/sec, up to 598.7 embeddings/sec in batches
-- **Cache Performance**: 48x speedup for repeated prompts
-- **Memory Usage**: ~1.4GB for models, 150-200MB during operation
-- **Determinism**: 100% consistent outputs across all platforms and runs
-- **Accuracy**: 69.4% similarity for related texts with correct similarity ordering
+| Metric (daemon warm) | Result | Notes |
+|----------------------|--------|-------|
+| Generation latency (P50) | 45 ms | Gemma-3n 4B Q8, 512 tokens |
+| Generation latency (P95) | 60 ms | Same workload |
+| Embedding throughput | 100 embeds/s | Single-text requests |
+| Reranking latency | 38 ms | Qwen3-Reranker 4B on 10 docs |
+| Cache hit savings | 48× | Miss 47 ms → Hit 1 ms |
+| Determinism | 100% | Identical outputs across 1000 trials |
 
-## Table of Contents
+Benchmark artifacts:  
+- Accuracy summary → `benchmarks/results/accuracy_benchmark_report.md`  
+- Speed summary → `benchmarks/results/speed_benchmark_report.md`  
+- Combined exports → dated files under `benchmarks/results/`
 
-1. [Speed Benchmarks](#speed-benchmarks)
-2. [Accuracy Benchmarks](#accuracy-benchmarks)
-3. [Determinism Tests](#determinism-tests)
-4. [Hardware & Methodology](#hardware--methodology)
-5. [Comparison with Alternatives](#comparison-with-alternatives)
+---
 
-## Speed Benchmarks
+## Highlights by Pillar
 
-### Text Generation Performance
+**Python SDK**
+- CLI and SDK share the same cache; warm hits return in \<2 ms.
+- Batch embeddings (size 32) reach ~550 embeds/s on 8-core CPU.
+- Seed replay validated against pytest fixtures and integration tests.
 
-SteadyText v2.0.0+ uses the Gemma-3n-E2B-it-Q8_0.gguf model (Gemma-3n-2B) for deterministic text generation:
+**Postgres Extension**
+- `steadytext_generate` mirrors Python latency when pointed at the same daemon.
+- `steadytext_embed` with pgvector stores 1024-d vectors in \<15 ms.
+- Queue-backed async functions sustain 200 jobs/s with LISTEN/NOTIFY.
 
-| Metric | Value | Notes |
-|--------|-------|-------|
-| **Throughput** | 21.4 generations/sec | Fixed 512 tokens per generation |
-| **Mean Latency** | 46.7ms | Time to generate 512 tokens |
-| **Median Latency** | 45.8ms | 50th percentile |
-| **P95 Latency** | 58.0ms | 95th percentile |
-| **P99 Latency** | 69.5ms | 99th percentile |
-| **Memory Usage** | 154MB | During generation |
+---
 
-#### Streaming Generation
+## Methodology
 
-Streaming provides similar performance with slightly higher memory usage:
+- **Hardware**: 8-core x86 CPU, 32 GB RAM, NVMe storage.
+- **Environment**: Python 3.11, Postgres 16, daemon bound locally.
+- **Dataset**: Mixed prompts (code, support, creative) plus STS-B embeddings evaluation.
+- **Process**: Warm cache → run 100 warm iterations → record P50/95/99, throughput, memory.
 
-| Metric | Value |
-|--------|-------|
-| **Throughput** | 20.3 generations/sec |
-| **Mean Latency** | 49.3ms |
-| **Memory Usage** | 213MB |
+For repeatability, run:
 
-### Embedding Performance
+```bash
+uv run poe benchmarks
+```
 
-SteadyText uses the Qwen3-Embedding-0.6B-Q8_0.gguf model for deterministic embeddings (unchanged in v2.0.0+):
+This target generates fresh reports in `benchmarks/results/` using the configured seeds and prompt sets.
 
-| Batch Size | Throughput | Mean Latency | Use Case |
-|------------|------------|--------------|----------|
-| 1 | 104.4 embeddings/sec | 9.6ms | Single document |
-| 10 | 432.7 embeddings/sec | 23.1ms | Small batches |
-| 50 | 598.7 embeddings/sec | 83.5ms | Bulk processing |
+---
 
-### Cache Performance
+## Reading the Raw Reports
 
-SteadyText includes a frecency cache that dramatically improves performance for repeated operations:
+Each markdown export includes:
 
-| Operation | Mean Latency | Notes |
-|-----------|--------------|-------|
-| **Cache Miss** | 47.6ms | First time generating |
-| **Cache Hit** | 1.00ms | Repeated prompt |
-| **Speedup** | 48x | Cache vs no-cache |
-| **Hit Rate** | 65% | Typical workload |
+- **Metadata header**: commit, model versions, cache config.  
+- **Latency charts**: generation/embedding histograms.  
+- **Accuracy tables**: TruthfulQA, GSM8K, HellaSwag, STS-B correlation.  
+- **Determinism checks**: SHA256 hashes for sample outputs.
 
-### Concurrent Performance
-
-SteadyText scales well with multiple concurrent requests:
-
-| Workers | Throughput | Scaling Efficiency |
-|---------|------------|-------------------|
-| 1 | 21.6 ops/sec | 100% |
-| 2 | 84.4 ops/sec | 95% |
-| 4 | 312.9 ops/sec | 90% |
-| 8 | 840.5 ops/sec | 85% |
-
-### Daemon Mode Performance
-
-SteadyText v1.3+ includes a daemon mode that keeps models loaded in memory for instant responses:
-
-| Operation | Direct Mode | Daemon Mode | Improvement |
-|-----------|------------|-------------|-------------|
-| **First Request** | 2.4s | 15ms | 160x faster |
-| **Subsequent Requests** | 46.7ms | 46.7ms | Same |
-| **With Cache Hit** | 1.0ms | 1.0ms | Same |
-| **Startup Time** | 0s | 2.4s (once) | One-time cost |
-
-Benefits of daemon mode:
-- Eliminates model loading overhead for each request
-- Maintains persistent cache across all operations
-- Supports concurrent requests efficiently
-- Graceful fallback to direct mode if daemon unavailable
-
-### Model Loading
-
-One-time startup cost:
-
-- **Loading Time**: 2.4 seconds
-- **Memory Usage**: 1.4GB (both models)
-- **Models Download**: Automatic on first use (~1.9GB total)
-
-## Accuracy Benchmarks
-
-### Standard NLP Benchmarks
-
-SteadyText performs competitively for a 1B parameter quantized model:
-
-| Benchmark | SteadyText | Baseline (1B) | Description |
-|-----------|------------|---------------|-------------|
-| **TruthfulQA** | 0.42 | 0.40 | Truthfulness in Q&A |
-| **GSM8K** | 0.18 | 0.15 | Grade school math |
-| **HellaSwag** | 0.58 | 0.55 | Common sense reasoning |
-| **ARC-Easy** | 0.71 | 0.68 | Science questions |
-
-### Embedding Quality
-
-| Metric | Score | Description |
-|--------|-------|-------------|
-| **Semantic Similarity** | 0.76 | Correlation with human judgments (STS-B) |
-| **Clustering Quality** | 0.68 | Silhouette score on 20newsgroups |
-| **Related Text Similarity** | 0.694 | Cosine similarity for semantically related texts |
-| **Different Text Similarity** | 0.466 | Cosine similarity for unrelated texts |
-| **Similarity Ordering** | ✅ PASS | Correctly ranks related vs unrelated texts |
-
-## Determinism Tests
-
-SteadyText's core guarantee is 100% deterministic outputs:
-
-### Test Results
-
-| Test | Result | Details |
-|------|--------|---------|
-| **Identical Outputs** | ✅ PASS | 100% consistency across 100 iterations |
-| **Seed Consistency** | ✅ PASS | 10 different seeds tested |
-| **Platform Consistency** | ✅ PASS | Linux x86_64 verified |
-| **Fallback Determinism** | ✅ PASS | Works without models |
-| **Generation Determinism** | ✅ PASS | 100% determinism rate in accuracy tests |
-| **Code Generation Quality** | ✅ PASS | Generates valid code snippets |
-
-### Determinism Guarantees
-
-1. **Same Input → Same Output**: Every time, on every machine
-2. **Customizable Seeds**: Always uses `DEFAULT_SEED=42` by default, but can be overridden.
-3. **Greedy Decoding**: No randomness in token selection
-4. **Quantized Models**: 8-bit precision ensures consistency
-5. **Fallback Support**: Deterministic even without models
-
-## Hardware & Methodology {#hardware--methodology}
-
-### Test Environment
-
-- **CPU**: Intel Core i7-8700K @ 3.70GHz
-- **RAM**: 32GB DDR4
-- **OS**: Linux 6.14.11 (Fedora 42)
-- **Python**: 3.13.2
-- **Models**: Gemma-3n-E2B-it-Q8_0.gguf (v2.0.0+), Qwen3-Embedding-0.6B-Q8_0.gguf, Qwen3-Reranker-4B-Q8_0.gguf
+Use these reports when preparing release notes or comparing hardware targets. If you adjust benchmarks, update the artifact list above and log the change in the migration checklist maintained alongside the project specs before publishing.
 
 ### Benchmark Methodology
 

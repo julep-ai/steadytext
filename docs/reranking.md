@@ -401,6 +401,6 @@ The reranker model uses ~4GB of memory. If you're running out of memory:
 ## See Also
 
 - [API Reference](api.md#document-reranking-v130) - Detailed API documentation
-- [PostgreSQL Extension](postgresql-extension.md#document-reranking-v130) - Database integration
+- [PostgreSQL Extension](postgresql-extension.md) - Database integration
 - [Vector Indexing](vector-indexing.md) - Building the initial retrieval pipeline
 - [Examples](examples/index.md) - More code examples
