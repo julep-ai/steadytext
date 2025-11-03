@@ -73,6 +73,9 @@ class OpenAIProvider(RemoteModelProvider):
         """
         super().__init__(api_key)
         self.model = model
+        self._embedding_model: Optional[str] = None
+        if model and self._looks_like_embedding_model(model):
+            self._embedding_model = model
 
         # Try to get API key from environment if not provided
         if not self.api_key:
@@ -84,6 +87,13 @@ class OpenAIProvider(RemoteModelProvider):
     @property
     def provider_name(self) -> str:
         return f"OpenAI ({self.model})"
+
+    @staticmethod
+    def _looks_like_embedding_model(model_name: Optional[str]) -> bool:
+        """Heuristic to detect embedding-capable model identifiers."""
+        if not model_name:
+            return False
+        return "embedding" in model_name.lower()
 
     def is_available(self) -> bool:
         """Check if OpenAI is available."""
@@ -320,8 +330,16 @@ class OpenAIProvider(RemoteModelProvider):
         else:
             client = self._get_client()
 
-        # Use specific embedding model or default
-        embedding_model = model or "text-embedding-3-small"
+        # Use explicit override, env-configured value, or sensible default
+        env_embedding_model = os.environ.get("EMBEDDING_OPENAI_MODEL")
+        embedding_model = (
+            model
+            or env_embedding_model
+            or self._embedding_model
+            or "text-embedding-3-small"
+        )
+        if self._looks_like_embedding_model(embedding_model):
+            self._embedding_model = embedding_model
 
         # Convert single string to list for consistent handling
         texts = [text] if isinstance(text, str) else text
