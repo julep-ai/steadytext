@@ -332,10 +332,15 @@ class OpenAIProvider(RemoteModelProvider):
 
         # Use explicit override, env-configured value, or sensible default
         env_embedding_model = os.environ.get("EMBEDDING_OPENAI_MODEL")
+        provider_embedding_model = self._embedding_model
+        if not provider_embedding_model and self._looks_like_embedding_model(
+            self.model
+        ):
+            provider_embedding_model = self.model
         embedding_model = (
             model
             or env_embedding_model
-            or self._embedding_model
+            or provider_embedding_model
             or "text-embedding-3-small"
         )
         if self._looks_like_embedding_model(embedding_model):

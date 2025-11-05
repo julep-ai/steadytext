@@ -4,7 +4,7 @@ import numpy as np
 from pathlib import Path
 import logging
 import platform  # For get_cache_dir
-from typing import Dict, Any, List, Optional, Final  # For type hints
+from typing import Any, Dict, List, Optional, Final, cast  # For type hints
 import sys
 from contextlib import contextmanager
 
@@ -36,7 +36,7 @@ RERANKING_MODEL_FILENAME = "Qwen3-Reranker-4B.Q8_0.gguf"
 
 # AIDEV-NOTE: Model registry for validated alternative models
 # Each entry contains repo_id and filename for known working models
-MODEL_REGISTRY = {
+MODEL_REGISTRY: Dict[str, Dict[str, Any]] = {
     # Mini models for CI/testing (small, fast models for deterministic testing)
     # AIDEV-NOTE: Mini models enable ~10x faster CI tests with minimal resource usage
     "gemma-mini-270m": {
@@ -389,7 +389,7 @@ def validate_normalized_embedding(  # noqa E501
 
 
 # AIDEV-NOTE: Helper functions for model configuration and switching
-def get_model_config(model_name: str) -> Dict[str, str]:
+def get_model_config(model_name: str) -> Dict[str, Any]:
     """Get model configuration from registry by name.
 
     Args:
@@ -406,7 +406,7 @@ def get_model_config(model_name: str) -> Dict[str, str]:
         raise ValueError(
             f"Model '{model_name}' not found in registry. Available models: {available}"
         )
-    return MODEL_REGISTRY[model_name]
+    return cast(Dict[str, Any], MODEL_REGISTRY[model_name])
 
 
 def resolve_model_params(
@@ -474,7 +474,7 @@ def get_default_embedding_mode() -> str:
     return mode
 
 
-def get_mini_models() -> Dict[str, Dict[str, str]]:
+def get_mini_models() -> Dict[str, Dict[str, Any]]:
     """Get the mini model configurations for CI/testing.
 
     Returns:
@@ -484,9 +484,9 @@ def get_mini_models() -> Dict[str, Dict[str, str]]:
     AIDEV-NOTE: Mini models are designed for fast CI/testing with ~10x smaller sizes
     """
     return {
-        "generation": MODEL_REGISTRY["gemma-mini-270m"],
-        "embedding": MODEL_REGISTRY["bge-embedding-mini"],
-        "reranking": MODEL_REGISTRY["bge-reranker-mini"],
+        "generation": cast(Dict[str, Any], MODEL_REGISTRY["gemma-mini-270m"]),
+        "embedding": cast(Dict[str, Any], MODEL_REGISTRY["bge-embedding-mini"]),
+        "reranking": cast(Dict[str, Any], MODEL_REGISTRY["bge-reranker-mini"]),
     }
 
 
@@ -511,8 +511,8 @@ def resolve_embedding_model_params(
         return repo, filename
 
     if size == "mini":
-        config = MODEL_REGISTRY["bge-embedding-mini"]
-        return config["repo"], config["filename"]
+        config = cast(Dict[str, Any], MODEL_REGISTRY["bge-embedding-mini"])
+        return cast(str, config["repo"]), cast(str, config["filename"])
 
     return EMBEDDING_MODEL_REPO, EMBEDDING_MODEL_FILENAME
 
@@ -561,8 +561,8 @@ def resolve_reranking_model_params(
         return repo, filename
 
     if size == "mini":
-        config = MODEL_REGISTRY["bge-reranker-mini"]
-        return config["repo"], config["filename"]
+        config = cast(Dict[str, Any], MODEL_REGISTRY["bge-reranker-mini"])
+        return cast(str, config["repo"]), cast(str, config["filename"])
 
     return RERANKING_MODEL_REPO, RERANKING_MODEL_FILENAME
 

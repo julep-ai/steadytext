@@ -468,7 +468,7 @@ class DeterministicGenerator:
                 sampling_params["max_tokens"] = max_new_tokens
 
             # AIDEV-NOTE: Use create_chat_completion for model interaction.
-            output: Dict[str, Any] = self.model.create_chat_completion(
+            output = self.model.create_chat_completion(
                 messages=[{"role": "user", "content": final_prompt}], **sampling_params
             )
 

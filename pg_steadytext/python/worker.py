@@ -72,6 +72,12 @@ class QueueWorker:
 
             embedding = embed(text)
 
+        if embedding is None:
+            # Ensure deterministic fallback to zero vector for error cases
+            from steadytext.utils import EMBEDDING_DIMENSION
+
+            return [0.0] * EMBEDDING_DIMENSION
+
         return embedding.tolist()
 
     def process_generation_json(self, request_data: Dict[str, Any]) -> str:

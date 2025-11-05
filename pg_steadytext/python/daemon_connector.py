@@ -10,7 +10,7 @@ import json
 import time
 import subprocess
 import logging
-from typing import List, Optional, cast
+from typing import Any, Dict, List, Optional, cast
 import numpy as np
 
 # AIDEV-NOTE: Import SteadyText components - these should be available if steadytext is installed
@@ -494,7 +494,7 @@ class SteadyTextConnector:
                     import inspect
 
                     embed_sig = inspect.signature(embed)
-                    kwargs = {"seed": seed}
+                    kwargs: Dict[str, Any] = {"seed": seed}
                     if model:
                         kwargs["model"] = model
                     if unsafe_mode and "unsafe_mode" in embed_sig.parameters:
@@ -512,7 +512,7 @@ class SteadyTextConnector:
                     import inspect
 
                     embed_sig = inspect.signature(embed)
-                    kwargs = {"seed": seed}
+                    kwargs: Dict[str, Any] = {"seed": seed}
                     if model:
                         kwargs["model"] = model
                     if unsafe_mode and "unsafe_mode" in embed_sig.parameters:

@@ -1,11 +1,40 @@
 # AIDEV-NOTE: Centralized cache management for SteadyText, providing singleton cache instances shared between the daemon and direct access. It has proper __len__ method support and improved error handling.
 
 import os as _os
-from typing import Optional, cast
+from typing import Any, Dict, Optional, cast
 from pathlib import Path
 
 from .disk_backed_frecency_cache import DiskBackedFrecencyCache
 from .utils import get_cache_dir
+from .cache.base import CacheBackend
+
+
+class _NoOpCacheBackend(CacheBackend):
+    """Minimal cache backend that performs no operations."""
+
+    def __init__(self) -> None:
+        super().__init__(capacity=0, cache_name="noop", max_size_mb=0.0, cache_dir=None)
+
+    def get(self, key: Any) -> Optional[Any]:
+        return None
+
+    def set(self, key: Any, value: Any) -> None:
+        return None
+
+    def delete(self, key: Any) -> None:
+        return None
+
+    def clear(self) -> None:
+        return None
+
+    def sync(self) -> None:
+        return None
+
+    def get_stats(self) -> Dict[str, Any]:
+        return {"size": 0, "capacity": 0}
+
+    def __len__(self) -> int:
+        return 0
 
 
 # AIDEV-NOTE: Dummy cache for testing/collection scenarios
@@ -15,7 +44,7 @@ class _DummyCache(DiskBackedFrecencyCache):
     def __init__(self):
         # Don't call super().__init__() to avoid any initialization
         self.capacity = 0
-        self._backend = None
+        self._backend = _NoOpCacheBackend()
         self._memory_cache = {}
         self.cache_dir = None
 

@@ -12,7 +12,7 @@ except ImportError as import_err:  # pragma: no cover - import failure path
 from pathlib import Path
 import threading
 import logging
-from typing import Optional, Dict
+from typing import Any, Dict, Optional, cast
 from ..utils import (
     LLAMA_CPP_EMBEDDING_PARAMS_DETERMINISTIC,
     LLAMA_CPP_MAIN_PARAMS_DETERMINISTIC,
@@ -58,14 +58,14 @@ class _ModelInstanceCache:
         raise RuntimeError("Call __getInstance() instead")
 
     @staticmethod
-    def _get_model_registry() -> Dict[str, Dict[str, str]]:
+    def _get_model_registry() -> Dict[str, Dict[str, Any]]:
         """Get the model registry from utils.
 
         AIDEV-NOTE: Helper method to access MODEL_REGISTRY from utils module.
         """
         from ..utils import MODEL_REGISTRY
 
-        return MODEL_REGISTRY
+        return cast(Dict[str, Dict[str, Any]], MODEL_REGISTRY)
 
     @classmethod
     def _ensure_init(cls):

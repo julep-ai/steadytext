@@ -380,6 +380,7 @@ def generate(
                 text, logprobs_data = result
             else:
                 text, logprobs_data = None, None
+            text_value = text if isinstance(text, str) else ""
             if output_format == "json":
                 generated_text = ""
                 for token in steady_generate_iter(
@@ -401,17 +402,19 @@ def generate(
 
                 # After collecting all text, format the final JSON output
                 metadata = {
-                    "text": text,
+                    "text": text_value,
                     "model": model or "gemma-3n-E2B-it-GGUF",
                     "usage": {
                         "prompt_tokens": len(prompt.split()),
-                        "completion_tokens": len(text.split()) if text else 0,
+                        "completion_tokens": len(text_value.split())
+                        if text_value
+                        else 0,
                         "total_tokens": len(prompt.split())
-                        + (len(text.split()) if text else 0),
+                        + (len(text_value.split()) if text_value else 0),
                     },
                     "logprobs": logprobs_data,
                     "prompt": prompt,
-                    "generated": text,
+                    "generated": text_value,
                     "time_taken": time.time() - start_time,
                     "stream": False,
                     "used_index": len(context_chunks) > 0,
@@ -420,7 +423,7 @@ def generate(
                 click.echo(json.dumps(metadata))
 
             else:
-                click.echo(json.dumps({"text": text, "logprobs": logprobs_data}))
+                click.echo(json.dumps({"text": text_value, "logprobs": logprobs_data}))
         else:
             # Non-logprobs mode
             generated = steady_generate(

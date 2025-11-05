@@ -155,6 +155,7 @@ addopts = [
 exclude = [
     "examples/",
     "benchmarks/",
+    "tests/",
 ]
 
 [tool.ty.rules]
