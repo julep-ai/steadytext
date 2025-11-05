@@ -1,8 +1,10 @@
-import click
-import sys
+import enum
 import json
+import sys
 import time
 from pathlib import Path
+
+import click
 
 from ... import generate as steady_generate, generate_iter as steady_generate_iter
 from .index import search_index_for_context, get_default_index_path
@@ -174,6 +176,18 @@ def generate(
 
         logging.getLogger("steadytext").setLevel(logging.ERROR)
         logging.getLogger("llama_cpp").setLevel(logging.ERROR)
+
+    def _normalize_optional(value):
+        """Convert Click's internal sentinel values to None."""
+        if isinstance(value, enum.Enum) and value.__class__.__name__ == "Sentinel":
+            return None
+        return value
+
+    index_file = _normalize_optional(index_file)
+    schema = _normalize_optional(schema)
+    regex = _normalize_optional(regex)
+    choices = _normalize_optional(choices)
+    options = _normalize_optional(options)
 
     # Handle unsafe mode - validate remote model if specified
     if unsafe_mode:

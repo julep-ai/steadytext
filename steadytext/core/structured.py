@@ -95,10 +95,101 @@ class StructuredGenerator:
         if isinstance(result, dict):
             return cast(Dict[str, Any], result)
         if isinstance(result, Iterator):
-            first = next(result, None)
-            if isinstance(first, dict):
-                return cast(Dict[str, Any], first)
-            raise RuntimeError("Model iterator returned no response")
+            first_chunk: Optional[Dict[str, Any]] = None
+            last_chunk: Optional[Dict[str, Any]] = None
+            text_parts: List[str] = []
+            delta_parts: List[str] = []
+            final_message_content: Optional[str] = None
+            final_message_role: Optional[str] = None
+            usage_payload: Optional[Dict[str, Any]] = None
+
+            for chunk in result:
+                if not isinstance(chunk, dict):
+                    continue
+                if first_chunk is None:
+                    first_chunk = chunk
+                last_chunk = chunk
+                chunk_usage = chunk.get("usage")
+                if isinstance(chunk_usage, dict):
+                    usage_payload = chunk_usage
+
+                choices = chunk.get("choices")
+                if not isinstance(choices, list) or not choices:
+                    continue
+
+                choice = choices[0]
+                if not isinstance(choice, dict):
+                    continue
+
+                text_piece = choice.get("text")
+                if isinstance(text_piece, str):
+                    text_parts.append(text_piece)
+
+                message = choice.get("message")
+                if isinstance(message, dict):
+                    message_content = message.get("content")
+                    if isinstance(message_content, str):
+                        final_message_content = message_content
+                    message_role = message.get("role")
+                    if isinstance(message_role, str):
+                        final_message_role = message_role
+
+                delta = choice.get("delta")
+                if isinstance(delta, dict):
+                    delta_content = delta.get("content")
+                    if isinstance(delta_content, str):
+                        delta_parts.append(delta_content)
+                    delta_role = delta.get("role")
+                    if isinstance(delta_role, str) and final_message_role is None:
+                        final_message_role = delta_role
+
+            if first_chunk is None:
+                raise RuntimeError("Model iterator returned no response")
+
+            combined_result = dict(first_chunk)
+
+            first_choices = first_chunk.get("choices")
+            combined_choice: Dict[str, Any] = {}
+            if isinstance(first_choices, list) and first_choices:
+                first_choice = first_choices[0]
+                if isinstance(first_choice, dict):
+                    combined_choice.update(first_choice)
+
+            aggregated_text = "".join(text_parts)
+            aggregated_delta = "".join(delta_parts)
+            message_content = final_message_content or aggregated_delta
+
+            if aggregated_text:
+                combined_choice["text"] = aggregated_text
+            if message_content:
+                message_dict = combined_choice.get("message")
+                if not isinstance(message_dict, dict):
+                    message_dict = {}
+                message_dict["content"] = message_content
+                if final_message_role:
+                    message_dict.setdefault("role", final_message_role)
+                combined_choice["message"] = message_dict
+
+            if not aggregated_text and not message_content:
+                raise RuntimeError("Model iterator yielded no textual content")
+
+            if last_chunk:
+                last_choices = last_chunk.get("choices")
+                if isinstance(last_choices, list) and last_choices:
+                    last_choice = last_choices[0]
+                    if isinstance(last_choice, dict):
+                        for key in ("finish_reason", "logprobs", "index"):
+                            if key in last_choice:
+                                combined_choice[key] = last_choice[key]
+
+            if usage_payload is not None:
+                combined_result["usage"] = usage_payload
+
+            # Drop streaming-specific delta payload to avoid leaking partial chunks
+            combined_choice.pop("delta", None)
+
+            combined_result["choices"] = [combined_choice]
+            return cast(Dict[str, Any], combined_result)
         raise TypeError(f"Unexpected result type from model: {type(result)!r}")
 
     @staticmethod
