@@ -6,7 +6,7 @@ import json
 import pickle
 import hashlib
 from pathlib import Path
-from typing import List, Dict, Any, Tuple, Optional
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 import numpy as np
 
 try:
@@ -17,6 +17,7 @@ except ImportError:
 
 try:
     from chonkie import TokenChunker
+    from chonkie.chunker.token import TokenizerProtocol
 except ImportError:
     click.echo("Error: chonkie not installed. Run: pip install chonkie", err=True)
     raise
@@ -64,8 +65,14 @@ def _chunk_text_deterministically(
         generator = DeterministicGenerator()
         if hasattr(generator, "model") and generator.model is not None:
             # Use model's tokenizer if available
+            tokenizer_obj = generator.model.tokenizer()
+            chunker_tokenizer: Union[str, TokenizerProtocol]
+            if isinstance(tokenizer_obj, str):
+                chunker_tokenizer = tokenizer_obj
+            else:
+                chunker_tokenizer = cast(TokenizerProtocol, tokenizer_obj)
             chunker = TokenChunker(
-                tokenizer=generator.model.tokenizer(),
+                tokenizer=chunker_tokenizer,
                 chunk_size=max_chunk_size,
                 chunk_overlap=chunk_overlap,
             )

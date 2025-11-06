@@ -19,10 +19,22 @@ import json
 import logging
 import os
 import re
-from typing import Any, Dict, List, Union, Type, Optional, overload, Literal, TypeVar
+from typing import (
+    Any,
+    Dict,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+    overload,
+    cast,
+)
 
 from pydantic import BaseModel
-from llama_cpp import LlamaGrammar
+from llama_cpp import Llama, LlamaGrammar
 
 from ..models.loader import get_generator_model_instance
 from ..utils import suppress_llama_output, DEFAULT_SEED
@@ -58,7 +70,7 @@ class StructuredGenerator:
 
     def __init__(self):
         """Initialize the structured generator."""
-        self._model = None
+        self._model: Optional[Llama] = None
 
     def _ensure_model_loaded(self):
         """Ensure the model is loaded."""
@@ -68,6 +80,134 @@ class StructuredGenerator:
             if llama_model is None:
                 raise RuntimeError("Failed to load generation model")
             self._model = llama_model
+
+    def _get_model(self) -> Llama:
+        """Return the loaded llama.cpp model, ensuring availability."""
+        self._ensure_model_loaded()
+        if self._model is None:
+            raise RuntimeError("Generation model is not loaded")
+        return self._model
+
+    def _call_model(self, *args: Any, **kwargs: Any) -> Dict[str, Any]:
+        """Call the underlying llama.cpp model and normalize the response."""
+        model = self._get_model()
+        result = model(*args, **kwargs)
+        if isinstance(result, dict):
+            return cast(Dict[str, Any], result)
+        if isinstance(result, Iterator):
+            first_chunk: Optional[Dict[str, Any]] = None
+            last_chunk: Optional[Dict[str, Any]] = None
+            text_parts: List[str] = []
+            delta_parts: List[str] = []
+            final_message_content: Optional[str] = None
+            final_message_role: Optional[str] = None
+            usage_payload: Optional[Dict[str, Any]] = None
+
+            for chunk in result:
+                if not isinstance(chunk, dict):
+                    continue
+                if first_chunk is None:
+                    first_chunk = chunk
+                last_chunk = chunk
+                chunk_usage = chunk.get("usage")
+                if isinstance(chunk_usage, dict):
+                    usage_payload = chunk_usage
+
+                choices = chunk.get("choices")
+                if not isinstance(choices, list) or not choices:
+                    continue
+
+                choice = choices[0]
+                if not isinstance(choice, dict):
+                    continue
+
+                text_piece = choice.get("text")
+                if isinstance(text_piece, str):
+                    text_parts.append(text_piece)
+
+                message = choice.get("message")
+                if isinstance(message, dict):
+                    message_content = message.get("content")
+                    if isinstance(message_content, str):
+                        final_message_content = message_content
+                    message_role = message.get("role")
+                    if isinstance(message_role, str):
+                        final_message_role = message_role
+
+                delta = choice.get("delta")
+                if isinstance(delta, dict):
+                    delta_content = delta.get("content")
+                    if isinstance(delta_content, str):
+                        delta_parts.append(delta_content)
+                    delta_role = delta.get("role")
+                    if isinstance(delta_role, str) and final_message_role is None:
+                        final_message_role = delta_role
+
+            if first_chunk is None:
+                raise RuntimeError("Model iterator returned no response")
+
+            combined_result = dict(first_chunk)
+
+            first_choices = first_chunk.get("choices")
+            combined_choice: Dict[str, Any] = {}
+            if isinstance(first_choices, list) and first_choices:
+                first_choice = first_choices[0]
+                if isinstance(first_choice, dict):
+                    combined_choice.update(first_choice)
+
+            aggregated_text = "".join(text_parts)
+            aggregated_delta = "".join(delta_parts)
+            message_content = final_message_content or aggregated_delta
+
+            if aggregated_text:
+                combined_choice["text"] = aggregated_text
+            if message_content:
+                message_dict = combined_choice.get("message")
+                if not isinstance(message_dict, dict):
+                    message_dict = {}
+                message_dict["content"] = message_content
+                if final_message_role:
+                    message_dict.setdefault("role", final_message_role)
+                combined_choice["message"] = message_dict
+
+            if not aggregated_text and not message_content:
+                raise RuntimeError("Model iterator yielded no textual content")
+
+            if last_chunk:
+                last_choices = last_chunk.get("choices")
+                if isinstance(last_choices, list) and last_choices:
+                    last_choice = last_choices[0]
+                    if isinstance(last_choice, dict):
+                        for key in ("finish_reason", "logprobs", "index"):
+                            if key in last_choice:
+                                combined_choice[key] = last_choice[key]
+
+            if usage_payload is not None:
+                combined_result["usage"] = usage_payload
+
+            # Drop streaming-specific delta payload to avoid leaking partial chunks
+            combined_choice.pop("delta", None)
+
+            combined_result["choices"] = [combined_choice]
+            return cast(Dict[str, Any], combined_result)
+        raise TypeError(f"Unexpected result type from model: {type(result)!r}")
+
+    @staticmethod
+    def _extract_choice_text(result: Dict[str, Any]) -> str:
+        """Extract text content from a llama.cpp completion response."""
+        choices = result.get("choices")
+        if isinstance(choices, list) and choices:
+            choice = choices[0]
+            if isinstance(choice, dict):
+                text_value = choice.get("text")
+                if isinstance(text_value, str):
+                    return text_value
+                message = choice.get("message")
+                if isinstance(message, dict):
+                    content = message.get("content")
+                    if isinstance(content, str):
+                        return content
+        raise RuntimeError("Model response did not include textual content")
 
     def generate_json(
         self,
@@ -87,10 +227,10 @@ class StructuredGenerator:
         Returns:
             JSON string that conforms to the schema
         """
-        self._ensure_model_loaded()
+        model = self._get_model()
 
         # Validate input length
-        _validate_input_length(self._model, prompt, max_tokens)
+        _validate_input_length(model, prompt, max_tokens)
 
         # Convert schema to JSON schema if needed
         json_schema = self._schema_to_json_schema(schema)
@@ -128,9 +268,10 @@ class StructuredGenerator:
             # First, generate thoughts up to <json- tag
             with suppress_llama_output():
                 # Set stop token to generate thoughts first
-                thoughts = self._model(
+                thoughts_result = self._call_model(
                     structured_prompt, max_tokens=max_tokens, stop=["<json-"], **kwargs
-                )["choices"][0]["text"]
+                )
+                thoughts = self._extract_choice_text(thoughts_result)
 
             # Now generate the structured JSON
             full_prompt = structured_prompt + thoughts + "<json-output>"
@@ -138,14 +279,14 @@ class StructuredGenerator:
             # Generate JSON using grammar
             with suppress_llama_output():
                 # AIDEV-NOTE: llama-cpp-python accepts grammar as a LlamaGrammar object
-                result = self._model(
+                result = self._call_model(
                     full_prompt,
                     max_tokens=max_tokens,
                     grammar=grammar,
                     stop=["</json-output>"],
                     **kwargs,
                 )
-                json_output = result["choices"][0]["text"]
+                json_output = self._extract_choice_text(result)
 
             # Return the complete output with XML tags
             return thoughts + "<json-output>" + json_output + "</json-output>"
@@ -204,13 +345,13 @@ class StructuredGenerator:
 
         # Generate without grammar constraints
         with suppress_llama_output():
-            result = self._model(
+            result = self._call_model(
                 enhanced_prompt,
                 max_tokens=max_tokens,
                 stop=["</json-output>"],
                 **kwargs,
             )
-            json_output = result["choices"][0]["text"]
+            json_output = self._extract_choice_text(result)
 
         # Return with wrapper tags
         return "<json-output>" + json_output + "</json-output>"
@@ -267,10 +408,10 @@ class StructuredGenerator:
         Returns:
             Text that matches the pattern
         """
-        self._ensure_model_loaded()
+        model = self._get_model()
 
         # Validate input length
-        _validate_input_length(self._model, prompt, max_tokens)
+        _validate_input_length(model, prompt, max_tokens)
 
         # Validate regex pattern
         try:
@@ -290,10 +431,10 @@ class StructuredGenerator:
 
         # Generate text matching the pattern
         with suppress_llama_output():
-            result = self._model(
+            result = self._call_model(
                 prompt, max_tokens=max_tokens, grammar=grammar, **kwargs
             )
-            return result["choices"][0]["text"]
+            return self._extract_choice_text(result)
 
     def generate_choice(
         self, prompt: str, choices: List[str], max_tokens: int = 512, **kwargs
@@ -309,10 +450,10 @@ class StructuredGenerator:
         Returns:
             One of the provided choices
         """
-        self._ensure_model_loaded()
+        model = self._get_model()
 
         # Validate input length
-        _validate_input_length(self._model, prompt, max_tokens)
+        _validate_input_length(model, prompt, max_tokens)
 
         if not choices:
             raise ValueError("Choices list cannot be empty")
@@ -329,10 +470,10 @@ class StructuredGenerator:
 
         # Generate one of the choices
         with suppress_llama_output():
-            result = self._model(
+            result = self._call_model(
                 prompt, max_tokens=max_tokens, grammar=grammar, **kwargs
             )
-            return result["choices"][0]["text"]
+            return self._extract_choice_text(result)
 
     def generate_format(
         self, prompt: str, format_type: Type, max_tokens: int = 512, **kwargs
@@ -348,10 +489,10 @@ class StructuredGenerator:
         Returns:
             Text formatted as the specified type
         """
-        self._ensure_model_loaded()
+        model = self._get_model()
 
         # Validate input length
-        _validate_input_length(self._model, prompt, max_tokens)
+        _validate_input_length(model, prompt, max_tokens)
 
         # Convert type to JSON schema then to grammar
         json_schema = self._schema_to_json_schema(format_type)
@@ -366,10 +507,10 @@ class StructuredGenerator:
 
         # Generate formatted text
         with suppress_llama_output():
-            result = self._model(
+            result = self._call_model(
                 prompt, max_tokens=max_tokens, grammar=grammar, **kwargs
             )
-            return result["choices"][0]["text"]
+            return self._extract_choice_text(result)
 
 
 # Singleton instance
@@ -508,9 +649,16 @@ def generate_json(
 
         # Extract string result (handle logprobs tuple if present)
         if isinstance(result, tuple):
-            result = result[0]  # Get just the string part
-        # Type narrowing: at this point result must be str since it's not None or tuple
-        assert isinstance(result, str)
+            first_part = result[0]
+            if not isinstance(first_part, str):
+                raise TypeError(
+                    "Remote structured generation returned non-string result"
+                )
+            result_str = first_part
+        elif isinstance(result, str):
+            result_str = result
+        else:
+            raise TypeError("Remote structured generation returned non-string result")
 
         # Handle Pydantic model instantiation for remote models
         if (
@@ -519,13 +667,13 @@ def generate_json(
             and issubclass(schema, BaseModel)
         ):
             # Extract JSON from tags
-            json_start = result.find("<json-output>") + len("<json-output>")
-            json_end = result.find("</json-output>")
+            json_start = result_str.find("<json-output>") + len("<json-output>")
+            json_end = result_str.find("</json-output>")
             if json_start > len("<json-output>") - 1 and json_end > json_start:
-                json_str = result[json_start:json_end]
+                json_str = result_str[json_start:json_end]
                 return schema.model_validate_json(json_str)
 
-        return result
+        return result_str
 
     # For local models, use the structured generator
     generator = get_structured_generator()
@@ -605,9 +753,12 @@ def generate_regex(
 
         # Extract string result (handle logprobs tuple if present)
         if isinstance(result, tuple):
-            return result[0]  # Return just the string part
-        # Type narrowing: at this point result must be str since it's not None or tuple
-        assert isinstance(result, str)
+            text_part = result[0]
+            if not isinstance(text_part, str):
+                raise TypeError("Remote regex generation returned non-string result")
+            return text_part
+        if not isinstance(result, str):
+            raise TypeError("Remote regex generation returned non-string result")
         return result
 
     # For local models, use the structured generator
@@ -676,9 +827,12 @@ def generate_choice(
 
         # Extract string result (handle logprobs tuple if present)
         if isinstance(result, tuple):
-            return result[0]  # Return just the string part
-        # Type narrowing: at this point result must be str since it's not None or tuple
-        assert isinstance(result, str)
+            text_part = result[0]
+            if not isinstance(text_part, str):
+                raise TypeError("Remote choice generation returned non-string result")
+            return text_part
+        if not isinstance(result, str):
+            raise TypeError("Remote choice generation returned non-string result")
         return result
 
     # For local models, use the structured generator
@@ -749,9 +903,14 @@ def generate_format(
 
         # Extract string result (handle logprobs tuple if present)
         if isinstance(result, tuple):
-            return result[0]  # Return just the string part
-        # Type narrowing: at this point result must be str since it's not None or tuple
-        assert isinstance(result, str)
+            text_part = result[0]
+            if not isinstance(text_part, str):
+                raise TypeError(
+                    "Remote formatted generation returned non-string result"
+                )
+            return text_part
+        if not isinstance(result, str):
+            raise TypeError("Remote formatted generation returned non-string result")
         return result
 
     # For local models, use the structured generator

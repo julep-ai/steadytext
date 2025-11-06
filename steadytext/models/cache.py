@@ -46,8 +46,6 @@ def _download_model_if_needed(
                 filename=filename,
                 cache_dir=cache_dir,
                 local_dir=cache_dir,
-                local_dir_use_symlinks=False,
-                resume_download=True,
             )
             if Path(actual_downloaded_path) != model_path:
                 logger.warning(

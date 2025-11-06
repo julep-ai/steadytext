@@ -1,6 +1,6 @@
 import click
 import json
-from typing import Optional
+from typing import Any, Dict, Optional, cast
 
 from ...utils import (
     get_cache_dir,
@@ -37,7 +37,7 @@ def models():
 def list_models():
     """Check model download status."""
     model_dir = get_cache_dir()
-    status_data = {"model_directory": str(model_dir), "models": {}}
+    status_data: Dict[str, Any] = {"model_directory": str(model_dir), "models": {}}
 
     # Show default models
     for model_type, model_info in MODELS.items():
@@ -56,7 +56,8 @@ def list_models():
 
     # Show all available generation models from registry
     status_data["available_generation_models"] = {}
-    for model_name, model_info in MODEL_REGISTRY.items():
+    for model_name, model_info_untyped in MODEL_REGISTRY.items():
+        model_info = cast(Dict[str, Any], model_info_untyped)
         model_path = model_dir / model_info["filename"]
         status_data["available_generation_models"][model_name] = {
             "filename": model_info["filename"],
@@ -102,10 +103,13 @@ def download(size: Optional[str], model: Optional[str], all: bool):
         click.echo("Downloading all available models...")
         # Download all models from registry
         for model_name, model_info in MODEL_REGISTRY.items():
-            click.echo(f"Downloading {model_name} ({model_info['repo']})...", nl=False)
+            model_info_typed = cast(Dict[str, Any], model_info)
+            click.echo(
+                f"Downloading {model_name} ({model_info_typed['repo']})...", nl=False
+            )
             try:
                 path = get_generation_model_path(
-                    model_info["repo"], model_info["filename"]
+                    model_info_typed["repo"], model_info_typed["filename"]
                 )
                 if path:
                     click.echo(" ✓ Ready")
@@ -140,8 +144,9 @@ def download(size: Optional[str], model: Optional[str], all: bool):
                         err=True,
                     )
                     return
-                repo_id = MODEL_REGISTRY[model]["repo"]
-                filename = MODEL_REGISTRY[model]["filename"]
+                model_config = cast(Dict[str, Any], MODEL_REGISTRY[model])
+                repo_id = cast(str, model_config["repo"])
+                filename = cast(str, model_config["filename"])
                 click.echo(f"Downloading {model} ({repo_id})...", nl=False)
             else:
                 # Download model by size

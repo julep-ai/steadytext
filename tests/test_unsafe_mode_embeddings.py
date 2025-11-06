@@ -202,7 +202,9 @@ class TestOpenAIProviderEmbeddings:
         # Verify API call
         mock_client.embeddings.create.assert_called_once()
         call_args = mock_client.embeddings.create.call_args
-        assert call_args.kwargs["model"] == "text-embedding-3-small"  # Default model
+        assert (
+            call_args.kwargs["model"] == "text-embedding-3-large"
+        )  # Defaults to provider's configured model
         assert call_args.kwargs["input"] == ["Test text"]
 
     @patch("steadytext.providers.openai._get_openai")
@@ -264,6 +266,31 @@ class TestOpenAIProviderEmbeddings:
         # Verify API call used the override model
         call_args = mock_client.embeddings.create.call_args
         assert call_args.kwargs["model"] == "text-embedding-3-small"
+
+    @patch("steadytext.providers.openai._get_openai")
+    def test_embed_falls_back_to_env_model(self, mock_get_openai, monkeypatch):
+        """Provider instantiated for generation should respect env embedding override."""
+        monkeypatch.setenv("STEADYTEXT_UNSAFE_MODE", "true")
+        monkeypatch.setenv(
+            "EMBEDDING_OPENAI_MODEL", "jinaai/jina-embeddings-v4-vllm-retrieval"
+        )
+
+        mock_openai = Mock()
+        mock_client = Mock()
+        mock_response = Mock()
+        mock_embedding = np.random.randn(1024).tolist()
+        mock_response.data = [Mock(embedding=mock_embedding)]
+
+        mock_client.embeddings.create.return_value = mock_response
+        mock_openai.OpenAI.return_value = mock_client
+        mock_get_openai.return_value = mock_openai
+
+        provider = OpenAIProvider(api_key="test", model="gpt-4o-mini")
+        provider.embed("env override example")
+
+        mock_client.embeddings.create.assert_called_once()
+        call_args = mock_client.embeddings.create.call_args
+        assert call_args.kwargs["model"] == "jinaai/jina-embeddings-v4-vllm-retrieval"
 
     @patch("steadytext.providers.openai._get_openai")
     def test_embed_error_handling(self, mock_get_openai, monkeypatch):
