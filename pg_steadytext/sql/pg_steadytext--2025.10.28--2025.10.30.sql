@@ -3937,6 +3937,27 @@ AS $$
     ORDER BY p.created_at DESC;
 $$;
 
+-- AIDEV-ANCHOR: drop legacy prompt version helpers
+DO $$
+BEGIN
+    -- Older releases exposed version column as "version" instead of "version_num",
+    -- so we must drop the legacy functions before redefining them with the new row type.
+    BEGIN
+        ALTER EXTENSION pg_steadytext DROP FUNCTION st_prompt_versions(text);
+    EXCEPTION WHEN OTHERS THEN
+        NULL;
+    END;
+
+    BEGIN
+        ALTER EXTENSION pg_steadytext DROP FUNCTION steadytext_prompt_versions(text);
+    EXCEPTION WHEN OTHERS THEN
+        NULL;
+    END;
+
+    DROP FUNCTION IF EXISTS st_prompt_versions(text);
+    DROP FUNCTION IF EXISTS steadytext_prompt_versions(text);
+END $$;
+
 CREATE OR REPLACE FUNCTION steadytext_prompt_versions(slug TEXT)
 RETURNS TABLE(
     version_num INTEGER,
