@@ -450,7 +450,7 @@ def resolve_model_params(
             return config["repo"], config["filename"]
         else:
             logger.warning(
-                f"Invalid size '{size}' provided. Valid options are 'small' or 'large'. Falling back to default model."
+                f"Invalid size '{size}' provided. Valid options are {list(SIZE_TO_MODEL.keys())}. Falling back to default model."
             )
             # Fall through to default
 

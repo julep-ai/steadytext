@@ -12,9 +12,8 @@ from typing import Optional, Dict, Any
 import psycopg2  # type: ignore
 from psycopg2.extras import RealDictCursor  # type: ignore
 
-from .daemon_connector import SteadyTextConnector
-from .cache_manager import CacheManager
-from .security import SecurityValidator
+# AIDEV-NOTE: Input validation is the application's responsibility
+# The worker trusts that queue entries have already been validated
 
 # Configure logging
 logging.basicConfig(
@@ -33,9 +32,6 @@ class QueueWorker:
         self.db_config = db_config
         self.poll_interval = poll_interval
         self.running = False
-        self.daemon_client = SteadyTextConnector()
-        self.cache_manager = CacheManager()
-        self.validator = SecurityValidator()
 
     def connect_db(self):
         """Create database connection"""
@@ -43,34 +39,22 @@ class QueueWorker:
 
     def process_generation(self, request_data: Dict[str, Any]) -> str:
         """Process a text generation request"""
+        from steadytext import generate
+
         prompt = request_data["prompt"]
         max_tokens = request_data.get("params", {}).get("max_tokens", 512)
-        # thinking_mode removed - not supported by SteadyText
 
-        # Validate input
-        is_valid, error_msg = SecurityValidator.validate_prompt(prompt)
-        if not is_valid:
-            raise ValueError(error_msg)
-
-        # Generate text using daemon connector (handles fallback automatically)
-        return self.daemon_client.generate(prompt, max_new_tokens=max_tokens)
+        # Generate text using steadytext directly
+        return generate(prompt, max_new_tokens=max_tokens)
 
     def process_embedding(self, request_data: Dict[str, Any]) -> list:
         """Process an embedding request"""
+        from steadytext import embed
+
         text = request_data["prompt"]
 
-        # Validate input
-        if not text or not text.strip():
-            raise ValueError("Text cannot be empty")
-
-        # Generate embedding
-        if self.daemon_client.is_daemon_running():
-            embedding = self.daemon_client.embed(text)
-        else:
-            # Fallback to direct generation
-            from steadytext import embed
-
-            embedding = embed(text)
+        # Generate embedding using steadytext directly
+        embedding = embed(text)
 
         if embedding is None:
             # Ensure deterministic fallback to zero vector for error cases
@@ -84,63 +68,52 @@ class QueueWorker:
         """Process a JSON generation request
         AIDEV-NOTE: Added in v1.1.0 for async structured generation support
         """
+        from steadytext import generate_json
+
         prompt = request_data["prompt"]
         params = request_data.get("params", {})
         schema = params.get("schema", {})
         max_tokens = params.get("max_tokens", 512)
         seed = params.get("seed", 42)
 
-        # Validate input
-        is_valid, error_msg = SecurityValidator.validate_prompt(prompt)
-        if not is_valid:
-            raise ValueError(error_msg)
-
-        # Generate JSON using daemon connector
-        return self.daemon_client.generate_json(
-            prompt, schema, max_tokens=max_tokens, seed=seed
-        )
+        # Generate JSON using steadytext directly
+        return generate_json(prompt, schema, max_tokens=max_tokens, seed=seed)
 
     def process_generation_regex(self, request_data: Dict[str, Any]) -> str:
         """Process a regex-constrained generation request
         AIDEV-NOTE: Added in v1.1.0 for async structured generation support
         """
+        from steadytext import generate_regex
+
         prompt = request_data["prompt"]
         params = request_data.get("params", {})
         pattern = params.get("pattern", "")
         max_tokens = params.get("max_tokens", 512)
         seed = params.get("seed", 42)
 
-        # Validate input
-        is_valid, error_msg = SecurityValidator.validate_prompt(prompt)
-        if not is_valid:
-            raise ValueError(error_msg)
-
-        # Generate text matching regex using daemon connector
-        return self.daemon_client.generate_regex(
-            prompt, pattern, max_tokens=max_tokens, seed=seed
-        )
+        # Generate text matching regex using steadytext directly
+        return generate_regex(prompt, pattern, max_tokens=max_tokens, seed=seed)
 
     def process_generation_choice(self, request_data: Dict[str, Any]) -> str:
         """Process a choice-constrained generation request
         AIDEV-NOTE: Added in v1.1.0 for async structured generation support
         """
+        from steadytext import generate_choice
+
         prompt = request_data["prompt"]
         params = request_data.get("params", {})
         choices = params.get("choices", [])
         seed = params.get("seed", 42)
 
-        # Validate input
-        is_valid, error_msg = SecurityValidator.validate_prompt(prompt)
-        if not is_valid:
-            raise ValueError(error_msg)
-
-        # Generate choice using daemon connector
-        return self.daemon_client.generate_choice(prompt, choices, seed=seed)
+        # Generate choice using steadytext directly
+        return generate_choice(prompt, choices, seed=seed)
 
     def process_rerank(self, request_data: Dict[str, Any]) -> list:
         """Process a rerank request
         AIDEV-NOTE: Added in v1.3.0 for async rerank support
         """
+        from steadytext import rerank
+
         params = request_data.get("params", {})
         query = params.get("query", "")
         documents = params.get("documents", [])
@@ -151,14 +124,8 @@ class QueueWorker:
         return_scores = params.get("return_scores", True)
         seed = params.get("seed", 42)
 
-        # Validate input
-        if not query or not query.strip():
-            raise ValueError("Query cannot be empty")
-        if not documents:
-            raise ValueError("Documents list cannot be empty")
-
-        # Rerank using daemon connector
-        result = self.daemon_client.rerank(
+        # Rerank using steadytext directly
+        result = rerank(
             query=query,
             documents=documents,
             task=task,

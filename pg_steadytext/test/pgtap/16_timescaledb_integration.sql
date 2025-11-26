@@ -1,38 +1,16 @@
--- 16_timescaledb_integration.sql - pgTAP tests for TimescaleDB integration
--- AIDEV-NOTE: Tests pg_steadytext functions with TimescaleDB hypertables and continuous aggregates
--- AIDEV-NOTE: Tests focus on the steadytext_summarize aggregate function in materialized views
--- AIDEV-NOTE: Uses STEADYTEXT_USE_MINI_MODELS=true to prevent timeouts
+\set ON_ERROR_STOP 1
+-- Early skip when TimescaleDB is absent or not preloaded
+SELECT (EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'timescaledb')
+        AND COALESCE(current_setting('shared_preload_libraries', true), '') ILIKE '%timescaledb%') AS ts_ready
+\gset
 
-DO $$
-DECLARE
-    v_timescale_installed BOOLEAN;
-    v_timescale_ready BOOLEAN := false;
-BEGIN
-    SELECT EXISTS(
-        SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'
-    ) INTO v_timescale_installed;
-
-    IF v_timescale_installed THEN
-        BEGIN
-            v_timescale_ready := current_setting('shared_preload_libraries') ILIKE '%timescaledb%';
-        EXCEPTION
-            WHEN others THEN
-                v_timescale_ready := false;
-        END;
-    END IF;
-
-    IF NOT v_timescale_installed THEN
-        PERFORM skip_all('TimescaleDB not installed');
-    ELSIF NOT v_timescale_ready THEN
-        PERFORM skip_all('TimescaleDB not preloaded (shared_preload_libraries)');
-    ELSE
-        PERFORM plan(25);
-    END IF;
-END$$;
-
-DROP TABLE IF EXISTS tmp_timescale_preload;
-CREATE TEMP TABLE tmp_timescale_preload AS
-SELECT COALESCE(current_setting('shared_preload_libraries', true), '') ILIKE '%timescaledb%' AS ready;
+\if :ts_ready
+SELECT plan(25);
+\else
+SELECT plan(0);
+ROLLBACK;
+\quit
+\endif
 
 -- Test 1: Verify TimescaleDB extension exists
 SELECT has_extension(

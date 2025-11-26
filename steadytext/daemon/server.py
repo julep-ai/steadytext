@@ -513,8 +513,11 @@ def main():
     )
     parser.add_argument(
         "--size",
-        choices=["small", "large"],
-        help="Model size to preload (small=2B, large=4B)",
+        choices=["mini", "small", "medium", "large"],
+        help=(
+            "Model size to preload (mini=270M CI/testing, small=4B, "
+            "medium=8-14B if configured, large=30B)"
+        ),
     )
     parser.add_argument(
         "--skip-embeddings",

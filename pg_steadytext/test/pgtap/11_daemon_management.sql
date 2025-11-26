@@ -2,7 +2,7 @@
 -- AIDEV-NOTE: Tests for daemon start/stop/status functions, health monitoring, and fallback behavior
 
 BEGIN;
-SELECT plan(30);
+SELECT plan(38);
 
 -- Test 1: Daemon status function exists
 SELECT has_function(

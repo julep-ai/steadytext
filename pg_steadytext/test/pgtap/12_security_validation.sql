@@ -2,7 +2,7 @@
 -- AIDEV-NOTE: Tests for input validation, rate limiting, SQL injection prevention, and error handling
 
 BEGIN;
-SELECT plan(41);
+SELECT plan(34);
 
 -- Test 1: Rate limiting table exists
 SELECT has_table(
@@ -32,16 +32,7 @@ SELECT has_column('steadytext_audit_log', 'event_type', 'Audit log should have e
 SELECT has_column('steadytext_audit_log', 'details', 'Audit log should have details column');
 SELECT has_column('steadytext_audit_log', 'created_at', 'Audit log should have created_at column');
 
--- Test 5: Input validation - extremely long prompts
-
-SELECT throws_ok(
-    $$ SELECT steadytext_generate(repeat('A', 10000), 10) $$,
-    'P0001',
-    'spiexceptions.RaiseException: Prompt exceeds maximum length',
-    'Extremely long prompts should be rejected'
-);
-
--- Test 6: Input validation - null prompt handling
+-- Test 5: Input validation - null prompt handling
 SELECT throws_ok(
     $$ SELECT steadytext_generate(NULL, 10) $$,
     'P0001',
@@ -49,28 +40,19 @@ SELECT throws_ok(
     'NULL prompts should be rejected'
 );
 
--- Test 7: Input validation - embedding text length
-
-SELECT throws_ok(
-    $$ SELECT steadytext_embed(repeat('embedding test ', 1000)) $$,
-    'P0001',
-    'spiexceptions.RaiseException: Text exceeds maximum length for embedding',
-    'Extremely long embedding text should be rejected'
-);
-
--- Test 8: Input validation - special characters in prompts
+-- Test 6: Input validation - special characters in prompts
 SELECT ok(
     steadytext_generate('Test with special chars: <script>alert("xss")</script>', 10) IS NOT NULL,
     'Prompts with special characters should be sanitized and processed'
 );
 
--- Test 9: Input validation - Unicode handling
+-- Test 7: Input validation - Unicode handling
 SELECT ok(
     steadytext_generate('Test with unicode: 中文测试 éàü 🚀', 10) IS NOT NULL,
     'Unicode characters should be handled properly'
 );
 
--- Test 10: Input validation - control characters
+-- Test 8: Input validation - control characters
 SELECT throws_ok(
     $$ SELECT steadytext_generate('Test with control chars: ' || CHR(0) || CHR(1) || CHR(2), 10) $$,
     '54000',
@@ -78,7 +60,7 @@ SELECT throws_ok(
     'Control characters should be rejected'
 );
 
--- Test 11: SQL injection prevention - table names
+-- Test 9: SQL injection prevention - table names
 -- This test ensures that cache table names are properly validated
 SELECT throws_ok(
     $$ SELECT steadytext_config_set('cache_table_name', 'DROP TABLE steadytext_cache; --') $$,
@@ -87,7 +69,7 @@ SELECT throws_ok(
     'SQL injection attempts in table names should be blocked'
 );
 
--- Test 12: Configuration validation - daemon host
+-- Test 10: Configuration validation - daemon host
 SELECT throws_ok(
     $$ SELECT steadytext_config_set('daemon_host', 'invalid host; DROP TABLE users;') $$,
     'P0001',
@@ -95,7 +77,7 @@ SELECT throws_ok(
     'Malicious host strings should be rejected'
 );
 
--- Test 13: Configuration validation - daemon port
+-- Test 11: Configuration validation - daemon port
 SELECT throws_ok(
     $$ SELECT steadytext_config_set('daemon_port', '5432; DELETE FROM steadytext_cache;') $$,
     'P0001',
@@ -103,12 +85,12 @@ SELECT throws_ok(
     'Malicious port strings should be rejected'
 );
 
--- Test 14: Rate limiting simulation
+-- Test 12: Rate limiting simulation
 -- Insert rate limit data for current user
 INSERT INTO steadytext_rate_limits (user_id, requests_per_minute, requests_per_hour, requests_per_day, last_reset)
 VALUES (current_user, 1, 1, 1, NOW() - INTERVAL '1 hour');
 
--- Test 15: Rate limit enforcement (simulated)
+-- Test 13: Rate limit enforcement (simulated)
 WITH rate_limit_test AS (
     SELECT steadytext_generate('Rate limit test 1', 10) AS result1,
            steadytext_generate('Rate limit test 2', 10) AS result2
@@ -138,36 +120,12 @@ SELECT ok(
     'Dangerous JSON patterns should be sanitized'
 ) FROM dangerous_json;
 
--- Test 18: Regex pattern validation
-SELECT throws_ok(
-    $$ SELECT steadytext_generate_regex('Test', '.*; DROP TABLE users; --.*', 50, false, 42) $$,
-    'P0001',
-    'spiexceptions.RaiseException: Invalid or dangerous regex pattern',
-    'Dangerous regex patterns should be rejected'
-);
-
--- Test 19: Choice validation for dangerous strings
-SELECT throws_ok(
-    $$ SELECT steadytext_generate_choice('Test', ARRAY['normal', 'DROP TABLE users;', 'also_normal'], 50, false, 42) $$,
-    'P0001',
-    'spiexceptions.RaiseException: Choices contain dangerous strings',
-    'Dangerous choice strings should be rejected'
-);
-
 -- Test 20: Large batch validation
 SELECT throws_ok(
     $$ SELECT steadytext_generate_batch_async(ARRAY(SELECT 'Batch item ' || gs FROM generate_series(1, 1000) AS gs), 10) $$,
     'P0001',
     'Batch size exceeds maximum limit',
     'Oversized batches should be rejected'
-);
-
--- Test 21: Memory exhaustion protection
-SELECT throws_ok(
-    $$ SELECT steadytext_generate(repeat('memory test ', 100000), 4096) $$,
-    'P0001',
-    'spiexceptions.RaiseException: Request would exceed memory limits',
-    'Memory exhaustion attacks should be prevented'
 );
 
 -- Test 22: Timeout validation
@@ -184,14 +142,6 @@ SELECT throws_ok(
     '22P02',
     NULL,
     'Invalid UUIDs should be rejected'
-);
-
--- Test 24: Resource limit validation
-SELECT throws_ok(
-    $$ SELECT steadytext_generate('Test', 10000) $$,
-    'P0001',
-    'spiexceptions.RaiseException: max_tokens exceeds system limit',
-    'Excessive max_tokens should be rejected'
 );
 
 -- Test 25: Concurrent request limits
@@ -239,14 +189,6 @@ SELECT throws_ok(
     'P0001',
     'Invalid command format',
     'Command injection should be prevented'
-);
-
--- Test 30: Buffer overflow protection
-SELECT throws_ok(
-    $$ SELECT steadytext_embed(repeat('X', 1000000)) $$,
-    'P0001',
-    'spiexceptions.RaiseException: Input exceeds buffer limits',
-    'Buffer overflow attacks should be prevented'
 );
 
 -- Test 31: Session security

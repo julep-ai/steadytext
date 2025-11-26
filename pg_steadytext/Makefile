@@ -2,7 +2,7 @@
 # AIDEV-NOTE: This Makefile builds and installs the pg_steadytext extension
 
 EXTENSION = pg_steadytext
-EXTVERSION = 2025.10.30
+EXTVERSION = 2025.11.25
 
 # SQL scripts
 DATA = sql/$(EXTENSION)--1.2.0.sql \
@@ -31,16 +31,16 @@ DATA = sql/$(EXTENSION)--1.2.0.sql \
        sql/$(EXTENSION)--2025.9.6.sql \
        sql/$(EXTENSION)--2025.9.6--2025.10.28.sql \
        sql/$(EXTENSION)--2025.10.28--2025.10.30.sql \
-       sql/$(EXTENSION)--2025.10.30.sql
+       sql/$(EXTENSION)--2025.10.30.sql \
+       sql/$(EXTENSION)--2025.10.30--2025.11.25.sql \
+       sql/$(EXTENSION)--2025.11.25.sql
 # AIDEV-NOTE: Do not use DATA_built here - it causes duplicate installation attempts
 
 # Python modules to install
 PYTHON_MODULES = python/__init__.py \
-                 python/daemon_connector.py \
-                 python/cache_manager.py \
                  python/security.py \
-                 python/config.py \
-                 python/worker.py
+                 python/worker.py \
+                 python/prompt_registry.py
 
 # Regression tests
 REGRESS = basic cache queue daemon
