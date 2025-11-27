@@ -22,6 +22,12 @@ _EXT_SCHEMA: Optional[str] = None
 
 
 def _get_extension_schema() -> str:
+    """
+    Get the schema where pg_steadytext extension is installed.
+
+    Returns:
+        str: The schema name (defaults to 'public' if not found)
+    """
     global _EXT_SCHEMA
     if _EXT_SCHEMA is not None:
         return _EXT_SCHEMA
@@ -35,6 +41,16 @@ def _get_extension_schema() -> str:
 
 
 def raise_sqlstate(message: str, sqlstate: str = "P0001") -> None:
+    """
+    Raise a PostgreSQL error with a specific SQLSTATE code.
+
+    Args:
+        message: The error message to display
+        sqlstate: The SQLSTATE error code (default: P0001 for raise_exception)
+
+    Raises:
+        ValueError: If called outside PostgreSQL context
+    """
     if not IN_POSTGRES:
         raise ValueError(message)
     if sqlstate != "P0001":
@@ -53,12 +69,33 @@ def raise_sqlstate(message: str, sqlstate: str = "P0001") -> None:
 
 
 def sanitize_cache_key(key: str) -> str:
+    """
+    Sanitize a cache key to ensure it's safe for use as a cache identifier.
+
+    If the key is already an MD5 hash (32 hex chars), returns it unchanged.
+    Otherwise, returns the MD5 hash of the key.
+
+    Args:
+        key: The cache key to sanitize
+
+    Returns:
+        str: A sanitized 32-character MD5 hash
+    """
     if re.match(r"^[a-f0-9]{32}$", key):
         return key
     return hashlib.md5(key.encode()).hexdigest()
 
 
 def validate_host(host: str) -> tuple[bool, Optional[str]]:
+    """
+    Validate a hostname string for safety.
+
+    Args:
+        host: The hostname to validate
+
+    Returns:
+        tuple: (is_valid, error_message) - error_message is None if valid
+    """
     if (
         host is None
         or not isinstance(host, str)
@@ -69,6 +106,15 @@ def validate_host(host: str) -> tuple[bool, Optional[str]]:
 
 
 def validate_port(port_value: str) -> tuple[bool, Optional[str]]:
+    """
+    Validate a port number string.
+
+    Args:
+        port_value: The port value to validate (as string)
+
+    Returns:
+        tuple: (is_valid, error_message) - error_message is None if valid
+    """
     if port_value is None:
         return False, "Invalid port format"
     try:
@@ -81,6 +127,15 @@ def validate_port(port_value: str) -> tuple[bool, Optional[str]]:
 
 
 def validate_table_name(name: str) -> tuple[bool, Optional[str]]:
+    """
+    Validate a PostgreSQL table name for safety.
+
+    Args:
+        name: The table name to validate
+
+    Returns:
+        tuple: (is_valid, error_message) - error_message is None if valid
+    """
     if (
         name is None
         or not isinstance(name, str)

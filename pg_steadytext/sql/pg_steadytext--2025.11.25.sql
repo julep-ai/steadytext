@@ -667,6 +667,31 @@ if unsafe_mode:
     kwargs["unsafe_mode"] = unsafe_mode
 
 result = generate(prompt, max_new_tokens=resolved_max_tokens, **kwargs)
+
+# Store in cache if enabled
+if use_cache and result:
+    # Generate cache key (same logic as cache read)
+    if eos_string == '[EOS]':
+        write_cache_key = prompt
+    else:
+        write_cache_key = f"{prompt}::EOS::{eos_string}"
+
+    insert_plan = plpy.prepare(f"""
+        INSERT INTO {plpy.quote_ident(ext_schema)}.steadytext_cache
+        (cache_key, prompt, response, model_name, seed, eos_string, generation_params)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (cache_key) DO UPDATE
+        SET response = EXCLUDED.response,
+            access_count = steadytext_cache.access_count + 1,
+            last_accessed = NOW()
+    """, ["text", "text", "text", "text", "integer", "text", "jsonb"])
+
+    params = {"max_tokens": resolved_max_tokens, "seed": resolved_seed}
+    model_name = model if model else 'steadytext-default'
+    eos_val = eos_string if eos_string != '[EOS]' else None
+    plpy.execute(insert_plan, [write_cache_key, prompt, result, model_name, resolved_seed, eos_val, json.dumps(params)])
+    plpy.notice(f"Cached response with key: {write_cache_key[:8]}...")
+
 return result
 $c$;
 
@@ -770,19 +795,20 @@ if use_cache:
 try:
     from steadytext import embed as steadytext_embed
     import inspect
-    
+    import hashlib
+
     # Check if embed supports the new parameters
     embed_sig = inspect.signature(steadytext_embed)
-    
+
     # Call with model and unsafe_mode if specified and supported
     kwargs = {'seed': seed}
     if model and 'model' in embed_sig.parameters:
         kwargs['model'] = model
     if unsafe_mode and 'unsafe_mode' in embed_sig.parameters:
         kwargs['unsafe_mode'] = unsafe_mode
-    
+
     result = steadytext_embed(text_input, **kwargs)
-    
+
     # Convert to vector format if needed
     if result is not None:
         # Ensure it's a list/array
@@ -790,7 +816,30 @@ try:
             embedding_list = result.tolist()
         else:
             embedding_list = list(result)
-        
+
+        # Store in cache if enabled
+        if use_cache and embedding_list:
+            # Generate cache key (same logic as cache read)
+            cache_key_parts = ['embed', text_input]
+            if model:
+                cache_key_parts.append(model)
+            cache_key_input = ':'.join(cache_key_parts)
+            write_cache_key = hashlib.sha256(cache_key_input.encode()).hexdigest()
+
+            insert_plan = plpy.prepare(f"""
+                INSERT INTO {plpy.quote_ident(ext_schema)}.steadytext_cache
+                (cache_key, prompt, embedding, model_name, seed)
+                VALUES ($1, $2, $3::vector, $4, $5)
+                ON CONFLICT (cache_key) DO UPDATE
+                SET embedding = EXCLUDED.embedding,
+                    access_count = steadytext_cache.access_count + 1,
+                    last_accessed = NOW()
+            """, ["text", "text", "text", "text", "integer"])
+
+            model_name = model if model else 'steadytext-embedding'
+            plpy.execute(insert_plan, [write_cache_key, text_input, str(embedding_list), model_name, seed])
+            plpy.notice(f"Cached embedding with key: {write_cache_key[:8]}...")
+
         return embedding_list
 except Exception as e:
     plpy.warning(f"Embedding generation failed: {e}")
@@ -1369,6 +1418,27 @@ if isinstance(schema_value, str):
 if not unsafe_mode and model and ':' in model:
     raise_p0001("Remote models (containing ':' ) require unsafe_mode=TRUE")
 
+# Get extension schema for cache operations
+ext_schema_result = plpy.execute("SELECT nspname FROM pg_extension e JOIN pg_namespace n ON e.extnamespace = n.oid WHERE e.extname = 'pg_steadytext'")
+ext_schema = ext_schema_result[0]['nspname'] if ext_schema_result else 'public'
+
+# Generate cache key for JSON generation
+cache_key = f"json:{prompt}:{json.dumps(schema_value, sort_keys=True)}:{seed}"
+cache_key = hashlib.md5(cache_key.encode()).hexdigest()
+
+# Check cache first if enabled
+if use_cache:
+    cache_plan = plpy.prepare(f"""
+        SELECT response
+        FROM {plpy.quote_ident(ext_schema)}.steadytext_cache
+        WHERE cache_key = $1
+    """, ["text"])
+
+    cache_result = plpy.execute(cache_plan, [cache_key])
+    if cache_result and cache_result[0]["response"]:
+        plpy.notice(f"Cache hit for JSON generation key: {cache_key[:8]}...")
+        return cache_result[0]["response"]
+
 # Call steadytext directly
 from steadytext import generate_json
 
@@ -1380,6 +1450,24 @@ result = generate_json(
     model=model if model else None,
     unsafe_mode=unsafe_mode
 )
+
+# Store in cache if enabled
+if use_cache and result:
+    insert_plan = plpy.prepare(f"""
+        INSERT INTO {plpy.quote_ident(ext_schema)}.steadytext_cache
+        (cache_key, prompt, response, model_name, seed, generation_params)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (cache_key) DO UPDATE
+        SET response = EXCLUDED.response,
+            access_count = steadytext_cache.access_count + 1,
+            last_accessed = NOW()
+    """, ["text", "text", "text", "text", "integer", "jsonb"])
+
+    params = {"max_tokens": max_tokens, "seed": seed, "schema": schema_value}
+    model_name = model if model else 'steadytext-json'
+    plpy.execute(insert_plan, [cache_key, prompt, result, model_name, seed, json.dumps(params)])
+    plpy.notice(f"Cached JSON response with key: {cache_key[:8]}...")
+
 return result
 $c$;
 
@@ -1470,6 +1558,27 @@ if pattern is None or pattern.strip() == "":
 if not unsafe_mode and model and ':' in model:
     raise_p0001("Remote models (containing ':' ) require unsafe_mode=TRUE")
 
+# Get extension schema for cache operations
+ext_schema_result = plpy.execute("SELECT nspname FROM pg_extension e JOIN pg_namespace n ON e.extnamespace = n.oid WHERE e.extname = 'pg_steadytext'")
+ext_schema = ext_schema_result[0]['nspname'] if ext_schema_result else 'public'
+
+# Generate cache key for regex generation
+cache_key = f"regex:{prompt}:{pattern}:{seed}"
+cache_key = hashlib.md5(cache_key.encode()).hexdigest()
+
+# Check cache first if enabled
+if use_cache:
+    cache_plan = plpy.prepare(f"""
+        SELECT response
+        FROM {plpy.quote_ident(ext_schema)}.steadytext_cache
+        WHERE cache_key = $1
+    """, ["text"])
+
+    cache_result = plpy.execute(cache_plan, [cache_key])
+    if cache_result and cache_result[0]["response"]:
+        plpy.notice(f"Cache hit for regex generation key: {cache_key[:8]}...")
+        return cache_result[0]["response"]
+
 # Call steadytext directly
 from steadytext import generate_regex
 
@@ -1481,6 +1590,24 @@ result = generate_regex(
     model=model if model else None,
     unsafe_mode=unsafe_mode
 )
+
+# Store in cache if enabled
+if use_cache and result:
+    insert_plan = plpy.prepare(f"""
+        INSERT INTO {plpy.quote_ident(ext_schema)}.steadytext_cache
+        (cache_key, prompt, response, model_name, seed, generation_params)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (cache_key) DO UPDATE
+        SET response = EXCLUDED.response,
+            access_count = steadytext_cache.access_count + 1,
+            last_accessed = NOW()
+    """, ["text", "text", "text", "text", "integer", "jsonb"])
+
+    params = {"max_tokens": max_tokens, "seed": seed, "pattern": pattern}
+    model_name = model if model else 'steadytext-regex'
+    plpy.execute(insert_plan, [cache_key, prompt, result, model_name, seed, json.dumps(params)])
+    plpy.notice(f"Cached regex response with key: {cache_key[:8]}...")
+
 return result
 $c$;
 
@@ -1575,6 +1702,28 @@ if len(choices) < 2:
 if not unsafe_mode and model and ':' in model:
     raise_p0001("Remote models (containing ':' ) require unsafe_mode=TRUE")
 
+# Get extension schema for cache operations
+ext_schema_result = plpy.execute("SELECT nspname FROM pg_extension e JOIN pg_namespace n ON e.extnamespace = n.oid WHERE e.extname = 'pg_steadytext'")
+ext_schema = ext_schema_result[0]['nspname'] if ext_schema_result else 'public'
+
+# Generate cache key for choice generation
+choices_str = '|'.join(sorted(choices))
+cache_key = f"choice:{prompt}:{choices_str}:{seed}"
+cache_key = hashlib.md5(cache_key.encode()).hexdigest()
+
+# Check cache first if enabled
+if use_cache:
+    cache_plan = plpy.prepare(f"""
+        SELECT response
+        FROM {plpy.quote_ident(ext_schema)}.steadytext_cache
+        WHERE cache_key = $1
+    """, ["text"])
+
+    cache_result = plpy.execute(cache_plan, [cache_key])
+    if cache_result and cache_result[0]["response"]:
+        plpy.notice(f"Cache hit for choice generation key: {cache_key[:8]}...")
+        return cache_result[0]["response"]
+
 # Call steadytext directly
 from steadytext import generate_choice
 
@@ -1586,6 +1735,24 @@ result = generate_choice(
     model=model if model else None,
     unsafe_mode=unsafe_mode
 )
+
+# Store in cache if enabled
+if use_cache and result:
+    insert_plan = plpy.prepare(f"""
+        INSERT INTO {plpy.quote_ident(ext_schema)}.steadytext_cache
+        (cache_key, prompt, response, model_name, seed, generation_params)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (cache_key) DO UPDATE
+        SET response = EXCLUDED.response,
+            access_count = steadytext_cache.access_count + 1,
+            last_accessed = NOW()
+    """, ["text", "text", "text", "text", "integer", "jsonb"])
+
+    params = {"max_tokens": max_tokens, "seed": seed, "choices": list(choices)}
+    model_name = model if model else 'steadytext-choice'
+    plpy.execute(insert_plan, [cache_key, prompt, result, model_name, seed, json.dumps(params)])
+    plpy.notice(f"Cached choice response with key: {cache_key[:8]}...")
+
 return result
 $c$;
 
