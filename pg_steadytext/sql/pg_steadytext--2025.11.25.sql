@@ -2693,14 +2693,29 @@ AS $c$
                 seed=seed
             )
             
-            # Add query index to results
-            for doc, score in results:
+            # Normalize results (handle both tuple and dict formats)
+            for item in results:
+                if isinstance(item, dict):
+                    doc = item.get("document")
+                    raw_score = item.get("score")
+                else:
+                    doc = item[0] if len(item) > 0 else None
+                    raw_score = item[1] if len(item) > 1 else None
+
+                if doc is None:
+                    continue
+
+                try:
+                    score_value = float(raw_score) if raw_score is not None else 0.0
+                except (TypeError, ValueError):
+                    score_value = 0.0
+
                 all_results.append({
                     "query_index": idx,
                     "document": doc,
-                    "score": score
+                    "score": max(0.01, min(score_value, 1.0))
                 })
-                
+
         except Exception as e:
             logger.error(f"Reranking failed for query {idx}: {e}")
             # Continue with next query
