@@ -54,16 +54,80 @@ docker tag ghcr.io/YOUR_ORG/steadytext_devcontainer-postgres:latest steadytext_d
 
 ### Testing the Setup
 
-Run the test script inside the devcontainer:
-```bash
-# If the test script was created by CI
-bash .devcontainer/test-in-container.sh
+The DevContainer provides a comprehensive testing environment with multiple testing workflows:
 
-# Or run individual tests
-uv --version
-docker compose exec postgres pg_isready -U postgres
+#### Quick Extension Testing
+
+```bash
+# Quick rebuild after making changes (2-3 seconds)
+/workspace/.devcontainer/rebuild_extension_simple.sh
+
+# Auto-rebuild on file changes using inotify
+/workspace/.devcontainer/watch_extension.sh
+
+# Test basic functionality
 PGPASSWORD=password psql -h postgres -U postgres -d postgres -c "SELECT steadytext_version();"
 ```
+
+#### Comprehensive Test Suite
+
+```bash
+# Run test script created by CI
+bash .devcontainer/test-in-container.sh
+
+# Run individual tests
+uv --version
+docker compose exec postgres pg_isready -U postgres
+
+# Test extension installation
+PGPASSWORD=password psql -h postgres -U postgres -d postgres -c "SELECT steadytext_generate('Hello DevContainer!');"
+```
+
+#### pgTAP Testing in DevContainer
+
+```bash
+# Run pgTAP tests with mini models (recommended)
+cd /workspace/pg_steadytext
+STEADYTEXT_USE_MINI_MODELS=true ./run_pgtap_tests.sh --verbose
+
+# Run integration tests with full coverage
+./test_integration_localhost.sh --pgtap --benchmark
+
+# Test specific functionality
+docker compose exec postgres psql -U postgres -d postgres -c "
+  SELECT steadytext_generate('Test prompt', 50);
+  SELECT steadytext_embed('Test embedding');
+  SELECT * FROM steadytext_cache_stats();
+"
+```
+
+#### Performance Testing
+
+```bash
+# Run performance benchmarks
+cd /workspace/pg_steadytext
+./test_integration_localhost.sh --benchmark
+
+# Test cache performance
+docker compose exec postgres psql -U postgres -d postgres -c "
+  SELECT steadytext_cache_clear();
+  SELECT steadytext_generate('Cache test', 100);
+  SELECT * FROM steadytext_cache_stats();
+"
+```
+
+#### Development Workflow
+
+1. **Make changes** to extension files in `/workspace/pg_steadytext/`
+2. **Auto-rebuild** triggers via `watch_extension.sh` (or run `rebuild_extension_simple.sh` manually)
+3. **Run tests** to verify changes work correctly
+4. **Iterate** quickly with 2-3 second rebuild cycles
+
+The DevContainer automatically handles:
+- PostgreSQL configuration with required extensions
+- Python environment setup with SteadyText dependencies
+- Extension installation and database setup
+- Test database creation and configuration
 
 ## Troubleshooting
 

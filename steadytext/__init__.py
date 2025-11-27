@@ -7,7 +7,7 @@ SteadyText: Deterministic text generation and embedding with zero configuration.
 # Version of the steadytext package - should match pyproject.toml
 # AIDEV-NOTE: Always update this when bumping the lib version
 # AIDEV-NOTE: Using date-based versioning (yyyy.mm.dd) as of 2025.8.15
-__version__ = "2025.10.31"
+__version__ = "2025.11.25"
 
 # Import core functions and classes for public API
 import os
@@ -411,11 +411,12 @@ def rerank(
                     return_scores=return_scores,
                     seed=seed,
                 )
-            except ConnectionError:
+            except Exception as e:
                 # Fall back to direct reranking
                 logger.info(
-                    "Daemon not available, falling back to direct reranking. "
-                    "For better performance, start the daemon with 'st daemon start'"
+                    "Daemon rerank unavailable (%s), falling back to direct reranking. "
+                    "For better performance, start the daemon with 'st daemon start'",
+                    e,
                 )
 
     try:

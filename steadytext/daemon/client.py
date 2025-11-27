@@ -68,6 +68,22 @@ class DaemonClient:
             os.environ.get("STEADYTEXT_DISABLE_FAILURE_CACHE") == "1"
         )
 
+    def _reset_on_error(self, error: Exception, operation: str) -> None:
+        """Reset the daemon connection after a socket/state error.
+
+        AIDEV-NOTE: ZeroMQ REQ sockets enter an error state (EFSM) if the
+        send/recv pattern is broken (e.g., timeout or interrupted exchange).
+        Once that happens, every subsequent call fails with
+        "Operation cannot be accomplished in current state" unless the socket
+        is recreated. By tearing down the socket/context here we ensure later
+        calls can reconnect cleanly and fall back to direct execution.
+        """
+        if zmq and hasattr(zmq, "error") and isinstance(error, zmq.error.ZMQError):
+            logger.warning(
+                f"Resetting daemon connection after {operation} failure: {error}"
+            )
+            self.disconnect()
+
     def connect(self) -> bool:
         """Connect to the daemon server.
 
@@ -217,7 +233,11 @@ class DaemonClient:
                 and isinstance(e, zmq.error.Again)
             ):
                 logger.warning("Daemon request timed out")
+                self.disconnect()
                 raise ConnectionError("Daemon request timed out")
+            elif zmq and hasattr(zmq, "error") and isinstance(e, zmq.error.ZMQError):
+                self._reset_on_error(e, "generate")
+                raise ConnectionError(f"Daemon generate socket error: {e}")
             else:
                 logger.error(f"Daemon generate error: {e}")
                 raise
@@ -299,7 +319,11 @@ class DaemonClient:
                 and isinstance(e, zmq.error.Again)
             ):
                 logger.warning("Daemon streaming request timed out")
+                self.disconnect()
                 raise ConnectionError("Daemon request timed out")
+            elif zmq and hasattr(zmq, "error") and isinstance(e, zmq.error.ZMQError):
+                self._reset_on_error(e, "generate_iter")
+                raise ConnectionError(f"Daemon streaming socket error: {e}")
             else:
                 logger.error(f"Daemon generate_iter error: {e}")
                 raise
@@ -344,7 +368,11 @@ class DaemonClient:
                 and isinstance(e, zmq.error.Again)
             ):
                 logger.warning("Daemon request timed out")
+                self.disconnect()
                 raise ConnectionError("Daemon request timed out")
+            elif zmq and hasattr(zmq, "error") and isinstance(e, zmq.error.ZMQError):
+                self._reset_on_error(e, "embed")
+                raise ConnectionError(f"Daemon embed socket error: {e}")
             else:
                 logger.error(f"Daemon embed error: {e}")
                 raise
@@ -394,7 +422,11 @@ class DaemonClient:
                 and isinstance(e, zmq.error.Again)
             ):
                 logger.warning("Daemon request timed out")
+                self.disconnect()
                 raise ConnectionError("Daemon request timed out")
+            elif zmq and hasattr(zmq, "error") and isinstance(e, zmq.error.ZMQError):
+                self._reset_on_error(e, "rerank")
+                raise ConnectionError(f"Daemon rerank socket error: {e}")
             else:
                 logger.error(f"Daemon rerank error: {e}")
                 raise

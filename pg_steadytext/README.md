@@ -6,13 +6,20 @@
 
 - **Deterministic Text Generation**: Always returns the same output for the same input
 - **Vector Embeddings**: Generate 1024-dimensional embeddings compatible with pgvector
-- **Built-in Caching**: PostgreSQL-based age-based cache with automatic pg_cron eviction (v1.4.0+)
-- **Daemon Integration**: Seamlessly integrates with SteadyText's ZeroMQ daemon
+- **Built-in Caching**: PostgreSQL-based age-based cache with optional pg_cron eviction (v1.4.0+)
+- **Daemon Integration**: Delegates to the SteadyText library's `use_daemon()` helper—no extension-specific connector module
 - **Async Processing**: Queue-based asynchronous generation and embedding with background workers
-- **Security**: Input validation and rate limiting
+- **Lean Input Guards**: Basic NULL/empty checks; application code now owns higher-level validation
 - **Monitoring**: Health checks and performance statistics
 - **AI Summarization**: Enhanced aggregate functions (`steadytext_summarize`, `st_summarize`) with remote model support and full TimescaleDB compatibility (v2025.8.26+)
 - **Prompt Registry**: Comprehensive Jinja2-based template management with immutable versioning, automatic variable extraction, and metadata support (v2025.9.6+)
+
+## What's New in 2025.11.25
+
+- Removed the `pg_steadytext.python.daemon_connector`, `cache_manager`, and `config` helper modules; SQL now calls the `steadytext` library directly.
+- No `SteadyTextConnector` is exported from `pg_steadytext`—use `steadytext.use_daemon()` if you need explicit daemon control in Python.
+- Validation is reduced to basic NULL/empty checks; callers must enforce prompt/model/token limits in application code.
+- Fresh installs and upgrades share the same slim Python bootstrap; see `MIGRATION_GUIDE.md` for upgrade notes.
 
 ## Requirements
 
@@ -161,6 +168,8 @@ LIMIT 5;
 ```
 
 ### Daemon Management
+
+The extension no longer ships a `SteadyTextConnector` wrapper; daemon usage flows through the core `steadytext` library. These helpers simply forward to `st daemon` and `steadytext.use_daemon()` under the hood.
 
 ```sql
 -- Start the SteadyText daemon
@@ -718,7 +727,9 @@ SELECT steadytext_embed(
 
 ## Architecture
 
-pg_steadytext integrates with SteadyText's existing architecture:
+pg_steadytext delegates all model work to the core `steadytext` library; the optional daemon path is orchestrated by `steadytext.use_daemon()` rather than an extension-specific connector.
+
+Overall flow:
 
 ```
 PostgreSQL Client
@@ -856,66 +867,125 @@ The cache uses age-based eviction (FIFO) to maintain IMMUTABLE function complian
 The extension uses several optimizations:
 - Prepared statements for repeated queries
 - In-memory configuration caching
-- Connection pooling to the daemon
-- Frecency-based cache eviction with automatic pg_cron scheduling
+- Reuse of `steadytext`'s own daemon/session management (no custom connector layer)
+- Frecency-based cache eviction with optional pg_cron scheduling
 - Indexes on cache keys and frecency scores
 
 ## Security
 
-- Input validation for all user inputs
-- Protection against prompt injection
-- Rate limiting support (configure in `steadytext_rate_limits` table)
-- Configurable resource limits
+- Built-in checks for NULL/empty inputs and unsafe remote model usage
+- Cache key sanitization to prevent malformed keys
+- Application-owned validation: prompt length, token limits, regex/choice validation, and rate limits should be enforced by your app or middleware
 
 ## Testing
 
 ### Running Tests
 
-The extension includes comprehensive test suites using both PostgreSQL regression tests and pgTAP.
+The extension includes comprehensive test suites using multiple testing frameworks for complete coverage.
 
-#### pgTAP Tests (Recommended)
+#### Primary Test Runners
 
-pgTAP provides a TAP (Test Anything Protocol) testing framework for PostgreSQL.
+**pgTAP Tests (Recommended for CI/automated testing):**
+```bash
+cd pg_steadytext
+
+# Always use mini models to prevent test timeouts
+PGHOST=postgres PGPORT=5432 PGUSER=postgres PGPASSWORD=password \
+  STEADYTEXT_USE_MINI_MODELS=true ./run_pgtap_tests.sh
+
+# With verbose output
+./run_pgtap_tests.sh --verbose
+
+# TAP output for CI integration
+./run_pgtap_tests.sh --tap
+```
+
+**Integration Tests:**
+```bash
+# Local integration tests with comprehensive coverage
+./test_integration_localhost.sh
+
+# With pgTAP and performance benchmarks
+./test_integration_localhost.sh --pgtap --benchmark
+
+# Verbose mode
+./test_integration_localhost.sh -v
+```
+
+**Docker End-to-End Testing:**
+```bash
+# Full Docker end-to-end test
+./test_e2e_docker.sh
+
+# With pgTAP tests
+./test_e2e_docker.sh --pgtap
+
+# Keep container for debugging
+./test_e2e_docker.sh --keep-container
+```
+
+#### Makefile Test Targets
 
 ```bash
-# Install pgTAP (if not already installed)
-sudo apt-get install postgresql-17-pgtap  # Adjust version as needed
+cd pg_steadytext
 
-# Run all pgTAP tests
+# Install and run pgTAP tests
 make test-pgtap
 
-# Run with verbose output
+# Verbose pgTAP tests
 make test-pgtap-verbose
 
-# Run with TAP output for CI integration
+# TAP format for CI
 make test-pgtap-tap
 
-# Run specific test file
-./run_pgtap_tests.sh test/pgtap/01_basic.sql
-```
+# Run all tests (regression + pgTAP + Python)
+make test-all
 
-#### Legacy Regression Tests
-
-```bash
-# Run traditional regression tests
+# Basic regression tests
 make test
 
-# Run all test suites
-make test-all
+# Python unit tests
+make test-python
 ```
 
-#### Test Coverage
+#### DevContainer Testing Workflow
 
-The test suite covers:
-- Basic extension functionality
-- Text generation and determinism
-- Embedding generation and normalization  
-- Async queue operations
-- Structured generation (JSON, regex, choice)
-- Cache management and automatic pg_cron eviction
-- Daemon integration
-- Streaming text generation
-- Input validation and error handling
+For rapid development in DevContainer environment:
+
+```bash
+# Quick rebuild after changes (2-3 seconds)
+/workspace/.devcontainer/rebuild_extension_simple.sh
+
+# Auto-rebuild on file changes using inotify
+/workspace/.devcontainer/watch_extension.sh
+
+# PostgreSQL pre-configured at localhost:5432
+# Extensions automatically installed
+```
+
+#### Test Categories
+
+The comprehensive test suite covers:
+
+- **Basic functionality** - Text generation, embeddings, version checks
+- **Cache management** - Cache operations, eviction, statistics  
+- **Async queue** - Background processing, batch operations
+- **Structured generation** - JSON, regex, choice constraints
+- **Security validation** - Input sanitization, SQL injection prevention
+- **Performance edge cases** - Large inputs, concurrent requests
+- **TimescaleDB integration** - Optional TimescaleDB features
+
+#### Critical Environment Variables
+
+- `STEADYTEXT_USE_MINI_MODELS=true` - Essential to prevent test timeouts
+- `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` - PostgreSQL connection settings
+- TAP output mode (`--tap`) for CI integration
+
+#### Test Files Structure
+
+- **pgTAP tests**: `test/pgtap/*.sql` (17 test files covering all functionality)
+- **SQL regression tests**: `test/sql/*.sql` 
+- **Python tests**: In `python/` directory
 
 ### Writing New Tests
 
@@ -948,36 +1018,21 @@ ROLLBACK;
 
 ### Common Issues
 
-#### "No module named 'daemon_connector'" Error
-This is the most common issue, occurring when PostgreSQL's plpython3u cannot find the extension's Python modules.
+#### "No module named 'daemon_connector'" or missing `SteadyTextConnector`
+The `daemon_connector.py` module and its `SteadyTextConnector` class were **removed** in 2025.11.25. Any imports of `pg_steadytext.python.daemon_connector` or `from pg_steadytext import SteadyTextConnector` will now fail.
 
-**Solution:**
-```sql
--- 1. Initialize Python environment manually
-SELECT _steadytext_init_python();
+**Fix in your code/tests:**
+```python
+# Before (no longer available)
+from pg_steadytext.python.daemon_connector import SteadyTextConnector
 
--- 2. Check Python path configuration
-SHOW plpython3.python_path;
-
--- 3. Verify modules are installed in the correct location
-DO $$
-DECLARE
-    pg_lib_dir TEXT;
-BEGIN
-    SELECT setting INTO pg_lib_dir FROM pg_settings WHERE name = 'pkglibdir';
-    RAISE NOTICE 'Modules should be in: %/pg_steadytext/python/', pg_lib_dir;
-END;
-$$;
+# After
+from steadytext import use_daemon, embed, generate
+with use_daemon():
+    embedding = embed("hello")
 ```
 
-**If the error persists:**
-```bash
-# Reinstall the extension
-make clean && make install
-
-# Verify installation
-ls $(pg_config --pkglibdir)/pg_steadytext/python/
-```
+SQL functions continue to call the `steadytext` library directly; no extra connector layer is required. If you need daemon control from Python, call `steadytext.daemon.*` or wrap `use_daemon()`.
 
 #### Docker-specific Issues
 When running in Docker, additional steps may be needed:

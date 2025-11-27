@@ -299,13 +299,80 @@ uv python install 3.11
 
 > For comprehensive pgTAP test execution, monitoring, and troubleshooting, use the **pgtap-test-runner** agent.
 
-Quick reference:
+**Primary Test Runners:**
 
 ```bash
-# Always use mini models to prevent timeouts
+# pgTAP tests (recommended for CI/automated testing)
+cd pg_steadytext
 PGHOST=postgres PGPORT=5432 PGUSER=postgres PGPASSWORD=password \
   STEADYTEXT_USE_MINI_MODELS=true ./run_pgtap_tests.sh
+
+# With verbose output
+./run_pgtap_tests.sh --verbose
+
+# TAP output for CI integration
+./run_pgtap_tests.sh --tap
+
+# Integration tests with comprehensive coverage
+./test_integration_localhost.sh
+
+# With pgTAP and performance benchmarks
+./test_integration_localhost.sh --pgtap --benchmark
+
+# Docker end-to-end testing
+./test_e2e_docker.sh --pgtap --keep-container
 ```
+
+**Makefile Test Targets:**
+
+```bash
+cd pg_steadytext
+
+# Install and run pgTAP tests
+make test-pgtap
+
+# Verbose pgTAP tests
+make test-pgtap-verbose
+
+# TAP format for CI
+make test-pgtap-tap
+
+# Run all tests (regression + pgTAP + Python)
+make test-all
+
+# Basic regression tests
+make test
+
+# Python unit tests
+make test-python
+```
+
+**DevContainer Testing Workflow:**
+
+```bash
+# Quick rebuild after changes (2-3 seconds)
+/workspace/.devcontainer/rebuild_extension_simple.sh
+
+# Auto-rebuild on file changes using inotify
+/workspace/.devcontainer/watch_extension.sh
+
+# PostgreSQL pre-configured at localhost:5432
+# Extensions automatically installed
+```
+
+**Test Categories:**
+- **Basic functionality** - Text generation, embeddings, version checks
+- **Cache management** - Cache operations, eviction, statistics  
+- **Async queue** - Background processing, batch operations
+- **Structured generation** - JSON, regex, choice constraints
+- **Security validation** - Input sanitization, SQL injection prevention
+- **Performance edge cases** - Large inputs, concurrent requests
+- **TimescaleDB integration** - Optional TimescaleDB features
+
+**Critical Environment Variables:**
+- `STEADYTEXT_USE_MINI_MODELS=true` - Essential to prevent test timeouts
+- `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` - PostgreSQL connection settings
+- TAP output mode (`--tap`) for CI integration
 
 ### Docker Development
 
@@ -325,18 +392,32 @@ docker exec -it pg_steadytext psql -U postgres -c "SELECT steadytext_version();"
 ```
 
 **DevContainer Workflow:**
-For rapid development in the devcontainer environment:
+For rapid development in devcontainer environment:
 
 ```bash
 # Quick rebuild after making changes (recommended)
 /workspace/.devcontainer/rebuild_extension_simple.sh
 
-# Auto-rebuild on file changes  
+# Auto-rebuild on file changes using inotify
 /workspace/.devcontainer/watch_extension.sh
 ```
 
 The devcontainer uses a copy-and-build approach for fast iteration
 Scripts handle all the complexity of copying files and rebuilding
+
+**Docker E2E Testing:**
+```bash
+cd pg_steadytext
+
+# Full Docker end-to-end test
+./test_e2e_docker.sh
+
+# With pgTAP tests
+./test_e2e_docker.sh --pgtap
+
+# Keep container for debugging
+./test_e2e_docker.sh --keep-container
+```
 
 ### Async Functions
 

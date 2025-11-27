@@ -28,12 +28,11 @@ services:
       dockerfile: pg_steadytext/Dockerfile
       args:
         BUILDKIT_INLINE_CACHE: 1
-    command: postgres
+    command: postgres -c shared_preload_libraries=timescaledb
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: postgres
-      POSTGRES_INITDB_ARGS: "--shared_preload_libraries=timescaledb"
       STEADYTEXT_GENERATION_CACHE_CAPACITY: "512"
       STEADYTEXT_GENERATION_CACHE_MAX_SIZE_MB: "100.0"
       STEADYTEXT_EMBEDDING_CACHE_CAPACITY: "1024"
