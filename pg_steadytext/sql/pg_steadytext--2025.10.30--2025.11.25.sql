@@ -12,8 +12,7 @@ BEGIN
     RAISE NOTICE 'Functions now call steadytext library directly';
 END $$;
 
--- Drop and recreate _steadytext_init_python
-DROP FUNCTION IF EXISTS @extschema@._steadytext_init_python();
+-- Refresh _steadytext_init_python without dropping to preserve dependent objects
 
 CREATE OR REPLACE FUNCTION _steadytext_init_python()
 RETURNS void
@@ -188,8 +187,7 @@ except Exception as e:
     plpy.error(f"Unexpected error during initialization: {e}")
 $c$;
 
--- Drop and recreate steadytext_generate
-DROP FUNCTION IF EXISTS @extschema@.steadytext_generate(TEXT, INT, BOOLEAN, INT, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN);
+-- Refresh steadytext_generate without dropping to preserve dependent objects
 
 CREATE OR REPLACE FUNCTION steadytext_generate(
     prompt TEXT,
@@ -348,35 +346,10 @@ if unsafe_mode:
 
 result = generate(prompt, max_new_tokens=resolved_max_tokens, **kwargs)
 
-# Store in cache if enabled
-if use_cache and result:
-    # Generate cache key (same logic as cache read)
-    if eos_string == '[EOS]':
-        write_cache_key = prompt
-    else:
-        write_cache_key = f"{prompt}::EOS::{eos_string}"
-
-    insert_plan = plpy.prepare(f"""
-        INSERT INTO {plpy.quote_ident(ext_schema)}.steadytext_cache
-        (cache_key, prompt, response, model_name, seed, eos_string, generation_params)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (cache_key) DO UPDATE
-        SET response = EXCLUDED.response,
-            access_count = steadytext_cache.access_count + 1,
-            last_accessed = NOW()
-    """, ["text", "text", "text", "text", "integer", "text", "jsonb"])
-
-    params = {"max_tokens": resolved_max_tokens, "seed": resolved_seed}
-    model_name = model if model else 'steadytext-default'
-    eos_val = eos_string if eos_string != '[EOS]' else None
-    plpy.execute(insert_plan, [write_cache_key, prompt, result, model_name, resolved_seed, eos_val, json.dumps(params)])
-    plpy.notice(f"Cached response with key: {write_cache_key[:8]}...")
-
 return result
 $c$;
 
--- Drop and recreate steadytext_generate_stream
-DROP FUNCTION IF EXISTS @extschema@.steadytext_generate_stream(TEXT, INT, BOOLEAN, INT, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN);
+-- Refresh steadytext_generate_stream without dropping to preserve dependent objects
 
 CREATE OR REPLACE FUNCTION steadytext_generate_stream(
     prompt TEXT,
@@ -493,8 +466,7 @@ for chunk in generate(prompt, max_new_tokens=resolved_max_tokens, **kwargs):
     yield (chunk,)
 $c$;
 
--- Drop and recreate steadytext_embed
-DROP FUNCTION IF EXISTS @extschema@.steadytext_embed(TEXT, BOOLEAN, INT, TEXT, BOOLEAN);
+-- Refresh steadytext_embed without dropping to preserve dependent objects
 
 CREATE OR REPLACE FUNCTION steadytext_embed(
     text_input TEXT,
@@ -598,29 +570,6 @@ try:
         else:
             embedding_list = list(result)
 
-        # Store in cache if enabled
-        if use_cache and embedding_list:
-            # Generate cache key (same logic as cache read)
-            cache_key_parts = ['embed', text_input]
-            if model:
-                cache_key_parts.append(model)
-            cache_key_input = ':'.join(cache_key_parts)
-            write_cache_key = hashlib.sha256(cache_key_input.encode()).hexdigest()
-
-            insert_plan = plpy.prepare(f"""
-                INSERT INTO {plpy.quote_ident(ext_schema)}.steadytext_cache
-                (cache_key, prompt, embedding, model_name, seed)
-                VALUES ($1, $2, $3::vector, $4, $5)
-                ON CONFLICT (cache_key) DO UPDATE
-                SET embedding = EXCLUDED.embedding,
-                    access_count = steadytext_cache.access_count + 1,
-                    last_accessed = NOW()
-            """, ["text", "text", "text", "text", "integer"])
-
-            model_name = model if model else 'steadytext-embedding'
-            plpy.execute(insert_plan, [write_cache_key, text_input, str(embedding_list), model_name, seed])
-            plpy.notice(f"Cached embedding with key: {write_cache_key[:8]}...")
-
         return embedding_list
 except Exception as e:
     plpy.warning(f"Embedding generation failed: {e}")
@@ -630,8 +579,7 @@ except Exception as e:
 return [0.0] * 1024
 $c$;
 
--- Drop and recreate steadytext_generate_json
-DROP FUNCTION IF EXISTS @extschema@.steadytext_generate_json(TEXT, JSONB, INT, BOOLEAN, INT, BOOLEAN, TEXT);
+-- Refresh steadytext_generate_json without dropping to preserve dependent objects
 
 CREATE OR REPLACE FUNCTION steadytext_generate_json(
     prompt TEXT,
@@ -744,28 +692,10 @@ result = generate_json(
     unsafe_mode=unsafe_mode
 )
 
-# Store in cache if enabled
-if use_cache and result:
-    insert_plan = plpy.prepare(f"""
-        INSERT INTO {plpy.quote_ident(ext_schema)}.steadytext_cache
-        (cache_key, prompt, response, model_name, seed, generation_params)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        ON CONFLICT (cache_key) DO UPDATE
-        SET response = EXCLUDED.response,
-            access_count = steadytext_cache.access_count + 1,
-            last_accessed = NOW()
-    """, ["text", "text", "text", "text", "integer", "jsonb"])
-
-    params = {"max_tokens": max_tokens, "seed": seed, "schema": schema_value}
-    model_name = model if model else 'steadytext-json'
-    plpy.execute(insert_plan, [cache_key, prompt, result, model_name, seed, json.dumps(params)])
-    plpy.notice(f"Cached JSON response with key: {cache_key[:8]}...")
-
 return result
 $c$;
 
--- Drop and recreate steadytext_generate_regex
-DROP FUNCTION IF EXISTS @extschema@.steadytext_generate_regex(TEXT, TEXT, INT, BOOLEAN, INT, BOOLEAN, TEXT);
+-- Refresh steadytext_generate_regex without dropping to preserve dependent objects
 
 CREATE OR REPLACE FUNCTION steadytext_generate_regex(
     prompt TEXT,
@@ -859,28 +789,10 @@ result = generate_regex(
     unsafe_mode=unsafe_mode
 )
 
-# Store in cache if enabled
-if use_cache and result:
-    insert_plan = plpy.prepare(f"""
-        INSERT INTO {plpy.quote_ident(ext_schema)}.steadytext_cache
-        (cache_key, prompt, response, model_name, seed, generation_params)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        ON CONFLICT (cache_key) DO UPDATE
-        SET response = EXCLUDED.response,
-            access_count = steadytext_cache.access_count + 1,
-            last_accessed = NOW()
-    """, ["text", "text", "text", "text", "integer", "jsonb"])
-
-    params = {"max_tokens": max_tokens, "seed": seed, "pattern": pattern}
-    model_name = model if model else 'steadytext-regex'
-    plpy.execute(insert_plan, [cache_key, prompt, result, model_name, seed, json.dumps(params)])
-    plpy.notice(f"Cached regex response with key: {cache_key[:8]}...")
-
 return result
 $c$;
 
--- Drop and recreate steadytext_generate_choice
-DROP FUNCTION IF EXISTS @extschema@.steadytext_generate_choice(TEXT, TEXT[], INT, BOOLEAN, INT, BOOLEAN, TEXT);
+-- Refresh steadytext_generate_choice without dropping to preserve dependent objects
 
 CREATE OR REPLACE FUNCTION steadytext_generate_choice(
     prompt TEXT,
@@ -979,28 +891,11 @@ result = generate_choice(
     unsafe_mode=unsafe_mode
 )
 
-# Store in cache if enabled
-if use_cache and result:
-    insert_plan = plpy.prepare(f"""
-        INSERT INTO {plpy.quote_ident(ext_schema)}.steadytext_cache
-        (cache_key, prompt, response, model_name, seed, generation_params)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        ON CONFLICT (cache_key) DO UPDATE
-        SET response = EXCLUDED.response,
-            access_count = steadytext_cache.access_count + 1,
-            last_accessed = NOW()
-    """, ["text", "text", "text", "text", "integer", "jsonb"])
-
-    params = {"max_tokens": max_tokens, "seed": seed, "choices": list(choices)}
-    model_name = model if model else 'steadytext-choice'
-    plpy.execute(insert_plan, [cache_key, prompt, result, model_name, seed, json.dumps(params)])
-    plpy.notice(f"Cached choice response with key: {cache_key[:8]}...")
-
 return result
 $c$;
 
 -- Drop and recreate steadytext_rerank
-DROP FUNCTION IF EXISTS @extschema@.steadytext_rerank(TEXT, TEXT[], TEXT, BOOLEAN, INT);
+-- Refresh steadytext_rerank without dropping to preserve dependent objects
 
 CREATE OR REPLACE FUNCTION steadytext_rerank(
     query text,
@@ -1140,8 +1035,7 @@ AS $c$
         ]
 $c$ LANGUAGE plpython3u IMMUTABLE PARALLEL SAFE;
 
--- Drop and recreate steadytext_rerank_batch
-DROP FUNCTION IF EXISTS @extschema@.steadytext_rerank_batch(TEXT[], TEXT[], TEXT, BOOLEAN, INT);
+-- Refresh steadytext_rerank_batch without dropping to preserve dependent objects
 
 CREATE OR REPLACE FUNCTION steadytext_rerank_batch(
     queries text[],
@@ -1223,8 +1117,7 @@ AS $c$
     return all_results
 $c$ LANGUAGE plpython3u IMMUTABLE PARALLEL SAFE;
 
--- Drop and recreate steadytext_daemon_status
-DROP FUNCTION IF EXISTS @extschema@.steadytext_daemon_status();
+-- Refresh steadytext_daemon_status without dropping to preserve dependent objects
 
 CREATE OR REPLACE FUNCTION steadytext_daemon_status()
 RETURNS TABLE(
@@ -1305,8 +1198,7 @@ except Exception as e:
     return plpy.execute(select_plan)
 $c$;
 
--- Drop and recreate steadytext_daemon_stop
-DROP FUNCTION IF EXISTS @extschema@.steadytext_daemon_stop();
+-- Refresh steadytext_daemon_stop without dropping to preserve dependent objects
 
 CREATE OR REPLACE FUNCTION steadytext_daemon_stop()
 RETURNS BOOLEAN
