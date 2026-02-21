@@ -164,12 +164,12 @@ main() {
     # Build and install the extension
     log "\n${BLUE}Building and installing extension...${NC}"
     docker exec -u postgres "$CONTAINER_NAME" bash -c "
-        cd /tmp/pg_steadytext && 
+        cd /tmp/pg_steadytext/pg_steadytext && 
         make clean && 
         make
     "
     docker exec -u root "$CONTAINER_NAME" bash -c "
-        cd /tmp/pg_steadytext &&
+        cd /tmp/pg_steadytext/pg_steadytext &&
         make install
     "
     
@@ -202,7 +202,7 @@ main() {
     log "\n${BLUE}Running integration tests...${NC}"
     
     # Build test command
-    TEST_CMD="export STEADYTEXT_USE_MINI_MODELS=$STEADYTEXT_USE_MINI_MODELS && cd /tmp/pg_steadytext && ./test_integration_localhost.sh"
+    TEST_CMD="export STEADYTEXT_USE_MINI_MODELS=$STEADYTEXT_USE_MINI_MODELS && cd /tmp/pg_steadytext/pg_steadytext && ./test_integration_localhost.sh"
     if [ "$VERBOSE" = true ]; then
         TEST_CMD="$TEST_CMD -v"
     fi

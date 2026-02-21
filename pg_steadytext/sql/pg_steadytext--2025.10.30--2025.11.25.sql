@@ -33,17 +33,82 @@ import site
 import glob
 import shutil
 import subprocess
+import re
 
-# Resolve PostgreSQL libdir without pinning a server major version
+# Resolve PostgreSQL libdir while matching the running server major
 resolution_attempts = []
 
+def _server_major_version():
+    try:
+        version_result = plpy.execute("SHOW server_version_num")
+        if not version_result:
+            return None
+
+        version_num = int(version_result[0]['server_version_num'])
+        if version_num >= 100000:
+            return str(version_num // 10000)
+
+        # PostgreSQL < 10 used major.minor (for example, 9.6)
+        return f"{version_num // 10000}.{(version_num // 100) % 100}"
+    except Exception:
+        return None
+
+def _path_matches_server_major(path, server_major):
+    if not server_major:
+        return True
+
+    normalized_path = path.replace('\\', '/')
+
+    postgresql_match = re.search(r'/postgresql/([^/]+)/', normalized_path)
+    if postgresql_match:
+        return postgresql_match.group(1) == server_major
+
+    pgdg_match = re.search(r'/pgsql-([^/]+)/', normalized_path)
+    if pgdg_match:
+        hint = pgdg_match.group(1)
+        if '.' in server_major:
+            return hint == server_major
+        return hint == server_major or hint.startswith(f"{server_major}.")
+
+    # No version hint in the path; allow as potential fallback
+    return True
+
+def _pg_config_major(pg_config_cmd):
+    try:
+        version_output = subprocess.check_output(
+            [pg_config_cmd, '--version'],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except Exception:
+        return None
+
+    version_match = re.search(r'(\d+)(?:\.(\d+))?', version_output)
+    if not version_match:
+        return None
+
+    major = version_match.group(1)
+    if major == '9' and version_match.group(2):
+        return f"9.{version_match.group(2)}"
+    return major
+
 def _resolve_pg_lib_dir():
+    server_major = _server_major_version()
+    if server_major:
+        resolution_attempts.append(f"server_major={server_major}")
+
     env_libdir = os.environ.get('STEADYTEXT_PG_LIBDIR')
     if env_libdir:
         resolution_attempts.append(f"STEADYTEXT_PG_LIBDIR={env_libdir}")
         if os.path.isdir(env_libdir):
-            return env_libdir
-        plpy.warning(f"STEADYTEXT_PG_LIBDIR does not exist: {env_libdir}")
+            if _path_matches_server_major(env_libdir, server_major):
+                return env_libdir
+            plpy.warning(
+                f"STEADYTEXT_PG_LIBDIR does not match running PostgreSQL major "
+                f"({server_major}): {env_libdir}"
+            )
+        else:
+            plpy.warning(f"STEADYTEXT_PG_LIBDIR does not exist: {env_libdir}")
 
     pg_config_candidates = []
     pg_config_path = shutil.which('pg_config')
@@ -63,12 +128,23 @@ def _resolve_pg_lib_dir():
         seen_pg_config.add(pg_config_cmd)
         resolution_attempts.append(f"pg_config:{pg_config_cmd}")
         try:
+            candidate_major = _pg_config_major(pg_config_cmd)
+            if server_major and candidate_major and candidate_major != server_major:
+                resolution_attempts.append(
+                    f"skip-pg_config-major:{pg_config_cmd}:{candidate_major}"
+                )
+                continue
+
             detected_libdir = subprocess.check_output(
                 [pg_config_cmd, '--pkglibdir'],
                 stderr=subprocess.DEVNULL,
                 text=True,
             ).strip()
-            if detected_libdir and os.path.isdir(detected_libdir):
+            if (
+                detected_libdir
+                and os.path.isdir(detected_libdir)
+                and _path_matches_server_major(detected_libdir, server_major)
+            ):
                 return detected_libdir
         except Exception:
             continue
@@ -82,7 +158,7 @@ def _resolve_pg_lib_dir():
     )
     for module_dir in module_candidates:
         resolution_attempts.append(f"module-dir:{module_dir}")
-        if os.path.isdir(module_dir):
+        if os.path.isdir(module_dir) and _path_matches_server_major(module_dir, server_major):
             return os.path.dirname(os.path.dirname(module_dir))
 
     try:
@@ -98,7 +174,7 @@ def _resolve_pg_lib_dir():
                 if not entry or entry == '$libdir':
                     continue
                 resolution_attempts.append(f"dynamic_library_path:{entry}")
-                if os.path.isdir(entry):
+                if os.path.isdir(entry) and _path_matches_server_major(entry, server_major):
                     return entry
     except Exception:
         pass
@@ -108,7 +184,7 @@ def _resolve_pg_lib_dir():
     libdir_candidates.extend(sorted(glob.glob('/usr/pgsql-*/lib'), reverse=True))
     for libdir in libdir_candidates:
         resolution_attempts.append(f"libdir-candidate:{libdir}")
-        if os.path.isdir(libdir):
+        if os.path.isdir(libdir) and _path_matches_server_major(libdir, server_major):
             plpy.warning(f"Using fallback PostgreSQL libdir candidate: {libdir}")
             return libdir
 
@@ -1339,6 +1415,31 @@ plpy.execute(update_plan, [status_value])
 
 return stopped_successfully
 $c$;
+
+-- Refresh steadytext_check_async_batch to avoid SQL name shadowing
+CREATE OR REPLACE FUNCTION steadytext_check_async_batch(
+    request_ids UUID[]
+)
+RETURNS TABLE(
+    request_id UUID,
+    status TEXT,
+    result TEXT,
+    error TEXT,
+    completed_at TIMESTAMPTZ
+)
+LANGUAGE sql
+STABLE PARALLEL SAFE
+AS $$
+    SELECT
+        q.request_id,
+        q.status,
+        q.result,
+        q.error,
+        q.completed_at
+    FROM @extschema@.steadytext_queue AS q
+    WHERE q.request_id = ANY(steadytext_check_async_batch.request_ids)
+    ORDER BY array_position(steadytext_check_async_batch.request_ids, q.request_id);
+$$;
 
 -- Final notice
 DO $$
