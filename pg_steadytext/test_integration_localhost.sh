@@ -115,7 +115,7 @@ log() {
 
 log_verbose() {
     if [ "$VERBOSE" = true ] && [ "$TAP_FORMAT" = false ]; then
-        echo -e "$1"
+        echo -e "$1" >&2
     fi
 }
 
@@ -139,7 +139,7 @@ run_sql_file() {
 
 test_passed() {
     local test_name="$1"
-    ((TESTS_PASSED++))
+    ((++TESTS_PASSED))
     if [ "$TAP_FORMAT" = true ]; then
         echo "ok $TESTS_RUN - $test_name"
     else
@@ -150,7 +150,7 @@ test_passed() {
 test_failed() {
     local test_name="$1"
     local error="$2"
-    ((TESTS_FAILED++))
+    ((++TESTS_FAILED))
     if [ "$TAP_FORMAT" = true ]; then
         echo "not ok $TESTS_RUN - $test_name"
         echo "# Error: $error"
@@ -163,7 +163,7 @@ test_failed() {
 test_skipped() {
     local test_name="$1"
     local reason="$2"
-    ((TESTS_SKIPPED++))
+    ((++TESTS_SKIPPED))
     if [ "$TAP_FORMAT" = true ]; then
         echo "ok $TESTS_RUN - $test_name # SKIP $reason"
     else
@@ -175,7 +175,7 @@ run_test() {
     local test_name="$1"
     local expected="$2"
     local sql="$3"
-    ((TESTS_RUN++))
+    ((++TESTS_RUN))
     
     log_verbose "\n${BLUE}Running test:${NC} $test_name"
     
@@ -227,7 +227,6 @@ setup_test_db() {
     # Install required extensions
     log_verbose "Installing required extensions..."
     run_sql "CREATE EXTENSION IF NOT EXISTS plpython3u" "$TEST_DB"
-    run_sql "CREATE EXTENSION IF NOT EXISTS pg_steadytext" "$TEST_DB"
     
     # Check if pgvector is available and install it
     if run_sql "SELECT 1 FROM pg_available_extensions WHERE name = 'vector'" | grep -q 1; then
@@ -235,6 +234,8 @@ setup_test_db() {
     else
         log "${YELLOW}Warning:${NC} pgvector extension not available, some tests will be skipped"
     fi
+
+    run_sql "CREATE EXTENSION IF NOT EXISTS pg_steadytext CASCADE" "$TEST_DB"
     
     log "${GREEN}✓${NC} Test database ready"
 }
@@ -283,8 +284,9 @@ main() {
     log "\n${BLUE}=== Basic Functionality Tests ===${NC}"
     
     # Test extension version
+    local installed_ext_version=$(run_sql "SELECT extversion FROM pg_extension WHERE extname = 'pg_steadytext'" "$TEST_DB")
     run_test "Extension version check" \
-        "1.4.1" \
+        "$installed_ext_version" \
         "SELECT steadytext_version()"
     
     # Test basic text generation
@@ -300,7 +302,7 @@ main() {
     else
         test_failed "Generation determinism" "Results differ: '$gen1' vs '$gen2'"
     fi
-    ((TESTS_RUN++))
+    ((++TESTS_RUN))
     
     # Test embedding generation
     if run_sql "SELECT 1 FROM pg_extension WHERE extname = 'vector'" "$TEST_DB" | grep -q 1; then
@@ -316,7 +318,7 @@ main() {
         else
             test_failed "Embedding determinism" "Embeddings differ"
         fi
-        ((TESTS_RUN++))
+        ((++TESTS_RUN))
         
         # Test embedding normalization
         run_test "Embedding normalization" \
@@ -357,12 +359,12 @@ main() {
     else
         test_failed "max_tokens parameter works" "Short: $short_gen, Long: $long_gen"
     fi
-    ((TESTS_RUN++))
+    ((++TESTS_RUN))
     
     # Test daemon status
     run_test "Daemon status check" \
         "t" \
-        "SELECT (steadytext_daemon_status()).daemon_available IS NOT NULL"
+        "SELECT COALESCE((SELECT status FROM steadytext_daemon_status() LIMIT 1), '') <> ''"
     
     # Test Python initialization
     run_test "Python environment initialized" \
@@ -388,7 +390,7 @@ main() {
     else
         test_failed "Cache hit for identical requests" "Cache size changed or results differ"
     fi
-    ((TESTS_RUN++))
+    ((++TESTS_RUN))
     
     # Test cache stats
     run_test "Cache statistics available" \
@@ -433,7 +435,7 @@ main() {
             "SELECT (steadytext_cache_evict_by_age(1, '1 day'::interval)).evicted_count >= 0"
     else
         test_skipped "Manual cache eviction" "No cache entries to evict"
-        ((TESTS_RUN++))
+        ((++TESTS_RUN))
     fi
     
     # Test cache for embeddings
@@ -447,7 +449,7 @@ main() {
             "SELECT $embed_cache_size"
     else
         test_skipped "Embedding cache works" "pgvector not installed"
-        ((TESTS_RUN++))
+        ((++TESTS_RUN))
     fi
     
     # Async queue tests
@@ -463,7 +465,7 @@ main() {
     else
         test_failed "Async generation returns UUID" "Got: $async_id"
     fi
-    ((TESTS_RUN++))
+    ((++TESTS_RUN))
     
     # Test async status check
     run_test "Async request in queue" \
@@ -478,7 +480,7 @@ main() {
             "SELECT '$embed_async_id'::uuid IS NOT NULL"
     else
         test_skipped "Async embed returns UUID" "pgvector not installed"
-        ((TESTS_RUN++))
+        ((++TESTS_RUN))
     fi
     
     # Test batch async operations
@@ -553,7 +555,7 @@ main() {
     else
         test_failed "JSON generation with schema" "Invalid JSON output: $json_result"
     fi
-    ((TESTS_RUN++))
+    ((++TESTS_RUN))
     
     # Test JSON validation
     run_test "Generated JSON is valid" \
@@ -569,7 +571,7 @@ main() {
     else
         test_failed "Regex generation matches pattern" "Got: $phone_result"
     fi
-    ((TESTS_RUN++))
+    ((++TESTS_RUN))
     
     # Test choice generation
     local choices="ARRAY['red', 'green', 'blue']"
@@ -580,7 +582,7 @@ main() {
     else
         test_failed "Choice generation returns valid option" "Got: $choice_result"
     fi
-    ((TESTS_RUN++))
+    ((++TESTS_RUN))
     
     # Test structured generation determinism
     local json1=$(run_sql "SELECT steadytext_generate_json('Test', '{\"type\": \"string\"}'::jsonb)" "$TEST_DB")
@@ -591,7 +593,7 @@ main() {
     else
         test_failed "Structured generation is deterministic" "Results differ"
     fi
-    ((TESTS_RUN++))
+    ((++TESTS_RUN))
     
     # Test complex JSON schema
     local complex_schema='{
@@ -633,7 +635,7 @@ main() {
     else
         test_failed "Structured generation uses cache" "Cache not updated"
     fi
-    ((TESTS_RUN++))
+    ((++TESTS_RUN))
     
     # Test error handling for invalid schemas
     local invalid_result=$(run_sql "SELECT steadytext_generate_json('Test', '{\"invalid\": \"schema\"}'::jsonb)" "$TEST_DB" 2>&1)
@@ -642,7 +644,7 @@ main() {
     else
         test_failed "Invalid schema handling" "Should have failed with invalid schema"
     fi
-    ((TESTS_RUN++))
+    ((++TESTS_RUN))
     
     # Test NULL handling in structured functions
     run_test "NULL prompt in JSON generation" \

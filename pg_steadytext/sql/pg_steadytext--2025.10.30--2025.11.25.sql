@@ -12,6 +12,14 @@ BEGIN
     RAISE NOTICE 'Functions now call steadytext library directly';
 END $$;
 
+CREATE OR REPLACE FUNCTION steadytext_version()
+RETURNS TEXT
+LANGUAGE sql
+IMMUTABLE PARALLEL SAFE LEAKPROOF
+AS $c$
+    SELECT '2025.11.25'::TEXT;
+$c$;
+
 -- Refresh _steadytext_init_python without dropping to preserve dependent objects
 
 CREATE OR REPLACE FUNCTION _steadytext_init_python()
@@ -22,20 +30,98 @@ AS $c$
 import sys
 import os
 import site
+import glob
+import shutil
+import subprocess
 
-# Get PostgreSQL lib directory with fallback
-try:
-    result = plpy.execute("SELECT setting FROM pg_settings WHERE name = 'pkglibdir'")
-    if result and len(result) > 0 and result[0]['setting']:
-        pg_lib_dir = result[0]['setting']
-    else:
-        # Fallback for Docker/Debian PostgreSQL 17
-        pg_lib_dir = '/usr/lib/postgresql/17/lib'
-        plpy.notice(f"Using fallback pkglibdir: {pg_lib_dir}")
-except Exception as e:
-    # Fallback for Docker/Debian PostgreSQL 17
-    pg_lib_dir = '/usr/lib/postgresql/17/lib'
-    plpy.notice(f"Error getting pkglibdir, using fallback: {pg_lib_dir}")
+# Resolve PostgreSQL libdir without pinning a server major version
+resolution_attempts = []
+
+def _resolve_pg_lib_dir():
+    env_libdir = os.environ.get('STEADYTEXT_PG_LIBDIR')
+    if env_libdir:
+        resolution_attempts.append(f"STEADYTEXT_PG_LIBDIR={env_libdir}")
+        if os.path.isdir(env_libdir):
+            return env_libdir
+        plpy.warning(f"STEADYTEXT_PG_LIBDIR does not exist: {env_libdir}")
+
+    pg_config_candidates = []
+    pg_config_path = shutil.which('pg_config')
+    if pg_config_path:
+        pg_config_candidates.append(pg_config_path)
+    pg_config_candidates.extend(
+        sorted(glob.glob('/usr/lib/postgresql/*/bin/pg_config'), reverse=True)
+    )
+    pg_config_candidates.extend(
+        sorted(glob.glob('/usr/pgsql-*/bin/pg_config'), reverse=True)
+    )
+
+    seen_pg_config = set()
+    for pg_config_cmd in pg_config_candidates:
+        if pg_config_cmd in seen_pg_config:
+            continue
+        seen_pg_config.add(pg_config_cmd)
+        resolution_attempts.append(f"pg_config:{pg_config_cmd}")
+        try:
+            detected_libdir = subprocess.check_output(
+                [pg_config_cmd, '--pkglibdir'],
+                stderr=subprocess.DEVNULL,
+                text=True,
+            ).strip()
+            if detected_libdir and os.path.isdir(detected_libdir):
+                return detected_libdir
+        except Exception:
+            continue
+
+    module_candidates = []
+    module_candidates.extend(
+        sorted(glob.glob('/usr/lib/postgresql/*/lib/pg_steadytext/python'), reverse=True)
+    )
+    module_candidates.extend(
+        sorted(glob.glob('/usr/pgsql-*/lib/pg_steadytext/python'), reverse=True)
+    )
+    for module_dir in module_candidates:
+        resolution_attempts.append(f"module-dir:{module_dir}")
+        if os.path.isdir(module_dir):
+            return os.path.dirname(os.path.dirname(module_dir))
+
+    try:
+        dynamic_lib_path_result = plpy.execute("SHOW dynamic_library_path")
+        dynamic_lib_path = (
+            dynamic_lib_path_result[0]['dynamic_library_path']
+            if dynamic_lib_path_result and len(dynamic_lib_path_result) > 0
+            else ''
+        )
+        if dynamic_lib_path:
+            for raw_entry in dynamic_lib_path.split(':'):
+                entry = raw_entry.strip()
+                if not entry or entry == '$libdir':
+                    continue
+                resolution_attempts.append(f"dynamic_library_path:{entry}")
+                if os.path.isdir(entry):
+                    return entry
+    except Exception:
+        pass
+
+    libdir_candidates = []
+    libdir_candidates.extend(sorted(glob.glob('/usr/lib/postgresql/*/lib'), reverse=True))
+    libdir_candidates.extend(sorted(glob.glob('/usr/pgsql-*/lib'), reverse=True))
+    for libdir in libdir_candidates:
+        resolution_attempts.append(f"libdir-candidate:{libdir}")
+        if os.path.isdir(libdir):
+            plpy.warning(f"Using fallback PostgreSQL libdir candidate: {libdir}")
+            return libdir
+
+    return None
+
+pg_lib_dir = _resolve_pg_lib_dir()
+if not pg_lib_dir:
+    plpy.error(
+        "Could not resolve PostgreSQL library directory for pg_steadytext. "
+        f"Tried: {resolution_attempts}. "
+        "Set STEADYTEXT_PG_LIBDIR to your PostgreSQL pkglibdir "
+        "(for example, output of `pg_config --pkglibdir`)."
+    )
 
 python_module_dir = os.path.join(pg_lib_dir, 'pg_steadytext', 'python')
 
@@ -105,8 +191,14 @@ for package, description in required_packages.items():
     except ImportError:
         missing_packages.append(f"{package} ({description})")
 
+def _cached_pg_lib_dir():
+    cached_dir = GD.get('pg_lib_dir', '')
+    if cached_dir:
+        return cached_dir
+    return pg_lib_dir
+
 if missing_packages:
-    pg_lib_dir = GD.get('pg_lib_dir', '/usr/lib/postgresql/17/lib')
+    pg_lib_dir = _cached_pg_lib_dir()
     site_packages_dir = os.path.join(pg_lib_dir, 'pg_steadytext', 'site-packages')
 
     error_msg = f"""
@@ -154,7 +246,7 @@ try:
     plpy.notice(f"pg_steadytext Python environment initialized successfully from {python_module_dir}")
 except ImportError as e:
     GD['steadytext_initialized'] = False
-    pg_lib_dir = GD.get('pg_lib_dir', '/usr/lib/postgresql/17/lib')
+    pg_lib_dir = _cached_pg_lib_dir()
     site_packages_dir = os.path.join(pg_lib_dir, 'pg_steadytext', 'site-packages')
 
     error_msg = f"""

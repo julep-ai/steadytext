@@ -3,7 +3,7 @@
 # AIDEV-NOTE: This creates a PostgreSQL image with pg_steadytext pre-installed
 # Optimized for build caching - dependencies first, source code last
 
-FROM postgres:17
+FROM postgres:18
 
 # Build arguments for model selection
 # AIDEV-NOTE: Use STEADYTEXT_USE_FALLBACK_MODEL=true to use known working models
@@ -17,17 +17,18 @@ ENV STEADYTEXT_USE_FALLBACK_MODEL=${STEADYTEXT_USE_FALLBACK_MODEL}
 # AIDEV-NOTE: TimescaleDB package installed and preloaded by default
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    PG_MAJOR="${PG_MAJOR:-$(psql --version | awk '{print $3}' | cut -d. -f1)}" && \
     apt-get update && \
     # Add TimescaleDB repository
     apt-get install -y gnupg postgresql-common apt-transport-https lsb-release wget && \
     echo "deb https://packagecloud.io/timescale/timescaledb/debian/ $(lsb_release -c -s) main" > /etc/apt/sources.list.d/timescaledb.list && \
     wget --quiet -O - https://packagecloud.io/timescale/timescaledb/gpgkey | gpg --dearmor -o /etc/apt/trusted.gpg.d/timescaledb.gpg && \
     apt-get update && apt-get install -y \
-    postgresql-server-dev-17 \
-    postgresql-plpython3-17 \
-    postgresql-17-pgvector \
-    postgresql-17-pgtap \
-    timescaledb-2-postgresql-17 \
+    postgresql-server-dev-${PG_MAJOR} \
+    postgresql-plpython3-${PG_MAJOR} \
+    postgresql-${PG_MAJOR}-pgvector \
+    postgresql-${PG_MAJOR}-pgtap \
+    timescaledb-2-postgresql-${PG_MAJOR} \
     python3-pip \
     python3-dev \
     make \
@@ -37,7 +38,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 # Configure PostgreSQL defaults for TimescaleDB
 # AIDEV-NOTE: Ensure new databases preload TimescaleDB library
-RUN for conf in /usr/share/postgresql/postgresql.conf.sample /usr/share/postgresql/17/postgresql.conf.sample; do \
+RUN PG_MAJOR="${PG_MAJOR:-$(psql --version | awk '{print $3}' | cut -d. -f1)}" && \
+    for conf in /usr/share/postgresql/postgresql.conf.sample /usr/share/postgresql/${PG_MAJOR}/postgresql.conf.sample; do \
         if [ -f "$conf" ]; then \
             sed -ri "s/^#?(shared_preload_libraries)\s*=.*/\1 = 'timescaledb'    # (change requires restart)/" "$conf"; \
         fi; \
