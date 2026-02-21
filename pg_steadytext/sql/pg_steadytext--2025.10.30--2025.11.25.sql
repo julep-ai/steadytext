@@ -12,6 +12,14 @@ BEGIN
     RAISE NOTICE 'Functions now call steadytext library directly';
 END $$;
 
+CREATE OR REPLACE FUNCTION steadytext_version()
+RETURNS TEXT
+LANGUAGE sql
+IMMUTABLE PARALLEL SAFE LEAKPROOF
+AS $c$
+    SELECT '2025.11.25'::TEXT;
+$c$;
+
 -- Refresh _steadytext_init_python without dropping to preserve dependent objects
 
 CREATE OR REPLACE FUNCTION _steadytext_init_python()
@@ -22,20 +30,174 @@ AS $c$
 import sys
 import os
 import site
+import glob
+import shutil
+import subprocess
+import re
 
-# Get PostgreSQL lib directory with fallback
-try:
-    result = plpy.execute("SELECT setting FROM pg_settings WHERE name = 'pkglibdir'")
-    if result and len(result) > 0 and result[0]['setting']:
-        pg_lib_dir = result[0]['setting']
-    else:
-        # Fallback for Docker/Debian PostgreSQL 17
-        pg_lib_dir = '/usr/lib/postgresql/17/lib'
-        plpy.notice(f"Using fallback pkglibdir: {pg_lib_dir}")
-except Exception as e:
-    # Fallback for Docker/Debian PostgreSQL 17
-    pg_lib_dir = '/usr/lib/postgresql/17/lib'
-    plpy.notice(f"Error getting pkglibdir, using fallback: {pg_lib_dir}")
+# Resolve PostgreSQL libdir while matching the running server major
+resolution_attempts = []
+
+def _server_major_version():
+    try:
+        version_result = plpy.execute("SHOW server_version_num")
+        if not version_result:
+            return None
+
+        version_num = int(version_result[0]['server_version_num'])
+        if version_num >= 100000:
+            return str(version_num // 10000)
+
+        # PostgreSQL < 10 used major.minor (for example, 9.6)
+        return f"{version_num // 10000}.{(version_num // 100) % 100}"
+    except Exception:
+        return None
+
+def _path_matches_server_major(path, server_major):
+    if not server_major:
+        return True
+
+    normalized_path = path.replace('\\', '/')
+
+    postgresql_match = re.search(r'/postgresql/([^/]+)/', normalized_path)
+    if postgresql_match:
+        return postgresql_match.group(1) == server_major
+
+    pgdg_match = re.search(r'/pgsql-([^/]+)/', normalized_path)
+    if pgdg_match:
+        hint = pgdg_match.group(1)
+        if '.' in server_major:
+            return hint == server_major
+        return hint == server_major or hint.startswith(f"{server_major}.")
+
+    # No version hint in the path; allow as potential fallback
+    return True
+
+def _pg_config_major(pg_config_cmd):
+    try:
+        version_output = subprocess.check_output(
+            [pg_config_cmd, '--version'],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except Exception:
+        return None
+
+    version_match = re.search(r'(\d+)(?:\.(\d+))?', version_output)
+    if not version_match:
+        return None
+
+    major = version_match.group(1)
+    if major == '9' and version_match.group(2):
+        return f"9.{version_match.group(2)}"
+    return major
+
+def _resolve_pg_lib_dir():
+    server_major = _server_major_version()
+    if server_major:
+        resolution_attempts.append(f"server_major={server_major}")
+
+    env_libdir = os.environ.get('STEADYTEXT_PG_LIBDIR')
+    if env_libdir:
+        resolution_attempts.append(f"STEADYTEXT_PG_LIBDIR={env_libdir}")
+        if os.path.isdir(env_libdir):
+            if _path_matches_server_major(env_libdir, server_major):
+                return env_libdir
+            plpy.warning(
+                f"STEADYTEXT_PG_LIBDIR does not match running PostgreSQL major "
+                f"({server_major}): {env_libdir}"
+            )
+        else:
+            plpy.warning(f"STEADYTEXT_PG_LIBDIR does not exist: {env_libdir}")
+
+    pg_config_candidates = []
+    pg_config_path = shutil.which('pg_config')
+    if pg_config_path:
+        pg_config_candidates.append(pg_config_path)
+    pg_config_candidates.extend(
+        sorted(glob.glob('/usr/lib/postgresql/*/bin/pg_config'), reverse=True)
+    )
+    pg_config_candidates.extend(
+        sorted(glob.glob('/usr/pgsql-*/bin/pg_config'), reverse=True)
+    )
+
+    seen_pg_config = set()
+    for pg_config_cmd in pg_config_candidates:
+        if pg_config_cmd in seen_pg_config:
+            continue
+        seen_pg_config.add(pg_config_cmd)
+        resolution_attempts.append(f"pg_config:{pg_config_cmd}")
+        try:
+            candidate_major = _pg_config_major(pg_config_cmd)
+            if server_major and candidate_major and candidate_major != server_major:
+                resolution_attempts.append(
+                    f"skip-pg_config-major:{pg_config_cmd}:{candidate_major}"
+                )
+                continue
+
+            detected_libdir = subprocess.check_output(
+                [pg_config_cmd, '--pkglibdir'],
+                stderr=subprocess.DEVNULL,
+                text=True,
+            ).strip()
+            if (
+                detected_libdir
+                and os.path.isdir(detected_libdir)
+                and _path_matches_server_major(detected_libdir, server_major)
+            ):
+                return detected_libdir
+        except Exception:
+            continue
+
+    module_candidates = []
+    module_candidates.extend(
+        sorted(glob.glob('/usr/lib/postgresql/*/lib/pg_steadytext/python'), reverse=True)
+    )
+    module_candidates.extend(
+        sorted(glob.glob('/usr/pgsql-*/lib/pg_steadytext/python'), reverse=True)
+    )
+    for module_dir in module_candidates:
+        resolution_attempts.append(f"module-dir:{module_dir}")
+        if os.path.isdir(module_dir) and _path_matches_server_major(module_dir, server_major):
+            return os.path.dirname(os.path.dirname(module_dir))
+
+    try:
+        dynamic_lib_path_result = plpy.execute("SHOW dynamic_library_path")
+        dynamic_lib_path = (
+            dynamic_lib_path_result[0]['dynamic_library_path']
+            if dynamic_lib_path_result and len(dynamic_lib_path_result) > 0
+            else ''
+        )
+        if dynamic_lib_path:
+            for raw_entry in dynamic_lib_path.split(':'):
+                entry = raw_entry.strip()
+                if not entry or entry == '$libdir':
+                    continue
+                resolution_attempts.append(f"dynamic_library_path:{entry}")
+                if os.path.isdir(entry) and _path_matches_server_major(entry, server_major):
+                    return entry
+    except Exception:
+        pass
+
+    libdir_candidates = []
+    libdir_candidates.extend(sorted(glob.glob('/usr/lib/postgresql/*/lib'), reverse=True))
+    libdir_candidates.extend(sorted(glob.glob('/usr/pgsql-*/lib'), reverse=True))
+    for libdir in libdir_candidates:
+        resolution_attempts.append(f"libdir-candidate:{libdir}")
+        if os.path.isdir(libdir) and _path_matches_server_major(libdir, server_major):
+            plpy.warning(f"Using fallback PostgreSQL libdir candidate: {libdir}")
+            return libdir
+
+    return None
+
+pg_lib_dir = _resolve_pg_lib_dir()
+if not pg_lib_dir:
+    plpy.error(
+        "Could not resolve PostgreSQL library directory for pg_steadytext. "
+        f"Tried: {resolution_attempts}. "
+        "Set STEADYTEXT_PG_LIBDIR to your PostgreSQL pkglibdir "
+        "(for example, output of `pg_config --pkglibdir`)."
+    )
 
 python_module_dir = os.path.join(pg_lib_dir, 'pg_steadytext', 'python')
 
@@ -105,8 +267,14 @@ for package, description in required_packages.items():
     except ImportError:
         missing_packages.append(f"{package} ({description})")
 
+def _cached_pg_lib_dir():
+    cached_dir = GD.get('pg_lib_dir', '')
+    if cached_dir:
+        return cached_dir
+    return pg_lib_dir
+
 if missing_packages:
-    pg_lib_dir = GD.get('pg_lib_dir', '/usr/lib/postgresql/17/lib')
+    pg_lib_dir = _cached_pg_lib_dir()
     site_packages_dir = os.path.join(pg_lib_dir, 'pg_steadytext', 'site-packages')
 
     error_msg = f"""
@@ -154,7 +322,7 @@ try:
     plpy.notice(f"pg_steadytext Python environment initialized successfully from {python_module_dir}")
 except ImportError as e:
     GD['steadytext_initialized'] = False
-    pg_lib_dir = GD.get('pg_lib_dir', '/usr/lib/postgresql/17/lib')
+    pg_lib_dir = _cached_pg_lib_dir()
     site_packages_dir = os.path.join(pg_lib_dir, 'pg_steadytext', 'site-packages')
 
     error_msg = f"""
@@ -1247,6 +1415,31 @@ plpy.execute(update_plan, [status_value])
 
 return stopped_successfully
 $c$;
+
+-- Refresh steadytext_check_async_batch to avoid SQL name shadowing
+CREATE OR REPLACE FUNCTION steadytext_check_async_batch(
+    request_ids UUID[]
+)
+RETURNS TABLE(
+    request_id UUID,
+    status TEXT,
+    result TEXT,
+    error TEXT,
+    completed_at TIMESTAMPTZ
+)
+LANGUAGE sql
+STABLE PARALLEL SAFE
+AS $$
+    SELECT
+        q.request_id,
+        q.status,
+        q.result,
+        q.error,
+        q.completed_at
+    FROM @extschema@.steadytext_queue AS q
+    WHERE q.request_id = ANY(steadytext_check_async_batch.request_ids)
+    ORDER BY array_position(steadytext_check_async_batch.request_ids, q.request_id);
+$$;
 
 -- Final notice
 DO $$

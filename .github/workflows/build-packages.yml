@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       postgresql_versions:
-        description: 'PostgreSQL versions to build for (comma-separated, e.g., 14,15,16,17)'
+        description: 'PostgreSQL versions to build for (comma-separated, e.g., 14,15,16,17,18)'
         required: false
-        default: '14,15,16,17'
+        default: '14,15,16,17,18'
 
 jobs:
   setup-matrix:
@@ -26,7 +26,7 @@ jobs:
           PG_VERSIONS=$(echo "${{ github.event.inputs.postgresql_versions }}" | jq -R -c 'split(",") | map(tonumber)')
         else
           # Default versions
-          PG_VERSIONS='[14,15,16,17]'
+          PG_VERSIONS='[14,15,16,17,18]'
         fi
         echo "pg_versions=$PG_VERSIONS" >> $GITHUB_OUTPUT
         echo "Building for PostgreSQL versions: $PG_VERSIONS"
